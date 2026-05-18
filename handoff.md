@@ -157,7 +157,6 @@ npm run build
 下一次重新開始本專案時，先讀：
 
 1. `handoff.md`
-2. `記憶.md`
+2. `memory.md`
 3. `git status --short`
 4. 必要時再讀 README 與相關程式檔
-
