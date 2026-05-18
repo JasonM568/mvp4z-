@@ -73,6 +73,12 @@ https://github.com/JasonM568/mvp4z-.git
   - `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ecpay`：`feature/ecpay-payments`
   - `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ai-member`：`feature/ai-member`
   - `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-admin`：`feature/admin-dashboard`
+- `feature/supabase-auth` 已開始實作 Supabase Auth：
+  - 新增 `lib/supabase/server.ts`。
+  - 新增 `lib/auth/member.ts`，負責驗證 Bearer token、確保 profile、輸出舊前端可用的 member shape。
+  - 實作 `/api/auth/register`、`/api/auth/login`、`/api/auth/logout`。
+  - 實作 `/api/member/me`、`/api/member/redeem`、`/api/member/usage`。
+  - 新增舊 Worker 相容路徑 `/api/register`、`/api/login`、`/api/logout`、`/api/me`、`/api/redeem`。
 - 已建立第一個 commit：
 
 ```text
@@ -113,13 +119,10 @@ npm run build
 
 ## 尚未完成
 
-目前 API route 都只是 `501` 佔位，還沒有真正接商業邏輯。
+部分 API route 仍是 `501` 佔位，還沒有真正接商業邏輯。
 
 待實作：
 
-- Supabase Auth 註冊 / 登入 / 登出。
-- 使用者 profile 建立與 session server-side 驗證。
-- 會員中心資料讀取。
 - 方案與訂單建立。
 - 綠界付款參數產生。
 - 綠界 `CheckMacValue` 驗證。
@@ -142,10 +145,9 @@ npm run build
 1. 到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-supabase-auth`。
 2. 建立 Supabase 專案與環境變數。
 3. 套用 `supabase/migrations` 與 `seed.sql`。
-4. 實作 `lib/supabase/server.ts`。
-5. 實作 `/api/auth/register`、`/api/auth/login`、`/api/auth/logout`。
-6. 改寫舊會員登入頁 JS 或改成 Next.js client component。
-7. 實作 `/api/member/me`。
+4. 用真 Supabase project 測試註冊、登入、`/api/me`。
+5. 依測試結果調整 auth 錯誤訊息與舊前端流程。
+6. 再切到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ecpay` 做訂單與綠界付款。
 
 ## 工作紀錄規則
 
