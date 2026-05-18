@@ -1,0 +1,49 @@
+{
+  "photos": [
+    {
+      "title": "陽宅現場諮詢",
+      "caption": "現場與屋主討論空間問題。",
+      "image": "assets/service-home.jpg"
+    },
+    {
+      "title": "陰宅／祖墳現場勘察",
+      "caption": "墓園形勢、來龍砂水與坐向盤點。",
+      "image": "assets/service-yin.jpg"
+    },
+    {
+      "title": "羅盤與雷射定位",
+      "caption": "以測量流程輔助方位判讀。",
+      "image": "assets/service-luopan-laser.jpg"
+    },
+    {
+      "title": "企業與專業課程講座",
+      "caption": "把風水轉譯成現代場域管理語言。",
+      "image": "assets/service-corporate-course.jpg"
+    },
+    {
+      "title": "塔位／墓園實務作業",
+      "caption": "重視程序、細節與家族需求。",
+      "image": "assets/service-tower.jpg"
+    },
+    {
+      "title": "戶外儀式與方位勘定",
+      "caption": "羅盤定位與團隊作業流程。",
+      "image": "assets/service-outdoor.jpg"
+    },
+    {
+      "title": "陽宅空屋測量",
+      "caption": "裝修或入住前先檢視格局與壓力點。",
+      "image": "assets/service-empty-house.jpg"
+    },
+    {
+      "title": "手機羅盤輔助定位",
+      "caption": "可作初步參考，正式仍以現場判讀為準。",
+      "image": "assets/service-mobile-compass.jpg"
+    },
+    {
+      "title": "巽風基礎課程",
+      "caption": "系統化建立風水理法與場域管理觀念。",
+      "image": "assets/service-classroom.jpg"
+    }
+  ]
+}

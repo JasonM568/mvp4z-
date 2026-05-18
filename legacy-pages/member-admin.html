@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>巽風 AI 會員管理</title><link rel="stylesheet" href="css/member.css">
+<script src="js/member-config.js"></script><script src="js/member-admin.js"></script>
+</head><body>
+<header class="topbar"><div class="wrap nav">
+  <a class="brand" href="index.html"><div class="mark">巽</div><div><strong>巽風堪輿</strong><small>XUNFENG FIELD STRATEGY</small></div></a>
+  <nav class="nav-actions">
+    <a class="btn" href="member-pricing.html">會員方案</a>
+    <a class="btn" href="login.html">登入</a>
+    <a class="btn primary" href="member-ai.html">AI 會員版</a>
+  </nav>
+</div></header>
+<section class="hero"><div class="wrap">
+  <div class="kicker">MEMBER ADMIN</div>
+  <h1>AI 會員管理<span class="accent">產生啟用碼與查看會員</span></h1>
+  <p class="lead">此頁不放在前台選單。只有風羿老師本人使用。Admin Key 請設定在 Worker Secret，不要外流。</p>
+</div></section>
+<section class="section"><div class="wrap grid two">
+  <article class="panel">
+    <h2>管理者金鑰</h2>
+    <label>Admin Key<input id="adminKey" type="password" placeholder="貼上 Worker 的 ADMIN_KEY"></label>
+  </article>
+  <article class="panel">
+    <h2>產生會員啟用碼</h2>
+    <div class="form">
+      <label>方案<select id="plan"><option value="basic">月費會員 basic</option><option value="pro">進階會員 pro</option><option value="vip">VIP 顧問 vip</option></select></label>
+      <label>有效天數<input id="days" type="number" value="30"></label>
+      <label>問答次數<input id="credits" type="number" value="100"></label>
+      <label>備註<input id="note" placeholder="例如 LINE Pay 已收款"></label>
+      <button class="btn primary" onclick="createCode()">產生啟用碼</button>
+      <div id="codeResult" class="status"></div>
+    </div>
+  </article>
+</div></section>
+<section class="section"><div class="wrap panel">
+  <h2>會員列表</h2>
+  <button class="btn" onclick="loadMembers()">讀取會員</button>
+  <div id="members" style="margin-top:18px"></div>
+</div></section>
+</body></html>

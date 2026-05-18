@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>巽風 AI 會員登入</title><link rel="stylesheet" href="css/member.css">
+<script src="js/member-config.js"></script><script src="js/member-auth.js"></script>
+</head><body>
+<header class="topbar"><div class="wrap nav">
+  <a class="brand" href="index.html"><div class="mark">巽</div><div><strong>巽風堪輿</strong><small>XUNFENG FIELD STRATEGY</small></div></a>
+  <nav class="nav-actions">
+    <a class="btn" href="member-pricing.html">會員方案</a>
+    <a class="btn" href="login.html">登入</a>
+    <a class="btn primary" href="member-ai.html">AI 會員版</a>
+  </nav>
+</div></header>
+<section class="hero"><div class="wrap">
+  <div class="kicker">MEMBER LOGIN</div>
+  <h1>會員登入<span class="accent">進入風羿老師 AI 會員版</span></h1>
+</div></section>
+<section class="section"><div class="wrap grid two">
+  <article class="panel">
+    <h2>登入會員</h2>
+    <div class="form">
+      <label>Email<input id="loginEmail" type="email" autocomplete="email"></label>
+      <label>密碼<input id="loginPassword" type="password" autocomplete="current-password"></label>
+      <button class="btn primary" onclick="loginMember()">登入</button>
+      <div id="loginStatus" class="status"></div>
+    </div>
+  </article>
+  <article class="panel">
+    <h2>建立新會員</h2>
+    <div class="form">
+      <label>姓名<input id="name" autocomplete="name"></label>
+      <label>Email<input id="email" type="email" autocomplete="email"></label>
+      <label>手機 / LINE<input id="phone"></label>
+      <label>密碼<input id="password" type="password" autocomplete="new-password"></label>
+      <button class="btn" onclick="registerMember()">建立帳號</button>
+      <div id="status" class="status"></div>
+    </div>
+  </article>
+</div></section>
+</body></html>

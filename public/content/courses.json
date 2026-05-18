@@ -1,0 +1,28 @@
+{
+  "courses": [
+    {
+      "title": "打造陽宅好風水",
+      "audience": "一般民眾、扶輪社、社團",
+      "description": "從住得順到事業順，用一般人聽得懂的方式理解居家場域。",
+      "image": "assets/service-classroom.jpg"
+    },
+    {
+      "title": "老闆必修的環境風險管理",
+      "audience": "企業主、高階主管、店面經營者",
+      "description": "把風水轉成企業主可理解的空間風險與營運節奏。",
+      "image": "assets/service-corporate-course.jpg"
+    },
+    {
+      "title": "風水與量子頻率",
+      "audience": "專業人士、知識型社群",
+      "description": "用頻率、場域、資訊與共振語彙，連結傳統智慧與現代思維。",
+      "image": "assets/proof-speaker.jpg"
+    },
+    {
+      "title": "AI 數據風水發展趨勢",
+      "audience": "協會、學校、企業與專業組織",
+      "description": "建立風水數位化、AI 前台與品牌知識庫的應用想像。",
+      "image": "assets/proof-hall.jpg"
+    }
+  ]
+}
