@@ -93,6 +93,14 @@ https://github.com/JasonM568/mvp4z-.git
   - AI 問答前會檢查有效 entitlement、到期日與剩餘點數。
   - 呼叫 OpenAI 前先扣 1 點；若 OpenAI 或寫紀錄失敗，會補回點數。
   - 成功後寫入 `usage_logs` 與 `credit_transactions`，並回傳舊前端可用的 `{ reply, member }`。
+- `feature/admin-dashboard` 已開始實作管理員 API：
+  - 新增 `lib/auth/admin.ts`。
+  - 管理驗證支援 Supabase `role=admin`，並暫時相容舊後台 `X-Admin-Key`。
+  - 實作 `/api/admin/members`。
+  - 實作 `/api/admin/orders`。
+  - 實作 `/api/admin/create-code`。
+  - 實作 `/api/admin/credits`。
+  - 管理操作會寫入 `admin_audit_logs`。
 - 已建立第一個 commit：
 
 ```text
@@ -137,23 +145,22 @@ npm run build
 
 待實作：
 
-- 管理員權限判斷。
-- 管理後台：會員、訂單、補點、啟用碼、audit logs。
 - Vercel 部署設定。
 - Supabase project 實際建立與 migration 套用。
 
 ## 下次建議先做
 
-下一步建議優先做管理員後台，因為 Auth、綠界訂單與 AI 問答骨架已經先接上。
+下一步建議優先用真實 Supabase/Vercel/綠界測試環境做整合測試。
 
 建議順序：
 
-1. 到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-admin`。
-2. 先 merge `develop`，取得 Auth 與綠界最新基底。
-3. 實作 admin role 檢查。
-4. 實作 `/api/admin/members`、`/api/admin/orders`。
-5. 實作 `/api/admin/create-code`。
-6. 實作 `/api/admin/credits` 與 `admin_audit_logs`。
+1. 在 Supabase 建 project，套用 migrations 與 seed。
+2. 在 `.env.local` 放 Supabase、OpenAI、綠界測試環境變數。
+3. 測試註冊、登入、`/api/me`。
+4. 測試 admin 建立啟用碼與會員 redeem。
+5. 測試 `/api/orders/create` 產生綠界表單參數。
+6. 用 ngrok 或 Vercel preview 測試綠界 notify。
+7. 測試 AI 問答扣點與點數不足情境。
 
 ## 工作紀錄規則
 

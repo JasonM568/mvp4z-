@@ -79,6 +79,15 @@ AI 會員問答已先接上：
 
 流程是先驗證會員 Bearer token，再檢查有效 `member_entitlements` 與剩餘額度。系統會先保留並扣 1 點，成功呼叫 OpenAI 後寫入 `usage_logs` 與 `credit_transactions`；若 OpenAI 呼叫或紀錄流程失敗，會補回點數。
 
+管理員 API 已先接上：
+
+- `/api/admin/members`
+- `/api/admin/orders`
+- `/api/admin/create-code`
+- `/api/admin/credits`
+
+管理員驗證支援 Supabase `profiles.role = admin`，也暫時相容舊後台使用的 `X-Admin-Key`。
+
 ## 本機開發
 
 ```bash
