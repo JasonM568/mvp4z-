@@ -72,6 +72,13 @@ Supabase Auth 已先接上：
 
 `/api/orders/create` 會建立 pending order，並回傳綠界 AioCheckOut V5 表單送出所需的 action URL 與 params。`notify` 會驗證 `CheckMacValue`，付款成功後更新 order、建立會員權益與點數交易紀錄。
 
+AI 會員問答已先接上：
+
+- `/api/ai/chat`
+- `/api/chat`
+
+流程是先驗證會員 Bearer token，再檢查有效 `member_entitlements` 與剩餘額度。系統會先保留並扣 1 點，成功呼叫 OpenAI 後寫入 `usage_logs` 與 `credit_transactions`；若 OpenAI 呼叫或紀錄流程失敗，會補回點數。
+
 ## 本機開發
 
 ```bash

@@ -86,6 +86,13 @@ https://github.com/JasonM568/mvp4z-.git
   - 實作 `/api/payments/ecpay/notify`，驗證 `CheckMacValue`、紀錄 payment、更新 order、建立會員權益與點數交易紀錄。
   - 實作 `/api/payments/ecpay/return`，處理付款完成後回站。
   - 新增 `supabase/migrations/0003_payment_idempotency.sql`，用於 payment/order entitlement 防重複。
+- `feature/ai-member` 已開始實作 AI 會員問答：
+  - 新增 `lib/ai/member-chat.ts`，集中 AI system instructions 與 OpenAI 呼叫。
+  - 實作 `/api/ai/chat`。
+  - 新增舊 Worker 相容路徑 `/api/chat`。
+  - AI 問答前會檢查有效 entitlement、到期日與剩餘點數。
+  - 呼叫 OpenAI 前先扣 1 點；若 OpenAI 或寫紀錄失敗，會補回點數。
+  - 成功後寫入 `usage_logs` 與 `credit_transactions`，並回傳舊前端可用的 `{ reply, member }`。
 - 已建立第一個 commit：
 
 ```text
@@ -130,9 +137,6 @@ npm run build
 
 待實作：
 
-- AI chat API。
-- AI 問答前檢查會員權益與剩餘額度。
-- AI 問答後扣點、寫入 `usage_logs` 與 `credit_transactions`。
 - 管理員權限判斷。
 - 管理後台：會員、訂單、補點、啟用碼、audit logs。
 - Vercel 部署設定。
@@ -140,18 +144,16 @@ npm run build
 
 ## 下次建議先做
 
-下一步建議優先做 AI 會員問答與扣點，因為 Auth 與綠界訂單骨架已經先接上。
+下一步建議優先做管理員後台，因為 Auth、綠界訂單與 AI 問答骨架已經先接上。
 
 建議順序：
 
-1. 到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ai-member`。
+1. 到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-admin`。
 2. 先 merge `develop`，取得 Auth 與綠界最新基底。
-3. 實作 `/api/ai/chat` 與舊相容 `/api/chat`。
-4. 檢查 active entitlement 與剩餘額度。
-5. 呼叫 OpenAI。
-6. 寫入 `usage_logs`。
-7. 扣 `member_entitlements.credits_remaining` 並寫入 `credit_transactions`。
-8. 回傳舊前端可用的 `{ reply, member }`。
+3. 實作 admin role 檢查。
+4. 實作 `/api/admin/members`、`/api/admin/orders`。
+5. 實作 `/api/admin/create-code`。
+6. 實作 `/api/admin/credits` 與 `admin_audit_logs`。
 
 ## 工作紀錄規則
 
