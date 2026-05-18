@@ -20,6 +20,7 @@ Cloudflare Pages + Cloudflare Worker + Cloudflare D1 + Formspree + Decap CMS
 
 - 不沿用原 GitHub repo 帳號底下的 repo。
 - 選擇「做法 1」：先在本機做好新版專案，之後再提供新的 GitHub repo URL。
+- 新版 GitHub repo URL 為 `https://github.com/JasonM568/mvp4z-.git`。
 - 舊 repo 只當素材來源，不作為新版正式 repo。
 - 前端頁面的風格、頁面內容與現有視覺先保持不變。
 - 新版技術架構採 Next.js + Supabase。
@@ -74,14 +75,10 @@ Cloudflare Pages + Cloudflare Worker + Cloudflare D1 + Formspree + Decap CMS
 
 目前 v2 是新的本機 Git repo。
 
-目前沒有 remote。
+新版 remote：
 
-等使用者提供新的 GitHub repo URL 後，再：
-
-```bash
-git remote add origin <new-repo-url>
-git branch -M main
-git push -u origin main
+```text
+origin https://github.com/JasonM568/mvp4z-.git
 ```
 
 ## 工作習慣

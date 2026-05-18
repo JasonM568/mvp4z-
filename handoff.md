@@ -6,7 +6,13 @@
 
 這是巽風官方網站 V2 的本機新專案，目標是把舊版 Cloudflare Pages + Worker + D1 架構，改成 Next.js + Supabase + 綠界金流 + OpenAI + Vercel。
 
-目前採用「本機先完成，不設定 GitHub remote」策略。舊 repo 只作為素材與內容來源。
+目前採用「新版獨立 repo」策略。舊 repo 只作為素材與內容來源。
+
+使用者已提供新版 GitHub repo：
+
+```text
+https://github.com/JasonM568/mvp4z-.git
+```
 
 本機路徑：
 
@@ -118,7 +124,6 @@ npm run build
 - 管理後台：會員、訂單、補點、啟用碼、audit logs。
 - Vercel 部署設定。
 - Supabase project 實際建立與 migration 套用。
-- 新 GitHub repo remote 設定與 push。
 
 ## 下次建議先做
 
