@@ -79,6 +79,13 @@ https://github.com/JasonM568/mvp4z-.git
   - 實作 `/api/auth/register`、`/api/auth/login`、`/api/auth/logout`。
   - 實作 `/api/member/me`、`/api/member/redeem`、`/api/member/usage`。
   - 新增舊 Worker 相容路徑 `/api/register`、`/api/login`、`/api/logout`、`/api/me`、`/api/redeem`。
+- `feature/ecpay-payments` 已開始實作綠界金流：
+  - 擴充 `lib/payments/ecpay.ts`，支援 MerchantTradeNo、綠界日期格式、AioCheckOut params、表單資料解析。
+  - 新增 `lib/payments/orders.ts`。
+  - 實作 `/api/orders/create`，登入會員可建立 pending order 並取得綠界 checkout form payload。
+  - 實作 `/api/payments/ecpay/notify`，驗證 `CheckMacValue`、紀錄 payment、更新 order、建立會員權益與點數交易紀錄。
+  - 實作 `/api/payments/ecpay/return`，處理付款完成後回站。
+  - 新增 `supabase/migrations/0003_payment_idempotency.sql`，用於 payment/order entitlement 防重複。
 - 已建立第一個 commit：
 
 ```text
@@ -123,11 +130,6 @@ npm run build
 
 待實作：
 
-- 方案與訂單建立。
-- 綠界付款參數產生。
-- 綠界 `CheckMacValue` 驗證。
-- 綠界付款通知 webhook idempotency。
-- 付款成功後建立會員權益與額度紀錄。
 - AI chat API。
 - AI 問答前檢查會員權益與剩餘額度。
 - AI 問答後扣點、寫入 `usage_logs` 與 `credit_transactions`。
@@ -138,16 +140,18 @@ npm run build
 
 ## 下次建議先做
 
-下一步建議優先做 Supabase Auth 與 server auth helpers，因為後續綠界訂單、會員中心、AI 扣點都依賴登入會員身份。
+下一步建議優先做 AI 會員問答與扣點，因為 Auth 與綠界訂單骨架已經先接上。
 
 建議順序：
 
-1. 到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-supabase-auth`。
-2. 建立 Supabase 專案與環境變數。
-3. 套用 `supabase/migrations` 與 `seed.sql`。
-4. 用真 Supabase project 測試註冊、登入、`/api/me`。
-5. 依測試結果調整 auth 錯誤訊息與舊前端流程。
-6. 再切到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ecpay` 做訂單與綠界付款。
+1. 到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ai-member`。
+2. 先 merge `develop`，取得 Auth 與綠界最新基底。
+3. 實作 `/api/ai/chat` 與舊相容 `/api/chat`。
+4. 檢查 active entitlement 與剩餘額度。
+5. 呼叫 OpenAI。
+6. 寫入 `usage_logs`。
+7. 扣 `member_entitlements.credits_remaining` 並寫入 `credit_transactions`。
+8. 回傳舊前端可用的 `{ reply, member }`。
 
 ## 工作紀錄規則
 

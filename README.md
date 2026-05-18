@@ -64,6 +64,14 @@ Supabase Auth 已先接上：
 
 其餘 API 仍是 `501` 佔位，後續逐步接綠界、OpenAI 與管理後台。
 
+綠界金流已先接上：
+
+- `/api/orders/create`
+- `/api/payments/ecpay/notify`
+- `/api/payments/ecpay/return`
+
+`/api/orders/create` 會建立 pending order，並回傳綠界 AioCheckOut V5 表單送出所需的 action URL 與 params。`notify` 會驗證 `CheckMacValue`，付款成功後更新 order、建立會員權益與點數交易紀錄。
+
 ## 本機開發
 
 ```bash
@@ -87,6 +95,12 @@ supabase/migrations/
 
 ```text
 supabase/seed.sql
+```
+
+付款防重複索引：
+
+```text
+supabase/migrations/0003_payment_idempotency.sql
 ```
 
 ## GitHub
