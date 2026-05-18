@@ -65,6 +65,14 @@ https://github.com/JasonM568/mvp4z-.git
 - 已執行 `npm install`。
 - 已執行 `npm run build`，build 通過。
 - 已初始化本機 Git。
+- 已設定 remote：`https://github.com/JasonM568/mvp4z-.git`。
+- 已建立並推送 `develop` 分支。
+- 已建立功能 worktree：
+  - `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-next-base`：`feature/next-base`
+  - `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-supabase-auth`：`feature/supabase-auth`
+  - `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ecpay`：`feature/ecpay-payments`
+  - `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ai-member`：`feature/ai-member`
+  - `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-admin`：`feature/admin-dashboard`
 - 已建立第一個 commit：
 
 ```text
@@ -131,12 +139,13 @@ npm run build
 
 建議順序：
 
-1. 建立 Supabase 專案與環境變數。
-2. 套用 `supabase/migrations` 與 `seed.sql`。
-3. 實作 `lib/supabase/server.ts`。
-4. 實作 `/api/auth/register`、`/api/auth/login`、`/api/auth/logout`。
-5. 改寫舊會員登入頁 JS 或改成 Next.js client component。
-6. 實作 `/api/member/me`。
+1. 到 `/Users/jasonmchen/codex-巽風系統/xunfeng-v2-supabase-auth`。
+2. 建立 Supabase 專案與環境變數。
+3. 套用 `supabase/migrations` 與 `seed.sql`。
+4. 實作 `lib/supabase/server.ts`。
+5. 實作 `/api/auth/register`、`/api/auth/login`、`/api/auth/logout`。
+6. 改寫舊會員登入頁 JS 或改成 Next.js client component。
+7. 實作 `/api/member/me`。
 
 ## 工作紀錄規則
 
