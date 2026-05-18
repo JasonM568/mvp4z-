@@ -1,6 +1,6 @@
 # Handoff
 
-更新時間：2026-05-18 Asia/Taipei
+更新時間：2026-05-18 Asia/Taipei，收工紀錄
 
 ## 目前狀態
 
@@ -109,17 +109,19 @@ e1e715e Initialize Next.js v2 scaffold
 
 ## 本機服務
 
-目前曾啟動過：
+今天曾啟動過：
 
 ```text
 http://localhost:3000
 ```
 
-使用者當前 in-app browser 位於：
+使用者收工時 in-app browser 位於：
 
 ```text
 http://localhost:3000/services
 ```
+
+收工前已停止 Next dev server，沒有刻意保留長時間執行程序。
 
 如果下次 server 沒有在跑，從專案根目錄執行：
 
@@ -135,18 +137,46 @@ npm run dev
 npm run build
 ```
 
-並確認 localhost 回應 `HTTP/1.1 200 OK`。
+今天最後一次是在 `develop` 整合線執行，通過。並曾確認 localhost 回應 `HTTP/1.1 200 OK`。
 
 注意：`npm install` 後顯示 `2 moderate severity vulnerabilities`。正式部署前要再處理。
 
+## 今日收工摘要
+
+今天完成並推送到 GitHub：
+
+- `feature/supabase-auth`：`343f3ea Implement Supabase member auth APIs`
+- `feature/ecpay-payments`：`edcbfad Implement ECPay order payment flow`
+- `feature/ai-member`：`3d1178f Implement AI member chat credits`
+- `feature/admin-dashboard`：`6557ea4 Implement admin management APIs`
+
+以上皆已 fast-forward merge 回 `develop`，並推送到 `origin/develop`。
+
+目前 `develop` 最新 commit：
+
+```text
+6557ea4 Implement admin management APIs
+```
+
+本次收工前確認：
+
+```text
+git status --short --branch
+## develop...origin/develop
+```
+
 ## 尚未完成
 
-部分 API route 仍是 `501` 佔位，還沒有真正接商業邏輯。
+核心後端骨架已完成並可編譯，但尚未接真實外部服務做端到端測試。
 
 待實作：
 
 - Vercel 部署設定。
 - Supabase project 實際建立與 migration 套用。
+- `.env.local` / Vercel env 實際設定。
+- 綠界測試商店參數設定與 webhook 測試。
+- OpenAI API key 實測。
+- npm audit 中的 `2 moderate severity vulnerabilities` 尚未處理。
 
 ## 下次建議先做
 
