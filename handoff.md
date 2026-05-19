@@ -222,10 +222,42 @@ git status --short --branch
 
 - 綠界 webhook idempotency 重送測試。
 - 修 `/api/payments/ecpay/return` 的 redirect URL bug。
+- **電子發票串接**（依台灣稅法，付款成功後須開立統一發票，目前完全沒做。詳見下方「電子發票串接 TODO」）。
 - AI chat 流程（缺 OpenAI API key）。
 - Vercel 部署設定（新 GitHub repo 已存在 `JasonM568/mvp4z-`，但 Vercel project 還沒建）。
 - `npm install` 顯示的 `2 moderate severity vulnerabilities` 尚未處理。
 - `.env.local` 的 URL 還停在 ngrok（已停用），下次續工前要先改回 `http://localhost:3000` 或新的 ngrok 網址。
+
+## 電子發票串接 TODO
+
+付款流程是收費系統的「前半段」，電子發票是「後半段」，目前**完全沒實作**，正式對外營運前必須補上。
+
+### 法規與選型
+
+- 台灣稅法要求：B2C 付款成功後須開立雲端發票（個人）或三聯式統一發票（公司戶）。
+- 選型方向（擇一）：
+  - 綠界電子發票模組（`https://invoice-stage.ecpay.com.tw/`），與目前金流串接同一供應商，後台合一最省事。
+  - 藍新 / ezPay 電子發票服務（若日後也想換金流可考慮）。
+  - 自建 → 不建議，發票格式與大平台對接（財政部 / 載具）規則繁瑣。
+- 預設往「**綠界電子發票**」走，後續若有商業考量再換。
+
+### 預期實作
+
+1. DB 新增 `invoices` table：欄位至少 `id`、`order_id`（FK orders）、`provider`、`invoice_number`、`random_code`、`buyer_type`（personal/company）、`buyer_name`、`buyer_id`（統編 / 個人手機條碼）、`carrier_type`、`carrier_num`、`donation_code`、`status`（issued/voided）、`raw_payload`、`issued_at`、`created_at`。
+2. `orders` 結帳前要收集發票相關資訊（個人 / 公司、載具、捐贈碼、抬頭、統編）。前端 `member-pricing` 頁面要加表單欄位。
+3. 後端 `/api/payments/ecpay/notify` 確認付款 `paid` 之後，**串行**呼叫綠界電子發票 API 開立發票，成功才回 `1|OK` 給綠界（或先回 OK 再非同步開票 + 重試，看可接受程度）。
+4. 新增 API：
+   - `POST /api/invoices/issue`（手動補開）
+   - `POST /api/invoices/void`（作廢，30 天內）
+   - `GET /api/invoices` / `GET /api/invoices/:id`（會員查自己發票）
+   - admin 也要有列表 + 補開 + 作廢介面。
+5. 新增 `.env` 變數：`ECPAY_INVOICE_MERCHANT_ID`、`ECPAY_INVOICE_HASH_KEY`、`ECPAY_INVOICE_HASH_IV`（沙箱 / 正式分開），以及預設開立來源（自動 / 手動）。
+6. 失敗處理：開票失敗要寫 audit log、要可重試；發票號碼用罄、字軌過期、買受人資料錯誤等錯誤碼要有對應 UI 訊息。
+
+### 與現有系統的接點
+
+- 開票時機：建議綁在 `payments` 寫入 `status=paid` 的同一個 transaction 之後（不要在 transaction 內呼叫外部 API，避免 hold 連線太久）。
+- 已測過的測試訂單 `XF2026051913034555C9` 目前沒對應發票，正式上線前要決定歷史測試資料如何清理。
 
 ## 下次建議先做
 
@@ -235,6 +267,7 @@ git status --short --branch
 4. 取得 OpenAI API key 後測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
 5. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
 6. 處理 npm audit 漏洞。
+7. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
 
 ## 工作紀錄規則
 
