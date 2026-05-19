@@ -1,6 +1,6 @@
 # Handoff
 
-更新時間：2026-05-18 Asia/Taipei，收工紀錄
+更新時間：2026-05-19 Asia/Taipei，整合測試進度
 
 ## 目前狀態
 
@@ -165,32 +165,76 @@ git status --short --branch
 ## develop...origin/develop
 ```
 
+## 2026-05-19 整合測試進度
+
+今天完成本機 + Supabase Cloud 整合測試，後端骨架四條主要鏈路打通。
+
+### 環境設定
+
+- 已安裝 Supabase CLI（`brew install supabase/tap/supabase`，目前 v2.100.0）。
+- 已建立 Supabase Cloud project：
+  - Reference ID：`pvasgmmjrodukudbzuhp`
+  - API URL：`https://pvasgmmjrodukudbzuhp.supabase.co`
+- `.env.local` 目前值（收工狀態，URL 都是 ngrok）：
+  - `NEXT_PUBLIC_SITE_URL=https://acclivous-tomi-prevailingly.ngrok-free.dev`（測完 webhook 後就停了，這個網址會作廢）
+  - `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY` 都填好。
+  - `ECPAY_ENV=sandbox`、`ECPAY_MERCHANT_ID=3002607`、`ECPAY_HASH_KEY=pwFHCqoQZGmho4w6`、`ECPAY_HASH_IV=EkRm7iFT261dpevs`（用綠界公開測試帳號，**不是**使用者自己的沙箱商店）
+  - `ECPAY_NOTIFY_URL` / `ECPAY_RETURN_URL` / `ECPAY_CLIENT_BACK_URL` 目前都指向 ngrok 網址，下次重啟前要先改回 `http://localhost:3000` 或新的 ngrok 網址。
+  - `OPENAI_API_KEY` 仍為空（AI chat 還沒測）。
+  - `ADMIN_EMAILS` 仍為空（程式碼目前沒引用，admin 透過 `profiles.role='admin'` 或 `ADMIN_KEY` header 驗證）。
+- 已執行 `supabase link --project-ref pvasgmmjrodukudbzuhp`，token 與 DB password 已存進 mac keychain。
+- 使用者自己申請的綠界沙箱商店 `3325455` / HashKey `vtOLMbfELHctscIw` / HashIV `nRGcBI1MSIGER2fW` 在綠界後台 **尚未啟用任何付款方式**（沙箱回 `10200141` 錯誤），需要先去 https://vendor-stage.ecpay.com.tw/ 啟用信用卡等付款方式才能用。在那之前都用綠界公開測試帳號 `3002607` 測流程。
+
+### Supabase 已套用 migrations + seed
+
+- `supabase db push` 套用了 `0001_init.sql`、`0002_rls.sql`、`0003_payment_idempotency.sql`。
+- seed 改用 PostgREST API 直接 insert 3 個方案（trial / basic / pro），因為 supabase CLI 的 seed 指令需要 config.toml。
+- 9 個 table 全部 HTTP 200 可存取。
+
+### 端到端測試結果（本機 dev server）
+
+| 流程 | 結果 |
+| --- | --- |
+| `POST /api/auth/register` | ✅ Supabase Auth 建 user + profile，回 JWT 與 PublicMember。 |
+| `GET /api/member/me` (Bearer) | ✅ 取得會員，初始 `status=pending`、`plan=free`、`credits_remaining=0`。 |
+| `POST /api/auth/login` | ✅ 同帳號重新發 token。 |
+| `POST /api/orders/create` (`basic`) | ✅ 寫入 pending order，產綠界 sandbox `AioCheckOut/V5` 表單參數與 `CheckMacValue`。 |
+| 直接改 DB 把 profile 升 admin | ✅ `role='admin'`。 |
+| `POST /api/admin/create-code` | ✅ 產出 `XF-XXXX-XXXX` 啟用碼。 |
+| `POST /api/member/redeem` | ✅ 升級成 `active`/`basic`/60 credits/30 天。 |
+| `GET /api/member/me` 二測 | ✅ 反映新 entitlement。 |
+| `POST /api/orders/create` (`pro`) → 走完綠界 sandbox 真實刷卡 → webhook 回 callback | ✅ ngrok 同時收到 `POST /api/payments/ecpay/notify` (200) 與 `POST /api/payments/ecpay/return` (307)。`orders.status` → `paid`、`payments.check_mac_valid=true`、`member_entitlements` 新增 pro 150 credits、`credit_transactions` 新增 grant +150 (source `ecpay_payment`、ref_id 為 order_no)。會員 me 顯示 `plan=pro` / `credits_remaining=150`。 |
+
+測試帳號（本機/sandbox 用）：
+
+- email：`test_1779164570@xunfeng.dev`
+- password：`testpass1234`
+- profile id：`185dff2c-9b48-484a-8449-3d457a0c6afa`
+- 已升 admin，已 redeem basic 方案，也已透過綠界 sandbox 完成一筆 pro 訂單。
+
+### 已知踩雷與待修
+
+- **綠界 sandbox 「模擬付款」按鈕不會發 webhook**：只做 browser redirect，沒有 server-to-server 通知。要測 webhook **必須走真實刷卡表單**（信用卡分頁 → 填卡號 `4311-9522-2222-2222` / `222` / `12/30` → 確認付款）。
+- **return endpoint redirect URL bug**：付款成功瀏覽器被導去 `https://localhost:3000/member?payment=paid&order=...`。「https + localhost」不通，正式部署前要修 `app/api/payments/ecpay/return/route.ts` 的 redirect 邏輯（應依 `request.url` 的 host 或 `NEXT_PUBLIC_SITE_URL` 組對應 protocol）。
+- **idempotency 沒測**：migration 0003 加了 `(provider, merchant_trade_no)` 與 `(provider, provider_trade_no)` 的 unique index，理論上重複 webhook 會被擋，但沒實際重送驗證。
+
 ## 尚未完成
 
-核心後端骨架已完成並可編譯，但尚未接真實外部服務做端到端測試。
-
-待實作：
-
-- Vercel 部署設定。
-- Supabase project 實際建立與 migration 套用。
-- `.env.local` / Vercel env 實際設定。
-- 綠界測試商店參數設定與 webhook 測試。
-- OpenAI API key 實測。
-- npm audit 中的 `2 moderate severity vulnerabilities` 尚未處理。
+- 綠界 webhook idempotency 重送測試。
+- 修 `/api/payments/ecpay/return` 的 redirect URL bug。
+- AI chat 流程（缺 OpenAI API key）。
+- Vercel 部署設定（新 GitHub repo 已存在 `JasonM568/mvp4z-`，但 Vercel project 還沒建）。
+- `npm install` 顯示的 `2 moderate severity vulnerabilities` 尚未處理。
+- `.env.local` 的 URL 還停在 ngrok（已停用），下次續工前要先改回 `http://localhost:3000` 或新的 ngrok 網址。
 
 ## 下次建議先做
 
-下一步建議優先用真實 Supabase/Vercel/綠界測試環境做整合測試。
-
-建議順序：
-
-1. 在 Supabase 建 project，套用 migrations 與 seed。
-2. 在 `.env.local` 放 Supabase、OpenAI、綠界測試環境變數。
-3. 測試註冊、登入、`/api/me`。
-4. 測試 admin 建立啟用碼與會員 redeem。
-5. 測試 `/api/orders/create` 產生綠界表單參數。
-6. 用 ngrok 或 Vercel preview 測試綠界 notify。
-7. 測試 AI 問答扣點與點數不足情境。
+1. 修 `.env.local` 的 URL（`NEXT_PUBLIC_SITE_URL`、`ECPAY_*_URL`）改回 `http://localhost:3000`，或重新開 ngrok 後改成新網址。
+2. 修 `app/api/payments/ecpay/return/route.ts` 的 redirect 邏輯（避免硬寫 https + localhost）。
+3. 重送一次 webhook 驗 idempotency（可用上次測試的 `2605191303547152` provider_trade_no 直接 POST 自己組的 payload）。
+4. 取得 OpenAI API key 後測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
+5. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
+6. 處理 npm audit 漏洞。
 
 ## 工作紀錄規則
 
@@ -219,3 +263,9 @@ git status --short --branch
 2. `memory.md`
 3. `git status --short`
 4. 必要時再讀 README 與相關程式檔
+
+## 收工時長時間程序狀態（2026-05-19）
+
+- 已停用：ngrok tunnel（網址 `acclivous-tomi-prevailingly.ngrok-free.dev` 已失效）。
+- 已停用：Next dev server。
+- 仍存在：Supabase Cloud project `pvasgmmjrodukudbzuhp`（持續運作，無費用問題，免費方案）。
