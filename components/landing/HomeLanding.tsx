@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { groupServicesByCategory, readServices, type ServiceItem } from "@/lib/site/services";
 
 const tiers = [
   { code: "trial", name: "免費體驗", price: "NT$0", note: "7 天 / 3 次", credits: "3 點", features: ["AI 即時問答 3 次", "不含易學決策報告"], cta: "註冊體驗", href: "/register", highlight: false },
@@ -24,7 +25,10 @@ const products = [
   }
 ];
 
-export function HomeLanding() {
+export async function HomeLanding() {
+  const services = await readServices();
+  const grouped = groupServicesByCategory(services);
+
   return (
     <main style={page}>
       <header style={topbar}>
@@ -38,7 +42,7 @@ export function HomeLanding() {
           </Link>
           <nav style={navActions}>
             <Link href="/about" style={navLink}>關於</Link>
-            <Link href="/services" style={navLink}>服務</Link>
+            <Link href="#service-catalog" style={navLink}>服務類別</Link>
             <Link href="/cases" style={navLink}>個案</Link>
             <Link href="/member-pricing" style={navLink}>會員方案</Link>
             <Link href="/login" style={navLink}>登入</Link>
@@ -60,6 +64,35 @@ export function HomeLanding() {
             <Link href="/register" style={ctaPrimary}>立即註冊體驗</Link>
             <Link href="/member-pricing" style={ctaSecondary}>查看會員方案</Link>
           </div>
+        </div>
+      </section>
+
+      <section id="service-catalog" style={{ ...section, paddingTop: 56 }}>
+        <div style={sectionInner}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <h2 style={sectionTitle}>服務類別總覽</h2>
+              <p style={sectionLead}>包含實體顧問、命名、命理輕顧問、與數位 AI 顧問四大類。</p>
+            </div>
+            <Link href="/services" style={{ color: "#10203A", fontWeight: 900, fontSize: 14, textDecoration: "none", borderBottom: "2px solid #10203A", paddingBottom: 2 }}>
+              查看全部服務 →
+            </Link>
+          </div>
+
+          {Object.entries(grouped).map(([category, items]) => (
+            <div key={category} style={{ marginTop: 32 }}>
+              <div style={categoryHeader}>
+                <span style={categoryDot} />
+                <h3 style={categoryName}>{category}</h3>
+                <span style={categoryCount}>{items.length} 項</span>
+              </div>
+              <div style={categoryGrid}>
+                {items.map((s: ServiceItem) => (
+                  <ServiceCard key={s.title} item={s} />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -150,6 +183,61 @@ export function HomeLanding() {
     </main>
   );
 }
+
+function ServiceCard({ item }: { item: ServiceItem }) {
+  const Wrapper = ({ children }: { children: React.ReactNode }) =>
+    item.href ? (
+      <Link href={item.href} style={serviceCardLink}>
+        {children}
+      </Link>
+    ) : (
+      <div style={serviceCardLink}>{children}</div>
+    );
+
+  return (
+    <Wrapper>
+      <article style={{ ...serviceCard, ...(item.highlight ? serviceCardHighlight : {}) }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={serviceCategoryTag}>{item.category}</div>
+          {item.badge && <div style={serviceBadge(item.highlight)}>{item.badge}</div>}
+        </div>
+        <h4 style={serviceTitle}>{item.title}</h4>
+        <p style={serviceDesc}>{item.description}</p>
+        <div style={servicePriceRow}>
+          <div style={servicePrice}>{item.price}</div>
+          {item.note && <div style={serviceNote}>{item.note}</div>}
+        </div>
+        {item.href && <div style={serviceCta}>立即使用 →</div>}
+      </article>
+    </Wrapper>
+  );
+}
+
+const categoryHeader: React.CSSProperties = { display: "flex", alignItems: "center", gap: 12, marginBottom: 16 };
+const categoryDot: React.CSSProperties = { display: "inline-block", width: 8, height: 8, borderRadius: 4, background: "#be955c" };
+const categoryName: React.CSSProperties = { fontSize: 18, fontWeight: 900, margin: 0, letterSpacing: -0.3 };
+const categoryCount: React.CSSProperties = { fontSize: 12, color: "#94a3b8", fontWeight: 700 };
+const categoryGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 };
+
+const serviceCardLink: React.CSSProperties = { display: "block", textDecoration: "none", color: "inherit" };
+const serviceCard: React.CSSProperties = { background: "white", padding: 20, borderRadius: 18, border: "1px solid #e2e8f0", height: "100%", transition: "all 0.2s", boxShadow: "0 2px 8px rgba(16,32,58,0.04)" };
+const serviceCardHighlight: React.CSSProperties = { background: "linear-gradient(135deg, #10203A 0%, #1c3458 100%)", color: "white", border: "1px solid #10203A", boxShadow: "0 12px 24px rgba(16,32,58,0.2)" };
+const serviceCategoryTag: React.CSSProperties = { fontSize: 10, fontWeight: 900, letterSpacing: 1, color: "#7d4f12", background: "#efd9b8", padding: "3px 10px", borderRadius: 999, display: "inline-block" };
+const serviceBadge = (highlight?: boolean): React.CSSProperties => ({
+  fontSize: 10,
+  fontWeight: 900,
+  padding: "3px 10px",
+  borderRadius: 999,
+  background: highlight ? "#efd9b8" : "#10203A",
+  color: highlight ? "#7d4f12" : "white",
+  letterSpacing: 1
+});
+const serviceTitle: React.CSSProperties = { fontSize: 17, fontWeight: 900, margin: "12px 0 6px", letterSpacing: -0.3 };
+const serviceDesc: React.CSSProperties = { fontSize: 13, lineHeight: 1.7, margin: 0, opacity: 0.85 };
+const servicePriceRow: React.CSSProperties = { marginTop: 14, paddingTop: 12, borderTop: "1px dashed rgba(148,163,184,0.4)" };
+const servicePrice: React.CSSProperties = { fontSize: 14, fontWeight: 900 };
+const serviceNote: React.CSSProperties = { fontSize: 11, opacity: 0.7, marginTop: 4, lineHeight: 1.5 };
+const serviceCta: React.CSSProperties = { fontSize: 12, fontWeight: 900, marginTop: 12, opacity: 0.9 };
 
 const page: React.CSSProperties = { background: "#f7f9fc", color: "#10203A", fontFamily: "system-ui, -apple-system, 'PingFang TC', sans-serif", minHeight: "100vh" };
 const topbar: React.CSSProperties = { position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.9)", borderBottom: "1px solid #e2e8f0", backdropFilter: "blur(12px)" };
