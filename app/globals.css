@@ -1,6 +1,10 @@
 @import "../styles/site.css";
 @import "../styles/member.css";
 
+/* Tailwind utilities only（不含 preflight，以保留 legacy 樣式） */
+@tailwind components;
+@tailwind utilities;
+
 html,
 body {
   min-height: 100%;
