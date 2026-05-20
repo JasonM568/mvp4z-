@@ -1,5 +1,6 @@
 "use client";
 
+import "./decision.css";
 import { useEffect, useMemo, useState } from "react";
 import {
   baziModes,
@@ -189,11 +190,11 @@ export default function DecisionPage() {
       </section>
 
       <section className="section">
-        <div className="wrap" style={{ display: "grid", gap: 22, gridTemplateColumns: "minmax(0,1fr) minmax(0,420px)" }}>
+        <div className="wrap council-shell">
           <div style={{ display: "grid", gap: 22 }}>
             <article className="panel">
               <h2>一、共同資料</h2>
-              <div className="form" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <div className="form council-grid-2">
                 <label>
                   案主姓名
                   <input value={form.clientName} onChange={(e) => update("clientName", e.target.value)} placeholder="例如：王先生" />
@@ -216,11 +217,11 @@ export default function DecisionPage() {
                     {reportTemplates.map((x) => <option key={x}>{x}</option>)}
                   </select>
                 </label>
-                <label style={{ gridColumn: "1 / -1" }}>
+                <label className="council-span-2">
                   問題主軸
                   <input value={form.question} onChange={(e) => update("question", e.target.value)} placeholder="例如：我今年是否適合投資？" />
                 </label>
-                <label style={{ gridColumn: "1 / -1" }}>
+                <label className="council-span-2">
                   背景補充
                   <textarea value={form.context} onChange={(e) => update("context", e.target.value)} placeholder="補充目前狀況、卡點、時間壓力、相關人物、資金條件。" />
                 </label>
@@ -229,7 +230,7 @@ export default function DecisionPage() {
 
             <article className="panel">
               <h2>二、出生年月日時</h2>
-              <div className="form" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+              <div className="form council-grid-4">
                 <label>曆法<select value={form.calendarType} onChange={(e) => update("calendarType", e.target.value)}>{calendarOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
                 <label>出生年<select value={form.birthYear} onChange={(e) => update("birthYear", Number(e.target.value))}>{years.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
                 <label>出生月<select value={form.birthMonth} onChange={(e) => update("birthMonth", Number(e.target.value))}>{months.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
@@ -245,7 +246,7 @@ export default function DecisionPage() {
               <h2>三、四術專用介面</h2>
               <p style={{ color: "var(--muted)", marginTop: -8, marginBottom: 18 }}>勾選要啟用的術數模組，至少保留一項。</p>
 
-              <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 22 }}>
+              <div className="council-grid-4" style={{ marginBottom: 22 }}>
                 {(
                   [
                     ["bazi", "八字命理", "依出生資料自動初判"],
@@ -279,7 +280,7 @@ export default function DecisionPage() {
                 })}
               </div>
 
-              <div className="form" style={{ gridTemplateColumns: "repeat(5, 1fr)", marginBottom: 16 }}>
+              <div className="form council-grid-5" style={{ marginBottom: 16 }}>
                 <label>事件年<select value={form.eventYear} onChange={(e) => update("eventYear", Number(e.target.value))}>{eventYears.map((x) => <option key={x}>{x}</option>)}</select></label>
                 <label>事件月<select value={form.eventMonth} onChange={(e) => update("eventMonth", Number(e.target.value))}>{months.map((x) => <option key={x}>{x}</option>)}</select></label>
                 <label>事件日<select value={form.eventDay} onChange={(e) => update("eventDay", Number(e.target.value))}>{days.map((x) => <option key={x}>{x}</option>)}</select></label>
@@ -295,7 +296,7 @@ export default function DecisionPage() {
 
               {modules.qimen && (
                 <SubPanel title="奇門遁甲">
-                  <div className="form" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div className="form council-grid-2">
                     <label>起局方式<select value={form.qimenTimeMode} onChange={(e) => update("qimenTimeMode", e.target.value)}>{qimenModes.map((x) => <option key={x}>{x}</option>)}</select></label>
                     <label>事件方位<select value={form.direction} onChange={(e) => update("direction", e.target.value)}>{trigramOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
                   </div>
@@ -304,7 +305,7 @@ export default function DecisionPage() {
 
               {modules.liuyao && (
                 <SubPanel title="卜卦／六爻">
-                  <div className="form" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                  <div className="form council-grid-3">
                     <label>起卦方式<select value={form.liuyaoMode} onChange={(e) => update("liuyaoMode", e.target.value)}>{liuyaoModes.map((x) => <option key={x}>{x}</option>)}</select></label>
                     {(["yao1", "yao2", "yao3", "yao4", "yao5", "yao6"] as const).map((k, i) => (
                       <label key={k}>
@@ -318,7 +319,7 @@ export default function DecisionPage() {
 
               {modules.meihua && (
                 <SubPanel title="梅花易數">
-                  <div className="form" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                  <div className="form council-grid-3">
                     <label>起卦方式<select value={form.meihuaMode} onChange={(e) => update("meihuaMode", e.target.value)}>{meihuaModes.map((x) => <option key={x}>{x}</option>)}</select></label>
                     <label>上卦<select value={form.upperTrigram} onChange={(e) => update("upperTrigram", e.target.value)}>{meihuaUpperTrigrams.map((x) => <option key={x}>{x}</option>)}</select></label>
                     <label>下卦<select value={form.lowerTrigram} onChange={(e) => update("lowerTrigram", e.target.value)}>{meihuaLowerTrigrams.map((x) => <option key={x}>{x}</option>)}</select></label>
@@ -340,7 +341,7 @@ export default function DecisionPage() {
             </article>
           </div>
 
-          <aside style={{ position: "sticky", top: 104, alignSelf: "start" }}>
+          <aside className="council-output">
             <article className="panel">
               <h2>四、輸出中心</h2>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>

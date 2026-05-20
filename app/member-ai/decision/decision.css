@@ -1,0 +1,75 @@
+/* 巽風易學決策報告｜RWD 樣式
+   斷點對齊 v2 既有 site.css/member.css：
+   - 1100px：主導覽改成 wrap
+   - 980px：工作台改成單欄（輸出中心移到下方）
+   - 840px：表單從多欄改成兩欄
+   - 640px：表單全部單欄、字級縮小
+*/
+
+.council-shell {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+}
+
+.council-grid-2 {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.council-grid-3 {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.council-grid-4 {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.council-grid-5 {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.council-span-2 {
+  grid-column: 1 / -1;
+}
+
+.council-output {
+  position: sticky;
+  top: 104px;
+  align-self: start;
+}
+
+@media (max-width: 1100px) {
+  .council-shell {
+    grid-template-columns: 1fr;
+  }
+  .council-output {
+    position: static;
+  }
+}
+
+@media (max-width: 840px) {
+  .council-grid-4,
+  .council-grid-5 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .council-grid-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .council-grid-2,
+  .council-grid-3,
+  .council-grid-4,
+  .council-grid-5 {
+    grid-template-columns: 1fr;
+  }
+}
