@@ -26,6 +26,7 @@ export type PublicMember = {
   name: string | null;
   email: string;
   phone: string | null;
+  role: string;
   plan: string;
   status: "pending" | "active" | "expired";
   credits_remaining: number;
@@ -91,6 +92,14 @@ export async function requireBearerProfile(request: NextRequest) {
   return { token, authUser: data.user, profile };
 }
 
+function isAdminEmail(email: string) {
+  const list = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes(email.toLowerCase());
+}
+
 export async function ensureProfileForAuthUser(input: {
   authUserId: string;
   email: string;
@@ -100,6 +109,8 @@ export async function ensureProfileForAuthUser(input: {
   if (!input.email) throw statusError("會員 Email 不存在", 400);
 
   const admin = createSupabaseAdminClient();
+  const desiredRole = isAdminEmail(input.email) ? "admin" : null;
+
   const { data: existing, error: selectError } = await admin
     .from("profiles")
     .select("id, auth_user_id, name, email, phone, role, created_at")
@@ -107,19 +118,32 @@ export async function ensureProfileForAuthUser(input: {
     .maybeSingle();
 
   if (selectError) throw selectError;
-  if (existing) return existing as Profile;
+  if (existing) {
+    // 若 email 在 ADMIN_EMAILS 但目前 role 還是 member，自動升 admin（單向不會降回 member）
+    if (desiredRole === "admin" && existing.role !== "admin") {
+      const { data: upgraded, error: upgradeErr } = await admin
+        .from("profiles")
+        .update({ role: "admin" })
+        .eq("id", existing.id)
+        .select("id, auth_user_id, name, email, phone, role, created_at")
+        .single();
+      if (upgradeErr) throw upgradeErr;
+      return upgraded as Profile;
+    }
+    return existing as Profile;
+  }
+
+  const newProfile: Record<string, unknown> = {
+    auth_user_id: input.authUserId,
+    email: input.email.toLowerCase(),
+    name: input.name || "",
+    phone: input.phone || ""
+  };
+  if (desiredRole) newProfile.role = desiredRole;
 
   const { data, error } = await admin
     .from("profiles")
-    .upsert(
-      {
-        auth_user_id: input.authUserId,
-        email: input.email.toLowerCase(),
-        name: input.name || "",
-        phone: input.phone || ""
-      },
-      { onConflict: "email" }
-    )
+    .upsert(newProfile, { onConflict: "email" })
     .select("id, auth_user_id, name, email, phone, role, created_at")
     .single();
 
@@ -165,6 +189,7 @@ export function toPublicMember(profile: Profile, entitlement?: Entitlement | nul
     name: profile.name,
     email: profile.email,
     phone: profile.phone,
+    role: profile.role || "member",
     plan: planCode,
     status: active ? "active" : entitlement ? "expired" : "pending",
     credits_remaining: entitlement?.credits_remaining || 0,
