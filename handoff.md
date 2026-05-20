@@ -215,18 +215,16 @@ git status --short --branch
 ### 已知踩雷與待修
 
 - **綠界 sandbox 「模擬付款」按鈕不會發 webhook**：只做 browser redirect，沒有 server-to-server 通知。要測 webhook **必須走真實刷卡表單**（信用卡分頁 → 填卡號 `4311-9522-2222-2222` / `222` / `12/30` → 確認付款）。
-- **return endpoint redirect URL bug**：付款成功瀏覽器被導去 `https://localhost:3000/member?payment=paid&order=...`。「https + localhost」不通，正式部署前要修 `app/api/payments/ecpay/return/route.ts` 的 redirect 邏輯（應依 `request.url` 的 host 或 `NEXT_PUBLIC_SITE_URL` 組對應 protocol）。
+- **return endpoint redirect URL bug 已於 2026-05-20 修正**：付款成功瀏覽器曾被導去 `https://localhost:3000/member?payment=paid&order=...`；目前已改用 `NEXT_PUBLIC_SITE_URL` 或 forwarded/request origin，localhost 強制使用 `http`。
 - **idempotency 沒測**：migration 0003 加了 `(provider, merchant_trade_no)` 與 `(provider, provider_trade_no)` 的 unique index，理論上重複 webhook 會被擋，但沒實際重送驗證。
 
 ## 尚未完成
 
 - 綠界 webhook idempotency 重送測試。
-- 修 `/api/payments/ecpay/return` 的 redirect URL bug。
 - **電子發票串接**（依台灣稅法，付款成功後須開立統一發票，目前完全沒做。詳見下方「電子發票串接 TODO」）。
-- AI chat 流程（缺 OpenAI API key）。
+- AI chat 流程尚未完整端到端驗證。
 - Vercel 部署設定（新 GitHub repo 已存在 `JasonM568/mvp4z-`，但 Vercel project 還沒建）。
 - `npm install` 顯示的 `2 moderate severity vulnerabilities` 尚未處理。
-- `.env.local` 的 URL 還停在 ngrok（已停用），下次續工前要先改回 `http://localhost:3000` 或新的 ngrok 網址。
 
 ## 電子發票串接 TODO
 
@@ -261,13 +259,28 @@ git status --short --branch
 
 ## 下次建議先做
 
-1. 修 `.env.local` 的 URL（`NEXT_PUBLIC_SITE_URL`、`ECPAY_*_URL`）改回 `http://localhost:3000`，或重新開 ngrok 後改成新網址。
-2. 修 `app/api/payments/ecpay/return/route.ts` 的 redirect 邏輯（避免硬寫 https + localhost）。
-3. 重送一次 webhook 驗 idempotency（可用上次測試的 `2605191303547152` provider_trade_no 直接 POST 自己組的 payload）。
-4. 取得 OpenAI API key 後測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
-5. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
-6. 處理 npm audit 漏洞。
-7. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+1. 重送一次 webhook 驗 idempotency（可用上次測試的 `2605191303547152` provider_trade_no 直接 POST 自己組的 payload）。
+2. 測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
+3. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
+4. 處理 npm audit 漏洞。
+5. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+
+## 2026-05-20 開工紀錄
+
+- `develop` 已前進到 `dd130c0 Merge feature/admin-portal: /admin-login + /admin tree`，handoff 先前仍停在 `6557ea4`，需以目前 git log 為準。
+- 已整合但舊 handoff 未完整記錄的功能：
+  - `f93b2f7 Merge feature/bookings-backend: consultation_bookings + booking form`
+  - `dd130c0 Merge feature/admin-portal: /admin-login + /admin tree`
+- 已把 `.env.local` 的 `NEXT_PUBLIC_SITE_URL`、`ECPAY_RETURN_URL`、`ECPAY_NOTIFY_URL`、`ECPAY_CLIENT_BACK_URL` 從失效 ngrok 改回 `http://localhost:3000`。
+- 已修 `app/api/payments/ecpay/return/route.ts`：
+  - 回站 redirect 改用 `NEXT_PUBLIC_SITE_URL` 或 forwarded/request origin。
+  - localhost / 127.0.0.1 強制使用 `http`。
+  - POST / GET redirect 改成 `303 See Other`。
+  - POST 回站用 `URLSearchParams` 帶 `payment` 與 `order`，避免手動 query encode。
+- 驗證：
+  - `npm run build` 通過。
+  - 本機 dev server 驗證 `GET /api/payments/ecpay/return` 回 `303 Location: http://localhost:3000/member`。
+  - 本機 dev server 驗證無效 POST payload 回 `303 Location: http://localhost:3000/member?payment=pending&order=XFTEST123`。
 
 ## 工作紀錄規則
 
