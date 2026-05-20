@@ -1,11 +1,22 @@
 export default function Loading() {
   return (
-    <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#ffffff,#f3f7fb_40%,#dfeaf5)] text-[#10203A]">
-      <div className="rounded-3xl border border-white bg-white/90 px-10 py-8 text-center shadow-2xl shadow-[#10203A]/10">
-        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[#10203A]/20 border-t-[#10203A]" />
-        <div className="text-lg font-black tracking-tight">巽風易學決策系統</div>
-        <div className="mt-2 text-sm text-[#607089]">載入工作台中⋯</div>
-      </div>
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+      <article className="panel" style={{ textAlign: "center", padding: "40px 56px" }}>
+        <div
+          style={{
+            margin: "0 auto 14px",
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            border: "4px solid rgba(111,240,180,.18)",
+            borderTopColor: "var(--green)",
+            animation: "council-spin 0.8s linear infinite"
+          }}
+        />
+        <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: ".08em" }}>巽風易學決策系統</div>
+        <div style={{ marginTop: 6, color: "var(--muted)", fontSize: 13 }}>載入工作台中⋯</div>
+        <style>{`@keyframes council-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </article>
     </main>
   );
 }

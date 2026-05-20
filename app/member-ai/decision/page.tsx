@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Download, Loader2, RefreshCw } from "lucide-react";
 import {
   baziModes,
   buildInitialForm,
@@ -31,65 +30,6 @@ import {
   type CouncilModules
 } from "./_form-config";
 import { buildCouncilPayload, runCouncilReport, getMemberToken, type CouncilApiResult } from "./_actions";
-
-function cx(...items: Array<string | false | undefined>) {
-  return items.filter(Boolean).join(" ");
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-black text-[#10203A]">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Select({ value, onChange, children }: { value: string | number; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-12 w-full rounded-2xl border border-[#d9e3f0] bg-white px-4 text-[15px] text-[#10203A] outline-none transition focus:border-[#10203A] focus:ring-4 focus:ring-[#10203A]/10"
-    >
-      {children}
-    </select>
-  );
-}
-
-function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="h-12 w-full rounded-2xl border border-[#d9e3f0] bg-white px-4 text-[15px] text-[#10203A] outline-none transition focus:border-[#10203A] focus:ring-4 focus:ring-[#10203A]/10"
-    />
-  );
-}
-
-function TextArea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="min-h-28 w-full rounded-2xl border border-[#d9e3f0] bg-white px-4 py-3 text-[15px] leading-7 text-[#10203A] outline-none transition focus:border-[#10203A] focus:ring-4 focus:ring-[#10203A]/10"
-    />
-  );
-}
-
-function CardTitle({ n, title, desc }: { n: string; title: string; desc?: string }) {
-  return (
-    <div className="mb-6 flex items-center gap-4">
-      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#10203A] text-xl font-black text-white shadow-lg">{n}</div>
-      <div>
-        <h2 className="text-2xl font-black tracking-tight text-[#10203A]">{title}</h2>
-        {desc && <p className="mt-1 text-sm leading-6 text-[#607089]">{desc}</p>}
-      </div>
-    </div>
-  );
-}
 
 type MemberInfo = {
   plan: string;
@@ -149,7 +89,7 @@ export default function DecisionPage() {
       return;
     }
     setLoading(true);
-    setNotice("巽風多維校核中…（最長約 90 秒）");
+    setNotice("巽風多維校核中，約需 60～90 秒…");
     setReport("");
     setJsonPacket(null);
 
@@ -202,171 +142,110 @@ export default function DecisionPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ffffff,#f3f7fb_40%,#dfeaf5)] text-[#10203A]">
-      <header className="sticky top-0 z-40 border-b border-[#dbe5f0] bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#10203A] text-xl text-white shadow-lg">☯</div>
+    <>
+      <header className="topbar">
+        <div className="wrap nav">
+          <a className="brand" href="/">
+            <div className="mark">巽</div>
             <div>
-              <h1 className="text-xl font-black tracking-tight">巽風易學決策系統</h1>
-              <p className="text-xs text-[#66758d]">四術同步｜多維校核｜可交付商業報告</p>
+              <strong>巽風堪輿</strong>
+              <small>XUNFENG FIELD STRATEGY</small>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
+          </a>
+          <nav className="nav-actions">
+            <a className="btn" href="/member-pricing">會員方案</a>
+            <a className="btn" href="/login">登入</a>
             {member && (
-              <div className="rounded-2xl bg-[#10203A]/5 px-4 py-2 text-right text-xs leading-5 text-[#10203A]">
-                <div className="font-black">{member.plan.toUpperCase()} 會員</div>
-                <div className="text-[#607089]">剩 {member.credits_remaining} 點</div>
-              </div>
+              <span className="btn" style={{ pointerEvents: "none", opacity: 0.85 }}>
+                {member.plan?.toUpperCase()} ｜ 剩 {member.credits_remaining} 點
+              </span>
             )}
-            <a href="#workbench" className="rounded-2xl bg-[#10203A] px-5 py-3 text-sm font-black text-white shadow-lg">
-              進入工作台
-            </a>
-          </div>
+            <a className="btn primary" href="/member-ai">AI 會員版</a>
+          </nav>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1.1fr_.9fr]">
-        <div className="rounded-[2.5rem] border border-white bg-white/90 p-8 shadow-2xl shadow-[#10203A]/10">
-          <div className="mb-4 inline-flex rounded-full bg-[#efd9b8] px-4 py-2 text-sm font-black text-[#7d4f12]">
-            Premium Consulting System
-          </div>
-          <h2 className="max-w-3xl text-4xl font-black leading-tight tracking-tight md:text-5xl">把問事流程，升級成可交付的顧問報告。</h2>
-          <p className="mt-5 text-lg leading-9 text-[#607089]">
-            四術同步、十段結構、可下載 .md。結合八字、奇門、卜卦／六爻、梅花易數，由巽風多維校核系統整合輸出風羿老師綜合判讀。
+      <section className="hero">
+        <div className="wrap">
+          <div className="kicker">YIXUE DECISION COUNCIL</div>
+          <h1>
+            巽風易學決策報告
+            <span className="accent">四術同步 × 多維校核 × 可交付顧問書</span>
+          </h1>
+          <p className="lead">
+            結合八字、奇門遁甲、卜卦／六爻、梅花易數，由巽風多維校核系統內部攻防，輸出十段商業顧問報告，含 3／7／30 日行動方案與停損條件。
           </p>
-          {costHint && (
-            <div className="mt-6 inline-flex rounded-2xl border border-[#10203A]/10 bg-white px-5 py-3 text-sm font-black text-[#10203A]">
-              {costHint}
-            </div>
-          )}
-          {!canUseCouncil && member && (
-            <div className="mt-4 rounded-2xl border border-[#efd9b8] bg-[#fff8eb] px-5 py-3 text-sm font-black text-[#7d4f12]">
-              目前 {member.plan.toUpperCase()} 方案不含易學決策報告，請升級至基礎會員以上。
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-[2.5rem] bg-[#10203A] p-8 text-white shadow-2xl shadow-[#10203A]/20">
-          <div className="mb-5 w-fit rounded-full bg-[#efd9b8] px-4 py-2 text-sm font-black text-[#7d4f12]">商業化重點</div>
-          <div className="space-y-5 text-lg leading-8">
-            <p>✓ 下拉式出生年月日時</p>
-            <p>✓ 八字、奇門、六爻、梅花獨立介面</p>
-            <p>✓ 巽風多維校核（內部攻防 + 終稿定稿）</p>
-            <p>✓ 正式報告與 JSON 可複製下載</p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22, alignItems: "center" }}>
+            {costHint && (
+              <span className="badge" style={{ marginBottom: 0 }}>{costHint}</span>
+            )}
+            {!canUseCouncil && member && (
+              <span className="badge" style={{ background: "rgba(210,169,84,.18)", borderColor: "rgba(210,169,84,.45)", color: "#ffdfa0", marginBottom: 0 }}>
+                {member.plan?.toUpperCase()} 方案不含此功能，請升級至基礎會員以上
+              </span>
+            )}
           </div>
         </div>
       </section>
 
-      <section id="workbench" className="mx-auto max-w-7xl px-5 pb-12">
-        <div className="grid gap-8 lg:grid-cols-[1fr_420px]">
-          <div className="space-y-6">
-            <div className="rounded-[2rem] border border-white bg-white/90 p-6 shadow-xl shadow-[#10203A]/10">
-              <CardTitle n="1" title="共同資料" />
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field label="案主姓名">
-                  <TextInput value={form.clientName} onChange={(v) => update("clientName", v)} placeholder="例如：王先生" />
-                </Field>
-                <Field label="性別／身分">
-                  <Select value={form.gender} onChange={(v) => update("gender", v)}>
-                    {genderOptions.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="問題類型">
-                  <Select value={form.topic} onChange={(v) => update("topic", v)}>
-                    {topics.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="報告模板">
-                  <Select value={form.reportTemplate} onChange={(v) => update("reportTemplate", v)}>
-                    {reportTemplates.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <div className="md:col-span-2">
-                  <Field label="問題主軸">
-                    <TextInput value={form.question} onChange={(v) => update("question", v)} placeholder="例如：我今年是否適合投資？" />
-                  </Field>
-                </div>
-                <div className="md:col-span-2">
-                  <Field label="背景補充">
-                    <TextArea value={form.context} onChange={(v) => update("context", v)} placeholder="補充目前狀況、卡點、時間壓力、相關人物、資金條件。" />
-                  </Field>
-                </div>
+      <section className="section">
+        <div className="wrap" style={{ display: "grid", gap: 22, gridTemplateColumns: "minmax(0,1fr) minmax(0,420px)" }}>
+          <div style={{ display: "grid", gap: 22 }}>
+            <article className="panel">
+              <h2>一、共同資料</h2>
+              <div className="form" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <label>
+                  案主姓名
+                  <input value={form.clientName} onChange={(e) => update("clientName", e.target.value)} placeholder="例如：王先生" />
+                </label>
+                <label>
+                  性別／身分
+                  <select value={form.gender} onChange={(e) => update("gender", e.target.value)}>
+                    {genderOptions.map((x) => <option key={x}>{x}</option>)}
+                  </select>
+                </label>
+                <label>
+                  問題類型
+                  <select value={form.topic} onChange={(e) => update("topic", e.target.value)}>
+                    {topics.map((x) => <option key={x}>{x}</option>)}
+                  </select>
+                </label>
+                <label>
+                  報告模板
+                  <select value={form.reportTemplate} onChange={(e) => update("reportTemplate", e.target.value)}>
+                    {reportTemplates.map((x) => <option key={x}>{x}</option>)}
+                  </select>
+                </label>
+                <label style={{ gridColumn: "1 / -1" }}>
+                  問題主軸
+                  <input value={form.question} onChange={(e) => update("question", e.target.value)} placeholder="例如：我今年是否適合投資？" />
+                </label>
+                <label style={{ gridColumn: "1 / -1" }}>
+                  背景補充
+                  <textarea value={form.context} onChange={(e) => update("context", e.target.value)} placeholder="補充目前狀況、卡點、時間壓力、相關人物、資金條件。" />
+                </label>
               </div>
-            </div>
+            </article>
 
-            <div className="rounded-[2rem] border border-white bg-white/90 p-6 shadow-xl shadow-[#10203A]/10">
-              <CardTitle n="2" title="出生年月日時｜下拉式輸入" />
-              <div className="grid gap-5 md:grid-cols-4">
-                <Field label="曆法">
-                  <Select value={form.calendarType} onChange={(v) => update("calendarType", v)}>
-                    {calendarOptions.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="出生年">
-                  <Select value={form.birthYear} onChange={(v) => update("birthYear", Number(v))}>
-                    {years.map((x) => (
-                      <option key={x} value={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="出生月">
-                  <Select value={form.birthMonth} onChange={(v) => update("birthMonth", Number(v))}>
-                    {months.map((x) => (
-                      <option key={x} value={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="出生日">
-                  <Select value={form.birthDay} onChange={(v) => update("birthDay", Number(v))}>
-                    {days.map((x) => (
-                      <option key={x} value={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="出生時辰">
-                  <Select value={form.birthHourBranch} onChange={(v) => update("birthHourBranch", v)}>
-                    {hourBranches.map((x) => (
-                      <option key={x[0]} value={x[0]}>{x[0]}｜{x[1]}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="是否閏月">
-                  <Select value={form.isLeapMonth} onChange={(v) => update("isLeapMonth", v)}>
-                    {yesNoUncertain.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="時辰是否確定">
-                  <Select value={form.birthTimeKnown} onChange={(v) => update("birthTimeKnown", v)}>
-                    {yesNoUncertain2.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="策略校核層">
-                  <Select value={form.reviewMode} onChange={(v) => update("reviewMode", v)}>
-                    {reviewModes.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </Select>
-                </Field>
+            <article className="panel">
+              <h2>二、出生年月日時</h2>
+              <div className="form" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+                <label>曆法<select value={form.calendarType} onChange={(e) => update("calendarType", e.target.value)}>{calendarOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <label>出生年<select value={form.birthYear} onChange={(e) => update("birthYear", Number(e.target.value))}>{years.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                <label>出生月<select value={form.birthMonth} onChange={(e) => update("birthMonth", Number(e.target.value))}>{months.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                <label>出生日<select value={form.birthDay} onChange={(e) => update("birthDay", Number(e.target.value))}>{days.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                <label>出生時辰<select value={form.birthHourBranch} onChange={(e) => update("birthHourBranch", e.target.value)}>{hourBranches.map((x) => <option key={x[0]} value={x[0]}>{x[0]}｜{x[1]}</option>)}</select></label>
+                <label>是否閏月<select value={form.isLeapMonth} onChange={(e) => update("isLeapMonth", e.target.value)}>{yesNoUncertain.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <label>時辰是否確定<select value={form.birthTimeKnown} onChange={(e) => update("birthTimeKnown", e.target.value)}>{yesNoUncertain2.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <label>策略校核層<select value={form.reviewMode} onChange={(e) => update("reviewMode", e.target.value)}>{reviewModes.map((x) => <option key={x}>{x}</option>)}</select></label>
               </div>
-            </div>
+            </article>
 
-            <div className="rounded-[2rem] border border-white bg-white/90 p-6 shadow-xl shadow-[#10203A]/10">
-              <CardTitle n="3" title="四術專用介面" desc="保留原 v3 工作台體驗，由巽風多維校核系統協力。" />
+            <article className="panel">
+              <h2>三、四術專用介面</h2>
+              <p style={{ color: "var(--muted)", marginTop: -8, marginBottom: 18 }}>勾選要啟用的術數模組，至少保留一項。</p>
 
-              <div className="mb-6 grid gap-3 md:grid-cols-4">
+              <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(4, 1fr)", marginBottom: 22 }}>
                 {(
                   [
                     ["bazi", "八字命理", "依出生資料自動初判"],
@@ -374,163 +253,140 @@ export default function DecisionPage() {
                     ["liuyao", "卜卦／六爻", "成敗／卡點／應期"],
                     ["meihua", "梅花易數", "象意／變化／提示"]
                   ] as const
-                ).map(([key, title, desc]) => (
-                  <button
-                    key={key}
-                    onClick={() => toggleModule(key as keyof CouncilModules)}
-                    className={cx(
-                      "rounded-2xl border p-4 text-left transition",
-                      modules[key as keyof CouncilModules] ? "border-[#10203A] bg-[#10203A] text-white" : "border-[#d9e3f0] bg-white text-[#10203A]"
-                    )}
-                  >
-                    <div className="font-black">{title}</div>
-                    <div className={cx("mt-1 text-xs", modules[key as keyof CouncilModules] ? "text-slate-300" : "text-[#607089]")}>{desc}</div>
-                  </button>
-                ))}
+                ).map(([key, title, desc]) => {
+                  const active = modules[key as keyof CouncilModules];
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => toggleModule(key as keyof CouncilModules)}
+                      style={{
+                        textAlign: "left",
+                        padding: "16px 18px",
+                        borderRadius: 20,
+                        border: active ? "1px solid var(--green)" : "1px solid var(--line)",
+                        background: active
+                          ? "linear-gradient(180deg,rgba(111,240,180,.18),rgba(111,240,180,.06))"
+                          : "rgba(255,255,255,.04)",
+                        color: "var(--text)",
+                        cursor: "pointer",
+                        fontFamily: "inherit"
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, fontSize: 16, color: active ? "var(--green)" : "var(--text)" }}>{title}</div>
+                      <div style={{ marginTop: 6, fontSize: 12, color: "var(--muted)" }}>{desc}</div>
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="mb-6 grid gap-5 md:grid-cols-5">
-                <Field label="事件年">
-                  <Select value={form.eventYear} onChange={(v) => update("eventYear", Number(v))}>
-                    {eventYears.map((x) => (<option key={x}>{x}</option>))}
-                  </Select>
-                </Field>
-                <Field label="事件月">
-                  <Select value={form.eventMonth} onChange={(v) => update("eventMonth", Number(v))}>
-                    {months.map((x) => (<option key={x}>{x}</option>))}
-                  </Select>
-                </Field>
-                <Field label="事件日">
-                  <Select value={form.eventDay} onChange={(v) => update("eventDay", Number(v))}>
-                    {days.map((x) => (<option key={x}>{x}</option>))}
-                  </Select>
-                </Field>
-                <Field label="事件時">
-                  <Select value={form.eventHour} onChange={(v) => update("eventHour", Number(v))}>
-                    {hours.map((x) => (<option key={x}>{x}</option>))}
-                  </Select>
-                </Field>
-                <Field label="事件分">
-                  <Select value={form.eventMinute} onChange={(v) => update("eventMinute", Number(v))}>
-                    {minutes.map((x) => (<option key={x}>{x}</option>))}
-                  </Select>
-                </Field>
+              <div className="form" style={{ gridTemplateColumns: "repeat(5, 1fr)", marginBottom: 16 }}>
+                <label>事件年<select value={form.eventYear} onChange={(e) => update("eventYear", Number(e.target.value))}>{eventYears.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <label>事件月<select value={form.eventMonth} onChange={(e) => update("eventMonth", Number(e.target.value))}>{months.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <label>事件日<select value={form.eventDay} onChange={(e) => update("eventDay", Number(e.target.value))}>{days.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <label>事件時<select value={form.eventHour} onChange={(e) => update("eventHour", Number(e.target.value))}>{hours.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <label>事件分<select value={form.eventMinute} onChange={(e) => update("eventMinute", Number(e.target.value))}>{minutes.map((x) => <option key={x}>{x}</option>)}</select></label>
               </div>
 
               {modules.bazi && (
-                <div className="mb-5 rounded-3xl border border-[#d9e3f0] bg-[#f8fafc] p-5">
-                  <Field label="八字命理">
-                    <Select value={form.baziMode} onChange={(v) => update("baziMode", v)}>
-                      {baziModes.map((x) => (<option key={x}>{x}</option>))}
-                    </Select>
-                  </Field>
-                </div>
+                <SubPanel title="八字命理">
+                  <label>判讀方式<select value={form.baziMode} onChange={(e) => update("baziMode", e.target.value)}>{baziModes.map((x) => <option key={x}>{x}</option>)}</select></label>
+                </SubPanel>
               )}
 
               {modules.qimen && (
-                <div className="mb-5 grid gap-5 rounded-3xl border border-[#d9e3f0] bg-[#f8fafc] p-5 md:grid-cols-2">
-                  <Field label="奇門遁甲｜起局方式">
-                    <Select value={form.qimenTimeMode} onChange={(v) => update("qimenTimeMode", v)}>
-                      {qimenModes.map((x) => (<option key={x}>{x}</option>))}
-                    </Select>
-                  </Field>
-                  <Field label="奇門遁甲｜事件方位">
-                    <Select value={form.direction} onChange={(v) => update("direction", v)}>
-                      {trigramOptions.map((x) => (<option key={x}>{x}</option>))}
-                    </Select>
-                  </Field>
-                </div>
+                <SubPanel title="奇門遁甲">
+                  <div className="form" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <label>起局方式<select value={form.qimenTimeMode} onChange={(e) => update("qimenTimeMode", e.target.value)}>{qimenModes.map((x) => <option key={x}>{x}</option>)}</select></label>
+                    <label>事件方位<select value={form.direction} onChange={(e) => update("direction", e.target.value)}>{trigramOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
+                  </div>
+                </SubPanel>
               )}
 
               {modules.liuyao && (
-                <div className="mb-5 rounded-3xl border border-[#d9e3f0] bg-[#f8fafc] p-5">
-                  <div className="grid gap-5 md:grid-cols-3">
-                    <Field label="六爻｜起卦方式">
-                      <Select value={form.liuyaoMode} onChange={(v) => update("liuyaoMode", v)}>
-                        {liuyaoModes.map((x) => (<option key={x}>{x}</option>))}
-                      </Select>
-                    </Field>
+                <SubPanel title="卜卦／六爻">
+                  <div className="form" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    <label>起卦方式<select value={form.liuyaoMode} onChange={(e) => update("liuyaoMode", e.target.value)}>{liuyaoModes.map((x) => <option key={x}>{x}</option>)}</select></label>
                     {(["yao1", "yao2", "yao3", "yao4", "yao5", "yao6"] as const).map((k, i) => (
-                      <Field key={k} label={["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"][i]}>
-                        <Select value={form[k]} onChange={(v) => update(k, v)}>
-                          {yaoOptions.map((x) => (<option key={x}>{x}</option>))}
-                        </Select>
-                      </Field>
+                      <label key={k}>
+                        {["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"][i]}
+                        <select value={form[k]} onChange={(e) => update(k, e.target.value)}>{yaoOptions.map((x) => <option key={x}>{x}</option>)}</select>
+                      </label>
                     ))}
                   </div>
-                </div>
+                </SubPanel>
               )}
 
               {modules.meihua && (
-                <div className="rounded-3xl border border-[#d9e3f0] bg-[#f8fafc] p-5">
-                  <div className="grid gap-5 md:grid-cols-3">
-                    <Field label="梅花易數｜起卦方式">
-                      <Select value={form.meihuaMode} onChange={(v) => update("meihuaMode", v)}>
-                        {meihuaModes.map((x) => (<option key={x}>{x}</option>))}
-                      </Select>
-                    </Field>
-                    <Field label="梅花易數｜上卦">
-                      <Select value={form.upperTrigram} onChange={(v) => update("upperTrigram", v)}>
-                        {meihuaUpperTrigrams.map((x) => (<option key={x}>{x}</option>))}
-                      </Select>
-                    </Field>
-                    <Field label="梅花易數｜下卦">
-                      <Select value={form.lowerTrigram} onChange={(v) => update("lowerTrigram", v)}>
-                        {meihuaLowerTrigrams.map((x) => (<option key={x}>{x}</option>))}
-                      </Select>
-                    </Field>
+                <SubPanel title="梅花易數">
+                  <div className="form" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+                    <label>起卦方式<select value={form.meihuaMode} onChange={(e) => update("meihuaMode", e.target.value)}>{meihuaModes.map((x) => <option key={x}>{x}</option>)}</select></label>
+                    <label>上卦<select value={form.upperTrigram} onChange={(e) => update("upperTrigram", e.target.value)}>{meihuaUpperTrigrams.map((x) => <option key={x}>{x}</option>)}</select></label>
+                    <label>下卦<select value={form.lowerTrigram} onChange={(e) => update("lowerTrigram", e.target.value)}>{meihuaLowerTrigrams.map((x) => <option key={x}>{x}</option>)}</select></label>
                   </div>
-                </div>
+                </SubPanel>
               )}
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  onClick={generate}
-                  disabled={loading || !canUseCouncil}
-                  className="inline-flex h-12 items-center gap-2 rounded-2xl bg-[#10203A] px-6 font-black text-white shadow-lg disabled:opacity-60"
-                >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                  生成綜合報告
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 24 }}>
+                <button className="btn primary" onClick={generate} disabled={loading || !canUseCouncil}>
+                  {loading ? "校核中…" : "生成綜合報告"}
                 </button>
-                <button onClick={resetForm} className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#d9e3f0] bg-white px-6 font-black text-[#10203A]">
-                  <RefreshCw className="h-4 w-4" /> 重設
-                </button>
+                <button className="btn" onClick={resetForm}>重設</button>
               </div>
-            </div>
+              {notice && (
+                <div className={"status" + (loading ? "" : " ok")} style={{ marginTop: 14 }}>
+                  {notice}
+                </div>
+              )}
+            </article>
           </div>
 
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-[2rem] border border-white bg-white/90 p-6 shadow-xl shadow-[#10203A]/10">
-              <CardTitle n="4" title="輸出中心" />
-              <div className="mb-4 flex flex-wrap gap-2">
-                <button
-                  onClick={() => setTab("report")}
-                  className={cx("rounded-full px-4 py-2 text-sm font-black", tab === "report" ? "bg-[#10203A] text-white" : "bg-[#eef3fa] text-[#607089]")}
-                >
+          <aside style={{ position: "sticky", top: 104, alignSelf: "start" }}>
+            <article className="panel">
+              <h2>四、輸出中心</h2>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                <button className={"btn" + (tab === "report" ? " primary" : "")} onClick={() => setTab("report")} style={{ padding: "10px 16px", minHeight: 38 }}>
                   正式報告
                 </button>
-                <button
-                  onClick={() => setTab("json")}
-                  className={cx("rounded-full px-4 py-2 text-sm font-black", tab === "json" ? "bg-[#10203A] text-white" : "bg-[#eef3fa] text-[#607089]")}
-                >
+                <button className={"btn" + (tab === "json" ? " primary" : "")} onClick={() => setTab("json")} style={{ padding: "10px 16px", minHeight: 38 }}>
                   JSON 資料包
                 </button>
               </div>
-              <pre className="max-h-[720px] min-h-[520px] overflow-auto whitespace-pre-wrap rounded-3xl border border-[#d9e3f0] bg-[#f8fafc] p-5 text-sm leading-7 text-[#10203A]">
+              <pre
+                style={{
+                  background: "rgba(0,0,0,.32)",
+                  border: "1px solid var(--line)",
+                  borderRadius: 20,
+                  padding: 18,
+                  color: "var(--text)",
+                  fontSize: 13,
+                  lineHeight: 1.85,
+                  whiteSpace: "pre-wrap",
+                  minHeight: 520,
+                  maxHeight: 680,
+                  overflow: "auto",
+                  margin: 0,
+                  fontFamily: "inherit"
+                }}
+              >
                 {currentContent}
               </pre>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button onClick={copy} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#10203A] px-5 text-sm font-black text-white">
-                  <Copy className="h-4 w-4" /> 複製
-                </button>
-                <button onClick={download} className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[#d9e3f0] bg-white px-5 text-sm font-black text-[#10203A]">
-                  <Download className="h-4 w-4" /> 下載
-                </button>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+                <button className="btn primary" onClick={copy} style={{ flex: 1, minHeight: 44 }}>複製內容</button>
+                <button className="btn gold" onClick={download} style={{ flex: 1, minHeight: 44 }}>下載</button>
               </div>
-            </div>
+            </article>
           </aside>
         </div>
       </section>
-    </main>
+    </>
+  );
+}
+
+function SubPanel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ border: "1px solid var(--line)", background: "rgba(255,255,255,.025)", borderRadius: 20, padding: 18, marginBottom: 14 }}>
+      <div style={{ fontWeight: 900, color: "var(--green)", marginBottom: 12, letterSpacing: ".05em" }}>{title}</div>
+      {children}
+    </div>
   );
 }
