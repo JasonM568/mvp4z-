@@ -19,6 +19,8 @@ export const redeemSchema = z.object({
   code: z.string().trim().min(1, "請輸入啟用碼").transform((value) => value.toUpperCase())
 });
 
+import { resolveTierFeatures, TierFeatures, TierResolution } from "@/lib/auth/tier";
+
 export type PublicMember = {
   id: string;
   name: string | null;
@@ -28,6 +30,9 @@ export type PublicMember = {
   status: "pending" | "active" | "expired";
   credits_remaining: number;
   expires_at: string | null;
+  tier: TierResolution;
+  tier_features: TierFeatures;
+  entitlement_id: string | null;
   created_at: string;
 };
 
@@ -46,6 +51,7 @@ type Entitlement = {
   status: string;
   credits_remaining: number;
   expires_at: string;
+  tier_features?: TierFeatures | null;
   plans: { code: string; name: string } | null;
 };
 
@@ -133,7 +139,7 @@ export async function getPublicMember(profileId: string) {
 
   const { data: entitlement, error: entitlementError } = await admin
     .from("member_entitlements")
-    .select("id, status, credits_remaining, expires_at, plans(code, name)")
+    .select("id, status, credits_remaining, expires_at, tier_features, plans(code, name)")
     .eq("user_id", profileId)
     .order("expires_at", { ascending: false })
     .limit(1)
@@ -150,15 +156,22 @@ export function toPublicMember(profile: Profile, entitlement?: Entitlement | nul
     Number(entitlement.credits_remaining || 0) > 0 &&
     entitlement.expires_at >= today;
 
+  const planCode = entitlement?.plans?.code || "free";
+  const tierFeatures = (entitlement?.tier_features || {}) as TierFeatures;
+  const tier = resolveTierFeatures({ planCode, tierFeatures });
+
   return {
     id: profile.id,
     name: profile.name,
     email: profile.email,
     phone: profile.phone,
-    plan: entitlement?.plans?.code || "free",
+    plan: planCode,
     status: active ? "active" : entitlement ? "expired" : "pending",
     credits_remaining: entitlement?.credits_remaining || 0,
     expires_at: entitlement?.expires_at || null,
+    tier,
+    tier_features: tierFeatures,
+    entitlement_id: entitlement?.id || null,
     created_at: profile.created_at
   };
 }
