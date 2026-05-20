@@ -1,6 +1,25 @@
 {
   "services": [
     {
+      "title": "易學決策報告",
+      "category": "數位顧問",
+      "price": "10 點 / 份（VIP 月免 3 份）",
+      "note": "四術同步：八字、奇門、卜卦／六爻、梅花易數，120 秒內生成。",
+      "description": "由巽風多維校核系統內部攻防，輸出十段商業顧問報告，含 3／7／30 日行動方案與停損條件。",
+      "href": "/member-ai/decision",
+      "badge": "Council",
+      "highlight": true
+    },
+    {
+      "title": "AI 即時問答",
+      "category": "數位顧問",
+      "price": "1 點 / 次",
+      "note": "融合乾坤國寶、龍門八局、形家風水體系；回應約 5 秒。",
+      "description": "風水、命理、堪輿、場域管理的即時諮詢，以風羿老師專業語氣回應。",
+      "href": "/member-ai",
+      "badge": "Chat"
+    },
+    {
       "title": "陰陽宅堪驗",
       "category": "場域顧問",
       "price": "NT$22,000 – 28,000",

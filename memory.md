@@ -73,12 +73,33 @@ Cloudflare Pages + Cloudflare Worker + Cloudflare D1 + Formspree + Decap CMS
 
 ## Git 策略
 
-目前 v2 是新的本機 Git repo。
+目前 v2 是新的 Git repo。
 
 新版 remote：
 
 ```text
 origin https://github.com/JasonM568/mvp4z-.git
+```
+
+分支策略：
+
+- `main`：穩定正式線。
+- `develop`：整合開發線，功能分支從這裡切出，完成後回合併到這裡。
+- `feature/next-base`：Next.js 基底與頁面搬移整理。
+- `feature/supabase-auth`：Supabase Auth、RLS、會員身份。
+- `feature/ecpay-payments`：綠界訂單、付款、webhook。
+- `feature/ai-member`：AI chat、會員權益檢查、扣點與 usage log。
+- `feature/admin-dashboard`：管理員後台、會員/訂單/補點/audit logs。
+
+本機 worktree 對應：
+
+```text
+/Users/jasonmchen/codex-巽風系統/xunfeng-official-v2       develop
+/Users/jasonmchen/codex-巽風系統/xunfeng-v2-next-base      feature/next-base
+/Users/jasonmchen/codex-巽風系統/xunfeng-v2-supabase-auth  feature/supabase-auth
+/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ecpay          feature/ecpay-payments
+/Users/jasonmchen/codex-巽風系統/xunfeng-v2-ai-member      feature/ai-member
+/Users/jasonmchen/codex-巽風系統/xunfeng-v2-admin          feature/admin-dashboard
 ```
 
 ## 工作習慣

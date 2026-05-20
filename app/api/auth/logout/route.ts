@@ -1,5 +1,5 @@
-import { todoApi } from "../../_helpers";
+import { apiJson } from "../../_helpers";
 
 export async function POST() {
-  return todoApi("auth/logout");
+  return apiJson({ ok: true });
 }

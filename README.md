@@ -28,7 +28,7 @@ Next.js + Supabase + 綠界金流版本骨架。
 - `/member-ai`
 - `/member-admin`
 
-## API 骨架
+## API
 
 - `/api/auth/register`
 - `/api/auth/login`
@@ -45,7 +45,48 @@ Next.js + Supabase + 綠界金流版本骨架。
 - `/api/admin/orders`
 - `/api/admin/credits`
 
-目前 API 先回傳 `501`，後續逐步接 Supabase、綠界與 OpenAI。
+Supabase Auth 已先接上：
+
+- `/api/auth/register`
+- `/api/auth/login`
+- `/api/auth/logout`
+- `/api/member/me`
+- `/api/member/redeem`
+- `/api/member/usage`
+
+為了相容舊版前端 JS，也保留 Worker 版路徑：
+
+- `/api/register`
+- `/api/login`
+- `/api/logout`
+- `/api/me`
+- `/api/redeem`
+
+其餘 API 仍是 `501` 佔位，後續逐步接綠界、OpenAI 與管理後台。
+
+綠界金流已先接上：
+
+- `/api/orders/create`
+- `/api/payments/ecpay/notify`
+- `/api/payments/ecpay/return`
+
+`/api/orders/create` 會建立 pending order，並回傳綠界 AioCheckOut V5 表單送出所需的 action URL 與 params。`notify` 會驗證 `CheckMacValue`，付款成功後更新 order、建立會員權益與點數交易紀錄。
+
+AI 會員問答已先接上：
+
+- `/api/ai/chat`
+- `/api/chat`
+
+流程是先驗證會員 Bearer token，再檢查有效 `member_entitlements` 與剩餘額度。系統會先保留並扣 1 點，成功呼叫 OpenAI 後寫入 `usage_logs` 與 `credit_transactions`；若 OpenAI 呼叫或紀錄流程失敗，會補回點數。
+
+管理員 API 已先接上：
+
+- `/api/admin/members`
+- `/api/admin/orders`
+- `/api/admin/create-code`
+- `/api/admin/credits`
+
+管理員驗證支援 Supabase `profiles.role = admin`，也暫時相容舊後台使用的 `X-Admin-Key`。
 
 ## 本機開發
 
@@ -72,6 +113,16 @@ supabase/migrations/
 supabase/seed.sql
 ```
 
+付款防重複索引：
+
+```text
+supabase/migrations/0003_payment_idempotency.sql
+```
+
 ## GitHub
 
-目前先作為本機新專案使用，不設定 remote。等確認新 GitHub 帳號或 organization 後，再新增 remote 並 push。
+新版 repo：
+
+```text
+https://github.com/JasonM568/mvp4z-.git
+```

@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { LegacyPage } from "@/components/LegacyPage";
 import { readLegacyPage } from "@/lib/site/legacy-page";
 
+// v2 主首頁仍走 legacy index.html，保持原品牌視覺
+// 易學決策報告（v3）以服務卡片自動透過 services.json + cms-render.js 顯示在
+// 首頁的「服務項目」區塊；單獨工作台位於 /member-ai/decision
 const ROUTES: Record<string, string> = {
   "": "index.html",
   about: "about.html",

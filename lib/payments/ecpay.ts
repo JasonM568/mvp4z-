@@ -39,6 +39,67 @@ export function ecpayActionUrl() {
     : "https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5";
 }
 
+export function createMerchantTradeNo() {
+  const d = new Date();
+  const stamp = [
+    d.getFullYear(),
+    pad(d.getMonth() + 1),
+    pad(d.getDate()),
+    pad(d.getHours()),
+    pad(d.getMinutes()),
+    pad(d.getSeconds())
+  ].join("");
+  const random = crypto.randomBytes(2).toString("hex").toUpperCase();
+  return `XF${stamp}${random}`.slice(0, 20);
+}
+
+export function formatEcpayDate(date = new Date()) {
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+export function createCheckoutParams(input: {
+  merchantTradeNo: string;
+  totalAmount: number;
+  itemName: string;
+  tradeDesc?: string;
+}) {
+  const params: EcpayParams = {
+    MerchantID: requiredEnv("ECPAY_MERCHANT_ID"),
+    MerchantTradeNo: input.merchantTradeNo,
+    MerchantTradeDate: formatEcpayDate(),
+    PaymentType: "aio",
+    TotalAmount: input.totalAmount,
+    TradeDesc: sanitizeEcpayText(input.tradeDesc || "Xunfeng Membership"),
+    ItemName: sanitizeEcpayText(input.itemName),
+    ReturnURL: requiredEnv("ECPAY_NOTIFY_URL"),
+    OrderResultURL: requiredEnv("ECPAY_RETURN_URL"),
+    ClientBackURL: requiredEnv("ECPAY_CLIENT_BACK_URL"),
+    ChoosePayment: "ALL",
+    EncryptType: 1
+  };
+
+  return {
+    ...params,
+    CheckMacValue: createCheckMacValue(params)
+  };
+}
+
+export function formDataToParams(formData: FormData): EcpayParams {
+  const params: EcpayParams = {};
+  for (const [key, value] of formData.entries()) {
+    params[key] = typeof value === "string" ? value : value.name;
+  }
+  return params;
+}
+
+function sanitizeEcpayText(value: string) {
+  return value.replace(/[<>]/g, "").slice(0, 200);
+}
+
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
 function requiredEnv(key: string) {
   const value = process.env[key];
   if (!value) throw new Error(`Missing environment variable: ${key}`);
