@@ -64,13 +64,13 @@ export default function CouncilRunsPage() {
         <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>巽風易學決策報告｜後台</h1>
         <p style={{ color: "#607089", marginBottom: 24 }}>近 50 份報告紀錄（含 fallback、token、扣點狀況）。</p>
 
-        <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
           <input
             type="password"
             value={adminKey}
             onChange={(e) => persistKey(e.target.value)}
             placeholder="Admin Key"
-            style={{ flex: 1, padding: "10px 14px", borderRadius: 12, border: "1px solid #d9e3f0", fontSize: 14 }}
+            style={{ flex: "1 1 240px", minWidth: 240, padding: "10px 14px", borderRadius: 12, border: "1px solid #d9e3f0", fontSize: 14 }}
           />
           <button
             onClick={load}
@@ -95,8 +95,8 @@ export default function CouncilRunsPage() {
           </div>
         )}
 
-        <div style={{ overflow: "auto", background: "white", borderRadius: 16, border: "1px solid #e2e8f0" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", background: "white", borderRadius: 16, border: "1px solid #e2e8f0" }}>
+          <table style={{ width: "100%", minWidth: 720, borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "#f1f5f9", textAlign: "left" }}>
                 <th style={th}>時間</th>
