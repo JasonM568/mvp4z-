@@ -317,6 +317,59 @@ ${videos.length ? `
         }
       });
     }
+
+    // 改寫送出：不走 Formspree，改 POST /api/bookings 進 Supabase
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalLabel = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '送出中…';
+      }
+
+      const payload = {
+        name: val('name'),
+        email: val('email'),
+        phone: val('phone'),
+        service: val('service'),
+        location: val('location'),
+        size: val('size'),
+        budget: val('budget'),
+        urgency: val('urgency'),
+        schedule: val('schedule'),
+        message: val('message'),
+        source: 'website'
+      };
+
+      // 把 "未填寫" 還原成空字串以利驗證
+      Object.keys(payload).forEach((k) => {
+        if (payload[k] === '未填寫') payload[k] = '';
+      });
+
+      try {
+        const res = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data && data.error ? data.error : '送出失敗');
+
+        preview.textContent = '✅ ' + (data.message || '預約已送出，巽風團隊將於 24 小時內聯絡您。');
+        preview.style.color = '#2f8a4e';
+        form.reset();
+        renderPreview();
+      } catch (err) {
+        preview.textContent = '⚠️ 送出失敗：' + (err && err.message ? err.message : '請稍後再試') + '\n您也可以按「複製內容給 LINE」改用 LINE 聯絡。';
+        preview.style.color = '#b4533a';
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalLabel || '送出預約表單';
+        }
+      }
+    });
   }
 
   document.addEventListener("DOMContentLoaded", async () => {

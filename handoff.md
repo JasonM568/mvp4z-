@@ -215,18 +215,16 @@ git status --short --branch
 ### 已知踩雷與待修
 
 - **綠界 sandbox 「模擬付款」按鈕不會發 webhook**：只做 browser redirect，沒有 server-to-server 通知。要測 webhook **必須走真實刷卡表單**（信用卡分頁 → 填卡號 `4311-9522-2222-2222` / `222` / `12/30` → 確認付款）。
-- **return endpoint redirect URL bug**：付款成功瀏覽器被導去 `https://localhost:3000/member?payment=paid&order=...`。「https + localhost」不通，正式部署前要修 `app/api/payments/ecpay/return/route.ts` 的 redirect 邏輯（應依 `request.url` 的 host 或 `NEXT_PUBLIC_SITE_URL` 組對應 protocol）。
+- **return endpoint redirect URL bug 已於 2026-05-20 修正**：付款成功瀏覽器曾被導去 `https://localhost:3000/member?payment=paid&order=...`；目前已改用 `NEXT_PUBLIC_SITE_URL` 或 forwarded/request origin，localhost 強制使用 `http`。
 - **idempotency 沒測**：migration 0003 加了 `(provider, merchant_trade_no)` 與 `(provider, provider_trade_no)` 的 unique index，理論上重複 webhook 會被擋，但沒實際重送驗證。
 
 ## 尚未完成
 
 - 綠界 webhook idempotency 重送測試。
-- 修 `/api/payments/ecpay/return` 的 redirect URL bug。
 - **電子發票串接**（依台灣稅法，付款成功後須開立統一發票，目前完全沒做。詳見下方「電子發票串接 TODO」）。
-- AI chat 流程（缺 OpenAI API key）。
+- AI chat 流程尚未完整端到端驗證。
 - Vercel 部署設定（新 GitHub repo 已存在 `JasonM568/mvp4z-`，但 Vercel project 還沒建）。
 - `npm install` 顯示的 `2 moderate severity vulnerabilities` 尚未處理。
-- `.env.local` 的 URL 還停在 ngrok（已停用），下次續工前要先改回 `http://localhost:3000` 或新的 ngrok 網址。
 
 ## 電子發票串接 TODO
 
@@ -261,13 +259,144 @@ git status --short --branch
 
 ## 下次建議先做
 
-1. 修 `.env.local` 的 URL（`NEXT_PUBLIC_SITE_URL`、`ECPAY_*_URL`）改回 `http://localhost:3000`，或重新開 ngrok 後改成新網址。
-2. 修 `app/api/payments/ecpay/return/route.ts` 的 redirect 邏輯（避免硬寫 https + localhost）。
-3. 重送一次 webhook 驗 idempotency（可用上次測試的 `2605191303547152` provider_trade_no 直接 POST 自己組的 payload）。
-4. 取得 OpenAI API key 後測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
-5. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
-6. 處理 npm audit 漏洞。
-7. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+1. 重送一次 webhook 驗 idempotency（可用上次測試的 `2605191303547152` provider_trade_no 直接 POST 自己組的 payload）。
+2. 測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
+3. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
+4. 處理 npm audit 漏洞。
+5. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+
+## 2026-05-20 開工紀錄
+
+- `develop` 已前進到 `dd130c0 Merge feature/admin-portal: /admin-login + /admin tree`，handoff 先前仍停在 `6557ea4`，需以目前 git log 為準。
+- 已整合但舊 handoff 未完整記錄的功能：
+  - `f93b2f7 Merge feature/bookings-backend: consultation_bookings + booking form`
+  - `dd130c0 Merge feature/admin-portal: /admin-login + /admin tree`
+- 已把 `.env.local` 的 `NEXT_PUBLIC_SITE_URL`、`ECPAY_RETURN_URL`、`ECPAY_NOTIFY_URL`、`ECPAY_CLIENT_BACK_URL` 從失效 ngrok 改回 `http://localhost:3000`。
+- 已修 `app/api/payments/ecpay/return/route.ts`：
+  - 回站 redirect 改用 `NEXT_PUBLIC_SITE_URL` 或 forwarded/request origin。
+  - localhost / 127.0.0.1 強制使用 `http`。
+  - POST / GET redirect 改成 `303 See Other`。
+  - POST 回站用 `URLSearchParams` 帶 `payment` 與 `order`，避免手動 query encode。
+- 驗證：
+  - `npm run build` 通過。
+  - 本機 dev server 驗證 `GET /api/payments/ecpay/return` 回 `303 Location: http://localhost:3000/member`。
+  - 本機 dev server 驗證無效 POST payload 回 `303 Location: http://localhost:3000/member?payment=pending&order=XFTEST123`。
+
+## 2026-05-21 收工紀錄
+
+今天接續多個 worktree 任務，重點是把付款防重送、安全 audit、Vercel deploy 三條上線前路徑往前推。三個 worktree 都還沒 commit，下一次若要整合，先逐一 review diff、commit、push branch，再決定 merge 順序。
+
+### 已完成事項
+
+1. `xunfeng-v2-ecpay-idempotency` (`feature/ecpay-idempotency`)
+   - 建立 `.env.local` symlink 指向 `../xunfeng-official-v2/.env.local`。
+   - `npm install` 完成。
+   - 啟動 Next dev server 後完成綠界 notify idempotency 重送測試。
+   - 新增 `scripts/test-ecpay-idempotency.mjs`。
+   - 新增 npm script：`npm run test:ecpay-idempotency -- --order-no <order_no> --trade-no <trade_no>`。
+   - 已用測試訂單 `XF2026051913034555C9` 與交易編號 `2605191303547152` 重送 webhook 兩次，確認沒有重複付款、重複開通或重複加點。
+
+2. `xunfeng-v2-audit-fixes` (`feature/audit-fixes`)
+   - 查明 `npm audit` 的 2 個 moderate vulnerabilities 來源是 `next@15.5.18` 內部固定的 `postcss@8.4.31`，對應 GHSA-qx2v-qp2m-jg93。
+   - 未採用 `npm audit fix --force`，因為 npm 建議降級到 `next@9.3.3`，會破壞目前 Next 15 App Router 專案。
+   - 將直接 devDependency `postcss` 固定為 `8.5.15`。
+   - 新增 npm `overrides.postcss=8.5.15`，讓 `next`、Tailwind、Autoprefixer 共用修補版。
+
+3. `xunfeng-v2-vercel-deploy` (`feature/vercel-deploy`)
+   - 用 Vercel CLI 建立並 link project：`tjs-projects-435187fd/xunfeng-v2-vercel-deploy`。
+   - 連接 GitHub repo：`https://github.com/JasonM568/mvp4z-`。
+   - Production URL：`https://xunfeng-v2-vercel-deploy.vercel.app`。
+   - 匯入 production env，並把：
+     - `NEXT_PUBLIC_SITE_URL`
+     - `ECPAY_RETURN_URL`
+     - `ECPAY_NOTIFY_URL`
+     - `ECPAY_CLIENT_BACK_URL`
+     指向 Vercel production URL。
+   - 重新 production deploy，讓新增 env 生效。
+   - 移除 `vercel.json` 裡 Vercel Active CPU billing 會忽略的 `memory` 設定。
+   - 新增 `docs/vercel-deployment.md`，記錄 project、部署命令、env 清單、ECPay URL 與 caveats。
+
+### 修改過的檔案
+
+- `xunfeng-v2-ecpay-idempotency/handoff.md`
+- `xunfeng-v2-ecpay-idempotency/package.json`
+- `xunfeng-v2-ecpay-idempotency/scripts/test-ecpay-idempotency.mjs`
+- `xunfeng-v2-audit-fixes/handoff.md`
+- `xunfeng-v2-audit-fixes/package.json`
+- `xunfeng-v2-audit-fixes/package-lock.json`
+- `xunfeng-v2-vercel-deploy/handoff.md`
+- `xunfeng-v2-vercel-deploy/vercel.json`
+- `xunfeng-v2-vercel-deploy/docs/vercel-deployment.md`
+- `xunfeng-official-v2/handoff.md`
+
+### 驗證結果
+
+- `feature/ecpay-idempotency`
+  - `npm run test:ecpay-idempotency -- --order-no XF2026051913034555C9 --trade-no 2605191303547152`
+  - 結果：`payments`、`member_entitlements`、`credit_transactions` 在測試前、第一次 notify 後、第二次 notify 後都維持各 1 筆。
+
+- `feature/audit-fixes`
+  - `npm audit` 回 `found 0 vulnerabilities`。
+  - `npm ls postcss` 顯示 `next@15.5.18` 使用 `postcss@8.5.15 deduped`。
+  - `npm run build` 通過。
+
+- `feature/vercel-deploy`
+  - Vercel production deploy ready：`dpl_V4aXtEyqAq5ZjCeyKidHXZiAbR3g`。
+  - `GET https://xunfeng-v2-vercel-deploy.vercel.app/` 回 `200`。
+  - `GET https://xunfeng-v2-vercel-deploy.vercel.app/member-pricing` 回 `200`。
+  - `GET https://xunfeng-v2-vercel-deploy.vercel.app/api/payments/ecpay/return` 回 `303 Location: https://xunfeng-v2-vercel-deploy.vercel.app/member`。
+  - 本機 `npm run build` 通過。
+
+### 當前 git status 摘要
+
+```text
+xunfeng-v2-ecpay-idempotency:
+## feature/ecpay-idempotency
+ M handoff.md
+ M package.json
+?? scripts/
+
+xunfeng-v2-audit-fixes:
+## feature/audit-fixes
+ M handoff.md
+ M package-lock.json
+ M package.json
+
+xunfeng-v2-vercel-deploy:
+## feature/vercel-deploy
+ M handoff.md
+ M vercel.json
+?? docs/
+```
+
+### 尚未完成事項
+
+- 三個完成中的 worktree 尚未 commit / push / PR。
+- `feature/vercel-deploy` 的 Preview env 尚未成功設定，因為 `feature/vercel-deploy` 當時尚未存在於 connected GitHub repository。push branch 後再補 Preview env 或用 Vercel dashboard 設定。
+- `feature/vercel-deploy` 仍顯示 npm audit 2 個 moderate vulnerabilities，原因是 `feature/audit-fixes` 尚未合併；不要在 deploy 分支重複修同一件事。
+- `feature/ecpay-merchant-config` 尚未開始。
+- `feature/ecpay-invoice` 尚未開始。
+- AI chat 端到端流程尚未完整驗證。
+
+### 下一次建議起手式
+
+1. 先確認三個 worktree diff：
+   - `cd /Users/jasonmchen/codex-巽風系統/xunfeng-v2-ecpay-idempotency && git diff`
+   - `cd /Users/jasonmchen/codex-巽風系統/xunfeng-v2-audit-fixes && git diff`
+   - `cd /Users/jasonmchen/codex-巽風系統/xunfeng-v2-vercel-deploy && git diff`
+2. 逐一 commit / push：
+   - `feature/ecpay-idempotency`
+   - `feature/audit-fixes`
+   - `feature/vercel-deploy`
+3. push `feature/vercel-deploy` 後，在 Vercel 補 Preview env，或確認 production env 是否足夠目前測試。
+4. 下一個實作 worktree 建議做 `xunfeng-v2-ecpay-merchant-config`，先把 sandbox / production 商店設定、公開測試帳號與正式商店切換規則整理好，再進 `xunfeng-v2-ecpay-invoice`。
+
+### 收工時長時間程序狀態（2026-05-21）
+
+- 已停用：`xunfeng-v2-ecpay-idempotency` 的 Next dev server。
+- 已確認：本機 port `3000` 沒有 listener。
+- 仍存在：Vercel project `tjs-projects-435187fd/xunfeng-v2-vercel-deploy` 與 production deployment `https://xunfeng-v2-vercel-deploy.vercel.app`。
+- 仍存在：Supabase Cloud project `pvasgmmjrodukudbzuhp`。
 
 ## 工作紀錄規則
 
