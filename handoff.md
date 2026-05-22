@@ -223,7 +223,6 @@ git status --short --branch
 - 綠界 webhook idempotency 重送測試。
 - **電子發票串接**（依台灣稅法，付款成功後須開立統一發票，目前完全沒做。詳見下方「電子發票串接 TODO」）。
 - AI chat 流程尚未完整端到端驗證。
-- Vercel 部署設定（新 GitHub repo 已存在 `JasonM568/mvp4z-`，但 Vercel project 還沒建）。
 - `npm install` 顯示的 `2 moderate severity vulnerabilities` 尚未處理。
 
 ## 電子發票串接 TODO
@@ -261,9 +260,22 @@ git status --short --branch
 
 1. 重送一次 webhook 驗 idempotency（可用上次測試的 `2605191303547152` provider_trade_no 直接 POST 自己組的 payload）。
 2. 測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
-3. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
-4. 處理 npm audit 漏洞。
-5. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+3. 處理 npm audit 漏洞。
+4. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+
+## 2026-05-21 Vercel 部署設定
+
+- 已用 Vercel CLI 建立並 link project：`tjs-projects-435187fd/xunfeng-v2-vercel-deploy`。
+- 已連接 GitHub repository：`https://github.com/JasonM568/mvp4z-`。
+- Production URL：`https://xunfeng-v2-vercel-deploy.vercel.app`。
+- 已從本機 `.env.local` 匯入非空 production env，並把 `NEXT_PUBLIC_SITE_URL`、`ECPAY_RETURN_URL`、`ECPAY_NOTIFY_URL`、`ECPAY_CLIENT_BACK_URL` 指向 Vercel production URL。
+- 已重新 production deploy，deployment ready：`dpl_V4aXtEyqAq5ZjCeyKidHXZiAbR3g`。
+- Smoke test：
+  - `GET /` 回 `200`
+  - `GET /member-pricing` 回 `200`
+  - `GET /api/payments/ecpay/return` 回 `303 Location: https://xunfeng-v2-vercel-deploy.vercel.app/member`
+- Preview env 尚未設定成功，因為 `feature/vercel-deploy` 當時尚未存在於 connected GitHub repository；push branch 後再補 Preview env。
+- 部署操作與 env 清單記錄在 `docs/vercel-deployment.md`。
 
 ## 2026-05-20 開工紀錄
 
