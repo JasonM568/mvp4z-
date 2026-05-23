@@ -140,4 +140,10 @@ async function loadPlans() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", loadPlans);
+// Next.js <Script strategy="afterInteractive"> 注入時 DOMContentLoaded 已 fire，
+// 直接呼叫；萬一被改成更早載入也保留 fallback。
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", loadPlans);
+} else {
+  loadPlans();
+}
