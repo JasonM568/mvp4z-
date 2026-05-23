@@ -1,6 +1,7 @@
 // 巽風易學決策系統｜council 報告 API
-// 流程：會員驗證 → 等級檢查 → 月免額度判定 → 原子扣點 → 7 次 LLM 校核 → 寫紀錄
-// 失敗自動退款；終稿不可用時改回兜底報告且不扣點
+// 流程：會員驗證 → 等級檢查 → 月免額度判定 → 7 次 LLM 校核 → 寫 usage_logs + council_runs → 原子扣點
+// 不預扣點：LLM 跑完才扣，function 被 kill 也不會造成 credits 黑洞
+// Race case：報告已寫但 RPC 衝突時送這一份（記錄 credits_charged=0）
 
 import { NextRequest } from "next/server";
 import { apiJson } from "../../_helpers";
@@ -45,17 +46,7 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-type Reserved = {
-  entitlementId: string;
-  userId: string;
-  previousCredits: number;
-  charged: number;
-  freeQuotaUsed: boolean;
-};
-
 export async function POST(request: NextRequest) {
-  let reserved: Reserved | null = null;
-
   try {
     const { profile } = await requireBearerProfile(request);
     const input = (await readJson(request, councilSchema)) as CouncilRequest;
@@ -98,42 +89,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. 點數檢查
+    // 4. 點數預檢（不扣點，僅驗證足額；正式扣點在 LLM 跑完才執行）
     const previousCredits = Number(entitlement.credits_remaining || 0);
     if (creditsToCharge > 0 && previousCredits < creditsToCharge) {
       throw statusError("點數不足，請先儲值或升級方案", 403);
     }
 
-    // 5. 原子扣點（即使 cost=0 也走這條，但 update 0 不會改變值）
-    if (creditsToCharge > 0) {
-      const nextCredits = previousCredits - creditsToCharge;
-      const { data: debited, error: debitError } = await admin
-        .from("member_entitlements")
-        .update({ credits_remaining: nextCredits })
-        .eq("id", entitlement.id)
-        .eq("credits_remaining", previousCredits)
-        .select("id")
-        .maybeSingle();
-      if (debitError) throw debitError;
-      if (!debited) throw statusError("點數更新衝突，請重試", 409);
-      reserved = {
-        entitlementId: entitlement.id,
-        userId: profile.id,
-        previousCredits,
-        charged: creditsToCharge,
-        freeQuotaUsed
-      };
-    } else {
-      reserved = {
-        entitlementId: entitlement.id,
-        userId: profile.id,
-        previousCredits,
-        charged: 0,
-        freeQuotaUsed
-      };
-    }
-
-    // 6. 組 council input
+    // 5. 組 council input
     const qualityGate = buildQualityGate(input as CouncilInput);
     const councilInput: CouncilInput = {
       ...input,
@@ -144,7 +106,7 @@ export async function POST(request: NextRequest) {
       deliverableMode: input.deliverableMode || "商業決策顧問報告"
     };
 
-    // 7. 第一輪：三模型平行
+    // 6. 第一輪：三模型平行
     const firstPrompt = buildFirstRoundPrompt(councilInput, qualityGate);
     const firstRound = await Promise.all([
       callOpenAI("openaiFengYi", "巽風主判讀分身", openaiFengYiSystem(), firstPrompt),
@@ -154,7 +116,7 @@ export async function POST(request: NextRequest) {
     const firstRoundText = stringifyRound("第一輪：巽風多維初判", firstRound);
     const firstTokens = sumTokens(firstRound);
 
-    // 8. 第二輪：攻防修正（可由 env 關閉）
+    // 7. 第二輪：攻防修正（可由 env 關閉）
     let debateRound: ModelResult[] = [];
     let debateRoundText = "第二輪攻防未啟用。";
     let debateTokens = { in: 0, out: 0 };
@@ -170,7 +132,7 @@ export async function POST(request: NextRequest) {
       debateTokens = sumTokens(debateRound);
     }
 
-    // 9. 終稿
+    // 8. 終稿
     const finalPrompt = buildFinalPrompt(councilInput, firstRoundText, debateRoundText, qualityGate);
     const final = await callOpenAI(
       "finalChatGPT",
@@ -189,17 +151,11 @@ export async function POST(request: NextRequest) {
     const totalTokensIn = firstTokens.in + debateTokens.in + (final.tokensIn || 0);
     const totalTokensOut = firstTokens.out + debateTokens.out + (final.tokensOut || 0);
 
-    // 10. 兜底報告 → 自動退款
-    let finalChargedCredits = reserved.charged;
-    let finalFreeQuotaUsed = reserved.freeQuotaUsed;
-    if (fallbackUsed) {
-      await refundReservedCredit(reserved);
-      finalChargedCredits = 0;
-      finalFreeQuotaUsed = false;
-      reserved = null;
-    }
+    // 9. 兜底報告 → 不扣點（也不消耗免額度）
+    const plannedCharge = fallbackUsed ? 0 : creditsToCharge;
+    const plannedFreeQuotaUsed = fallbackUsed ? false : freeQuotaUsed;
 
-    // 11. 寫 usage_logs
+    // 10. 寫 usage_logs（必須先有 id 才能寫 council_runs.usage_log_id）
     const { data: usageLog, error: usageError } = await admin
       .from("usage_logs")
       .insert({
@@ -215,7 +171,38 @@ export async function POST(request: NextRequest) {
       .single();
     if (usageError) throw usageError;
 
-    // 12. 寫 council_runs（完整原始）
+    // 11. 原子扣點（debit + insert credit_transactions 綁在 commit_council_credit SQL function 裡）
+    let actualCharge = 0;
+    let creditWarning: string | null = null;
+
+    if (plannedCharge > 0) {
+      const { error: rpcError } = await admin.rpc("commit_council_credit", {
+        p_user_id: profile.id,
+        p_entitlement_id: entitlement.id,
+        p_previous_credits: previousCredits,
+        p_charge: plannedCharge,
+        p_ref_id: usageLog?.id || null
+      });
+
+      if (rpcError) {
+        // CR001 insufficient / CR002 race（LLM 跑期間其他流程動了點數）
+        // → 報告已生成，送這一份，council_runs 記 credits_charged=0、log warn
+        creditWarning = `commit_council_credit failed: ${rpcError.code || ""} ${rpcError.message}`.trim();
+        console.warn("[council] credit commit failed, gifting run", {
+          userId: profile.id,
+          entitlementId: entitlement.id,
+          plannedCharge,
+          previousCredits,
+          error: rpcError
+        });
+      } else {
+        actualCharge = plannedCharge;
+      }
+    }
+
+    const actualFreeQuotaUsed = actualCharge === 0 && !fallbackUsed && plannedFreeQuotaUsed;
+
+    // 12. 寫 council_runs（含實際扣點結果）
     const { error: runError } = await admin.from("council_runs").insert({
       user_id: profile.id,
       entitlement_id: entitlement.id,
@@ -229,39 +216,23 @@ export async function POST(request: NextRequest) {
       fallback_used: fallbackUsed,
       total_tokens_in: totalTokensIn,
       total_tokens_out: totalTokensOut,
-      credits_charged: finalChargedCredits,
-      free_quota_used: finalFreeQuotaUsed
+      credits_charged: actualCharge,
+      free_quota_used: actualFreeQuotaUsed
     });
     if (runError) throw runError;
 
-    // 13. credit_transactions（只在實際扣點時寫）
-    if (finalChargedCredits > 0) {
-      const balanceAfter = previousCredits - finalChargedCredits;
-      const { error: txError } = await admin.from("credit_transactions").insert({
-        user_id: profile.id,
-        entitlement_id: entitlement.id,
-        type: "debit",
-        amount: -finalChargedCredits,
-        balance_after: balanceAfter,
-        source: "ai_council",
-        ref_id: usageLog?.id || null
-      });
-      if (txError) throw txError;
-    }
-
-    reserved = null;
     const member = await getPublicMember(profile.id);
     return apiJson({
       ok: true,
       final: { ok: finalOk, label: finalLabel, text: finalText },
       fallback_used: fallbackUsed,
-      credits_charged: finalChargedCredits,
-      free_quota_used: finalFreeQuotaUsed,
+      credits_charged: actualCharge,
+      free_quota_used: actualFreeQuotaUsed,
+      credit_warning: creditWarning,
       member,
       generated_at: new Date().toISOString()
     });
   } catch (error) {
-    if (reserved) await refundReservedCredit(reserved);
     return apiJson({ error: errorMessage(error) }, errorStatus(error));
   }
 }
@@ -336,23 +307,4 @@ function getPlanCode(value: unknown) {
     return (plan as any).code as string;
   }
   return "free";
-}
-
-async function refundReservedCredit(reserved: Reserved) {
-  if (reserved.charged <= 0) return;
-  const admin = createSupabaseAdminClient();
-  await admin
-    .from("member_entitlements")
-    .update({ credits_remaining: reserved.previousCredits })
-    .eq("id", reserved.entitlementId);
-
-  await admin.from("credit_transactions").insert({
-    user_id: reserved.userId,
-    entitlement_id: reserved.entitlementId,
-    type: "refund",
-    amount: reserved.charged,
-    balance_after: reserved.previousCredits,
-    source: "ai_council_refund",
-    ref_id: null
-  });
 }
