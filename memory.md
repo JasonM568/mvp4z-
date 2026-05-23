@@ -30,6 +30,10 @@ Cloudflare Pages + Cloudflare Worker + Cloudflare D1 + Formspree + Decap CMS
 
 ## 架構原則
 
+- 全站 nav 只能有單一來源：`components/SiteHeader.tsx`。任何頁面都不可
+  再寫獨立 `<header class="topbar">`；新頁面一律放進 `app/(public)/`
+  route group 讓 `(public)/layout.tsx` 統一注入 header / footer /
+  floating-ai / mobile-dock。`legacy-pages/` 只作參考，不再被讀取。
 - 前端只能顯示狀態，不決定付款、開通、權限或扣點。
 - 付款成功必須由綠界後端通知 webhook 驗證後決定。
 - 金額、方案、幣別、訂單狀態必須由後端與 DB 比對。

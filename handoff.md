@@ -544,3 +544,98 @@ xunfeng-v2-vercel-deploy:
 - 已停用：ngrok tunnel（網址 `acclivous-tomi-prevailingly.ngrok-free.dev` 已失效）。
 - 已停用：Next dev server。
 - 仍存在：Supabase Cloud project `pvasgmmjrodukudbzuhp`（持續運作，無費用問題，免費方案）。
+
+## 2026-05-24　v2/v3 nav 全站整併
+
+### 起因
+
+v3「易學決策報告」併入 v2 後，使用者觀察到 nav 不一致：
+- 首頁 `/` nav 含「易學決策報告」與「會員方案」
+- 點 `/services`、`/enterprise`、`/cases` 等 legacy 頁則消失
+- 兩套系統實際只是「硬掛」，沒真正整併
+
+### 根因
+
+v2 採兩套渲染：
+
+1. **Legacy HTML 直送**（13 個頁面）— `app/[[...slug]]/page.tsx` → `LegacyPage` 用
+   `dangerouslySetInnerHTML` 塞 `legacy-pages/*.html`，每個 HTML 自帶獨立 header
+2. **Next.js 原生頁面** — 如 `/member-ai/decision` 用 `components/SiteHeader.tsx`
+
+13 個 legacy HTML 裡只有 3 個（index / member-ai / member-pricing）含
+「易學決策報告」連結，其他 10 個還是 v3 整併前的舊 nav。
+
+### 採取方案：C 全站轉 Next.js Server Component
+
+分三階段完成，全部頁面收進 `app/(public)/` route group，
+共用 `(public)/layout.tsx` 注入 SiteHeader / SiteFooter / FloatingActions /
+cms-render.js，確保 nav 真·single source of truth。
+
+#### Phase 0/1/2（commit 0dfca3c）
+
+- 新建 `components/SiteFooter.tsx`、`components/FloatingActions.tsx`
+- 新建 `app/(public)/layout.tsx`
+- 遷移 15 個頁面：
+  - 一般：about / services / enterprise / cases / courses / booking / ai /
+    privacy / thanks / login
+  - 會員：member / member-ai / member-admin / member-pricing
+- 修 member 系列 client init race：
+  - `public/js/member-ai.js`、`member-auth.js`、`member-pricing.js`
+    export init 函數到 `window`
+  - member / member-ai / member-pricing 頁改 `"use client"` + useEffect 動態
+    依序載入 `member-config.js` 與業務 js 後手動呼叫 init，繞過 Next.js
+    `<Script strategy="afterInteractive">` 與 vanilla DOMContentLoaded 的 race
+
+#### Phase 3（commit 9eb681e）
+
+- 新建 `app/(public)/page.tsx` 取代 legacy `index.html`
+- 刪除 `app/[[...slug]]/`、`components/LegacyPage.tsx`、
+  `lib/site/legacy-page.ts`
+- `.gitignore` 加入 `tsconfig.tsbuildinfo`
+
+### 修改過的檔案
+
+新增：
+- `app/(public)/layout.tsx`
+- `app/(public)/page.tsx` 及 14 個 sub-route page
+- `components/SiteFooter.tsx`、`components/FloatingActions.tsx`
+
+修改：
+- `public/js/member-ai.js`、`member-auth.js`、`member-pricing.js`
+- `.gitignore`
+
+刪除：
+- `app/[[...slug]]/page.tsx`
+- `components/LegacyPage.tsx`
+- `lib/site/legacy-page.ts`
+
+保留作 reference 但不再被讀取：
+- `legacy-pages/`（整個資料夾）
+
+### 驗證結果
+
+- `npx tsc --noEmit` 通過
+- preview 部署使用者驗證 `/services` `/about` `/courses` nav 含
+  「易學決策報告」「會員方案」✅
+- `/member-ai` 載入會員資料正常 ✅
+- 首頁與其他頁面尚待 preview 上完整驗收
+
+### 尚未完成
+
+- preview 完整驗收（特別是首頁 brand-anchor、cms-render 動態填值
+  服務卡片、cases / courses 輪播、booking 表單）
+- preview OK 後 develop → main 合併，升 production
+- 未來改 nav 只改 `components/SiteHeader.tsx`（single source of truth）
+
+### 下一次建議起手式
+
+1. 開 Vercel 看 develop 最新 preview deployment
+2. 完整驗收 16 頁
+3. 全 OK 則開 PR 合 develop → main
+4. main merge 後驗 mvp4z.vercel.app production
+
+### 收工時長時間程序狀態（2026-05-24）
+
+- 已停用：本機 dev server（本次 session 未啟動）
+- 仍存在：Supabase Cloud project `pvasgmmjrodukudbzuhp`
+- Vercel：preview deployment 隨 develop push 自動建立
