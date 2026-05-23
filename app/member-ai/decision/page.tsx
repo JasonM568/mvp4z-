@@ -31,6 +31,7 @@ import {
   type CouncilModules
 } from "./_form-config";
 import { buildCouncilPayload, runCouncilReport, getMemberToken, type CouncilApiResult } from "./_actions";
+import { SiteHeader } from "@/components/SiteHeader";
 
 type MemberInfo = {
   plan: string;
@@ -144,27 +145,7 @@ export default function DecisionPage() {
 
   return (
     <>
-      <header className="topbar">
-        <div className="wrap nav">
-          <a className="brand" href="/">
-            <div className="mark">巽</div>
-            <div>
-              <strong>巽風堪輿</strong>
-              <small>XUNFENG FIELD STRATEGY</small>
-            </div>
-          </a>
-          <nav className="nav-actions">
-            <a className="btn" href="/member-pricing">會員方案</a>
-            <a className="btn" href="/login">登入</a>
-            {member && (
-              <span className="btn" style={{ pointerEvents: "none", opacity: 0.85 }}>
-                {member.plan?.toUpperCase()} ｜ 剩 {member.credits_remaining} 點
-              </span>
-            )}
-            <a className="btn primary" href="/member-ai">AI 會員版</a>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader member={member} />
 
       <section className="hero">
         <div className="wrap">
