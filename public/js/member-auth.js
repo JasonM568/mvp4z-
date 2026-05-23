@@ -103,6 +103,13 @@ function toggleRedeem(){
 function initMemberPage(){
   if(document.getElementById("memberName")) loadMember();
 }
+// 暴露給 Next.js client component 在 useEffect 內手動觸發
+window.initMemberPage = initMemberPage;
+window.loginMember = loginMember;
+window.registerMember = registerMember;
+window.redeemCode = redeemCode;
+window.toggleRedeem = toggleRedeem;
+window.logout = logout;
 if(document.readyState === "loading"){
   document.addEventListener("DOMContentLoaded", initMemberPage);
 }else{
