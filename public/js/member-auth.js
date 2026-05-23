@@ -49,20 +49,51 @@ async function loginMember(){
   }
 }
 
+function showPaymentResult(){
+  const banner = $("paymentBanner");
+  if(!banner) return;
+  const params = new URLSearchParams(location.search);
+  const payment = params.get("payment");
+  if(!payment) return;
+  if(payment === "paid"){
+    banner.className = "status ok";
+    banner.textContent = "付款完成，方案已自動開通。";
+  }else if(payment === "pending"){
+    banner.className = "status";
+    banner.textContent = "綠界已收到付款請求，系統會在收到正式確認後自動開通。";
+  }else{
+    banner.className = "status error";
+    banner.textContent = "付款未完成或被取消，請重新嘗試。";
+  }
+  banner.style.display = "block";
+}
+
 async function loadMember(){
+  showPaymentResult();
   try{
     const me = await api("/api/me");
-    $("memberName").textContent = me.member.name || me.member.email;
-    $("memberPlan").textContent = me.member.plan || "尚未啟用";
-    $("memberStatus").textContent = me.member.status || "pending";
-    $("memberCredits").textContent = me.member.credits_remaining ?? 0;
-    $("memberExpires").textContent = me.member.expires_at || "尚未啟用";
-    const active = me.member.status === "active";
-    $("enterAi").style.display = active ? "inline-flex" : "none";
-    $("inactiveHint").style.display = active ? "none" : "block";
+    const m = me.member;
+    $("memberName").textContent = m.name || m.email;
+    $("memberPlan").textContent = m.plan || "尚未啟用";
+    $("memberStatus").textContent = m.status || "pending";
+    $("memberCredits").textContent = m.credits_remaining ?? 0;
+    $("memberExpires").textContent = m.expires_at || "尚未啟用";
+
+    const active = m.status === "active";
+    if($("enterAi")) $("enterAi").style.display = active ? "inline-flex" : "none";
+    if($("buyPlanCta")) $("buyPlanCta").style.display = active ? "none" : "inline-flex";
+    if($("activePanel")) $("activePanel").style.display = active ? "block" : "none";
+    if($("pendingPanel")) $("pendingPanel").style.display = active ? "none" : "block";
+    if($("inactiveHint")) $("inactiveHint").style.display = active ? "none" : "block";
   }catch(e){
     location.href = "/login";
   }
+}
+
+function toggleRedeem(){
+  const panel = $("redeemPanel");
+  if(!panel) return;
+  panel.style.display = panel.style.display === "block" ? "none" : "block";
 }
 
 async function redeemCode(){
