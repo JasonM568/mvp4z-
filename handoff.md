@@ -283,6 +283,88 @@ repo 原本同時被 `mvp4z` 與 `xunfeng-v2-vercel-deploy` 兩個 Vercel projec
 - PR #5 (`feature/vercel-deploy`) 已關（不 merge）、branch 已刪、worktree 已 `git worktree remove`。
 - 副作用：原本 PR #5 內的 `docs/vercel-deployment.md` 隨 worktree 一起刪了，若日後要長期保留部署紀錄要重寫一份以 `mvp4z` project 為主的版本。
 
+## 2026-05-23 一日大整收尾紀錄
+
+從 2026-05-21 三個未 commit worktree 的尾巴一路接到 ECPay 自動化前端 + 易學決策報告（council）可運行。一共 merge 11 個 PR（#3～#21，#5 closed without merge）。`main` HEAD 多次推進，最後落在 PR #21 release（`feature/council-route-maxduration` 修真兇）。
+
+### 一、清三個 2026-05-21 收尾未提交的 worktree
+- **PR #3/#4/#5** 開出。
+- **PR #3**（`feature/ecpay-idempotency`）→ develop merged，新增 `scripts/test-ecpay-idempotency.mjs` + npm script。
+- **PR #4**（`feature/audit-fixes`）→ develop merged（先 rebase 解 handoff.md 衝突），鎖 `postcss@8.5.15` + npm overrides。
+- **PR #5**（`feature/vercel-deploy`）暫留 → 後續流程裡決定不 merge → 直接 close。
+
+### 二、Vercel project 釐清 → 合併到 mvp4z
+- 發現 repo 同時被 `mvp4z` 與 `xunfeng-v2-vercel-deploy` 兩個 Vercel project watch，PR check 兩邊都跑 preview。
+- 盤點 env：`mvp4z` 缺 8 個（ADMIN_EMAILS、ECPAY_*），`xunfeng-v2-vercel-deploy` 才完整。
+- 從 `.env.local` 用 stdin pipe 把缺的 env 補進 `mvp4z`（值不 echo 到 log），URL 類改寫指向 `https://mvp4z.vercel.app`。
+- mvp4z 重新 deploy `dpl_Guc3AWJu5SJmxSN1JuTnABUdegUG`，5 條 smoke test 通過。
+- `vercel project rm xunfeng-v2-vercel-deploy`，PR #5 關閉、branch+worktree 移除。
+
+### 三、Legacy 渲染 bug 兩連修
+- **PR #6/#7**（`feature/legacy-head-scripts`）：`lib/site/legacy-page.ts` 原本只在 body 範圍掃 `<script src=>`，但 `login.html` 等把 `member-config.js` / `member-auth.js` 放在 `<head>`，導致 `window.registerMember` / `loginMember` 全 undefined、所有「建立帳號 / 登入 / 啟用」按鈕點下去都沒反應、也沒 console error（onclick ReferenceError 被 React event system 吞掉）。改成從整份 raw HTML 抓 script + dedupe。Root cause 靠 gstack-browse 在 prod /login 點按鈕、發現 network 完全沒打 /api/register 找到的。
+- **PR #8/#9**（`feature/legacy-js-urls`）：`member-auth.js` / `member-ai.js` / `cms-render.js` 內 `location.href = "X.html"` 會打到 catch-all 沒登記的 /X.html → 404。改成 `/X`。順手 `.gitignore` 加 `.gstack/`。
+
+### 四、第一個 admin 帳號上線
+- 用 `306465@gmail.com` 註冊 → `ensureProfileForAuthUser` 看 ADMIN_EMAILS 自動升 role=admin（profile id `5e02737a-f545-446a-98bf-9dd1bba00b31`，name=CHEN MENG HUNG）。
+- 清掉 debug 過程在 prod Supabase 建的 2 個 `debug_*@example.com` 測試帳號（profile + auth.users）。
+
+### 五、ECPay 一鍵結帳 UX 整合
+原本 backend `/api/orders/create` + ECPay webhook 都串好，但前端從沒接：`/member-pricing` 仍是 v1「LINE 詢問人工開通」靜態頁、`/member` 註冊完只看到「輸入啟用碼」面板。
+
+- **PR #10/#11**（`feature/ecpay-pricing-frontend`）：
+  - 新增 GET `/api/plans`（公開）回 active 非 trial plans。
+  - 重寫 `/member-pricing.html` 為動態渲染骨架 + 新增 `public/js/member-pricing.js`：拉 `/api/plans` 渲染 basic/pro/vip 三張卡，「立即購買」未登入跳 /login，已登入則 POST `/api/orders/create` → 組 hidden form auto-submit 到綠界。
+  - `/member.html` 加狀態化 CTA：active 顯示「進入 AI 會員版」、非 active 顯示「立即購買方案」。啟用碼面板降級為「我有啟用碼」摺疊區（admin promo code 用）。
+  - `member-auth.js` 擴 `loadMember` 分支 activePanel / pendingPanel；新增 `showPaymentResult` 讀 `?payment=` query 顯示 banner。
+
+### 六、Next.js script 注入時序兩連修
+- **PR #12/#13**（`feature/dom-ready-fix`）：`member-pricing.js` / `member-ai.js` 用 `document.addEventListener("DOMContentLoaded", ...)`，但 `next/script strategy="afterInteractive"` 注入時 DOMContentLoaded 已 fire 過，listener 永遠不會跑。改成檢查 `readyState === "loading"` 決定要 listen 還是直接呼叫。
+- **PR #16/#17**（`feature/member-page-autoinit`）：`<body onload="loadMember()">` 屬性會被 Next.js RootLayout 的無屬性 `<body>{children}</body>` 覆蓋掉（dangerouslySetInnerHTML 只接受 body 內容、不帶 body tag 自身屬性）。會員中心永卡「讀取中」。在 `member-auth.js` 末尾用元素判別（看有沒有 `#memberName`）+ readyState 自啟動。順手把 member.html 失效的 `onload="..."` 拿掉。
+
+### 七、共用 SiteHeader
+- **PR #14/#15**（`feature/site-header-shared`）：`/member-ai/decision` 原本自帶簡化版 topbar（只 3 個 link）。新增 `components/SiteHeader.tsx` 對齊 legacy index.html 的 `.topbar` + `.nav-links`（11 個 link，含 LINE 預約），支援可選 member badge（登入後顯示 `PRO ｜ 剩 N 點` 取代「登入」按鈕）。先用在 decision 頁，之後 admin/admin-login 可同步換上。
+
+### 八、ECPay sandbox「模擬付款」按鈕的雷
+admin 在 /member-pricing 點「pro 立即購買」→ 跳綠界 → 點「模擬付款」按鈕 → 綠界顯示成功、browser redirect 回站、但 **server-to-server webhook 完全沒發**。DB 留下 2 筆 pending order、無 entitlement。
+
+- 2 筆 pending order 已 service role 刪除。
+- 用 `scripts/test-ecpay-idempotency.mjs --base-url https://mvp4z.vercel.app` 模擬 webhook 對新建的 pro order：走真實 webhook code path 寫 entitlement（150 credits / 30 天）+ payment + credit_transaction。順便驗 prod webhook idempotency（連送兩次三張表筆數不變）。
+- Production 沒這顆按鈕，僅 sandbox 才有，正式上線不會踩此雷。
+
+### 九、易學決策報告 504 timeout 真兇追擊
+admin 在 /member-ai/decision 點「生成綜合報告」→ 系統提示 `Unexpected token 'A', "An error o"... is not valid JSON`（Vercel 預設錯誤頁不是 JSON）。
+
+- **第一次嘗試 — PR #18/#19**（`feature/council-timeout`）：以為 `vercel.json` 的 `app/api/ai/council/route.ts: maxDuration: 120` 是兇手，改成 300（順便拿掉 Active CPU billing 已忽略的 `memory: 1024`）。Deploy 後重試 → 仍 504 timeout after **120 seconds**。
+- **第二次嘗試 — PR #20/#21**（`feature/council-route-maxduration`）：真兇是 `app/api/ai/council/route.ts:46` 內 `export const maxDuration = 120`。**Next.js App Router 的 route segment config export 優先於 vercel.json**。改 route 內 export 為 300。Deploy 後重試 → council 跑 **150 秒**生成完成、`council_runs.final_ok=true` / `fallback_used=false` / `credits_charged=10` / `total_tokens_in=50059, out=18177`，credit_transactions debit row 也正常寫入（source=`ai_council` ref_id=council_runs.id）。
+
+### 副作用 — Council atomicity bug
+兩次 504 中間 admin 各被扣 10 點但完全沒拿到報告（route 是先扣點再跑 LLM、Vercel 強制 kill function 時 refund 沒跑）：
+- 504 不會寫 credit_transactions debit row、不會寫 council_runs row、credits_remaining 直接 -10。
+- 兩次手動補退 10 點 + log `adjustment +10 source=admin_refund ref_id=council-504-timeout-*-2026-05-23`。
+- 真正修法應該動 council route 把扣點 + 寫 transaction 改成原子操作，或改成「LLM 成功才扣點」。列在待辦。
+
+### 收工狀態
+- `main` HEAD: PR #21 release merge（route maxDuration=300）
+- Prod `https://mvp4z.vercel.app` ECPay sandbox 一鍵結帳、council 都可運作
+- Admin `306465@gmail.com` 持有 pro entitlement / 140 credits / 到期 2026-06-22
+- council_runs 表第一筆真實生成記錄 `95e1f355-9c84-4bc8-8247-5f76a7628530`
+
+### 待辦（重要性排序）
+1. ECPAY production keys 切換正式商店（目前是綠界公開測試帳號 `3002607`）
+2. **Council 扣點 atomicity bug**：扣點 + 寫 transaction 改原子，或改「LLM 成功才扣點」
+3. 電子發票串接（`feature/ecpay-invoice` worktree 已建未開工）
+4. `feature/ecpay-merchant-config`（sandbox/prod 切換規則）未開工
+5. AI chat (/api/ai/chat) 端到端流程驗證（admin 有 pro entitlement 可拿來測）
+6. 課程報名訂單系統（之後另開 worktree）
+7. SiteHeader 推到其他 Next 頁面（admin / admin-login）
+8. 未付款訂單自動清理 cron（>24h pending → cancelled）
+9. /member-ai/decision useEffect 拿不到 member 時 silently swallow 401，按鈕應 disabled 並提示重新登入
+10. 重寫 Vercel 部署文件（原 docs/vercel-deployment.md 隨 feature/vercel-deploy 一起刪了）
+
+### 累積的 Sandbox UX 提醒
+- 綠界 sandbox「**模擬付款**」按鈕**不發 webhook**，要驗 webhook 必須走信用卡分頁填測試卡（`4311-9522-2222-2222` / `222` / `12/30`）
+- Supabase JWT 預設 1 小時過期，token 過期後 /api/me 401，需要重新登入
+
 ## 2026-05-20 ECPay idempotency 驗證
 
 - 新增 `scripts/test-ecpay-idempotency.mjs` 與 `npm run test:ecpay-idempotency -- --order-no <order_no> --trade-no <trade_no>`，可重送同一筆綠界 notify payload 並比對資料筆數。
