@@ -7,21 +7,12 @@ import { readLegacyPage } from "@/lib/site/legacy-page";
 // 易學決策報告（v3）以服務卡片自動透過 services.json + cms-render.js 顯示在
 // 首頁的「服務項目」區塊；單獨工作台位於 /member-ai/decision
 const ROUTES: Record<string, string> = {
-  "": "index.html",
-  about: "about.html",
-  services: "services.html",
-  enterprise: "enterprise.html",
-  cases: "cases.html",
-  courses: "courses.html",
-  booking: "booking.html",
-  thanks: "thanks.html",
-  privacy: "privacy.html",
-  ai: "ai.html",
-  login: "login.html",
-  member: "member.html",
-  "member-ai": "member-ai.html",
-  "member-admin": "member-admin.html",
-  "member-pricing": "member-pricing.html"
+  "": "index.html"
+  // 已遷移到 app/(public)/* 的頁面：
+  //   about / services / enterprise / cases / courses / booking
+  //   ai / privacy / thanks / login
+  //   member / member-ai / member-admin / member-pricing
+  // 只剩首頁 index 待 Phase 3 處理
 };
 
 type PageProps = {

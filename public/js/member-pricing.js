@@ -140,8 +140,9 @@ async function loadPlans() {
   }
 }
 
-// Next.js <Script strategy="afterInteractive"> 注入時 DOMContentLoaded 已 fire，
-// 直接呼叫；萬一被改成更早載入也保留 fallback。
+// 暴露給 Next.js client component 在 useEffect 內手動觸發
+window.loadPlans = loadPlans;
+// Legacy 路徑（直接 <script src> 載入）也能自啟動
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", loadPlans);
 } else {

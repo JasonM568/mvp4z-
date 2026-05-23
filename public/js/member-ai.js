@@ -52,13 +52,17 @@ async function sendChat(){
 }
 function logout(){ clearToken(); location.href = "/login"; }
 function initMemberAi(){
+  if(!$("sendBtn") || !$("message")) return; // DOM not ready
   loadMe();
   $("sendBtn").onclick = sendChat;
   $("message").addEventListener("keydown", e => {
     if(e.key === "Enter" && (e.ctrlKey || e.metaKey)) sendChat();
   });
 }
-// Next.js afterInteractive 注入時 DOMContentLoaded 已 fire，直接呼叫
+// 暴露到 window，讓 Next.js client component 可在 useEffect 內手動呼叫
+window.initMemberAi = initMemberAi;
+window.logout = logout;
+// Legacy 路徑（直接 <script src> 載入時）也能自啟動
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initMemberAi);
 } else {
