@@ -33,7 +33,7 @@
     // 舊 GPT 目前公開端會 404，因此先導到站內 AI 說明頁。
     // 未來後台換成新的可公開 GPT 連結後，會自動改用新連結。
     const blocked = "g-683d6cacf5648191ade78d93c3aec7ac";
-    if (!value || String(value).includes(blocked)) return "ai.html";
+    if (!value || String(value).includes(blocked)) return "/ai";
     return value;
   }
 
@@ -56,7 +56,7 @@
           <div class="price-range">${escapeHTML(s.price)}</div>
           <p class="price-note">${escapeHTML(s.note)}</p>
           <p>${escapeHTML(s.description)}</p>
-          <div class="actions"><a class="btn btn-primary" href="booking.html">預約${escapeHTML(s.title)}</a></div>
+          <div class="actions"><a class="btn btn-primary" href="/booking">預約${escapeHTML(s.title)}</a></div>
         </article>
       `).join("");
     }
