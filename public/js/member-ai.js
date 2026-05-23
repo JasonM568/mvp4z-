@@ -24,10 +24,10 @@ function addMsg(role, text){
 async function loadMe(){
   try{
     const me = await api("/api/me");
-    if(me.member.status !== "active") location.href = "member.html";
+    if(me.member.status !== "active") location.href = "/member";
     $("memberLine").textContent = `${me.member.name || me.member.email}｜${me.member.plan}｜剩餘 ${me.member.credits_remaining} 次｜到期 ${me.member.expires_at}`;
   }catch(e){
-    location.href = "login.html";
+    location.href = "/login";
   }
 }
 
@@ -50,7 +50,7 @@ async function sendChat(){
     $("sendBtn").textContent = "送出";
   }
 }
-function logout(){ clearToken(); location.href = "login.html"; }
+function logout(){ clearToken(); location.href = "/login"; }
 document.addEventListener("DOMContentLoaded", () => {
   loadMe();
   $("sendBtn").onclick = sendChat;
