@@ -96,6 +96,19 @@ function toggleRedeem(){
   panel.style.display = panel.style.display === "block" ? "none" : "block";
 }
 
+// legacy <body onload="loadMember()"> 的屬性會被 Next.js RootLayout 的 <body>
+// 覆蓋（dangerouslySetInnerHTML 只接收 body 內容，body tag 本身屬性丟失）。
+// 改用元素判別 + readyState 自啟動。/login 也載這個 script，但沒有 memberName 元素，
+// 不會被誤觸發。
+function initMemberPage(){
+  if(document.getElementById("memberName")) loadMember();
+}
+if(document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", initMemberPage);
+}else{
+  initMemberPage();
+}
+
 async function redeemCode(){
   try{
     const data = await api("/api/redeem",{method:"POST",body:JSON.stringify({code:$("code").value.trim()})});
