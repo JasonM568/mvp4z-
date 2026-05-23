@@ -28,7 +28,7 @@ async function registerMember(){
     setToken(data.token);
     $("status").className = "status ok";
     $("status").textContent = "註冊成功，請輸入付款後取得的會員啟用碼。";
-    location.href = "member.html";
+    location.href = "/member";
   }catch(e){
     $("status").className = "status error";
     $("status").textContent = e.message;
@@ -42,7 +42,7 @@ async function loginMember(){
       password:$("loginPassword").value
     })});
     setToken(data.token);
-    location.href = "member.html";
+    location.href = "/member";
   }catch(e){
     $("loginStatus").className = "status error";
     $("loginStatus").textContent = e.message;
@@ -61,7 +61,7 @@ async function loadMember(){
     $("enterAi").style.display = active ? "inline-flex" : "none";
     $("inactiveHint").style.display = active ? "none" : "block";
   }catch(e){
-    location.href = "login.html";
+    location.href = "/login";
   }
 }
 
@@ -79,5 +79,5 @@ async function redeemCode(){
 
 function logout(){
   clearToken();
-  location.href = "login.html";
+  location.href = "/login";
 }
