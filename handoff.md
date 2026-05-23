@@ -257,9 +257,31 @@ git status --short --branch
 
 ## 下次建議先做
 
-1. 測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
-2. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
+1. 註冊第一個 admin 帳號（ADMIN_EMAILS 已設）→ /login 註冊 → 重新登入 → /admin-login。
+2. 測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
 3. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+
+## 2026-05-23 Vercel project 釐清
+
+repo 原本同時被 `mvp4z` 與 `xunfeng-v2-vercel-deploy` 兩個 Vercel project watch，PR check 兩邊都跑 preview。盤點發現 `mvp4z` 只有 10 個 env（缺 ECPAY_* 與 ADMIN_EMAILS，付款流程動不了），`xunfeng-v2-vercel-deploy` 有完整 16 個 env，是 2026-05-21 worktree 補設的。
+
+決策：**合併到 `mvp4z`，刪除 `xunfeng-v2-vercel-deploy`**。
+
+執行步驟：
+
+- 從 `xunfeng-official-v2/.env.local` 把 8 個缺的 env vars 用 stdin pipe 加進 `mvp4z` production：
+  - 5 個原樣搬：`ADMIN_EMAILS`、`ECPAY_ENV`、`ECPAY_HASH_IV`、`ECPAY_HASH_KEY`、`ECPAY_MERCHANT_ID`
+  - 3 個 URL 改寫指向 `https://mvp4z.vercel.app`：`ECPAY_RETURN_URL`、`ECPAY_NOTIFY_URL`、`ECPAY_CLIENT_BACK_URL`
+- 重新 production deploy：`dpl_Guc3AWJu5SJmxSN1JuTnABUdegUG`，URL `https://mvp4z-dafgklx4g-tjs-projects-435187fd.vercel.app`。
+- Smoke test 5 條全通過：
+  - `GET /` → 200
+  - `GET /member-pricing` → 200
+  - `GET /api/payments/ecpay/return` → 303 → `https://mvp4z.vercel.app/member`
+  - `GET /admin-login` → 200
+  - `GET /member-ai` → 200
+- `vercel project rm xunfeng-v2-vercel-deploy` 刪除重複 project。
+- PR #5 (`feature/vercel-deploy`) 已關（不 merge）、branch 已刪、worktree 已 `git worktree remove`。
+- 副作用：原本 PR #5 內的 `docs/vercel-deployment.md` 隨 worktree 一起刪了，若日後要長期保留部署紀錄要重寫一份以 `mvp4z` project 為主的版本。
 
 ## 2026-05-20 ECPay idempotency 驗證
 
