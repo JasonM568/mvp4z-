@@ -18,9 +18,11 @@ export async function readLegacyPage(fileName: string): Promise<LegacyPage> {
     /<meta\s+name=["']description["']\s+content=["'](.*?)["']\s*\/?>/is
   );
   const body = matchFirst(raw, /<body[^>]*>([\s\S]*?)<\/body>/i) ?? raw;
-  const scripts = Array.from(body.matchAll(/<script\s+src=["']([^"']+)["'][^>]*><\/script>/gi))
+  // legacy 頁面常把 <script src> 放在 <head>（例如 member-config.js / member-auth.js），
+  // 要從整份 raw 抓 script，不能只掃 body。
+  const scripts = Array.from(raw.matchAll(/<script\s+src=["']([^"']+)["'][^>]*><\/script>/gi))
     .map((match) => normalizeAssetPath(match[1]))
-    .filter(Boolean);
+    .filter((src, idx, arr) => Boolean(src) && arr.indexOf(src) === idx);
   const html = body.replace(/<script[\s\S]*?<\/script>/gi, "");
 
   return { html: normalizeLegacyHtml(html), title, description, scripts };
