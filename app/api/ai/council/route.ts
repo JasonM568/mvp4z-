@@ -43,7 +43,7 @@ import {
 } from "@/lib/ai/council/quality";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 type Reserved = {
   entitlementId: string;
