@@ -220,11 +220,9 @@ git status --short --branch
 
 ## 尚未完成
 
-- 綠界 webhook idempotency 重送測試。
 - **電子發票串接**（依台灣稅法，付款成功後須開立統一發票，目前完全沒做。詳見下方「電子發票串接 TODO」）。
 - AI chat 流程尚未完整端到端驗證。
 - Vercel 部署設定（新 GitHub repo 已存在 `JasonM568/mvp4z-`，但 Vercel project 還沒建）。
-- `npm install` 顯示的 `2 moderate severity vulnerabilities` 尚未處理。
 
 ## 電子發票串接 TODO
 
@@ -259,11 +257,44 @@ git status --short --branch
 
 ## 下次建議先做
 
-1. 重送一次 webhook 驗 idempotency（可用上次測試的 `2605191303547152` provider_trade_no 直接 POST 自己組的 payload）。
+1. 註冊第一個 admin 帳號（ADMIN_EMAILS 已設）→ /login 註冊 → 重新登入 → /admin-login。
 2. 測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
-3. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
-4. 處理 npm audit 漏洞。
-5. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+3. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+
+## 2026-05-23 Vercel project 釐清
+
+repo 原本同時被 `mvp4z` 與 `xunfeng-v2-vercel-deploy` 兩個 Vercel project watch，PR check 兩邊都跑 preview。盤點發現 `mvp4z` 只有 10 個 env（缺 ECPAY_* 與 ADMIN_EMAILS，付款流程動不了），`xunfeng-v2-vercel-deploy` 有完整 16 個 env，是 2026-05-21 worktree 補設的。
+
+決策：**合併到 `mvp4z`，刪除 `xunfeng-v2-vercel-deploy`**。
+
+執行步驟：
+
+- 從 `xunfeng-official-v2/.env.local` 把 8 個缺的 env vars 用 stdin pipe 加進 `mvp4z` production：
+  - 5 個原樣搬：`ADMIN_EMAILS`、`ECPAY_ENV`、`ECPAY_HASH_IV`、`ECPAY_HASH_KEY`、`ECPAY_MERCHANT_ID`
+  - 3 個 URL 改寫指向 `https://mvp4z.vercel.app`：`ECPAY_RETURN_URL`、`ECPAY_NOTIFY_URL`、`ECPAY_CLIENT_BACK_URL`
+- 重新 production deploy：`dpl_Guc3AWJu5SJmxSN1JuTnABUdegUG`，URL `https://mvp4z-dafgklx4g-tjs-projects-435187fd.vercel.app`。
+- Smoke test 5 條全通過：
+  - `GET /` → 200
+  - `GET /member-pricing` → 200
+  - `GET /api/payments/ecpay/return` → 303 → `https://mvp4z.vercel.app/member`
+  - `GET /admin-login` → 200
+  - `GET /member-ai` → 200
+- `vercel project rm xunfeng-v2-vercel-deploy` 刪除重複 project。
+- PR #5 (`feature/vercel-deploy`) 已關（不 merge）、branch 已刪、worktree 已 `git worktree remove`。
+- 副作用：原本 PR #5 內的 `docs/vercel-deployment.md` 隨 worktree 一起刪了，若日後要長期保留部署紀錄要重寫一份以 `mvp4z` project 為主的版本。
+
+## 2026-05-20 ECPay idempotency 驗證
+
+- 新增 `scripts/test-ecpay-idempotency.mjs` 與 `npm run test:ecpay-idempotency -- --order-no <order_no> --trade-no <trade_no>`，可重送同一筆綠界 notify payload 並比對資料筆數。
+- 已用既有測試訂單 `XF2026051913034555C9` 與綠界交易編號 `2605191303547152` 驗證重送兩次 webhook。
+- 驗證結果：`payments`、`member_entitlements`、`credit_transactions` 在測試前、第一次 notify 後、第二次 notify 後都維持各 1 筆，沒有重複付款紀錄、重複權益或重複加點。
+
+## 2026-05-21 npm audit 修正
+
+- `npm audit` 的 2 個 moderate vulnerabilities 來源是 Next 15.5.18 內部固定依賴的 `postcss@8.4.31`，對應 GHSA-qx2v-qp2m-jg93。
+- 未採用 `npm audit fix --force`，因為 npm 建議降到 `next@9.3.3`，會破壞目前 Next 15 App Router 專案。
+- 將直接 devDependency `postcss` 固定為 `8.5.15`，並新增 npm `overrides.postcss=8.5.15`，讓 `next`、Tailwind、Autoprefixer 共用修補版。
+- 驗證：`npm audit` 回 `found 0 vulnerabilities`；`npm ls postcss` 顯示 `next@15.5.18` 使用 `postcss@8.5.15 deduped`；`npm run build` 通過。
 
 ## 2026-05-20 開工紀錄
 
