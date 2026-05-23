@@ -51,10 +51,16 @@ async function sendChat(){
   }
 }
 function logout(){ clearToken(); location.href = "/login"; }
-document.addEventListener("DOMContentLoaded", () => {
+function initMemberAi(){
   loadMe();
   $("sendBtn").onclick = sendChat;
   $("message").addEventListener("keydown", e => {
     if(e.key === "Enter" && (e.ctrlKey || e.metaKey)) sendChat();
   });
-});
+}
+// Next.js afterInteractive 注入時 DOMContentLoaded 已 fire，直接呼叫
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initMemberAi);
+} else {
+  initMemberAi();
+}
