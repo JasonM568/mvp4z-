@@ -220,7 +220,6 @@ git status --short --branch
 
 ## 尚未完成
 
-- 綠界 webhook idempotency 重送測試。
 - **電子發票串接**（依台灣稅法，付款成功後須開立統一發票，目前完全沒做。詳見下方「電子發票串接 TODO」）。
 - AI chat 流程尚未完整端到端驗證。
 - Vercel 部署設定（新 GitHub repo 已存在 `JasonM568/mvp4z-`，但 Vercel project 還沒建）。
@@ -259,11 +258,16 @@ git status --short --branch
 
 ## 下次建議先做
 
-1. 重送一次 webhook 驗 idempotency（可用上次測試的 `2605191303547152` provider_trade_no 直接 POST 自己組的 payload）。
-2. 測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
-3. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
-4. 處理 npm audit 漏洞。
-5. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+1. 測 `/api/ai/chat`：扣點、`usage_logs`、點數不足情境。
+2. Vercel 專案建立 + 環境變數設定 + 第一次 preview deploy（注意 ngrok 不能當正式 webhook URL，要改成 Vercel preview domain）。
+3. 處理 npm audit 漏洞。
+4. **規劃電子發票串接**：先決定供應商（預設綠界）→ 申請沙箱發票字軌 → 加 `invoices` migration → `/api/payments/ecpay/notify` 補開票邏輯 → 結帳頁加買受人 / 載具欄位（詳見「電子發票串接 TODO」章節）。
+
+## 2026-05-20 ECPay idempotency 驗證
+
+- 新增 `scripts/test-ecpay-idempotency.mjs` 與 `npm run test:ecpay-idempotency -- --order-no <order_no> --trade-no <trade_no>`，可重送同一筆綠界 notify payload 並比對資料筆數。
+- 已用既有測試訂單 `XF2026051913034555C9` 與綠界交易編號 `2605191303547152` 驗證重送兩次 webhook。
+- 驗證結果：`payments`、`member_entitlements`、`credit_transactions` 在測試前、第一次 notify 後、第二次 notify 後都維持各 1 筆，沒有重複付款紀錄、重複權益或重複加點。
 
 ## 2026-05-20 開工紀錄
 

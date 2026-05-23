@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "test:ecpay-idempotency": "node scripts/test-ecpay-idempotency.mjs",
     "start": "next start",
     "lint": "next lint"
   },
