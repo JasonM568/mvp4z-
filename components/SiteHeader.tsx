@@ -1,19 +1,11 @@
-type MemberBadge = {
-  plan?: string;
-  credits_remaining?: number;
-} | null;
-
-type SiteHeaderProps = {
-  /** 顯示會員狀態徽章 — 通常只在會員專屬頁面（/member-ai/decision、/admin 等）使用 */
-  member?: MemberBadge;
-};
+import { HeaderMemberPill } from "@/components/HeaderMemberPill";
 
 /**
  * 全站共用主導覽 — 結構與 legacy index.html 的 .topbar / .nav-links 完全對齊，
- * 樣式由 styles/site.css 提供。Next.js 原生頁面（decision、admin-login 等）使用，
- * legacy HTML 頁面已自帶各自的 header 不用此 component。
+ * 樣式由 styles/site.css 提供。右側「登入 / 會員中心」由 HeaderMemberPill
+ * client component 讀 localStorage token 動態切換，避免 server render 永遠顯示「登入」。
  */
-export function SiteHeader({ member }: SiteHeaderProps) {
+export function SiteHeader() {
   return (
     <header className="topbar">
       <div className="wrap nav">
@@ -37,16 +29,7 @@ export function SiteHeader({ member }: SiteHeaderProps) {
           <a className="btn btn-ghost" href="/ai" target="_blank" rel="noreferrer">
             AI 初步諮詢
           </a>
-          {member ? (
-            <span
-              className="btn btn-ghost"
-              style={{ pointerEvents: "none", opacity: 0.85 }}
-            >
-              {(member.plan || "").toUpperCase()} ｜ 剩 {member.credits_remaining ?? 0} 點
-            </span>
-          ) : (
-            <a className="btn btn-ghost" href="/login">登入</a>
-          )}
+          <HeaderMemberPill />
           <a
             className="btn btn-primary"
             href="https://lin.ee/W88wwDB"
