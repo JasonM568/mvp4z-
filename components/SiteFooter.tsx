@@ -1,7 +1,12 @@
+"use client";
+
+import { AiEntryButton } from "@/components/AiEntryButton";
+
 /**
  * 全站共用 Footer — 結構與 legacy *.html 的 .footer 完全對齊。
  * 樣式由 styles/site.css 提供。data-site / data-link 屬性保留，
  * 由 public/js/cms-render.js 在 client 端動態填入內容。
+ * AI 入口對已啟用付費會員切「進入 AI 會員版」（連 /member-ai/decision）。
  */
 export function SiteFooter() {
   return (
@@ -19,9 +24,7 @@ export function SiteFooter() {
             <a href="/services">價格方案</a>
             <a href="/enterprise">年度企業顧問</a>
             <a href="/cases">案例實績</a>
-            <a data-link="ai" href="/ai" target="_blank" rel="noreferrer">
-              AI 初步諮詢入口
-            </a>
+            <AiEntryButton variant="footer" />
             <a href="/booking">預約表單</a>
           </div>
         </div>

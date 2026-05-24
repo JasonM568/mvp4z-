@@ -1,3 +1,4 @@
+import { AiEntryButton } from "@/components/AiEntryButton";
 import { HeaderMemberPill } from "@/components/HeaderMemberPill";
 
 /**
@@ -26,9 +27,7 @@ export function SiteHeader() {
           <a href="/booking">預約表單</a>
           <a href="/member-ai/decision">易學決策報告</a>
           <a href="/member-pricing">會員方案</a>
-          <a className="btn btn-ghost" href="/ai" target="_blank" rel="noreferrer">
-            AI 初步諮詢
-          </a>
+          <AiEntryButton variant="header" />
           <HeaderMemberPill />
           <a
             className="btn btn-primary"
