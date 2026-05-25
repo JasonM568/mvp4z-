@@ -884,3 +884,153 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 - Vercel：mvp4z production `dpl_*-cxx2yce73` 跑在 forgot-password + cron + 新 CRON_SECRET
 - 已上線 cron：`/api/cron/cleanup-pending-orders` 每小時整點觸發
 - 待補：`CRON_SECRET` preview 環境變數
+
+## 2026-05-25 中｜剩 5 條 feature branch 全清
+
+承接 5/25 早的兩條無痛 PR 後，把剩餘 5 條 feature branch 全部依風險由低到高排序、一條一條 rebase + PR + merge + verify + cleanup，外加 3 條 Supabase migration 上 prod。所有 PR 都 squash merge、Vercel webhook 都自動觸發 prod build。
+
+### PR 紀錄
+
+| # | Branch | PR | Merge commit | Migration |
+| --- | --- | --- | --- | --- |
+| 1 | `fix/header-member-state` | [#35](https://github.com/JasonM568/mvp4z-/pull/35) | `c746693` | - |
+| 2 | `feature/ecpay-merchant-config` | [#36](https://github.com/JasonM568/mvp4z-/pull/36) | `9c26b2d` | - |
+| 3 | `feature/ai-chat-e2e` | [#37](https://github.com/JasonM568/mvp4z-/pull/37) | `bd7573a` | 0007（補 history）+ 0010 |
+| 4 | `feature/ecpay-invoice` (Phase 1) | [#38](https://github.com/JasonM568/mvp4z-/pull/38) | `1d3bc40` | 0008 + 0009 |
+| 5 | `feature/ecpay-invoice-phase2` | [#39](https://github.com/JasonM568/mvp4z-/pull/39) | `0f16a53` | （同 P1） |
+
+### 一、PR #35 Header member state UI 一致性
+
+- `SiteHeader` 抽 `HeaderMemberPill`，登入後顯 `PRO ｜ 剩 N 點` pill 取代「登入」按鈕
+- 新增 `AiEntryButton`：已付費會員顯「進入 AI 會員版」、未付費顯「升級為 AI 會員」；`SiteHeader` / `SiteFooter` / `FloatingActions` 統一用此邏輯
+- 新 hook `use-member-session`：集中讀 Supabase session + entitlement
+- 純前端 UI，無 API / DB / migration
+
+### 二、PR #36 ECPay env 集中設定 + validation + 切換 SOP
+
+- 新 `lib/payments/ecpay-config.ts`：`getEcpayConfig()` / `validateEcpayConfig()` / `getValidatedEcpayConfig()`（cached、first-call throws on error）/ `inspectEcpayConfig()`（pure，給 script 用）
+- 新 `scripts/check-ecpay-env.mjs` + `npm run check:ecpay-env`：CLI 驗證讀 `.env.local`
+- 新 `docs/ecpay-env-config.md`：切換 SOP
+- `lib/payments/ecpay.ts` 改用 `getValidatedEcpayConfig()`，對外 signature 不變
+- **驗證規則 7 條**（sandbox MID in prod / localhost / 非 https / origin 不一致 / MID 非數字 / hash 太短 / 缺 env）→ runtime first-call throw，比讓綠界回 500 容易 debug
+- prod 目前 `ECPAY_ENV=stage` + sandbox MID `3002607`（valid），merge 後不會觸發 validation error
+
+### 三、PR #37 AI chat charge-on-success atomicity（仿 council pattern）
+
+- `app/api/ai/chat/route.ts` 從「預扣 → 跑 LLM → catch refund」改成「驗額不扣 → 跑 LLM → 寫 usage_logs → RPC 原子扣點」
+- 新 `supabase/migrations/0010_chat_atomic_commit.sql`：`commit_chat_credit` function（structure 仿 0007，source=`ai_chat`）
+- 新 `scripts/test-ai-chat-e2e.mjs` + `npm run test:ai-chat-e2e`
+- **rebase 時 package.json 有 conflict**（這條的 `test:ai-chat-e2e` vs branch 2 的 `check:ecpay-env`），兩條 script 都保留即解
+
+#### 失敗模式
+
+| 情境 | 行為 |
+| --- | --- |
+| LLM 失敗 / function kill | 步驟 4 (RPC) 未執行 → 不扣到錢 ✅ |
+| RPC race (CR002) | reply 已生成 → 送出 + `console.warn` |
+| 餘額不足 (CR001) | 前置驗證已擋 |
+
+### 四、PR #38 ECPay 發票 Phase 1：schema + helper + admin manual issue
+
+- `lib/payments/ecpay-invoice.ts` (+285)：AES-128-CBC helper + issue / void / query API wrappers（綠界發票 V3）
+- `app/admin/invoices/page.tsx` (+259)：admin UI 列表 + manual issue 表單
+- `app/api/admin/invoices/[orderId]/issue/route.ts` + `app/api/admin/invoices/route.ts`
+- `app/admin/_shell.tsx`：admin 側欄加「發票」入口
+- `docs/ecpay-invoice-plan.md`：完整設計文件（288 行）
+
+#### Schema (0008 + 0009)
+
+- `orders` 加 `invoice_request jsonb` + `legacy_no_invoice boolean default false`
+- 新 `invoices` 表（含買受人/載具/捐贈/狀態/原始 payload/retry/作廢欄位）+ indexes + trigger
+- RLS：member 只能 select 自己、admin 全部；insert/update/delete 走 service role
+
+### 五、PR #39 ECPay 發票 Phase 2：notify 自動開票 + 結帳前 invoice modal
+
+- 新 `lib/payments/issue-invoice-from-order.ts`：共用「對 paid order 開票並寫 invoices row」helper
+  - idempotent：已有 active invoice → 回 `reused`
+  - `legacy_no_invoice` / 無 buyer → 回 `skipped`
+  - 失敗仍寫 row 留待 retry
+- `lib/payments/orders.ts`：新增 `invoiceRequestSchema` (zod)
+- `app/api/orders/create`：order insert 帶 `invoice_request`
+- `app/api/payments/ecpay/notify`：entitlement 建好後呼叫 `issueInvoiceFromOrder` 自動開票。**失敗 console.warn 不阻擋 1|OK**
+- `public/js/member-pricing.js` (+173)：點方案 → invoice modal（個人雲端 / 公司統編 兩選）→ 填完送 `/api/orders/create` → 跳綠界
+
+#### 6 條 v1 決策 — 採取的 code defaults
+
+| # | 決策 | 目前 default | 何時要解 |
+| --- | --- | --- | --- |
+| 1 | 載具 / 捐贈 | 不收（`carrier_type=none`） | Phase 3 |
+| 2 | 統編檢核 | zod 驗 8 碼數字（信任 user） | 不解 |
+| 3 | 發票 email | 綠界代寄（看 buyer_email） | - |
+| 4 | 歷史 paid 訂單 | `legacy_no_invoice` flag 提供、**未自動標** | 開放真實用戶前手動 UPDATE |
+| 5 | 開票失敗通知 | 只 console.warn | 開放真實用戶前接 email/Slack |
+| 6 | 正式字軌 | Sandbox `2000132` | Phase 4 |
+
+**判斷依據：** 系統未開放真實用戶，且 sandbox MID 不會開出真實發票、notify 自動開票失敗不阻擋付款，所以這 6 條決策都歸「開放真實用戶前」處理，不是「合 Phase 2 之前」處理。
+
+### 六、Supabase migrations 走 CLI（首次成功打通）
+
+handoff 一直記載 5/24 council 0007 那次 `supabase link` DB password prompt 被吞掉、改貼 SQL Editor 手動跑。這次經驗：
+
+1. **DB password 用 `SUPABASE_DB_PASSWORD` env var 傳**：`SUPABASE_DB_PASSWORD="xxx" supabase link --project-ref pvasgmmjrodukudbzuhp` 直接過、不會被吞 prompt
+2. **`supabase db push --yes` 跳過 `[Y/n]` 互動**
+3. **`supabase db push --dry-run --yes` 先看會 apply 哪些**（強烈建議每次都跑）
+4. **0008/0009 timestamps 早於已 applied 的 0010** → `db push` 要求 `--include-all` 才會 backfill 早 timestamp 的 migration
+5. **0007 之前沒進 remote migration_history table**（手動 SQL Editor 跑沒寫 history）→ `db push` 從 branch 3 跑時會把 0007 + 0010 都寫入 history。0007 本身是 `create or replace function` idempotent，重套無害
+
+⚠️ **password 用完去 [Database Settings](https://supabase.com/dashboard/project/pvasgmmjrodukudbzuhp/settings/database) rotate**（暴露在對話記錄裡了）
+
+### 七、Worktree / Branch 清理
+
+已移除（local + remote branch + worktree）：
+- `xunfeng-v2-forgot-password`（早段已清）
+- `xunfeng-v2-orders-cleanup`（早段已清）
+- `fix/header-member-state`（worktree 是主 repo，只刪 branch）
+- `xunfeng-v2-ecpay-merchant-config`
+- `xunfeng-v2-ai-chat-e2e`
+- `xunfeng-v2-ecpay-invoice`
+- `xunfeng-v2-ecpay-invoice-phase2`
+
+`git worktree list` 現在只剩主 `xunfeng-official-v2`（at `main` HEAD `0f16a53`）。
+
+### 八、開放真實用戶前 TODO（gate）
+
+- [ ] **手動 UPDATE 5/19 那批 sandbox paid 訂單 `legacy_no_invoice=true`**（避免 /admin/invoices 列出一堆「待開票」）— SQL：
+  ```sql
+  update public.orders
+  set legacy_no_invoice = true
+  where status = 'paid'
+    and created_at < '2026-05-25'
+    and invoice_request is null
+    and legacy_no_invoice = false;
+  ```
+- [ ] 接 admin 通知（email/Slack）for 開票失敗
+- [ ] 決定要不要做載具 / 捐贈（Phase 3）
+- [ ] 申請正式發票字軌切換（Phase 4，含切換 ECPAY_ENV=production + 真實 MID）
+- [ ] 接 SMTP（Resend）取代 Supabase 預設 3 封/小時限制（forgot-password 流程依賴）
+
+### 九、E2E 驗收 TODO（merge 後沒手動跑）
+
+- [ ] forgot-password：送信 → 收信 → 改密 → 再登入
+- [ ] AI chat 發一則 → 驗 1 點被扣（`credit_transactions.source='ai_chat'`）
+- [ ] /admin/invoices 對既有 paid order 試開一張 sandbox 發票
+- [ ] 結帳 modal：點方案 → 填統編 → 跳綠界 → **信用卡分頁**（不要點「模擬付款」按鈕，那個不發 webhook）→ 驗 invoice 自動生成
+
+### 十、下一次建議起手式
+
+1. 跑 E2E 驗收（4 條）
+2. 補 `CRON_SECRET` 到 preview env（互動式跑 `vercel env add CRON_SECRET preview`）
+3. Rotate Supabase DB password
+4. 決定要不要動「開放真實用戶前 TODO」5 條（特別是 #5 開票失敗通知、#1 載具策略）
+5. 動下一波 feature：若有新需求就開新 worktree，沿用 5/25 SOP（rebase 時 EOD commit 用 `git rebase --skip`、有 migration 就先 `supabase db push --dry-run --yes` 再 push）
+
+### 收工時長時間程序狀態（2026-05-25 中）
+
+- 主 worktree：`xunfeng-official-v2` at `main` HEAD `0f16a53`
+- 無 active feature branch（local 或 remote）
+- Vercel production：`mvp4z-dnkj855o6` Ready，跑齊 5 條 PR
+- Supabase Cloud：migrations 0001–0010 全 applied + tracked
+- 已上線 cron：`/api/cron/cleanup-pending-orders` 每小時整點
+- ⚠️ DB password 已暴露在對話記錄、待 rotate
+- ⚠️ `CRON_SECRET` 待加 preview env
+- ⚠️ 6 條 invoice v1 決策待開放用戶前解
