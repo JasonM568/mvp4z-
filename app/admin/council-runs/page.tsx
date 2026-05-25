@@ -77,7 +77,7 @@ export default function CouncilRunsPage() {
                 <td>{r.credits_charged} 點</td>
                 <td>{r.total_tokens_in.toLocaleString()} / {r.total_tokens_out.toLocaleString()}</td>
                 <td>
-                  <Link href={`/member-admin/council-runs/${r.id}`} style={{ color: "var(--green)", fontWeight: 700 }}>詳情</Link>
+                  <Link href={`/admin/council-runs/${r.id}`} style={{ color: "var(--green)", fontWeight: 700 }}>詳情</Link>
                 </td>
               </tr>
             ))}
