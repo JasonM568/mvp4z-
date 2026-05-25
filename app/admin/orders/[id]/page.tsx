@@ -7,6 +7,8 @@ import { adminFetch } from "../../_shell";
 type OrderDetail = {
   id: string;
   order_no: string;
+  order_type?: string;
+  item_name?: string | null;
   amount: number;
   currency: string;
   status: string;
@@ -19,6 +21,8 @@ type OrderDetail = {
   legacy_no_invoice: boolean;
   profiles?: { id?: string; name?: string | null; email?: string | null; phone?: string | null; role?: string | null; created_at?: string | null } | null;
   plans?: { id?: string; code?: string | null; name?: string | null; price?: number; currency?: string | null; credits?: number; duration_days?: number } | null;
+  course_products?: { id?: string; code?: string | null; title?: string | null; subtitle?: string | null; course_date?: string | null; starts_at?: string | null; ends_at?: string | null; location?: string | null; price_new?: number; price_returning?: number; currency?: string | null } | null;
+  course_registrations?: Array<{ id: string; status: string; registration_type: string; amount: number; currency: string; name: string; gender: string | null; phone: string; line_id: string | null; email: string; learning_background: string | null; interests: string[] | null; motivation: string | null; note: string | null; paid_at: string | null; created_at: string; course_products?: { code?: string; title?: string; subtitle?: string; course_date?: string; starts_at?: string; ends_at?: string; location?: string } | null }>;
   payments?: Array<{ id: string; provider: string; provider_trade_no: string | null; merchant_trade_no: string; amount: number; status: string; check_mac_valid: boolean; received_at: string; created_at: string }>;
   member_entitlements?: Array<{ id: string; status: string; credits_remaining: number; starts_at: string; expires_at: string; created_at: string; plans?: { code?: string; name?: string } | null }>;
   invoices?: Array<{ id: string; provider: string; invoice_number: string | null; random_code: string | null; invoice_date: string | null; buyer_type: string; buyer_name: string; buyer_id: string | null; buyer_email: string | null; carrier_type: string; carrier_num: string | null; donation_code: string | null; total_amount: number; status: string; error_code: string | null; error_msg: string | null; retry_count: number; last_attempted_at: string | null; voided_at: string | null; created_at: string }>;
@@ -61,6 +65,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const profile = normalizeOne(order.profiles);
   const plan = normalizeOne(order.plans);
+  const course = normalizeOne(order.course_products);
+  const registration = Array.isArray(order.course_registrations) ? order.course_registrations[0] : null;
 
   return (
     <>
@@ -68,6 +74,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <h1 style={{ marginTop: 14 }}>訂單詳情</h1>
       <p className="lead">
         <span style={{ fontFamily: "ui-monospace, monospace" }}>{order.order_no}</span>
+        {" ｜ "}
+        {order.order_type === "course" ? "課程報名" : "會員方案"}
         {" ｜ "}
         <span className={`admin-pill ${order.status}`}>{statusLabel(order.status)}</span>
       </p>
@@ -89,13 +97,44 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </Section>
 
         <Section title="訂購方案">
-          <Field label="方案名稱" value={plan?.name || "—"} />
-          <Field label="方案代碼" value={plan?.code || "—"} />
-          <Field label="方案價格" value={typeof plan?.price === "number" ? `${plan.currency || "TWD"} ${plan.price.toLocaleString()}` : "—"} />
-          <Field label="點數" value={typeof plan?.credits === "number" ? `${plan.credits} 點` : "—"} />
-          <Field label="有效天數" value={typeof plan?.duration_days === "number" ? `${plan.duration_days} 天` : "—"} />
+          {order.order_type === "course" ? (
+            <>
+              <Field label="課程名稱" value={[course?.title, course?.subtitle].filter(Boolean).join(" ") || order.item_name || "—"} />
+              <Field label="課程代碼" value={course?.code || "—"} />
+              <Field label="課程時間" value={formatDate(course?.starts_at)} />
+              <Field label="課程地點" value={course?.location || "—"} />
+              <Field label="報名身份" value={registrationTypeLabel(registration?.registration_type)} />
+            </>
+          ) : (
+            <>
+              <Field label="方案名稱" value={plan?.name || "—"} />
+              <Field label="方案代碼" value={plan?.code || "—"} />
+              <Field label="方案價格" value={typeof plan?.price === "number" ? `${plan.currency || "TWD"} ${plan.price.toLocaleString()}` : "—"} />
+              <Field label="點數" value={typeof plan?.credits === "number" ? `${plan.credits} 點` : "—"} />
+              <Field label="有效天數" value={typeof plan?.duration_days === "number" ? `${plan.duration_days} 天` : "—"} />
+            </>
+          )}
         </Section>
       </div>
+
+      {registration && (
+        <Section title="課程報名資料">
+          <div className="field-grid">
+            <Field label="報名姓名" value={registration.name} />
+            <Field label="性別" value={registration.gender || "—"} />
+            <Field label="電話" value={registration.phone} />
+            <Field label="LINE ID" value={registration.line_id || "—"} />
+            <Field label="Email" value={registration.email} />
+            <Field label="報名狀態" value={statusLabel(registration.status)} />
+            <Field label="報名身份" value={registrationTypeLabel(registration.registration_type)} />
+            <Field label="付款金額" value={`${registration.currency} ${registration.amount.toLocaleString()}`} />
+          </div>
+          <Field label="學習背景" value={registration.learning_background || "—"} />
+          <Field label="想加強的內容" value={(registration.interests || []).join("、") || "—"} />
+          <Field label="報名動機 / 學習期待" value={registration.motivation || "—"} pre />
+          <Field label="備註" value={registration.note || "—"} pre />
+        </Section>
+      )}
 
       <Section title="付款資訊">
         <Field label="金流 provider" value={order.provider} />
@@ -217,6 +256,10 @@ function statusLabel(s: string) {
     cancelled: "已取消",
     refunded: "已退款"
   } as Record<string, string>)[s] || s;
+}
+
+function registrationTypeLabel(value?: string | null) {
+  return value === "returning" ? "複訓學員" : value === "new" ? "新生報名" : "—";
 }
 
 const mono: React.CSSProperties = { fontFamily: "ui-monospace, monospace", fontSize: 12 };

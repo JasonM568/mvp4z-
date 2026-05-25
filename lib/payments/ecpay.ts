@@ -60,6 +60,7 @@ export function createCheckoutParams(input: {
   totalAmount: number;
   itemName: string;
   tradeDesc?: string;
+  clientBackUrl?: string;
 }) {
   const config = getValidatedEcpayConfig();
   const params: EcpayParams = {
@@ -72,7 +73,7 @@ export function createCheckoutParams(input: {
     ItemName: sanitizeEcpayText(input.itemName),
     ReturnURL: config.notifyUrl,
     OrderResultURL: config.returnUrl,
-    ClientBackURL: config.clientBackUrl,
+    ClientBackURL: input.clientBackUrl || config.clientBackUrl,
     ChoosePayment: "ALL",
     EncryptType: 1
   };

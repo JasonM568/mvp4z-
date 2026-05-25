@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formDataToParams, verifyCheckMacValue } from "@/lib/payments/ecpay";
 import { sendAdminAlert } from "@/lib/notifications/admin-alerts";
+import { sendOrderPaidEmails } from "@/lib/notifications/order-emails";
 import { issueInvoiceFromOrder } from "@/lib/payments/issue-invoice-from-order";
 import { normalizeAmount, normalizeOrderWithPlan } from "@/lib/payments/orders";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, order_no, user_id, plan_id, amount, currency, status, provider, provider_trade_no, paid_at, created_at, invoice_request, legacy_no_invoice, plans(id, code, name, price, currency, credits, duration_days, is_active)")
+      .select("id, order_no, user_id, plan_id, order_type, course_product_id, item_name, amount, currency, status, provider, provider_trade_no, paid_at, created_at, invoice_request, legacy_no_invoice, plans(id, code, name, price, currency, credits, duration_days, is_active)")
       .eq("order_no", merchantTradeNo)
       .maybeSingle();
 
@@ -39,16 +40,16 @@ export async function POST(request: NextRequest) {
 
     if (rtnCode !== "1") {
       await admin.from("orders").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", currentOrder.id).eq("status", "pending");
+      if ((currentOrder as { order_type?: string }).order_type === "course") {
+        await admin.from("course_registrations").update({ status: "failed" }).eq("order_id", currentOrder.id).eq("status", "pending");
+      }
       return ecpayText("1|OK");
     }
 
     if (paidAmount !== Number(currentOrder.amount)) return ecpayText("0|Amount mismatch", 400);
     if (currentOrder.status === "paid") return ecpayText("1|OK");
-    if (!currentOrder.plans) return ecpayText("0|Plan not found", 404);
 
     const now = new Date();
-    const expiresAt = new Date(now);
-    expiresAt.setDate(expiresAt.getDate() + Number(currentOrder.plans.duration_days || 30));
 
     const { error: orderUpdateError } = await admin
       .from("orders")
@@ -63,43 +64,115 @@ export async function POST(request: NextRequest) {
 
     if (orderUpdateError) throw orderUpdateError;
 
-    const { data: existingEntitlement, error: existingError } = await admin
-      .from("member_entitlements")
-      .select("id")
-      .eq("source_order_id", currentOrder.id)
-      .maybeSingle();
+    let notification: {
+      orderType: "membership" | "course";
+      itemName: string;
+      customerName?: string | null;
+      customerEmail?: string | null;
+      customerPhone?: string | null;
+      adminExtra?: string[];
+    } | null = null;
 
-    if (existingError) throw existingError;
-
-    if (!existingEntitlement) {
-      const credits = Number(currentOrder.plans.credits || 0);
-      const { data: entitlement, error: entitlementError } = await admin
-        .from("member_entitlements")
-        .insert({
-          user_id: currentOrder.user_id,
-          plan_id: currentOrder.plan_id,
-          status: "active",
-          credits_remaining: credits,
-          starts_at: now.toISOString(),
-          expires_at: expiresAt.toISOString(),
-          source_order_id: currentOrder.id
+    if ((currentOrder as { order_type?: string }).order_type === "course") {
+      const { data: registration, error: registrationError } = await admin
+        .from("course_registrations")
+        .update({
+          status: "paid",
+          paid_at: now.toISOString()
         })
+        .eq("order_id", currentOrder.id)
+        .select("id, name, phone, email, registration_type, amount")
+        .maybeSingle();
+
+      if (registrationError) throw registrationError;
+
+      notification = {
+        orderType: "course",
+        itemName: (currentOrder as { item_name?: string | null }).item_name || currentOrder.order_no,
+        customerName: registration?.name,
+        customerEmail: registration?.email,
+        customerPhone: registration?.phone,
+        adminExtra: [
+          `報名身份：${registration?.registration_type === "returning" ? "複訓學員" : "新生報名"}`
+        ]
+      };
+    } else {
+      if (!currentOrder.plans) return ecpayText("0|Plan not found", 404);
+      const expiresAt = new Date(now);
+      expiresAt.setDate(expiresAt.getDate() + Number(currentOrder.plans.duration_days || 30));
+
+      const { data: existingEntitlement, error: existingError } = await admin
+        .from("member_entitlements")
         .select("id")
-        .single();
+        .eq("source_order_id", currentOrder.id)
+        .maybeSingle();
 
-      if (entitlementError) throw entitlementError;
+      if (existingError) throw existingError;
 
-      const { error: txError } = await admin.from("credit_transactions").insert({
-        user_id: currentOrder.user_id,
-        entitlement_id: entitlement.id,
-        type: "grant",
-        amount: credits,
-        balance_after: credits,
-        source: "ecpay_payment",
-        ref_id: merchantTradeNo
+      if (!existingEntitlement) {
+        const credits = Number(currentOrder.plans.credits || 0);
+        const { data: entitlement, error: entitlementError } = await admin
+          .from("member_entitlements")
+          .insert({
+            user_id: currentOrder.user_id,
+            plan_id: currentOrder.plan_id,
+            status: "active",
+            credits_remaining: credits,
+            starts_at: now.toISOString(),
+            expires_at: expiresAt.toISOString(),
+            source_order_id: currentOrder.id
+          })
+          .select("id")
+          .single();
+
+        if (entitlementError) throw entitlementError;
+
+        const { error: txError } = await admin.from("credit_transactions").insert({
+          user_id: currentOrder.user_id,
+          entitlement_id: entitlement.id,
+          type: "grant",
+          amount: credits,
+          balance_after: credits,
+          source: "ecpay_payment",
+          ref_id: merchantTradeNo
+        });
+
+        if (txError) throw txError;
+      }
+
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("name, email, phone")
+        .eq("id", currentOrder.user_id)
+        .maybeSingle();
+
+      notification = {
+        orderType: "membership",
+        itemName: currentOrder.plans.name || (currentOrder as { item_name?: string | null }).item_name || currentOrder.order_no,
+        customerName: profile?.name,
+        customerEmail: profile?.email,
+        customerPhone: profile?.phone
+      };
+    }
+
+    if (notification) {
+      await sendOrderPaidEmails({
+        orderNo: currentOrder.order_no,
+        orderType: notification.orderType,
+        itemName: notification.itemName,
+        amount: Number(currentOrder.amount),
+        currency: currentOrder.currency,
+        paidAt: now.toISOString(),
+        customerName: notification.customerName,
+        customerEmail: notification.customerEmail,
+        customerPhone: notification.customerPhone,
+        adminExtra: notification.adminExtra
+      }).catch((emailError) => {
+        console.warn("[notify] order paid email failed", {
+          orderId: currentOrder.id,
+          error: emailError instanceof Error ? emailError.message : String(emailError)
+        });
       });
-
-      if (txError) throw txError;
     }
 
     // 自動開立電子發票（Phase 2）。失敗不阻擋 1|OK，failed row 留待 admin retry。
@@ -111,6 +184,7 @@ export async function POST(request: NextRequest) {
         amount: Number(currentOrder.amount),
         invoice_request: (currentOrder as { invoice_request?: unknown }).invoice_request,
         legacy_no_invoice: (currentOrder as { legacy_no_invoice?: boolean }).legacy_no_invoice,
+        item_name: (currentOrder as { item_name?: string | null }).item_name,
         plans: currentOrder.plans
       });
       if (!result.ok && !result.skipped && !result.reused) {

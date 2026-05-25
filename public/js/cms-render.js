@@ -142,7 +142,7 @@
           ${highlights ? `<ul class="promo-highlights">${highlights}</ul>` : ""}
           ${data.limitedText ? `<div class="promo-limited">⏳ ${escapeHTML(data.limitedText)}</div>` : ""}
           <div class="actions">
-            ${data.registerUrl ? `<a class="btn btn-primary" href="${escapeHTML(data.registerUrl)}" target="_blank" rel="noreferrer">${escapeHTML(data.ctaText || "立即報名")}</a>` : ""}
+            ${data.registerUrl ? `<a class="btn btn-primary" href="${escapeHTML(data.registerUrl)}"${String(data.registerUrl).startsWith("#") ? "" : ` target="_blank" rel="noreferrer"`}>${escapeHTML(data.ctaText || "立即報名")}</a>` : ""}
             <a class="btn btn-ghost" href="${escapeHTML(lineUrl)}" target="_blank" rel="noreferrer">${escapeHTML(data.lineCtaText || "LINE 詢問")}</a>
           </div>
         </div>

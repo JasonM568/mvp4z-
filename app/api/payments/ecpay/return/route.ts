@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formDataToParams, verifyCheckMacValue } from "@/lib/payments/ecpay";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
   const params = formDataToParams(await request.formData());
   const valid = verifyCheckMacValue(params);
   const status = valid && String(params.RtnCode || "") === "1" ? "paid" : "pending";
-  const redirectUrl = memberRedirectUrl(request);
-  redirectUrl.searchParams.set("payment", status);
-  redirectUrl.searchParams.set("order", String(params.MerchantTradeNo || ""));
+  const orderNo = String(params.MerchantTradeNo || "");
+  const redirectUrl = await paymentRedirectUrl(request, orderNo);
+  const isCourse = redirectUrl.pathname === "/courses";
+  redirectUrl.searchParams.set(isCourse ? "course_payment" : "payment", status);
+  redirectUrl.searchParams.set("order", orderNo);
+  if (isCourse) redirectUrl.hash = "courseCheckout";
   return NextResponse.redirect(redirectUrl, 303);
 }
 
@@ -19,6 +23,30 @@ function memberRedirectUrl(request: NextRequest) {
   const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const origin = configuredSiteUrl ? normalizeOrigin(configuredSiteUrl) : requestOrigin(request);
   return new URL("/member", origin);
+}
+
+async function paymentRedirectUrl(request: NextRequest, orderNo: string) {
+  if (orderNo) {
+    try {
+      const admin = createSupabaseAdminClient();
+      const { data } = await admin
+        .from("orders")
+        .select("order_type")
+        .eq("order_no", orderNo)
+        .maybeSingle();
+      if (data?.order_type === "course") {
+        const url = memberRedirectUrl(request);
+        url.pathname = "/courses";
+        return url;
+      }
+    } catch (error) {
+      console.warn("[ecpay-return] failed to resolve order type", {
+        orderNo,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+  return memberRedirectUrl(request);
 }
 
 function normalizeOrigin(value: string) {

@@ -112,9 +112,7 @@ export default function CoursesPage() {
               <div className="actions">
                 <a
                   className="btn btn-primary"
-                  href="https://psee.io/9255j4"
-                  target="_blank"
-                  rel="noreferrer"
+                  href="#courseCheckout"
                 >
                   立即報名
                 </a>
@@ -207,6 +205,125 @@ export default function CoursesPage() {
         </div>
       </section>
 
+      <section id="courseCheckout" className="course-checkout-section">
+        <div className="wrap">
+          <div className="section-head">
+            <div>
+              <div className="tag">COURSE CHECKOUT</div>
+              <h2 className="section-title">
+                <span className="title-line title-main">課程報名</span>
+                <span className="title-line accent">綠界付款保留名額</span>
+              </h2>
+            </div>
+            <p className="section-desc">
+              填寫報名與發票資訊後，系統會建立課程訂單並前往綠界結帳。付款完成後後台會同步看到報名資料。
+            </p>
+          </div>
+
+          <div className="grid-2">
+            <article className="panel course-checkout-summary">
+              <div className="tag">五術掌訣初階班</div>
+              <h3>115年第一期</h3>
+              <p>2026年6月21日（日）10:00-17:00</p>
+              <p>巽風堪輿研究中心（台中市南屯區黎明路二段530號）</p>
+              <div className="price-line">
+                <span>新生報名</span>
+                <strong>NT$ 6,000</strong>
+              </div>
+              <div className="price-line">
+                <span>複訓學員</span>
+                <strong>NT$ 500</strong>
+              </div>
+              <p className="course-checkout-note">
+                付款流程由綠界 ECPay 處理，巽風不接觸您的卡片資料。發票資訊會用於付款完成後開立電子發票。
+              </p>
+            </article>
+
+            <article className="form-panel">
+              <form id="courseCheckoutForm" className="booking-form">
+                <div className="course-radio-group" aria-label="報名身份">
+                  <label>
+                    <input type="radio" name="courseRegistrationType" value="new" defaultChecked />
+                    <span>新生報名 NT$ 6,000</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="courseRegistrationType" value="returning" />
+                    <span>複訓學員 NT$ 500</span>
+                  </label>
+                </div>
+                <div id="courseSelectedPrice" className="price-tag">新生報名｜NT$ 6,000</div>
+
+                <div className="form-grid">
+                  <label>姓名<input id="courseName" autoComplete="name" required /></label>
+                  <label>性別<select id="courseGender" defaultValue="">
+                    <option value="">不填寫</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                    <option value="不便透露">不便透露</option>
+                  </select></label>
+                  <label>聯絡電話<input id="coursePhone" autoComplete="tel" required /></label>
+                  <label>LINE ID<input id="courseLineId" /></label>
+                  <label className="span-2">電子信箱<input id="courseEmail" type="email" autoComplete="email" required /></label>
+                </div>
+
+                <label>學習背景<select id="courseLearningBackground" defaultValue="">
+                  <option value="">請選擇</option>
+                  <option value="完全沒有，第一次接觸">完全沒有，第一次接觸</option>
+                  <option value="有初步了解">有初步了解</option>
+                  <option value="曾上過相關課程">曾上過相關課程</option>
+                  <option value="已有實務經驗">已有實務經驗</option>
+                </select></label>
+
+                <div>
+                  <div className="form-label">想加強的內容</div>
+                  <div className="course-checkbox-grid">
+                    {["五行基礎判斷", "掌訣快速記憶", "命理應用", "風水應用", "擇日應用", "卜卦應用", "個人運勢判讀", "實務案例解析"].map((item) => (
+                      <label key={item}>
+                        <input type="checkbox" name="courseInterests" value={item} />
+                        <span>{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <label>報名動機或學習期待<textarea id="courseMotivation" /></label>
+                <label>備註<textarea id="courseNote" /></label>
+
+                <div className="course-form-divider">發票資訊</div>
+                <div className="course-radio-group" aria-label="發票類型">
+                  <label>
+                    <input type="radio" name="courseInvoiceBuyerType" value="personal" defaultChecked />
+                    <span>個人雲端發票</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="courseInvoiceBuyerType" value="company" />
+                    <span>公司三聯式</span>
+                  </label>
+                </div>
+
+                <div className="form-grid">
+                  <label>發票抬頭<input id="courseInvoiceBuyerName" placeholder="個人填姓名 / 公司填公司名" /></label>
+                  <label>Email<input id="courseInvoiceBuyerEmail" type="email" placeholder="用於接收綠界發票通知" /></label>
+                  <label id="courseInvoiceCompanyRow" className="span-2">統一編號<input id="courseInvoiceBuyerId" inputMode="numeric" maxLength={8} /></label>
+                  <label id="courseInvoiceDeliveryRow" className="span-2">個人發票方式<select id="courseInvoiceDelivery" defaultValue="email">
+                    <option value="email">雲端發票寄 Email</option>
+                    <option value="cellphone">手機條碼載具</option>
+                    <option value="donation">捐贈碼</option>
+                  </select></label>
+                  <label id="courseInvoiceCarrierRow" className="span-2">手機條碼載具<input id="courseInvoiceCarrierNum" placeholder="/ABC1234" maxLength={8} /></label>
+                  <label id="courseInvoiceDonationRow" className="span-2">捐贈碼<input id="courseInvoiceDonationCode" inputMode="numeric" maxLength={7} /></label>
+                </div>
+
+                <button id="courseCheckoutSubmit" className="btn btn-primary" type="submit">
+                  前往綠界結帳
+                </button>
+                <div id="courseCheckoutStatus" className="booking-preview course-checkout-status" style={{ display: "none" }}></div>
+              </form>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <Script id="courses-remove-fallback" strategy="afterInteractive">
         {REMOVE_FALLBACK_JS}
       </Script>
@@ -219,6 +336,7 @@ export default function CoursesPage() {
       >
         {FORCE_REMOVE_GALLERY_JS}
       </Script>
+      <Script src="/js/course-checkout.js" strategy="afterInteractive" />
     </>
   );
 }

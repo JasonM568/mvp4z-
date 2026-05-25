@@ -15,6 +15,7 @@ export interface OrderForInvoice {
   amount: number;
   invoice_request: unknown;
   legacy_no_invoice?: boolean;
+  item_name?: string | null;
   plans?: { code?: string | null; name?: string | null } | null;
 }
 
@@ -80,7 +81,7 @@ export async function issueInvoiceFromOrder(
   }
 
   const planInfo = order.plans;
-  const itemName = planInfo?.name || order.order_no;
+  const itemName = order.item_name || planInfo?.name || order.order_no;
   const result = await issueInvoice({
     relateNumber: order.order_no,
     customerName: buyer.buyer_name,

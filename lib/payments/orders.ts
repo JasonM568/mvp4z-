@@ -46,7 +46,9 @@ export type OrderWithPlan = {
   id: string;
   order_no: string;
   user_id: string;
-  plan_id: string;
+  plan_id: string | null;
+  order_type?: "membership" | "course";
+  item_name?: string | null;
   amount: number;
   currency: string;
   status: string;

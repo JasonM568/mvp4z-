@@ -7,6 +7,8 @@ import { adminFetch } from "../_shell";
 type Order = {
   id: string;
   order_no: string;
+  order_type?: string;
+  item_name?: string | null;
   amount: number;
   currency: string;
   status: string;
@@ -16,6 +18,8 @@ type Order = {
   created_at: string;
   profiles?: { name?: string | null; email?: string | null; phone?: string | null } | null;
   plans?: { code?: string | null; name?: string | null } | null;
+  course_products?: { code?: string | null; title?: string | null; subtitle?: string | null } | null;
+  course_registrations?: Array<{ name?: string | null; phone?: string | null; email?: string | null; registration_type?: string | null }> | null;
 };
 
 const FILTERS = [
@@ -50,7 +54,7 @@ export default function OrdersPage() {
   return (
     <>
       <h1>訂單管理</h1>
-      <p className="lead">會員方案訂單（綠界金流）。課程報名訂單目前未啟用，之後另做。</p>
+      <p className="lead">會員方案與課程報名訂單（綠界金流）。點訂單編號可查看會員、課程與付款細項。</p>
 
       <div className="admin-filter">
         {FILTERS.map((s) => (
@@ -65,8 +69,9 @@ export default function OrdersPage() {
           <thead>
             <tr>
               <th>訂單編號</th>
+              <th>類型</th>
               <th>會員</th>
-              <th>方案</th>
+              <th>項目</th>
               <th>金額</th>
               <th>狀態</th>
               <th>付款時間</th>
@@ -76,12 +81,12 @@ export default function OrdersPage() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="admin-empty">讀取中⋯</td>
+                <td colSpan={8} className="admin-empty">讀取中⋯</td>
               </tr>
             )}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="admin-empty">沒有符合條件的訂單</td>
+                <td colSpan={8} className="admin-empty">沒有符合條件的訂單</td>
               </tr>
             )}
             {!loading && filtered.map((o) => (
@@ -91,14 +96,15 @@ export default function OrdersPage() {
                     {o.order_no}
                   </Link>
                 </td>
+                <td>{orderTypeLabel(o.order_type)}</td>
                 <td>
-                  {o.profiles?.name && <div>{o.profiles.name}</div>}
-                  {o.profiles?.email && <div className="muted">{o.profiles.email}</div>}
-                  {o.profiles?.phone && <div className="muted">{o.profiles.phone}</div>}
+                  <div>{courseRegistration(o)?.name || o.profiles?.name || "—"}</div>
+                  {(courseRegistration(o)?.email || o.profiles?.email) && <div className="muted">{courseRegistration(o)?.email || o.profiles?.email}</div>}
+                  {(courseRegistration(o)?.phone || o.profiles?.phone) && <div className="muted">{courseRegistration(o)?.phone || o.profiles?.phone}</div>}
                 </td>
                 <td>
-                  {o.plans?.name || "—"}
-                  {o.plans?.code && <div className="muted">{o.plans.code}</div>}
+                  {itemName(o)}
+                  {itemSubline(o) && <div className="muted">{itemSubline(o)}</div>}
                 </td>
                 <td style={{ fontWeight: 700 }}>NT$ {o.amount.toLocaleString()}</td>
                 <td>
@@ -123,4 +129,28 @@ function statusLabel(s: string) {
     cancelled: "已取消",
     refunded: "已退款"
   } as Record<string, string>)[s] || s;
+}
+
+function orderTypeLabel(type?: string) {
+  return type === "course" ? "課程報名" : "會員方案";
+}
+
+function courseRegistration(order: Order) {
+  return Array.isArray(order.course_registrations) ? order.course_registrations[0] : null;
+}
+
+function itemName(order: Order) {
+  if (order.order_type === "course") {
+    const course = order.course_products;
+    return order.item_name || [course?.title, course?.subtitle].filter(Boolean).join(" ") || "課程報名";
+  }
+  return order.plans?.name || "—";
+}
+
+function itemSubline(order: Order) {
+  if (order.order_type === "course") {
+    const regType = courseRegistration(order)?.registration_type;
+    return regType === "returning" ? "複訓學員" : regType === "new" ? "新生報名" : order.course_products?.code || "";
+  }
+  return order.plans?.code || "";
 }
