@@ -2,20 +2,13 @@
 // POST /api/admin/invoices/[orderId]/issue
 //
 // 用途：
-// - 對 paid 但尚無 invoice 的 order 補開（自動開票還沒做，所有 paid 訂單都靠這條）
-// - 對 status=failed 的 invoice 重試（呼叫前先把舊 row 標 voided/失效另議；v1 簡化為「沒有 active invoice 就可開」）
+// - 對 paid 但尚無 invoice 的 order 補開
+// - Phase 2 後：notify webhook 已自動開票，這條只在沒 invoice_request 或失敗 retry 才用
 //
 // Body（可選，覆蓋 orders.invoice_request）：
 //   {
-//     "buyer_type": "personal" | "company",
-//     "buyer_name": "...",
-//     "buyer_id": "12345678" | null,
-//     "buyer_email": "...",
-//     "carrier_type": "none" | "cellphone" | "citizen_digital" | "ecpay_member",
-//     "carrier_num": "/ABC1234" | null,
-//     "donation_code": "1234" | null
+//     "buyer": { buyer_type, buyer_name, buyer_id, buyer_email, carrier_type, carrier_num, donation_code }
 //   }
-//
 // 若 body 為空：讀 orders.invoice_request；若也是 null 報 400。
 
 import { NextRequest } from "next/server";
@@ -24,7 +17,7 @@ import { apiJson } from "../../../../_helpers";
 import { requireAdmin, writeAdminAudit } from "@/lib/auth/admin";
 import { errorMessage, errorStatus, readJson, statusError } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { issueInvoice, type InvoiceCarrierType } from "@/lib/payments/ecpay-invoice";
+import { issueInvoiceFromOrder, type InvoiceBuyer } from "@/lib/payments/issue-invoice-from-order";
 
 const buyerSchema = z.object({
   buyer_type: z.enum(["personal", "company"]),
@@ -39,8 +32,6 @@ const buyerSchema = z.object({
   { message: "公司發票必須填統一編號 8 碼", path: ["buyer_id"] }
 );
 
-type Buyer = z.infer<typeof buyerSchema>;
-
 const inputSchema = z.object({ buyer: buyerSchema.optional() });
 
 export async function POST(request: NextRequest, context: { params: Promise<{ orderId: string }> }) {
@@ -49,7 +40,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ or
     const { orderId } = await context.params;
     if (!orderId) throw statusError("缺少 order id", 400);
 
-    const input = await readJson(request, inputSchema).catch(() => ({} as { buyer?: Buyer }));
+    const input = await readJson(request, inputSchema).catch(() => ({} as { buyer?: InvoiceBuyer }));
     const admin = createSupabaseAdminClient();
 
     const { data: order, error: orderError } = await admin
@@ -62,73 +53,33 @@ export async function POST(request: NextRequest, context: { params: Promise<{ or
     if (order.status !== "paid") throw statusError("訂單尚未付款，無法開立發票", 400);
     if (order.legacy_no_invoice) throw statusError("此訂單已標記為歷史不開票", 400);
 
-    const buyer: Buyer = input.buyer
-      ? buyerSchema.parse(input.buyer)
-      : buyerSchema.parse(order.invoice_request);
-
-    const { data: existing } = await admin
-      .from("invoices")
-      .select("id, status")
-      .eq("order_id", orderId)
-      .eq("provider", "ecpay")
-      .in("status", ["pending", "issued"])
-      .maybeSingle();
-
-    if (existing) {
-      throw statusError(`此訂單已有 ${existing.status === "issued" ? "已開立" : "進行中"} 的發票`, 409);
+    const override = input.buyer ? buyerSchema.parse(input.buyer) as InvoiceBuyer : null;
+    // 若 body 沒帶 buyer 且 order 也沒 invoice_request → helper 會回 skipped
+    if (!override && (!order.invoice_request || typeof order.invoice_request !== "object")) {
+      throw statusError("此訂單無發票買受人資訊，請在 body 內帶 buyer", 400);
     }
 
     const planInfo = order.plans as { code?: string; name?: string } | null;
-    const itemName = planInfo?.name || order.order_no;
-    const result = await issueInvoice({
-      relateNumber: order.order_no,
-      customerName: buyer.buyer_name,
-      customerEmail: buyer.buyer_email || "",
-      customerIdentifier: buyer.buyer_id || "",
-      carrierType: buyer.carrier_type as InvoiceCarrierType,
-      carrierNum: buyer.carrier_num || "",
-      donationCode: buyer.donation_code || "",
-      totalAmount: order.amount,
-      taxType: "1",
-      items: [{ name: itemName, count: 1, price: order.amount }],
-      invoiceRemark: order.order_no
-    });
+    const result = await issueInvoiceFromOrder(
+      admin,
+      {
+        id: order.id,
+        order_no: order.order_no,
+        user_id: order.user_id,
+        amount: Number(order.amount),
+        invoice_request: order.invoice_request,
+        legacy_no_invoice: order.legacy_no_invoice,
+        plans: planInfo
+      },
+      override
+    );
 
-    const insertRow: Record<string, unknown> = {
-      order_id: order.id,
-      user_id: order.user_id,
-      provider: "ecpay",
-      buyer_type: buyer.buyer_type,
-      buyer_name: buyer.buyer_name,
-      buyer_id: buyer.buyer_id || null,
-      buyer_email: buyer.buyer_email || null,
-      carrier_type: buyer.carrier_type,
-      carrier_num: buyer.carrier_num || null,
-      donation_code: buyer.donation_code || null,
-      total_amount: order.amount,
-      tax_type: "1",
-      last_attempted_at: new Date().toISOString(),
-      retry_count: 1,
-      raw_response: result.rawResponse as object
-    };
-
-    if (result.ok) {
-      insertRow.status = "issued";
-      insertRow.invoice_number = result.invoiceNumber;
-      insertRow.random_code = result.randomCode;
-      insertRow.invoice_date = parseInvoiceDate(result.invoiceDate);
-    } else {
-      insertRow.status = "failed";
-      insertRow.error_code = result.errorCode;
-      insertRow.error_msg = result.errorMessage;
+    if (result.reused) {
+      throw statusError(
+        `此訂單已有 ${(result.invoice.status as string) === "issued" ? "已開立" : "進行中"} 的發票`,
+        409
+      );
     }
-
-    const { data: inserted, error: insertError } = await admin
-      .from("invoices")
-      .insert(insertRow)
-      .select("*")
-      .single();
-    if (insertError) throw insertError;
 
     await writeAdminAudit({
       adminUserId: profile?.id || null,
@@ -136,23 +87,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ or
       targetType: "order",
       targetId: order.id,
       metadata: {
-        invoice_id: inserted.id,
-        invoice_number: inserted.invoice_number,
-        error_code: inserted.error_code,
-        error_msg: inserted.error_msg
+        invoice_id: result.invoice.id,
+        invoice_number: result.invoice.invoice_number,
+        error_code: result.invoice.error_code,
+        error_msg: result.invoice.error_msg
       }
     });
 
-    return apiJson({ ok: result.ok, invoice: inserted }, result.ok ? 200 : 502);
+    return apiJson({ ok: result.ok, invoice: result.invoice }, result.ok ? 200 : 502);
   } catch (error) {
     return apiJson({ error: errorMessage(error) }, errorStatus(error));
   }
-}
-
-// 綠界回傳 InvoiceDate 格式 "YYYY-MM-DD HH:mm:ss"（無時區），補 +08:00
-function parseInvoiceDate(value: string): string | null {
-  if (!value) return null;
-  const normalized = value.replace(" ", "T") + "+08:00";
-  const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }

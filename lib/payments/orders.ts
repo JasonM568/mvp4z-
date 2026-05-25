@@ -1,8 +1,26 @@
 import { z } from "zod";
 
+// 結帳時收集的發票買受人資訊；Phase 2 MVP 只支援個人雲端 + 公司統編兩種。
+// 載具 / 捐贈欄位 schema 保留以便 Phase 3 開放，但目前 modal 不會收集。
+export const invoiceRequestSchema = z.object({
+  buyer_type: z.enum(["personal", "company"]),
+  buyer_name: z.string().trim().min(1, "請填寫抬頭").max(60),
+  buyer_id: z.string().trim().regex(/^\d{8}$/, "統一編號為 8 碼數字").nullable().optional(),
+  buyer_email: z.string().trim().email("Email 格式錯誤").nullable().optional(),
+  carrier_type: z.enum(["none", "cellphone", "citizen_digital", "ecpay_member"]).default("none"),
+  carrier_num: z.string().trim().nullable().optional(),
+  donation_code: z.string().trim().regex(/^\d{4,7}$/, "捐贈碼為 4-7 碼數字").nullable().optional()
+}).refine(
+  (v) => v.buyer_type === "personal" || (v.buyer_id && /^\d{8}$/.test(v.buyer_id)),
+  { message: "公司發票必須填統一編號 8 碼", path: ["buyer_id"] }
+);
+
+export type InvoiceRequest = z.infer<typeof invoiceRequestSchema>;
+
 export const createOrderSchema = z.object({
   plan_id: z.string().uuid("方案格式錯誤").optional(),
-  plan_code: z.string().trim().min(1, "請選擇方案").optional()
+  plan_code: z.string().trim().min(1, "請選擇方案").optional(),
+  invoice_request: invoiceRequestSchema.optional()
 }).refine((value) => value.plan_id || value.plan_code, {
   message: "請選擇方案"
 });

@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
         amount,
         currency: selectedPlan.currency,
         status: "pending",
-        provider: "ecpay"
+        provider: "ecpay",
+        invoice_request: input.invoice_request || null
       })
       .select("id, order_no, amount, currency, status, created_at")
       .single();

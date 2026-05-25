@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formDataToParams, verifyCheckMacValue } from "@/lib/payments/ecpay";
+import { issueInvoiceFromOrder } from "@/lib/payments/issue-invoice-from-order";
 import { normalizeAmount, normalizeOrderWithPlan } from "@/lib/payments/orders";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, order_no, user_id, plan_id, amount, currency, status, provider, provider_trade_no, paid_at, created_at, plans(id, code, name, price, currency, credits, duration_days, is_active)")
+      .select("id, order_no, user_id, plan_id, amount, currency, status, provider, provider_trade_no, paid_at, created_at, invoice_request, legacy_no_invoice, plans(id, code, name, price, currency, credits, duration_days, is_active)")
       .eq("order_no", merchantTradeNo)
       .maybeSingle();
 
@@ -98,6 +99,32 @@ export async function POST(request: NextRequest) {
       });
 
       if (txError) throw txError;
+    }
+
+    // 自動開立電子發票（Phase 2）。失敗不阻擋 1|OK，failed row 留待 admin retry。
+    try {
+      const result = await issueInvoiceFromOrder(admin, {
+        id: currentOrder.id,
+        order_no: currentOrder.order_no,
+        user_id: currentOrder.user_id,
+        amount: Number(currentOrder.amount),
+        invoice_request: (currentOrder as { invoice_request?: unknown }).invoice_request,
+        legacy_no_invoice: (currentOrder as { legacy_no_invoice?: boolean }).legacy_no_invoice,
+        plans: currentOrder.plans
+      });
+      if (!result.ok && !result.skipped && !result.reused) {
+        console.warn("[notify] invoice issue failed", {
+          orderId: currentOrder.id,
+          error: result.invoice.error_msg,
+          code: result.invoice.error_code
+        });
+      }
+    } catch (invoiceError) {
+      // 開票流程本身有 bug 時不阻擋付款回應，但 log 出來
+      console.warn("[notify] invoice issue threw", {
+        orderId: currentOrder.id,
+        error: invoiceError instanceof Error ? invoiceError.message : String(invoiceError)
+      });
     }
 
     return ecpayText("1|OK");
