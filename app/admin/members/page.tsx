@@ -31,6 +31,8 @@ export default function MembersPage() {
   const [query, setQuery] = useState("");
   const [creditTarget, setCreditTarget] = useState<Member | null>(null);
   const [creditAmount, setCreditAmount] = useState(10);
+  const [creditPlan, setCreditPlan] = useState("pro");
+  const [creditDays, setCreditDays] = useState(30);
   const [creditNote, setCreditNote] = useState("");
   const [creditMessage, setCreditMessage] = useState("");
   const [creditSaving, setCreditSaving] = useState(false);
@@ -100,6 +102,8 @@ export default function MembersPage() {
         body: JSON.stringify({
           user_id: creditTarget.id,
           amount: creditAmount,
+          plan: creditPlan,
+          days: creditDays,
           note: creditNote
         })
       });
@@ -108,6 +112,8 @@ export default function MembersPage() {
       setCreditMessage(`${creditTarget.email} 目前剩餘 ${data.credits_remaining} 點`);
       setCreditTarget(null);
       setCreditAmount(10);
+      setCreditPlan("pro");
+      setCreditDays(30);
       setCreditNote("");
       await reload();
     } catch (e) {
@@ -218,8 +224,8 @@ export default function MembersPage() {
                 <td>{m.expires_at ? new Date(m.expires_at).toLocaleString("zh-TW") : "—"}</td>
                 <td>{new Date(m.created_at).toLocaleString("zh-TW")}</td>
                 <td>
-                  <button className="admin-action-btn small" type="button" onClick={() => setCreditTarget(m)} disabled={m.status !== "active"}>
-                    調整點數
+                  <button className="admin-action-btn small" type="button" onClick={() => setCreditTarget(m)}>
+                    {m.status === "active" ? "調整點數" : "開通/補點"}
                   </button>
                 </td>
               </tr>
@@ -237,6 +243,25 @@ export default function MembersPage() {
               調整數量（正數補點，負數扣點）
               <input type="number" value={creditAmount} onChange={(e) => setCreditAmount(Number(e.target.value || 0))} />
             </label>
+            {creditTarget.status !== "active" && (
+              <>
+                <div className="admin-inline-message" style={{ color: "var(--muted)" }}>
+                  此帳號目前沒有有效會員權益。補點時會先建立一筆會員權益；若要扣點，必須先有有效權益。
+                </div>
+                <label>
+                  建立權益方案
+                  <select value={creditPlan} onChange={(e) => setCreditPlan(e.target.value)}>
+                    <option value="basic">basic 基礎會員</option>
+                    <option value="pro">pro 進階會員</option>
+                    <option value="vip">vip 顧問會員</option>
+                  </select>
+                </label>
+                <label>
+                  有效天數
+                  <input type="number" value={creditDays} onChange={(e) => setCreditDays(Number(e.target.value || 30))} />
+                </label>
+              </>
+            )}
             <label>
               備註
               <input value={creditNote} onChange={(e) => setCreditNote(e.target.value)} placeholder="調整原因" />

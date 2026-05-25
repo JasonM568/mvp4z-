@@ -17,9 +17,17 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     const members = (profiles || []).map((profile) => {
-      const entitlement = Array.isArray(profile.member_entitlements)
-        ? profile.member_entitlements[0]
-        : profile.member_entitlements;
+      const entitlements = Array.isArray(profile.member_entitlements)
+        ? profile.member_entitlements
+        : profile.member_entitlements
+          ? [profile.member_entitlements]
+          : [];
+      const now = new Date().toISOString();
+      const entitlement =
+        entitlements.find((item) => item.status === "active" && item.expires_at && item.expires_at >= now) ||
+        entitlements
+          .slice()
+          .sort((a, b) => String(b.expires_at || "").localeCompare(String(a.expires_at || "")))[0];
       const plan = Array.isArray(entitlement?.plans) ? entitlement?.plans[0] : entitlement?.plans;
       return {
         id: profile.id,
@@ -28,7 +36,7 @@ export async function GET(request: NextRequest) {
         phone: profile.phone,
         role: profile.role,
         plan: plan?.code || "free",
-        status: entitlement?.status || "pending",
+        status: entitlement?.status === "active" && entitlement?.expires_at >= now ? "active" : entitlement ? "expired" : "pending",
         credits_remaining: entitlement?.credits_remaining || 0,
         expires_at: entitlement?.expires_at || null,
         created_at: profile.created_at
