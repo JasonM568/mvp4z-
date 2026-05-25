@@ -145,7 +145,7 @@ export default function DecisionPage() {
 
   return (
     <>
-      <SiteHeader member={member} />
+      <SiteHeader />
 
       <section className="hero">
         <div className="wrap">
