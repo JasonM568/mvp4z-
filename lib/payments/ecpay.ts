@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
+import { getValidatedEcpayConfig } from "./ecpay-config";
 
 const ECPAY_SORTER = new Intl.Collator("en-US").compare;
 
 export type EcpayParams = Record<string, string | number>;
 
 export function createCheckMacValue(params: EcpayParams) {
-  const hashKey = requiredEnv("ECPAY_HASH_KEY");
-  const hashIv = requiredEnv("ECPAY_HASH_IV");
+  const { hashKey, hashIv } = getValidatedEcpayConfig();
   const sorted = Object.entries(params)
     .filter(([key]) => key !== "CheckMacValue")
     .sort(([a], [b]) => ECPAY_SORTER(a, b))
@@ -34,9 +34,7 @@ export function verifyCheckMacValue(params: EcpayParams) {
 }
 
 export function ecpayActionUrl() {
-  return process.env.ECPAY_ENV === "production"
-    ? "https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5"
-    : "https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5";
+  return getValidatedEcpayConfig().actionUrl;
 }
 
 export function createMerchantTradeNo() {
@@ -63,17 +61,18 @@ export function createCheckoutParams(input: {
   itemName: string;
   tradeDesc?: string;
 }) {
+  const config = getValidatedEcpayConfig();
   const params: EcpayParams = {
-    MerchantID: requiredEnv("ECPAY_MERCHANT_ID"),
+    MerchantID: config.merchantId,
     MerchantTradeNo: input.merchantTradeNo,
     MerchantTradeDate: formatEcpayDate(),
     PaymentType: "aio",
     TotalAmount: input.totalAmount,
     TradeDesc: sanitizeEcpayText(input.tradeDesc || "Xunfeng Membership"),
     ItemName: sanitizeEcpayText(input.itemName),
-    ReturnURL: requiredEnv("ECPAY_NOTIFY_URL"),
-    OrderResultURL: requiredEnv("ECPAY_RETURN_URL"),
-    ClientBackURL: requiredEnv("ECPAY_CLIENT_BACK_URL"),
+    ReturnURL: config.notifyUrl,
+    OrderResultURL: config.returnUrl,
+    ClientBackURL: config.clientBackUrl,
     ChoosePayment: "ALL",
     EncryptType: 1
   };
@@ -98,10 +97,4 @@ function sanitizeEcpayText(value: string) {
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
-}
-
-function requiredEnv(key: string) {
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing environment variable: ${key}`);
-  return value;
 }

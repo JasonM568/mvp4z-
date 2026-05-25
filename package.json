@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "test:ecpay-idempotency": "node scripts/test-ecpay-idempotency.mjs",
+    "check:ecpay-env": "node scripts/check-ecpay-env.mjs",
     "start": "next start",
     "lint": "next lint"
   },
