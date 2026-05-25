@@ -1260,3 +1260,199 @@ where status = 'paid'
 3. 使用者 rotate Supabase DB password，並考慮一併 rotate 本機 `.env.local` 內其他已暴露過的 API key。
 4. 補 Supabase Auth custom SMTP（Resend）與 `RESEND_*` production env，讓 forgot-password 不再受 Supabase 預設 3 封/小時限制。
 5. 正式上線前把 Vercel `ECPAY_INVOICE_*` 從 stage `2000132` 切到正式電子發票商店與字軌。
+
+## 2026-05-25 收工補記｜後台、課程訂單、AI 入口、綠界正式切換前檢查
+
+本段補今天後續 session 的工作流程、工作脈絡與未完成事項。使用者指定本 session 專案路徑為：
+
+`/Users/jasonmchen/codex-巽風系統/xunfeng-official-v2`
+
+### 一、資料夾內既有 log 檔案
+
+專案內有兩個真正的 `.log` 檔：
+
+- `.gstack/browse-network.log`：113 行，最後內容是 2026-05-23 的瀏覽器 network 紀錄。
+- `.gstack/browse-console.log`：4 行，最後內容是 2026-05-23 的 console error 紀錄。
+
+這兩個 log 不是今天工作的完整操作日誌，今天的交接紀錄以本 `handoff.md` 為準。另有 `memory.md` 與 `docs/ecpay-env-config.md`、`docs/ecpay-invoice-plan.md`、`docs/orders-cleanup-cron.md` 可作補充文件。
+
+### 二、今天主要完成事項
+
+#### 1. 課程報名訂單接進後台與綠界
+
+完成課程報名結帳與後台訂單串接：
+
+- 新增 `supabase/migrations/0011_course_orders.sql`
+- 新增 `app/api/courses/checkout/route.ts`
+- 新增 `public/js/course-checkout.js`
+- `/courses` 加入站內課程報名表單與綠界 checkout
+- payment webhook 支援 course order paid 後更新 `course_registrations`
+- 後台訂單可看課程報名細項
+
+相關 commit：`25b23e5`
+
+#### 2. 付款完成通知信
+
+新增付款成功通知信流程：
+
+- 新增 `lib/notifications/order-emails.ts`
+- `/api/payments/ecpay/notify` 在付款成功後會呼叫 `sendOrderPaidEmails`
+- 會寄給付款者與管理員名單
+
+注意：production 目前仍需補 `RESEND_API_KEY` / `RESEND_FROM_EMAIL`，否則程式已上線但不會真的寄信。
+
+#### 3. 後台與會員管理脈絡
+
+本日確認過：
+
+- 後台登入網址：`https://mvp4z.vercel.app/admin-login`
+- 後台首頁：`https://mvp4z.vercel.app/admin`
+- 後台目前功能包含總覽、會員管理、預約名單、訂單管理、發票管理、易學決策紀錄。
+- 管理員判定主要看 `profiles.role = 'admin'`；email 若在 `ADMIN_EMAILS` 內，登入/註冊時會自動升 admin。
+
+目前資料表 `role = admin` 的帳號有 5 個：
+
+- `test_1779164570@xunfeng.dev`
+- `306465@gmail.com`
+- `e2e_1779682771251@xunfeng.dev`
+- `invoice_e2e_1779683892823@xunfeng.dev`
+- `kingking0909@yahoo.com.tw`
+
+`.env.local` 的 `ADMIN_EMAILS` 目前只有 `306465@gmail.com`。其中多個 `@xunfeng.dev` 看起來是測試帳號，正式上線前建議降權或清理。
+
+#### 4. 醫學/易學決策報告後台功能
+
+已處理後台易學決策紀錄相關需求：
+
+- 檢查 admin 權限看不到報告的問題脈絡。
+- 後台易學決策系統增加刪除單份報告功能。
+- 後台訂單管理增加可看訂購會員資料、電話、姓名、Email、訂購方案與課程訂單細項。
+- 後台增加會員管理功能，並可調整會員點數。
+
+後續若發現 admin 無法看某份報告，先查該帳號是否有有效 bearer session 且 `profiles.role = 'admin'`，再查 `/api/admin/council-runs` 回應。
+
+#### 5. AI 初步諮詢入口改為會員導向
+
+使用者多次指出 AI 入口在前台太突兀、位置怪、導覽列按鈕過大。已完成多輪調整：
+
+- 未登入者點 AI 入口會導向 `/login?tab=register&next=/member-ai`
+- 已註冊但未啟用會員者導向 `/member-pricing`
+- 已付費啟用會員才進 `/member-ai`
+- `/ai` 頁面改為會員限定說明
+- 首頁 hero 與中段保留正式 CTA：`會員 AI 初步諮詢`
+- 上方導覽列改成輕量文字入口：`AI 諮詢`
+- 移除原本突兀的 `nav-ai-entry` pill 樣式，改為 `nav-ai-link`
+- 手機 dock 的 AI 文案也改成短版 `AI 諮詢`
+
+相關 commits：
+
+- `bd7b5c1`：初版增加前台 AI 入口
+- `dbff820`：移除桌機右下浮動 AI
+- `e3f29a5`：AI 入口會員限定導向
+- `e93c40d`：導覽列 AI 入口美術修正
+
+#### 6. 電子發票串接檢查
+
+已確認電子發票 v1：
+
+- production 有 `ECPAY_INVOICE_*` 環境變數清單。
+- payment notify 已接 `issueInvoiceFromOrder`，付款成功後會嘗試自動開票。
+- admin 手動開票共用同一個 helper。
+- DB 曾有一筆 `issued` 發票：order `XFINV9683892823`，invoice `JU11019625`，amount `1`。
+- `admin_audit_logs` 有 `invoice_issue_success`。
+
+結論：手動開票與 ECPay invoice API 已通；真實綠界付款 webhook 觸發自動開票仍需用完整付款流程再驗一次。
+
+#### 7. 綠界會員方案商品名稱
+
+使用者要求綠界結帳頁的產品名稱前面加「巽風系統」。已完成：
+
+- `app/api/orders/create/route.ts`
+- 綠界 `ItemName` 由原本 `${selectedPlan.name} ${amount}元`
+- 改為 `巽風系統 - ${selectedPlan.name} - ${amount}元`
+
+正式會顯示類似：
+
+- `巽風系統 - 進階會員 - 1980元`
+- `巽風系統 - VIP 會員 - 4980元`
+
+相關 commit：`e5c01cf`
+
+### 三、今天部署與驗證
+
+今天後續至少完成以下 production deploy：
+
+- `25b23e5`：課程報名訂單與綠界 checkout
+- `e3f29a5`：AI 入口會員限定導向
+- `e93c40d`：前台導覽列 AI 入口修正
+- `e5c01cf`：會員方案綠界商品名稱加「巽風系統」
+
+驗證：
+
+- 多次 `npm run build` 通過。
+- Vercel production deploy READY，alias 到 `https://mvp4z.vercel.app`。
+- production HTML 曾確認上方導覽列為 `class="nav-ai-link"` 且文字為 `AI 諮詢`。
+
+### 四、目前 GreenPay / ECPay 收款狀態
+
+目前工作結論：正式收款前，仍應視為測試模式，尚不可直接對客戶宣稱可正式刷卡收款。
+
+本機 `.env.local` 明確是測試設定：
+
+- `ECPAY_ENV=sandbox`
+- `ECPAY_MERCHANT_ID=3002607`
+- 綠界 action 會走 stage endpoint：`https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5`
+- 本機 callback URL 仍是 `localhost`
+
+Vercel production 有主金流相關 env 名稱：
+
+- `ECPAY_ENV`
+- `ECPAY_MERCHANT_ID`
+- `ECPAY_HASH_KEY`
+- `ECPAY_HASH_IV`
+- `ECPAY_RETURN_URL`
+- `ECPAY_NOTIFY_URL`
+- `ECPAY_CLIENT_BACK_URL`
+
+但 CLI 顯示值為 encrypted，且本機 `vercel env run -e production` 曾載入 `.env.local` 值，因此正式切換前建議直接覆寫 production env，並用一筆小額真實交易驗收。
+
+### 五、正式綠界切換建議順序
+
+使用者詢問切正式金流前是否要先完成 DNS。建議順序如下：
+
+1. 先決定正式網域。
+2. DNS 指到 Vercel。
+3. 確認 HTTPS 憑證正常。
+4. 把 Vercel production 的 `NEXT_PUBLIC_SITE_URL`、`ECPAY_RETURN_URL`、`ECPAY_NOTIFY_URL`、`ECPAY_CLIENT_BACK_URL` 全部改成正式網域。
+5. 把 `ECPAY_ENV` 改成 `production`。
+6. 填入綠界正式商店代號、正式 `HashKey`、正式 `HashIV`。
+7. 重新部署 production。
+8. 用小金額實際刷一筆正式付款，確認：
+   - 綠界付款成功
+   - `/api/payments/ecpay/notify` 收到 webhook
+   - 後台訂單變已付款
+   - 會員方案自動啟用
+   - 通知信寄出
+   - 發票自動開立
+
+若客戶最後要用自有正式網域，不建議先用 `mvp4z.vercel.app` 切正式再換網域，避免綠界回呼 URL 之後又要重設。
+
+### 六、未完成事項 / 下次起手式
+
+1. 正式網域 DNS 尚未完成：先完成 DNS + HTTPS，再切正式綠界主金流。
+2. Vercel production 綠界主金流 env 需在 go-live 前明確覆寫為正式值。
+3. `RESEND_API_KEY` / `RESEND_FROM_EMAIL` production env 尚待設定；否則付款通知信不會真的寄出。
+4. Supabase Auth custom SMTP 尚未設定；忘記密碼仍可能受 Supabase 預設寄信限制影響。
+5. 測試 admin 帳號建議清理或降權，尤其 `@xunfeng.dev` 測試帳號。
+6. 完整綠界正式交易 E2E 尚未跑：需真實小額刷卡。
+7. 完整綠界 stage 信用卡流程 + webhook + 自動開票仍建議再跑一次。
+8. 若要切正式電子發票，還要把 `ECPAY_INVOICE_*` 從 stage 測試值切到正式電子發票商店與字軌。
+9. 使用者先前提過案例頁圖片與另一資料夾 `/Users/jasonmchen/codex-巽風系統/xunfeng-official` 的素材，若後續還有圖片缺漏，需再檢查 `/cases` 圖片來源與部署資產。
+
+### 七、收工狀態
+
+- main HEAD：`e5c01cf`
+- production URL：`https://mvp4z.vercel.app`
+- 後台登入：`https://mvp4z.vercel.app/admin-login`
+- 本地工作樹：最後檢查為乾淨
+- 今天最後使用者口頭驗收：系統驗收過關；後續重點轉為正式網域、正式金流、寄信與正式收款驗證
