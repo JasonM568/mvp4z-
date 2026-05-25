@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const checkoutParams = createCheckoutParams({
       merchantTradeNo: orderNo,
       totalAmount: amount,
-      itemName: `${selectedPlan.name} ${amount}元`,
+      itemName: `巽風系統 - ${selectedPlan.name} - ${amount}元`,
       tradeDesc: "Xunfeng Membership"
     });
 
