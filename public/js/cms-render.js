@@ -372,7 +372,7 @@ ${videos.length ? `
     });
   }
 
-  document.addEventListener("DOMContentLoaded", async () => {
+  async function initCmsRender() {
     const [site, services, cases, courses, photos, coursePromo] = await Promise.all([
       getJSON("content/site.json"),
       getJSON("content/services.json"),
@@ -408,7 +408,13 @@ ${videos.length ? `
 
     // 重新啟動照片輪播，等動態內容載入後再跑
     setTimeout(setupCarousel, 100);
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initCmsRender);
+  } else {
+    initCmsRender();
+  }
 })();
 
 
