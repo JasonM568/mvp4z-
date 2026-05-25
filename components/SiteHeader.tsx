@@ -1,10 +1,9 @@
-import { AiEntryButton } from "@/components/AiEntryButton";
 import { HeaderMemberPill } from "@/components/HeaderMemberPill";
 
 /**
  * 全站共用主導覽 — 結構與 legacy index.html 的 .topbar / .nav-links 完全對齊，
- * 樣式由 styles/site.css 提供。右側「登入 / 會員中心」由 HeaderMemberPill
- * client component 讀 localStorage token 動態切換，避免 server render 永遠顯示「登入」。
+ * 樣式由 styles/site.css 提供。右側「會員登入 / 會員中心」由 HeaderMemberPill
+ * client component 讀 localStorage token 動態切換，避免 server render 永遠顯示「會員登入」。
  */
 export function SiteHeader() {
   return (
@@ -27,16 +26,7 @@ export function SiteHeader() {
           <a href="/booking">預約表單</a>
           <a href="/member-ai/decision">易學決策報告</a>
           <a href="/member-pricing">會員方案</a>
-          <AiEntryButton variant="header" />
           <HeaderMemberPill />
-          <a
-            className="btn btn-primary"
-            href="https://lin.ee/W88wwDB"
-            target="_blank"
-            rel="noreferrer"
-          >
-            LINE 預約
-          </a>
         </nav>
       </div>
     </header>
