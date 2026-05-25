@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-// 結帳時收集的發票買受人資訊；Phase 2 MVP 只支援個人雲端 + 公司統編兩種。
-// 載具 / 捐贈欄位 schema 保留以便 Phase 3 開放，但目前 modal 不會收集。
+// 結帳時收集的發票買受人資訊。
+// 個人發票支援 Email 雲端、手機條碼、捐贈碼；公司發票支援統編三聯式。
 export const invoiceRequestSchema = z.object({
   buyer_type: z.enum(["personal", "company"]),
   buyer_name: z.string().trim().min(1, "請填寫抬頭").max(60),
@@ -13,6 +13,12 @@ export const invoiceRequestSchema = z.object({
 }).refine(
   (v) => v.buyer_type === "personal" || (v.buyer_id && /^\d{8}$/.test(v.buyer_id)),
   { message: "公司發票必須填統一編號 8 碼", path: ["buyer_id"] }
+).refine(
+  (v) => v.carrier_type !== "cellphone" || (v.carrier_num && /^\/[0-9A-Z.+-]{7}$/i.test(v.carrier_num)),
+  { message: "手機條碼需為 / 開頭加 7 碼英數符號", path: ["carrier_num"] }
+).refine(
+  (v) => !v.donation_code || v.buyer_type === "personal",
+  { message: "捐贈碼僅支援個人發票", path: ["donation_code"] }
 );
 
 export type InvoiceRequest = z.infer<typeof invoiceRequestSchema>;

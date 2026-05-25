@@ -144,6 +144,25 @@ function ensureInvoiceModal() {
           <input id="invoiceBuyerId" type="text" inputmode="numeric" maxlength="8" pattern="\\d{8}" />
         </label>
 
+        <label id="invoiceDeliveryRow" style="display:grid;gap:6px;font-size:13px;">
+          個人發票方式
+          <select id="invoiceDeliveryType">
+            <option value="email">雲端發票寄 Email</option>
+            <option value="cellphone">手機條碼載具</option>
+            <option value="donation">捐贈碼</option>
+          </select>
+        </label>
+
+        <label id="invoiceCarrierRow" style="display:none;grid-template-columns:1fr;gap:6px;font-size:13px;">
+          手機條碼載具
+          <input id="invoiceCarrierNum" type="text" maxlength="8" placeholder="/ABC1234" />
+        </label>
+
+        <label id="invoiceDonationRow" style="display:none;grid-template-columns:1fr;gap:6px;font-size:13px;">
+          捐贈碼（4-7 碼數字）
+          <input id="invoiceDonationCode" type="text" inputmode="numeric" maxlength="7" />
+        </label>
+
         <label style="display:grid;gap:6px;font-size:13px;">
           收件 Email（綠界會寄發票通知）
           <input id="invoiceBuyerEmail" type="email" />
@@ -170,12 +189,19 @@ function ensureInvoiceModal() {
     if (e.target === modal) close();
   });
 
+  function syncInvoiceFields() {
+    const isCompany = modal.querySelector('input[name="invoiceBuyerType"]:checked').value === "company";
+    const delivery = modal.querySelector("#invoiceDeliveryType").value;
+    modal.querySelector("#invoiceBuyerIdRow").style.display = isCompany ? "grid" : "none";
+    modal.querySelector("#invoiceDeliveryRow").style.display = isCompany ? "none" : "grid";
+    modal.querySelector("#invoiceCarrierRow").style.display = !isCompany && delivery === "cellphone" ? "grid" : "none";
+    modal.querySelector("#invoiceDonationRow").style.display = !isCompany && delivery === "donation" ? "grid" : "none";
+  }
+
   modal.querySelectorAll('input[name="invoiceBuyerType"]').forEach((radio) => {
-    radio.addEventListener("change", () => {
-      const isCompany = modal.querySelector('input[name="invoiceBuyerType"]:checked').value === "company";
-      modal.querySelector("#invoiceBuyerIdRow").style.display = isCompany ? "grid" : "none";
-    });
+    radio.addEventListener("change", syncInvoiceFields);
   });
+  modal.querySelector("#invoiceDeliveryType").addEventListener("change", syncInvoiceFields);
 
   return modal;
 }
@@ -185,10 +211,19 @@ function getBuyerFromModal(modal) {
   const name = modal.querySelector("#invoiceBuyerName").value.trim();
   const id = modal.querySelector("#invoiceBuyerId").value.trim();
   const email = modal.querySelector("#invoiceBuyerEmail").value.trim();
+  const delivery = modal.querySelector("#invoiceDeliveryType").value;
+  const carrierNum = modal.querySelector("#invoiceCarrierNum").value.trim().toUpperCase();
+  const donationCode = modal.querySelector("#invoiceDonationCode").value.trim();
 
   if (!name) return { error: "請填寫抬頭" };
   if (type === "company" && !/^\d{8}$/.test(id)) return { error: "公司發票必須填 8 碼統一編號" };
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Email 格式錯誤" };
+  if (type === "personal" && delivery === "cellphone" && !/^\/[0-9A-Z.+-]{7}$/.test(carrierNum)) {
+    return { error: "手機條碼需為 / 開頭加 7 碼英數符號" };
+  }
+  if (type === "personal" && delivery === "donation" && !/^\d{4,7}$/.test(donationCode)) {
+    return { error: "捐贈碼需為 4-7 碼數字" };
+  }
 
   return {
     buyer: {
@@ -196,7 +231,9 @@ function getBuyerFromModal(modal) {
       buyer_name: name,
       buyer_id: type === "company" ? id : null,
       buyer_email: email || null,
-      carrier_type: "none"
+      carrier_type: type === "personal" && delivery === "cellphone" ? "cellphone" : "none",
+      carrier_num: type === "personal" && delivery === "cellphone" ? carrierNum : null,
+      donation_code: type === "personal" && delivery === "donation" ? donationCode : null
     }
   };
 }
@@ -207,8 +244,14 @@ async function openInvoiceModal() {
   modal.querySelector("#invoiceBuyerName").value = member.name || "";
   modal.querySelector("#invoiceBuyerEmail").value = member.email || "";
   modal.querySelector("#invoiceBuyerId").value = "";
+  modal.querySelector("#invoiceCarrierNum").value = "";
+  modal.querySelector("#invoiceDonationCode").value = "";
+  modal.querySelector("#invoiceDeliveryType").value = "email";
   modal.querySelector('input[name="invoiceBuyerType"][value="personal"]').checked = true;
   modal.querySelector("#invoiceBuyerIdRow").style.display = "none";
+  modal.querySelector("#invoiceDeliveryRow").style.display = "grid";
+  modal.querySelector("#invoiceCarrierRow").style.display = "none";
+  modal.querySelector("#invoiceDonationRow").style.display = "none";
   const status = modal.querySelector("#invoiceStatus");
   status.style.display = "none";
   status.textContent = "";

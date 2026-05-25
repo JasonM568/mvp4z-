@@ -30,6 +30,12 @@ const buyerSchema = z.object({
 }).refine(
   (v) => v.buyer_type === "personal" || (v.buyer_id && /^\d{8}$/.test(v.buyer_id)),
   { message: "公司發票必須填統一編號 8 碼", path: ["buyer_id"] }
+).refine(
+  (v) => v.carrier_type !== "cellphone" || (v.carrier_num && /^\/[0-9A-Z.+-]{7}$/i.test(v.carrier_num)),
+  { message: "手機條碼需為 / 開頭加 7 碼英數符號", path: ["carrier_num"] }
+).refine(
+  (v) => !v.donation_code || v.buyer_type === "personal",
+  { message: "捐贈碼僅支援個人發票", path: ["donation_code"] }
 );
 
 const inputSchema = z.object({ buyer: buyerSchema.optional() });

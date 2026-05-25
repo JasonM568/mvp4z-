@@ -440,7 +440,7 @@ h3 { font-size: 24px; }
   bottom: 12px;
   z-index: 45;
   display: none;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
   gap: 10px;
   padding: 10px;
   border-radius: 20px;
@@ -1412,7 +1412,7 @@ iframe {
     right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom));
     z-index: 80;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 8px;
     padding: 9px;
   }

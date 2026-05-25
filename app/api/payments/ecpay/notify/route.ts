@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formDataToParams, verifyCheckMacValue } from "@/lib/payments/ecpay";
+import { sendAdminAlert } from "@/lib/notifications/admin-alerts";
 import { issueInvoiceFromOrder } from "@/lib/payments/issue-invoice-from-order";
 import { normalizeAmount, normalizeOrderWithPlan } from "@/lib/payments/orders";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -118,12 +119,33 @@ export async function POST(request: NextRequest) {
           error: result.invoice.error_msg,
           code: result.invoice.error_code
         });
+        await sendAdminAlert({
+          subject: `[巽風] 電子發票開立失敗：${currentOrder.order_no}`,
+          text: [
+            "綠界付款已成功，但電子發票開立失敗，請到後台發票管理檢查並重試。",
+            "",
+            `Order: ${currentOrder.order_no}`,
+            `Order ID: ${currentOrder.id}`,
+            `Error code: ${String(result.invoice.error_code || "")}`,
+            `Error message: ${String(result.invoice.error_msg || "")}`
+          ].join("\n")
+        });
       }
     } catch (invoiceError) {
       // 開票流程本身有 bug 時不阻擋付款回應，但 log 出來
       console.warn("[notify] invoice issue threw", {
         orderId: currentOrder.id,
         error: invoiceError instanceof Error ? invoiceError.message : String(invoiceError)
+      });
+      await sendAdminAlert({
+        subject: `[巽風] 電子發票流程異常：${currentOrder.order_no}`,
+        text: [
+          "綠界付款已成功，但電子發票流程發生例外，請到後台發票管理檢查並重試。",
+          "",
+          `Order: ${currentOrder.order_no}`,
+          `Order ID: ${currentOrder.id}`,
+          `Error: ${invoiceError instanceof Error ? invoiceError.message : String(invoiceError)}`
+        ].join("\n")
       });
     }
 

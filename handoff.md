@@ -1117,3 +1117,137 @@ handoff 一直記載 5/24 council 0007 那次 `supabase link` DB password prompt
 - ⚠️ DB password `CBqCoL0AhSmkmFqz` 仍在對話記錄、待 rotate
 - ⚠️ 6 條 invoice v1 決策待開放用戶前解
 - ⚠️ E2E 5 條未驗收
+
+## 2026-05-25 深夜｜E2E 驗收 + Footer/Dock 簡化 + 發票 go-live gate 推進
+
+使用者要求接續做上次建議的 2/3/4：
+
+2. 跑 E2E 驗收
+3. Footer / floating actions 是否同步 header 簡化
+4. 開放真實用戶前 TODO
+
+### 一、E2E 自動驗收結果
+
+用 production `https://mvp4z.vercel.app` + Supabase production 跑一次性測試會員：
+
+- ✅ 註冊 / 登入臨時會員成功
+- ✅ 補測試 pro entitlement 成功
+- ✅ `POST /api/auth/forgot-password` 回 `ok:true`
+- ✅ Supabase recovery link 可生成
+- ✅ `/reset-password` 頁面 200
+- ✅ `POST /api/ai/chat` 成功回覆，扣 1 點
+- ✅ DB 驗證：`member_entitlements.credits_remaining -1`、`usage_logs +1`、`credit_transactions(source=ai_chat) +1`
+- ✅ 壞 token 打 `/api/ai/chat` 回 401，沒有動 credits
+- ✅ `/api/orders/create` 可收 company `invoice_request`，並回綠界 checkout form
+
+第一次跑到 admin manual invoice 時失敗：
+
+```text
+Missing environment variable: ECPAY_INVOICE_MERCHANT_ID
+```
+
+根因：PR #38/#39 發票程式已上線，但 Vercel production/preview 還沒補 `ECPAY_INVOICE_*` env。已修，見下一節。
+
+尚未全自動完成：
+
+- 忘記密碼「真的收信 → 點信 → 改密 → 再登入」需要真人信箱驗收；目前已驗 API、recovery link、reset page。
+- 綠界完整「結帳 modal → 信用卡分頁刷卡 → webhook → 自動開票」仍需瀏覽器/真人刷 sandbox 卡驗收；目前已驗 order API 會保存 `invoice_request`。
+
+### 二、Vercel 補設 ECPAY_INVOICE env
+
+用 Vercel REST API 補上 production + preview：
+
+- `ECPAY_INVOICE_ENV=stage`
+- `ECPAY_INVOICE_MERCHANT_ID=2000132`
+- `ECPAY_INVOICE_HASH_KEY`（綠界公開測試值）
+- `ECPAY_INVOICE_HASH_IV`（綠界公開測試值）
+
+下一次 production deploy 後，admin manual invoice 與 notify 自動開票才會吃到這組 env。
+
+### 三、Footer / floating actions 同步 header 簡化
+
+使用者前面已要求 header 右側只保留會員登入入口。這次把 footer / floating actions 也同步：
+
+- `components/SiteFooter.tsx`
+  - 移除 footer 快速入口裡的 `AiEntryButton`
+  - 移除聯絡資訊裡的 LINE 官方帳號
+- `components/FloatingActions.tsx`
+  - 移除桌機右下浮動 AI button
+  - 移除手機 dock 的 AI / LINE 預約
+  - 手機 dock 只保留「填表預約」
+- `styles/site.css`
+  - `.mobile-dock` 從三欄改單欄
+
+### 四、發票 go-live gate 推進
+
+#### 1. 歷史 sandbox paid 訂單已標 legacy
+
+已執行 production DB update：
+
+```sql
+update public.orders
+set legacy_no_invoice = true
+where status = 'paid'
+  and created_at < '2026-05-25'
+  and invoice_request is null
+  and legacy_no_invoice = false;
+```
+
+結果：
+
+- before = 2
+- updated = 2
+- after = 0
+- 標記 order：
+  - `XF2026051913034555C9`
+  - `XF20260523135206A1`
+
+#### 2. 開票失敗通知
+
+新增 `lib/notifications/admin-alerts.ts`：
+
+- 若有 `RESEND_API_KEY` + `ADMIN_ALERT_EMAILS`（或 fallback `ADMIN_EMAILS`），自動用 Resend 寄 admin alert。
+- 若 env 未設，回 skipped，不阻擋付款 webhook。
+
+`/api/payments/ecpay/notify` 在以下兩種情況會通知：
+
+- 綠界發票 API 回 failed row
+- 開票流程 throw exception
+
+`.env.example` 已補：
+
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `ADMIN_ALERT_EMAILS`
+
+#### 3. 載具 / 捐贈策略
+
+已從「Phase 3 待決」推進為 v1 支援：
+
+- 個人發票：Email 雲端、手機條碼載具、捐贈碼
+- 公司發票：統編三聯式
+
+修改：
+
+- `public/js/member-pricing.js`：invoice modal 新增個人發票方式、手機條碼、捐贈碼欄位與前端驗證
+- `lib/payments/orders.ts`：API schema 加手機條碼格式與捐贈碼限制
+- `app/api/admin/invoices/[orderId]/issue/route.ts`：admin manual issue body 同步驗證
+
+#### 4. 正式發票字軌 / SMTP
+
+仍需使用者處理外部帳務/帳號事項：
+
+- 申請正式綠界電子發票商店與字軌，之後再把 Vercel `ECPAY_INVOICE_*` 從 stage `2000132` 切正式值。
+- Supabase Auth custom SMTP 仍未接；忘記密碼目前還是 Supabase 預設 3 封/小時限制。程式已預留 Resend alert env，但 Supabase SMTP 需要到 Supabase Dashboard 設。
+
+### 五、驗證
+
+- `npm run build` 通過。
+
+### 六、下一次建議起手式
+
+1. commit + push 本次變更，等 Vercel production deploy；這次 deploy 會同時讓 `ECPAY_INVOICE_*` env 生效。
+2. 重新跑 admin manual invoice E2E（剛才卡在 env missing）。
+3. 用瀏覽器跑完整綠界 sandbox 信用卡流程：結帳 modal → 信用卡分頁 → webhook → invoice issued。
+4. 真人信箱驗忘記密碼完整 flow。
+5. 使用者 rotate Supabase DB password，並考慮一併 rotate 本機 `.env.local` 內其他已暴露過的 API key。
