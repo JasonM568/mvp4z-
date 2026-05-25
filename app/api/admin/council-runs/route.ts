@@ -4,7 +4,7 @@
 
 import { NextRequest } from "next/server";
 import { apiJson } from "../../_helpers";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdmin, writeAdminAudit } from "@/lib/auth/admin";
 import { errorMessage, errorStatus } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -38,6 +38,42 @@ export async function GET(request: NextRequest) {
       .limit(limit);
     if (error) throw error;
     return apiJson({ ok: true, runs: data || [] });
+  } catch (error) {
+    return apiJson({ error: errorMessage(error) }, errorStatus(error));
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { profile } = await requireAdmin(request);
+    const admin = createSupabaseAdminClient();
+    const url = new URL(request.url);
+    const id = url.searchParams.get("id");
+    if (!id) return apiJson({ error: "缺少報告 id" }, 400);
+
+    const { data, error } = await admin
+      .from("council_runs")
+      .delete()
+      .eq("id", id)
+      .select("id, user_id, credits_charged, created_at")
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return apiJson({ error: "找不到該報告" }, 404);
+
+    await writeAdminAudit({
+      adminUserId: profile?.id || null,
+      action: "council_run.delete",
+      targetType: "council_run",
+      targetId: id,
+      metadata: {
+        user_id: data.user_id,
+        credits_charged: data.credits_charged,
+        created_at: data.created_at
+      }
+    });
+
+    return apiJson({ ok: true, deleted: data });
   } catch (error) {
     return apiJson({ error: errorMessage(error) }, errorStatus(error));
   }

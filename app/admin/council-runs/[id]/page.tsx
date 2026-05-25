@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { adminFetch } from "../../_shell";
 
 type CouncilRun = {
@@ -24,9 +25,11 @@ type CouncilRun = {
 };
 
 export default function CouncilRunDetail({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
   const [id, setId] = useState("");
   const [run, setRun] = useState<CouncilRun | null>(null);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     params.then((p) => setId(p.id));
@@ -46,6 +49,24 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
       .catch((e) => setError(e?.message || "讀取失敗"));
   }, [id]);
 
+  async function deleteRun() {
+    if (!id || !run) return;
+    const ok = window.confirm("確定要刪除這一份易學決策報告？刪除後後台將不再顯示這份報告。");
+    if (!ok) return;
+
+    setDeleting(true);
+    setError("");
+    try {
+      const res = await adminFetch(`/api/admin/council-runs?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "刪除失敗");
+      router.replace("/admin/council-runs");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "刪除失敗");
+      setDeleting(false);
+    }
+  }
+
   if (error && !run) {
     return (
       <>
@@ -62,12 +83,28 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
 
   return (
     <>
-      <Link href="/admin/council-runs" style={{ color: "var(--green)", fontWeight: 700 }}>← 返回列表</Link>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <Link href="/admin/council-runs" style={{ color: "var(--green)", fontWeight: 700 }}>← 返回列表</Link>
+        <button
+          className="admin-danger-btn"
+          type="button"
+          onClick={deleteRun}
+          disabled={deleting}
+        >
+          {deleting ? "刪除中⋯" : "刪除這份報告"}
+        </button>
+      </div>
 
       <h1 style={{ marginTop: 14 }}>巽風易學決策報告詳情</h1>
       <p className="lead">
         {new Date(run.created_at).toLocaleString("zh-TW")} ｜ {run.profiles?.email || run.user_id}
       </p>
+
+      {error && (
+        <div style={{ padding: 12, background: "rgba(255,143,143,0.1)", border: "1px solid rgba(255,143,143,0.3)", color: "#ffb7b7", borderRadius: 12, marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
 
       <div className="kpi-grid">
         <Kpi label="狀態" value={run.fallback_used ? "兜底交付稿" : run.final_ok ? "正常交付" : "未通過"} />

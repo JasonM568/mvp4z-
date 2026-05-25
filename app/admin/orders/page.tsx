@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { adminFetch } from "../_shell";
 
 type Order = {
@@ -13,7 +14,7 @@ type Order = {
   provider_trade_no: string | null;
   paid_at: string | null;
   created_at: string;
-  profiles?: { name?: string | null; email?: string | null } | null;
+  profiles?: { name?: string | null; email?: string | null; phone?: string | null } | null;
   plans?: { code?: string | null; name?: string | null } | null;
 };
 
@@ -85,10 +86,15 @@ export default function OrdersPage() {
             )}
             {!loading && filtered.map((o) => (
               <tr key={o.id}>
-                <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 12 }}>{o.order_no}</td>
+                <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
+                  <Link href={`/admin/orders/${o.id}`} style={{ color: "var(--green)", fontWeight: 800 }}>
+                    {o.order_no}
+                  </Link>
+                </td>
                 <td>
                   {o.profiles?.name && <div>{o.profiles.name}</div>}
                   {o.profiles?.email && <div className="muted">{o.profiles.email}</div>}
+                  {o.profiles?.phone && <div className="muted">{o.profiles.phone}</div>}
                 </td>
                 <td>
                   {o.plans?.name || "—"}
