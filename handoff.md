@@ -639,3 +639,160 @@ cms-render.js，確保 nav 真·single source of truth。
 - 已停用：本機 dev server（本次 session 未啟動）
 - 仍存在：Supabase Cloud project `pvasgmmjrodukudbzuhp`
 - Vercel：preview deployment 隨 develop push 自動建立
+
+## 2026-05-24 晚｜nav 上 prod + atomicity 修復 + 發票串接設計
+
+### 一、Nav 整併升 prod（PR #23）
+
+- develop 上的 nav 整併（commits `0dfca3c` + `9eb681e` + handoff 更新 `7d5effe`）squash merge 進 main，commit `35946f2`
+- Squash merge 後 Vercel git integration **沒自動觸發 production build**（等了 5+ 分鐘無動靜），最後用 `vercel --scope tjs-projects-435187fd deploy --prod --yes` 從本機推上 prod，deploy id `dpl_AjcATi9sPHZmjRqnPf1SHCTgPfUh`
+- Smoke test 8 條全 200：`/`、`/member-pricing`、`/login`、`/member-ai`、`/member-ai/decision`、`/admin-login`、`/courses`、`/booking`
+- 4 條抽查皆有「易學決策」nav link + SiteFooter + topbar
+- develop reset 與 main 對齊
+
+### 二、Council 扣點 atomicity bug 修復（PR #24）
+
+#### 起因
+
+2026-05-23 admin 點生成綜合報告 504 timeout，credits_remaining 已扣 10、但 credit_transactions 沒寫 debit row、council_runs 整列空、refund handler 沒跑（Vercel 強制 kill function 連同 `try/catch` 也殺）。當下手動補退 + adjustment log，但根本問題沒修。
+
+#### 根因
+
+`app/api/ai/council/route.ts` 原本流程：
+1. DB UPDATE 扣 credits（optimistic lock）
+2. 記憶體存 `reserved` 物件
+3. 跑 7 次 LLM 呼叫（30~250s）
+4. 寫 usage_logs + council_runs + credit_transactions
+5. catch 觸發 refund
+
+步驟 1 已落 DB，步驟 3 期間 Vercel kill function → 記憶體 + catch 一起被殺 → refund 永遠不執行 → credits 黑洞。
+
+#### 採取方案：Charge on success（路線 A）
+
+不預扣，LLM 成功才扣，搭配 Postgres function 把 debit + credit_transactions insert 綁進一個 transaction（含原本的 optimistic lock）。
+
+評估過的另兩條（未採用）：
+- 路線 B：reservation table + cron sweep（v2 升級時可考慮）
+- 路線 C：背景 worker + queue + SSE（工程量太大）
+
+#### 實作
+
+新增 migration `supabase/migrations/0007_council_atomic_commit.sql`：
+
+```sql
+create or replace function public.commit_council_credit(
+  p_user_id uuid,
+  p_entitlement_id uuid,
+  p_previous_credits integer,
+  p_charge integer,
+  p_ref_id text
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_balance_after integer;
+  v_tx_id uuid;
+begin
+  if p_charge <= 0 then raise exception 'invalid charge amount' using errcode = 'CR000'; end if;
+  v_balance_after := p_previous_credits - p_charge;
+  if v_balance_after < 0 then raise exception 'insufficient credits' using errcode = 'CR001'; end if;
+
+  update public.member_entitlements
+  set credits_remaining = v_balance_after
+  where id = p_entitlement_id and user_id = p_user_id and credits_remaining = p_previous_credits;
+  if not found then raise exception 'credits state changed' using errcode = 'CR002'; end if;
+
+  insert into public.credit_transactions (user_id, entitlement_id, type, amount, balance_after, source, ref_id)
+  values (p_user_id, p_entitlement_id, 'debit', -p_charge, v_balance_after, 'ai_council', p_ref_id)
+  returning id into v_tx_id;
+
+  return jsonb_build_object('tx_id', v_tx_id, 'balance_after', v_balance_after);
+end;
+$$;
+```
+
+`route.ts` 改寫流程：
+1. 取得 entitlement，**驗證足額但不扣**
+2. 跑 7 輪 LLM
+3. 寫 `usage_logs`
+4. RPC `commit_council_credit`（debit + tx 原子寫）
+5. 寫 `council_runs`（含實際 `credits_charged`）
+6. 回傳
+
+失敗模式：
+- LLM 失敗 / function kill：步驟 4 未執行 → 不扣到錢 ✅
+- RPC race（CR002，極罕見）：報告已生成，送這份、`council_runs.credits_charged=0` + `console.warn` 記 log
+- Fallback 報告：`plannedCharge=0`，不扣點、不消耗免額度
+
+刪 `refundReservedCredit` dead code（charge-on-success 沒有 reserved 狀態）。
+
+#### 部署順序與踩坑
+
+- Migration 0007 透過 Supabase SQL Editor 手動執行（CLI `supabase link` DB 密碼 prompt 被吞掉，改貼 SQL）
+- 確認 function 在線後才開 PR → merge → deploy
+- 順序顛倒會炸（route.ts 呼叫不存在的 RPC）
+
+**新踩坑：worktree 部署陷阱**
+- 在 `xunfeng-v2-council-atomic` worktree 跑 `vercel deploy --prod --yes`，因為 worktree **沒繼承 `.vercel/project.json`**，被當成新專案建了個 `xunfeng-v2-council-atomic` Vercel project
+- 修法：worktree 部署前先 `cp /主 worktree/.vercel/project.json .vercel/project.json`，或直接回主 worktree 操作
+- 已用 `echo "y" | vercel project rm xunfeng-v2-council-atomic` 清掉誤建 project
+
+**Vercel webhook 觀察更新：** PR #24 merge 後 webhook 這次有自動觸發（3m 內就 Ready）。看來時靈時不靈，先觀察。
+
+#### 驗證
+
+- 本機 `npm run build` 通過
+- Supabase function 建立成功（"Success. No rows returned"）
+- Production deploy `dpl_*-e4un4rh0w` 上線、aliased 到 `mvp4z.vercel.app`
+- E2E 待你親手用 admin 帳號跑一份報告驗證扣點
+
+### 三、ECPay 電子發票串接設計（commit `cc57ac5`，未 merge）
+
+`feature/ecpay-invoice` worktree 從沉睡的 `37d4d81` rebase 到 develop。今天**只設計、不寫 code**，產出 `docs/ecpay-invoice-plan.md`（288 行）。
+
+涵蓋：
+- **環境**：沙箱用綠界公開測試 MerchantID `2000132`，正式之後申請
+- **架構**：v1 走 sync inline 開票（在 notify 內呼叫 ECPay invoice issue API），失敗不阻擋付款流程、admin 可手動 retry
+- **加密**：綠界發票 V3 用 AES-128-CBC + URL encode（跟金流 V5 的 CheckMacValue 完全不同）
+- **DB schema**：migration 0008 加 `orders.invoice_request` jsonb + 新建 `invoices` 表（含買受人、載具、捐贈、狀態、原始 payload、retry 計數、作廢資訊）
+- **API**：notify 內部加開票 + admin retry/void + member 查發票，共 6 個 endpoint
+- **UX**：結帳前 modal 收買受人/載具/捐贈；member 加「我的發票」分頁；admin 加 `/admin/invoices`
+- **階段**：切 4 階段（Phase 1: helper + admin manual / Phase 2: notify auto + 前端 modal / Phase 3: 載具+作廢+重試 / Phase 4: 換正式商店）
+
+#### 6 條待決策（影響 v1 範圍，動 Phase 1 前要先有答案）
+
+1. MVP 要不要做載具？個人無載具預設「捐贈」還是「雲端發票寄 email」？
+2. 統編檢核要打財政部 API 還是信任使用者輸入？
+3. 發票 email 由綠界代寄還是我們自寄？
+4. 歷史測試訂單 `XF2026051913034555C9` 怎麼標？
+5. 開票失敗要不要 admin 通知（email / Slack）？
+6. 正式發票字軌誰申請、何時切換？
+
+### 四、Repo / Worktree / Deploy 狀態（EOD）
+
+- **main**：`e346663` Fix council credit atomicity
+- **develop**：`e346663`（與 main 齊平）
+- **feature/ecpay-invoice**：`cc57ac5`（已 push，未 merge，含設計文件）
+- **production**：`mvp4z.vercel.app` 跑在 atomicity fix
+- **Supabase prod**：migration 0007 已上線
+- **已清理**：誤建的 `xunfeng-v2-council-atomic` Vercel project、council-atomic worktree
+
+### 五、下一次建議起手式
+
+1. 親手跑一份 council 驗證 atomicity 修正（admin 帳號 `306465@gmail.com` 目前 150 點 pro entitlement）
+2. 對焦發票 plan 的 6 條待決策（影響 v1 範圍）
+3. 動發票 Phase 1：
+   - 新建 migration 0008（`orders.invoice_request` + `invoices` 表）
+   - 新建 `lib/payments/ecpay-invoice.ts`（AES-128-CBC helper + issue/void/query）
+   - 對沙箱 `2000132` 開一張測試發票驗證
+   - 加 admin manual issue API + 最簡列表 UI
+4. 或先處理其他待辦：SiteHeader 推 admin 區、課程報名訂單、未付款訂單清理 cron
+
+### 收工時長時間程序狀態（2026-05-24 晚）
+
+- 已停用：本機 dev server（本次 session 未啟動）
+- 仍存在：Supabase Cloud project `pvasgmmjrodukudbzuhp`（migration 0007 已套用）
+- Vercel：mvp4z production `dpl_*-e4un4rh0w` 跑在 atomicity fix
+- 待開：`feature/ecpay-invoice` PR（Phase 1 寫完一起開）

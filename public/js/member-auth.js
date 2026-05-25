@@ -49,6 +49,23 @@ async function loginMember(){
   }
 }
 
+async function forgotPasswordMember(){
+  const email = ($("forgotEmail").value || "").trim();
+  if(!email){
+    $("forgotStatus").className = "status error";
+    $("forgotStatus").textContent = "請填寫 Email";
+    return;
+  }
+  try{
+    await api("/api/auth/forgot-password",{method:"POST",body:JSON.stringify({email})});
+    $("forgotStatus").className = "status ok";
+    $("forgotStatus").textContent = "若此 Email 有註冊，重設密碼信已寄出，請查收信箱（含垃圾信件夾）。";
+  }catch(e){
+    $("forgotStatus").className = "status error";
+    $("forgotStatus").textContent = e.message;
+  }
+}
+
 function showPaymentResult(){
   const banner = $("paymentBanner");
   if(!banner) return;
@@ -107,6 +124,7 @@ function initMemberPage(){
 window.initMemberPage = initMemberPage;
 window.loginMember = loginMember;
 window.registerMember = registerMember;
+window.forgotPasswordMember = forgotPasswordMember;
 window.redeemCode = redeemCode;
 window.toggleRedeem = toggleRedeem;
 window.logout = logout;
