@@ -128,6 +128,93 @@
   cursor: wait;
 }
 
+.admin-action-btn {
+  padding: 10px 14px;
+  background: rgba(111, 240, 180, 0.14);
+  border: 1px solid rgba(111, 240, 180, 0.4);
+  border-radius: 12px;
+  color: var(--green);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.admin-action-btn.small {
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.admin-action-btn.ghost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.admin-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-inline-message {
+  color: var(--green);
+  font-weight: 800;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.admin-form-grid label,
+.admin-modal label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-form-grid input,
+.admin-form-grid select,
+.admin-filter input,
+.admin-modal input {
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--text);
+  padding: 9px 12px;
+  font: inherit;
+}
+
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.62);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.admin-modal {
+  width: min(460px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #07120e;
+  padding: 22px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.admin-modal h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
 .admin-main {
   padding: 32px;
   overflow-x: hidden;

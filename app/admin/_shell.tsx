@@ -14,6 +14,7 @@ type AdminMember = {
 
 const NAV = [
   { href: "/admin", label: "總覽" },
+  { href: "/admin/members", label: "會員管理" },
   { href: "/admin/bookings", label: "預約名單" },
   { href: "/admin/orders", label: "訂單管理" },
   { href: "/admin/invoices", label: "發票管理" },
