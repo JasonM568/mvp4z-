@@ -29,7 +29,7 @@ export default function AboutPage() {
                 data-link="ai"
                 href="/login?tab=register&next=/member-ai"
               >
-                會員註冊使用 AI
+                會員 AI 初步諮詢
               </a>
             </div>
           </div>

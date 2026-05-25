@@ -76,16 +76,8 @@ img { max-width: 100%; display: block; }
   white-space: nowrap;
 }
 .nav-links a:hover { color: var(--green); }
-.nav-ai-entry {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: rgba(110,231,183,.14);
-  border: 1px solid rgba(110,231,183,.32);
-  color: #d9fff0 !important;
+.nav-ai-link {
+  color: #d8d2c7;
   font-weight: 900;
 }
 .nav-actions { display: flex; gap: 10px; align-items: center; }

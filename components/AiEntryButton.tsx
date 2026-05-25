@@ -5,9 +5,15 @@ import { isActivePaidMember, useMemberSession } from "@/hooks/use-member-session
 type Variant = "header" | "floating" | "dock" | "footer";
 
 const TEXT = {
-  guest: "會員註冊使用 AI",
+  guest: "會員 AI 初步諮詢",
   pending: "啟用會員 AI",
   member: "進入 AI 初步諮詢"
+};
+
+const SHORT_TEXT = {
+  guest: "AI 諮詢",
+  pending: "會員 AI",
+  member: "AI 諮詢"
 };
 
 /**
@@ -19,12 +25,21 @@ const TEXT = {
  * variant 決定外觀 class（沿用既有 site.css 已定義的：.btn .btn-ghost / .floating-ai / .dock-ai
  * / .footer-list a）。children 模式給特殊文案使用（如 floating 有兩段 span）。
  */
-export function AiEntryButton({ variant, className }: { variant: Variant; className?: string }) {
+export function AiEntryButton({
+  variant,
+  className,
+  compact = false
+}: {
+  variant: Variant;
+  className?: string;
+  compact?: boolean;
+}) {
   const { member } = useMemberSession();
   const isPaid = isActivePaidMember(member);
   const isRegistered = Boolean(member?.id);
 
-  const label = isPaid ? TEXT.member : isRegistered ? TEXT.pending : TEXT.guest;
+  const labelSet = compact ? SHORT_TEXT : TEXT;
+  const label = isPaid ? labelSet.member : isRegistered ? labelSet.pending : labelSet.guest;
   const href = isPaid
     ? "/member-ai"
     : isRegistered
@@ -34,7 +49,7 @@ export function AiEntryButton({ variant, className }: { variant: Variant; classN
   if (variant === "header") {
     return (
       <a
-        className={className || "btn btn-ghost"}
+        className={className || (compact ? "nav-ai-link" : "btn btn-ghost")}
         href={href}
       >
         {label}

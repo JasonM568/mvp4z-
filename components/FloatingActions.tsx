@@ -7,7 +7,7 @@ import { AiEntryButton } from "@/components/AiEntryButton";
 export function FloatingActions() {
   return (
     <div className="mobile-dock" aria-label="手機快速操作列">
-      <AiEntryButton variant="dock" />
+      <AiEntryButton variant="dock" compact />
       <a className="dock-booking" href="/booking">
         填表預約
       </a>
