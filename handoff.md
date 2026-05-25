@@ -796,3 +796,91 @@ $$;
 - 仍存在：Supabase Cloud project `pvasgmmjrodukudbzuhp`（migration 0007 已套用）
 - Vercel：mvp4z production `dpl_*-e4un4rh0w` 跑在 atomicity fix
 - 待開：`feature/ecpay-invoice` PR（Phase 1 寫完一起開）
+
+## 2026-05-25 早｜清掉兩條無痛 PR：忘記密碼 + 訂單清理 cron
+
+### 一、PR #32 忘記密碼/重設密碼流程
+
+`feature/forgot-password` squash merge 進 main（commit `adc25e0`），Vercel webhook 自動觸發 prod build，34s Ready。
+
+- `/login` 改 3 tab：登入 / 註冊 / 忘記密碼，加「忘記密碼？」連結
+- `POST /api/auth/forgot-password`：呼叫 supabase admin `resetPasswordForEmail`，永遠回 200 防 user enumeration
+- `/reset-password`：PKCE flow `exchangeCodeForSession(code)` → `updateUser({password})` → 跳 `/login?reset=1`
+- `/login?reset=1` 顯示「密碼已更新」banner
+- `member-auth.js` 加 `forgotPasswordMember` + window export
+
+**Supabase Auth 設定已透過 Management API 同步調整：**
+- `site_url = https://mvp4z.vercel.app`
+- `uri_allow_list` 加 `/reset-password` 與 localhost
+- `password_min_length = 8`（對齊前端 zod）
+
+**已知限制：** SMTP 走 Supabase 預設（3 封/小時），正式營運前需接 custom SMTP（Resend）。
+
+**Smoke test：** `/login` 200、`/reset-password` 200。E2E（送信、收信、改密碼、再登入）待手動驗。
+
+### 二、PR #33 未付款訂單自動清理 cron
+
+`feature/orders-cleanup-cron` squash merge 進 main（commit `0c57e80`），webhook 觸發 prod build，32s Ready。
+
+- 新增 `GET /api/cron/cleanup-pending-orders`，每小時整點 `0 * * * *` 觸發
+- 規則：`status='pending'` 且 `created_at < now - 24h` → 標 `cancelled`
+- 單次上限 500 筆、`UPDATE WHERE status='pending'` 防競態
+- 每次寫 `admin_audit_logs`（`action=orders_auto_cancel`，metadata 含 `cleaned_count` + 抽樣 5 筆）
+- 支援 `?dry_run=1` 手動驗證
+- `vercel.json` 加 crons entry
+- 文件：`docs/orders-cleanup-cron.md`
+
+#### 部署後 secret 設定
+
+`CRON_SECRET` 已生成並透過 `vercel env add CRON_SECRET production --scope tjs-projects-435187fd` 設好。Preview 環境沒設（CLI 跳互動式 prompt 沒過，可之後補）。
+
+設完 prod env 後做了 `vercel redeploy <prod-url> --target production`，新 deployment `mvp4z-cxx2yce73` 上線、aliased 到 `mvp4z.vercel.app`，cron route 從 500 變 200。
+
+#### Dry-run 驗證
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" \
+  "https://mvp4z.vercel.app/api/cron/cleanup-pending-orders?dry_run=1"
+```
+
+回應確認 4 筆 sandbox 殘留候選（全是 5/19 sandbox 測試「點購買 → 跳綠界 → 模擬付款不發 webhook」典型 pattern）：
+
+| order_no | created_at | amount |
+| --- | --- | --- |
+| `XF202605191223340925` | 2026-05-19 04:23 UTC | 980 |
+| `XF20260519123324AD8F` | 2026-05-19 04:33 UTC | 1980 |
+| `XF202605191237072F2E` | 2026-05-19 04:37 UTC | 1980 |
+| `XF20260519130035B78C` | 2026-05-19 05:00 UTC | 1980 |
+
+確認系統尚未開放真實用戶 → 4 筆全為 sandbox 殘留 → 不手動清，交給 cron 在 2026-05-25 10:00 (UTC 02:00) 首次整點觸發自動處理。
+
+### 三、Worktree / Branch 清理
+
+已移除：
+- `xunfeng-v2-forgot-password` worktree + local + remote branch
+- `xunfeng-v2-orders-cleanup` worktree + local + remote branch
+
+### 四、剩下未 merge 的 5 條 feature branch（手感越來越冷的順序）
+
+| Worktree | 狀態 |
+| --- | --- |
+| `xunfeng-official-v2`（`fix/header-member-state`）| header 會員態 UI 一致性 fix，commit `08b3a4b` 已 push 未 merge |
+| `xunfeng-v2-ecpay-merchant-config` | ECPay env 集中設定 + 切換 SOP，commit `076b21f` 已 push 未 merge |
+| `xunfeng-v2-ai-chat-e2e` | AI chat charge-on-success atomicity + E2E 測試，commit `bc3db76` 已 push 未 merge |
+| `xunfeng-v2-ecpay-invoice` | 發票 Phase 1（schema + helper + admin manual issue），commit `87af793` 已 push 未 merge |
+| `xunfeng-v2-ecpay-invoice-phase2` | 發票 Phase 2（notify 自動開票 + 結帳 modal），commit `0e83872` 已 push 未 merge；卡在 6 條 v1 範圍決策 |
+
+### 五、下一次建議起手式
+
+1. 驗 cron：10:00 觸發後查 `admin_audit_logs` 看 `orders_auto_cancel` 那條 metadata，4 筆 candidate 是否如預期變 cancelled
+2. 補 `CRON_SECRET` 到 preview 環境（互動式跑：`vercel env add CRON_SECRET preview`）
+3. 動下一條無痛的：`feature/ecpay-merchant-config`（ECPay env 集中設定，純內部設定 + 切換 SOP，沒外部依賴）
+4. 或對焦發票 Phase 2 的 6 條 v1 決策（卡最久、影響最大）
+
+### 收工時長時間程序狀態（2026-05-25 早）
+
+- 已停用：本機 dev server（本次 session 未啟動）
+- 仍存在：Supabase Cloud project `pvasgmmjrodukudbzuhp`
+- Vercel：mvp4z production `dpl_*-cxx2yce73` 跑在 forgot-password + cron + 新 CRON_SECRET
+- 已上線 cron：`/api/cron/cleanup-pending-orders` 每小時整點觸發
+- 待補：`CRON_SECRET` preview 環境變數
