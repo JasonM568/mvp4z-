@@ -26,6 +26,10 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("reset") === "1") setResetBanner(true);
+    const requestedTab = params.get("tab");
+    if (requestedTab === "register" || requestedTab === "forgot" || requestedTab === "login") {
+      setTab(requestedTab);
+    }
   }, []);
 
   return (

@@ -27,11 +27,9 @@ export default function AboutPage() {
               <a
                 className="btn btn-ghost"
                 data-link="ai"
-                href="/ai"
-                target="_blank"
-                rel="noreferrer"
+                href="/login?tab=register&next=/member-ai"
               >
-                使用 AI 初步諮詢
+                會員註冊使用 AI
               </a>
             </div>
           </div>

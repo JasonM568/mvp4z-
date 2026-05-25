@@ -32,11 +32,9 @@ export default function ThanksPage() {
             </a>
             <a
               className="btn btn-ghost"
-              href="/ai"
-              target="_blank"
-              rel="noreferrer"
+              href="/login?tab=register&next=/member-ai"
             >
-              使用 AI 初步諮詢
+              會員註冊使用 AI
             </a>
           </div>
         </div>

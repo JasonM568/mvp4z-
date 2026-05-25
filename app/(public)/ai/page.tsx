@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "風羿老師 AI 初步諮詢｜巽風堪輿研究中心",
   description:
-    "風羿老師 AI 初步諮詢入口。若 ChatGPT 分身尚未完成公開設定，請先透過 LINE 預約，巽風堪輿研究中心將協助安排後續諮詢。"
+    "風羿老師 AI 初步諮詢為會員功能，需先註冊並啟用會員方案。"
 };
 
 export default function AiPage() {
@@ -21,29 +21,26 @@ export default function AiPage() {
             </h1>
           </div>
           <p className="section-desc">
-            AI 可協助初步整理風水、命理、命名、擇日與場域管理問題；正式結論仍需由風羿老師本人依資料與現場條件進一步判斷。
+            AI 初步諮詢為會員功能。請先建立會員並啟用方案，系統才會開放問答入口；正式結論仍需由風羿老師本人依資料與現場條件進一步判斷。
           </p>
         </div>
 
         <div className="grid-2">
           <article className="panel ai-safe-box">
-            <div className="ai-status">目前建議：先透過 LINE 啟動諮詢</div>
-            <h2>避免客戶點到 404，AI 分身公開前先導入 LINE</h2>
+            <div className="ai-status">會員限定</div>
+            <h2>完成會員註冊後使用 AI 初步諮詢</h2>
             <p>
-              ChatGPT 分身若尚未完成公開權限設定，客戶直接點擊可能出現 404。正式上線期間，建議先透過 LINE 收件，由巽風端確認需求後，再導入 AI 或真人諮詢流程。
+              這個功能會消耗會員點數，因此需要登入會員並啟用方案。尚未註冊者可先建立帳號；已註冊但尚未啟用者，可到會員方案頁完成付款開通。
             </p>
             <div className="actions">
               <a
                 className="btn btn-primary"
-                data-link="line"
-                href="https://lin.ee/W88wwDB"
-                target="_blank"
-                rel="noreferrer"
+                href="/login?tab=register&next=/member-ai"
               >
-                加入 LINE 預約諮詢
+                建立會員帳號
               </a>
-              <a className="btn btn-ghost" href="/booking">
-                填寫預約表單
+              <a className="btn btn-ghost" href="/member-pricing">
+                查看會員方案
               </a>
             </div>
           </article>

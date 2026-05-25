@@ -16,6 +16,12 @@ async function api(path, options={}){
 
 function $(id){ return document.getElementById(id); }
 
+function nextPath(fallback){
+  const params = new URLSearchParams(location.search);
+  const next = params.get("next") || fallback || "/member";
+  return next.startsWith("/") && !next.startsWith("//") ? next : fallback || "/member";
+}
+
 async function registerMember(){
   const payload = {
     name: $("name").value.trim(),
@@ -28,7 +34,7 @@ async function registerMember(){
     setToken(data.token);
     $("status").className = "status ok";
     $("status").textContent = "註冊成功，請輸入付款後取得的會員啟用碼。";
-    location.href = "/member";
+    location.href = nextPath("/member");
   }catch(e){
     $("status").className = "status error";
     $("status").textContent = e.message;
@@ -42,7 +48,7 @@ async function loginMember(){
       password:$("loginPassword").value
     })});
     setToken(data.token);
-    location.href = "/member";
+    location.href = nextPath("/member");
   }catch(e){
     $("loginStatus").className = "status error";
     $("loginStatus").textContent = e.message;
