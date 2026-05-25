@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AiEntryButton } from "@/components/AiEntryButton";
 
 export const metadata: Metadata = {
   title: "巽風堪輿研究中心｜風羿老師｜場域策略與風水顧問",
@@ -25,17 +26,9 @@ export default function HomePage() {
                 以乾坤國寶、龍門八局、形家風水、命理與現代場域管理為核心，提供陰陽宅堪驗、年度企業顧問、命名擇日、八字流年、課程講座與 AI 初步諮詢。
               </p>
               <div className="hero-actions">
-                <a className="btn btn-primary" href="/member-ai/decision">
+                <AiEntryButton variant="header" className="btn btn-primary ai-hero-primary" />
+                <a className="btn btn-gold" href="/member-ai/decision">
                   易學決策報告
-                </a>
-                <a
-                  className="btn btn-gold"
-                  data-link="ai"
-                  href="/ai"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  AI 初步諮詢
                 </a>
                 <a className="btn btn-ghost" href="/booking">
                   填寫預約表單
@@ -55,6 +48,27 @@ export default function HomePage() {
               src="/assets/brand-anchor.jpg"
               alt="巽風堪輿研究中心品牌主視覺鎮山母圖"
             />
+          </div>
+        </div>
+      </section>
+
+      <section className="ai-entry-section">
+        <div className="wrap ai-entry-panel">
+          <div>
+            <div className="tag">AI FIRST STEP</div>
+            <h2 className="section-title">
+              <span className="title-line">先用 AI</span>
+              <span className="title-line accent">整理你的問題</span>
+            </h2>
+            <p className="lead">
+              不確定該問陽宅、命理、擇日還是企業場域？先用 AI 初步諮詢整理資料與問題方向，再決定是否預約風羿老師正式評估。
+            </p>
+          </div>
+          <div className="ai-entry-actions">
+            <AiEntryButton variant="header" className="btn btn-primary" />
+            <a className="btn btn-ghost" href="/member-pricing">
+              查看會員方案
+            </a>
           </div>
         </div>
       </section>

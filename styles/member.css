@@ -62,7 +62,7 @@ textarea{min-height:120px;resize:vertical;line-height:1.7}
 .table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:20px}
 .table th,.table td{border-bottom:1px solid var(--line);padding:12px;text-align:left;color:var(--muted);vertical-align:top}
 .table th{color:var(--text);background:rgba(255,255,255,.06)}
-.mobile-dock{position:fixed;left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:80;display:grid;grid-template-columns:1fr 1fr;gap:10px;background:rgba(3,16,11,.92);border:1px solid rgba(255,255,255,.16);border-radius:26px;padding:10px;backdrop-filter:blur(16px)}
+.mobile-dock{position:fixed;left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:80;display:none;grid-template-columns:1fr 1fr;gap:10px;background:rgba(3,16,11,.92);border:1px solid rgba(255,255,255,.16);border-radius:26px;padding:10px;backdrop-filter:blur(16px)}
 .mobile-dock .btn{padding:12px 10px;font-size:15px}
 @media(max-width:840px){
   .wrap{width:calc(100% - 28px)}
@@ -75,4 +75,5 @@ textarea{min-height:120px;resize:vertical;line-height:1.7}
   .card,.panel{padding:22px;border-radius:24px}
   .chat-input{grid-template-columns:1fr}
   .msg.user,.msg.bot{max-width:100%}
+  .mobile-dock{display:grid}
 }

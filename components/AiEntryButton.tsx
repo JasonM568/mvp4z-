@@ -12,7 +12,7 @@ const TEXT = {
 /**
  * 全站共用 AI 入口按鈕：
  * - 未登入 / trial：「AI 初步諮詢」→ /ai（新分頁）
- * - 已啟用付費會員 (basic/pro/vip + active)：「進入 AI 會員版」→ /member-ai/decision（同分頁）
+ * - 已啟用付費會員 (basic/pro/vip + active)：「進入 AI 會員版」→ /member-ai（同分頁）
  *
  * variant 決定外觀 class（沿用既有 site.css 已定義的：.btn .btn-ghost / .floating-ai / .dock-ai
  * / .footer-list a）。children 模式給特殊文案使用（如 floating 有兩段 span）。
@@ -22,7 +22,7 @@ export function AiEntryButton({ variant, className }: { variant: Variant; classN
   const isPaid = isActivePaidMember(member);
 
   const label = isPaid ? TEXT.member : TEXT.guest;
-  const href = isPaid ? "/member-ai/decision" : "/ai";
+  const href = isPaid ? "/member-ai" : "/ai";
   const newTab = !isPaid;
 
   if (variant === "header") {

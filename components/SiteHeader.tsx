@@ -1,4 +1,5 @@
 import { HeaderMemberPill } from "@/components/HeaderMemberPill";
+import { AiEntryButton } from "@/components/AiEntryButton";
 
 /**
  * 全站共用主導覽 — 結構與 legacy index.html 的 .topbar / .nav-links 完全對齊，
@@ -24,6 +25,7 @@ export function SiteHeader() {
           <a href="/cases">案例實績</a>
           <a href="/courses">課程講座</a>
           <a href="/booking">預約表單</a>
+          <AiEntryButton variant="header" className="nav-ai-entry" />
           <a href="/member-ai/decision">易學決策報告</a>
           <a href="/member-pricing">會員方案</a>
           <HeaderMemberPill />
