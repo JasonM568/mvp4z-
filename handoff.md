@@ -1146,12 +1146,15 @@ handoff 一直記載 5/24 council 0007 那次 `supabase link` DB password prompt
 Missing environment variable: ECPAY_INVOICE_MERCHANT_ID
 ```
 
-根因：PR #38/#39 發票程式已上線，但 Vercel production/preview 還沒補 `ECPAY_INVOICE_*` env。已修，見下一節。
+根因：PR #38/#39 發票程式已上線，但 Vercel production/preview 還沒補 `ECPAY_INVOICE_*` env。已修，見下一節。commit `29ace70` deploy 後重跑發票 E2E 已通過：
+
+- ✅ admin manual sandbox invoice issued（測試發票號碼 `JU11019625`）
+- ✅ 手機條碼 `invoice_request` 可由 `/api/orders/create` 接收並保存
 
 尚未全自動完成：
 
 - 忘記密碼「真的收信 → 點信 → 改密 → 再登入」需要真人信箱驗收；目前已驗 API、recovery link、reset page。
-- 綠界完整「結帳 modal → 信用卡分頁刷卡 → webhook → 自動開票」仍需瀏覽器/真人刷 sandbox 卡驗收；目前已驗 order API 會保存 `invoice_request`。
+- 綠界完整「結帳 modal → 信用卡分頁刷卡 → webhook → 自動開票」仍需瀏覽器/真人刷 sandbox 卡驗收；目前已驗 order API 會保存 `invoice_request`，並已驗 admin manual invoice 可開 sandbox 發票。
 
 ### 二、Vercel 補設 ECPAY_INVOICE env
 
@@ -1162,7 +1165,7 @@ Missing environment variable: ECPAY_INVOICE_MERCHANT_ID
 - `ECPAY_INVOICE_HASH_KEY`（綠界公開測試值）
 - `ECPAY_INVOICE_HASH_IV`（綠界公開測試值）
 
-下一次 production deploy 後，admin manual invoice 與 notify 自動開票才會吃到這組 env。
+production deploy `dpl_6AZKPcgTGD1WwoWDKtsFinUYPYFY` 已 READY，admin manual invoice 與 notify 自動開票會吃到這組 env。
 
 ### 三、Footer / floating actions 同步 header 簡化
 
@@ -1243,11 +1246,17 @@ where status = 'paid'
 ### 五、驗證
 
 - `npm run build` 通過。
+- production deploy ready：commit `29ace70`
+- production HTML smoke：
+  - footer 不再有 AI / LINE CTA
+  - mobile dock 不再有 AI / LINE CTA
+  - mobile dock 只剩「填表預約」
+- 發票 E2E：admin manual sandbox invoice issued、carrier invoice_request persisted
 
 ### 六、下一次建議起手式
 
-1. commit + push 本次變更，等 Vercel production deploy；這次 deploy 會同時讓 `ECPAY_INVOICE_*` env 生效。
-2. 重新跑 admin manual invoice E2E（剛才卡在 env missing）。
-3. 用瀏覽器跑完整綠界 sandbox 信用卡流程：結帳 modal → 信用卡分頁 → webhook → invoice issued。
-4. 真人信箱驗忘記密碼完整 flow。
-5. 使用者 rotate Supabase DB password，並考慮一併 rotate 本機 `.env.local` 內其他已暴露過的 API key。
+1. 用瀏覽器跑完整綠界 sandbox 信用卡流程：結帳 modal → 信用卡分頁 → webhook → invoice issued。
+2. 真人信箱驗忘記密碼完整 flow。
+3. 使用者 rotate Supabase DB password，並考慮一併 rotate 本機 `.env.local` 內其他已暴露過的 API key。
+4. 補 Supabase Auth custom SMTP（Resend）與 `RESEND_*` production env，讓 forgot-password 不再受 Supabase 預設 3 封/小時限制。
+5. 正式上線前把 Vercel `ECPAY_INVOICE_*` 從 stage `2000132` 切到正式電子發票商店與字軌。
