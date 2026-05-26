@@ -4,15 +4,21 @@
 //
 // idempotent：已有 active（pending/issued）的 invoice 直接回該 row 不重開。
 // 失敗仍寫 row (status=failed) 留待 admin retry。
+//
+// 2026-05-26 切到 EZPay 樂點電子發票（原本 ecpay-invoice 是綠界 V3，未使用）。
+// schema 內部 carrier_type enum 保留原值 ('none/cellphone/citizen_digital/ecpay_member')
+// 不改前端，內部 mapping 到 EZPay 規格 (''/0/1/2)。
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { issueInvoice, type InvoiceCarrierType } from "./ecpay-invoice";
+import { issueInvoice, type EzpayCarrierType, type EzpayCategory } from "./ezpay-invoice";
+
+export type InvoiceCarrierType = "none" | "cellphone" | "citizen_digital" | "ecpay_member";
 
 export interface OrderForInvoice {
   id: string;
   order_no: string;
   user_id: string;
-  amount: number;
+  amount: number;                      // 含稅總額（我們的 order.amount 對應 EZPay TotalAmt）
   invoice_request: unknown;
   legacy_no_invoice?: boolean;
   item_name?: string | null;
@@ -22,11 +28,11 @@ export interface OrderForInvoice {
 export interface InvoiceBuyer {
   buyer_type: "personal" | "company";
   buyer_name: string;
-  buyer_id?: string | null;
+  buyer_id?: string | null;            // 統編 8 碼（company 必填）
   buyer_email?: string | null;
   carrier_type?: InvoiceCarrierType;
   carrier_num?: string | null;
-  donation_code?: string | null;
+  donation_code?: string | null;       // 捐贈碼 3-7 碼數字
 }
 
 export interface IssueResult {
@@ -36,6 +42,8 @@ export interface IssueResult {
   skipped?: boolean;    // legacy_no_invoice / 無 invoice_request → 不開
   reason?: string;      // skipped 時的原因
 }
+
+const PROVIDER = "ezpay";
 
 export function buyerFromOrder(order: OrderForInvoice, override?: InvoiceBuyer | null): InvoiceBuyer | null {
   if (override) return override;
@@ -67,7 +75,7 @@ export async function issueInvoiceFromOrder(
     .from("invoices")
     .select("*")
     .eq("order_id", order.id)
-    .eq("provider", "ecpay")
+    .eq("provider", PROVIDER)
     .in("status", ["pending", "issued"])
     .maybeSingle();
 
@@ -80,26 +88,49 @@ export async function issueInvoiceFromOrder(
     return { ok: false, invoice: {}, skipped: true, reason: "no_buyer_info" };
   }
 
-  const planInfo = order.plans;
-  const itemName = order.item_name || planInfo?.name || order.order_no;
+  const itemName = order.item_name || order.plans?.name || order.order_no;
+  const category: EzpayCategory = buyer.buyer_type === "company" ? "B2B" : "B2C";
+
+  // 含稅金額拆 amt + taxAmt（應稅 5%）
+  // B2B: amt 是未稅 / B2C: amt 也是未稅但 ItemPrice 是含稅（PDF 第四章定義）
+  const totalAmt = Math.max(0, Math.round(order.amount));
+  const amt = Math.round(totalAmt / 1.05);
+  const taxAmt = totalAmt - amt;
+
+  // carrier_type mapping：我們 schema 內部 → EZPay 規格
+  const carrierType = mapCarrierType(buyer.carrier_type, category);
+  const carrierNum = carrierType ? mapCarrierNum(buyer.carrier_type, buyer.carrier_num, buyer.buyer_email) : "";
+
+  // PrintFlag 規則：B2B 必 Y；B2C 沒載具沒捐贈才 Y
+  const hasCarrierOrDonate = Boolean(carrierType || buyer.donation_code);
+  const printFlag: "Y" | "N" = category === "B2B" ? "Y" : (hasCarrierOrDonate ? "N" : "Y");
+
+  // sanitize order_no → EZPay merchantOrderNo（只允許英、數、底線，≤ 20）
+  const merchantOrderNo = order.order_no.replace(/[^A-Za-z0-9_]/g, "").slice(0, 20);
+
   const result = await issueInvoice({
-    relateNumber: order.order_no,
-    customerName: buyer.buyer_name,
-    customerEmail: buyer.buyer_email || "",
-    customerIdentifier: buyer.buyer_id || "",
-    carrierType: buyer.carrier_type || "none",
-    carrierNum: buyer.carrier_num || "",
-    donationCode: buyer.donation_code || "",
-    totalAmount: order.amount,
+    merchantOrderNo,
+    category,
+    buyerName: buyer.buyer_name,
+    buyerUbn: category === "B2B" ? buyer.buyer_id || undefined : undefined,
+    buyerEmail: buyer.buyer_email || undefined,
+    carrierType,
+    carrierNum: carrierNum || undefined,
+    loveCode: category === "B2C" ? buyer.donation_code || undefined : undefined,
+    printFlag,
     taxType: "1",
-    items: [{ name: itemName, count: 1, price: order.amount }],
-    invoiceRemark: order.order_no
+    taxRate: 5,
+    amt,
+    taxAmt,
+    totalAmt,
+    items: [{ name: itemName, count: 1, unit: "次", price: category === "B2B" ? amt : totalAmt, amount: category === "B2B" ? amt : totalAmt }],
+    comment: order.order_no
   });
 
   const baseRow: Record<string, unknown> = {
     order_id: order.id,
     user_id: order.user_id,
-    provider: "ecpay",
+    provider: PROVIDER,
     buyer_type: buyer.buyer_type,
     buyer_name: buyer.buyer_name,
     buyer_id: buyer.buyer_id || null,
@@ -107,22 +138,23 @@ export async function issueInvoiceFromOrder(
     carrier_type: buyer.carrier_type || "none",
     carrier_num: buyer.carrier_num || null,
     donation_code: buyer.donation_code || null,
-    total_amount: order.amount,
+    total_amount: totalAmt,
     tax_type: "1",
     last_attempted_at: new Date().toISOString(),
     retry_count: 1,
     raw_response: result.rawResponse as object
   };
 
-  if (result.ok) {
+  if (result.ok && result.result) {
     baseRow.status = "issued";
-    baseRow.invoice_number = result.invoiceNumber;
-    baseRow.random_code = result.randomCode;
-    baseRow.invoice_date = parseInvoiceDate(result.invoiceDate);
+    baseRow.invoice_number = result.result.InvoiceNumber;
+    baseRow.random_code = result.result.RandomNum;
+    baseRow.invoice_date = parseInvoiceDate(result.result.CreateTime);
+    baseRow.provider_trans_no = result.result.InvoiceTransNo;
   } else {
     baseRow.status = "failed";
-    baseRow.error_code = result.errorCode;
-    baseRow.error_msg = result.errorMessage;
+    baseRow.error_code = result.status;          // EZPay 錯誤碼 (KEY10006 等)
+    baseRow.error_msg = result.message;
   }
 
   const { data: inserted, error: insertError } = await admin
@@ -135,7 +167,24 @@ export async function issueInvoiceFromOrder(
   return { ok: result.ok, invoice: inserted };
 }
 
-// 綠界 InvoiceDate "YYYY-MM-DD HH:mm:ss"（無時區）→ ISO with +08:00
+// 內部 carrier enum → EZPay 規格
+function mapCarrierType(carrier: InvoiceCarrierType | undefined, category: EzpayCategory): EzpayCarrierType {
+  if (category === "B2B") return ""; // B2B 不用載具
+  switch (carrier) {
+    case "cellphone": return "0";
+    case "citizen_digital": return "1";
+    case "ecpay_member": return "2"; // 我們 schema 歷史命名，EZPay 載具用 buyer_email
+    default: return "";
+  }
+}
+
+function mapCarrierNum(carrier: InvoiceCarrierType | undefined, carrierNum: string | null | undefined, buyerEmail: string | null | undefined): string {
+  // CarrierType=2 (ezPay 電子載具) 用 email 作為 CarrierNum
+  if (carrier === "ecpay_member") return buyerEmail || "";
+  return carrierNum || "";
+}
+
+// EZPay CreateTime "YYYY-MM-DD HH:mm:ss"（無時區，台北時間）→ ISO with +08:00
 function parseInvoiceDate(value: string): string | null {
   if (!value) return null;
   const normalized = value.replace(" ", "T") + "+08:00";
