@@ -9,7 +9,7 @@
 //
 // 用法：
 //   npm run test:ai-chat-e2e -- --token=<admin_bearer_token>
-//   npm run test:ai-chat-e2e -- --token=<token> --base-url=https://mvp4z.vercel.app
+//   npm run test:ai-chat-e2e -- --token=<token> --base-url=https://www.xunfeng.tw
 //   npm run test:ai-chat-e2e -- --token=<token> --only=happy,parallel
 //
 // 取得 token：admin 登入 /login 後 localStorage.getItem('xunfeng_member_token')

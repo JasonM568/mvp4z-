@@ -13,9 +13,9 @@ ECPay 設定散在 6+ 個 env vars：
 | `ECPAY_MERCHANT_ID` | 商店代號 | `3002607` (綠界公開測試) | 申請後拿到的 7 碼 |
 | `ECPAY_HASH_KEY` | 簽章金鑰 | `pwFHCqoQZGmho4w6` | 申請後拿到 |
 | `ECPAY_HASH_IV` | 簽章 IV | `EkRm7iFT261dpevs` | 申請後拿到 |
-| `ECPAY_NOTIFY_URL` | server webhook | `https://mvp4z.vercel.app/api/payments/ecpay/notify` | 同左（domain 一致即可） |
-| `ECPAY_RETURN_URL` | 付款完導回 | `https://mvp4z.vercel.app/api/payments/ecpay/return` | 同左 |
-| `ECPAY_CLIENT_BACK_URL` | 「返回商店」 | `https://mvp4z.vercel.app/member` | 同左 |
+| `ECPAY_NOTIFY_URL` | server webhook | `https://www.xunfeng.tw/api/payments/ecpay/notify` | 同左（domain 一致即可） |
+| `ECPAY_RETURN_URL` | 付款完導回 | `https://www.xunfeng.tw/api/payments/ecpay/return` | 同左 |
+| `ECPAY_CLIENT_BACK_URL` | 「返回商店」 | `https://www.xunfeng.tw/member` | 同左 |
 
 換正式商店要一次改 4 個（MerchantID + HashKey + HashIV + ECPAY_ENV），三個 URL 不變。漏改 = 簽章對不上 = 結帳全炸。
 

@@ -39,11 +39,11 @@ vercel env add CRON_SECRET production
 ```bash
 # dry-run（只回筆數與抽樣，不更新）
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://mvp4z.vercel.app/api/cron/cleanup-pending-orders?dry_run=1
+  https://www.xunfeng.tw/api/cron/cleanup-pending-orders?dry_run=1
 
 # 實跑（建議先 dry-run）
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://mvp4z.vercel.app/api/cron/cleanup-pending-orders
+  https://www.xunfeng.tw/api/cron/cleanup-pending-orders
 ```
 
 回應：
