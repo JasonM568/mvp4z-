@@ -1456,3 +1456,44 @@ Vercel production 有主金流相關 env 名稱：
 - 後台登入：`https://mvp4z.vercel.app/admin-login`
 - 本地工作樹：最後檢查為乾淨
 - 今天最後使用者口頭驗收：系統驗收過關；後續重點轉為正式網域、正式金流、寄信與正式收款驗證
+
+---
+
+## 2026-05-26｜正式 domain + 正式金流上線
+
+### 一、本日完成
+
+1. **正式 domain 切換**：`www.xunfeng.tw`（含 apex `xunfeng.tw`）已 alias 到 mvp4z Vercel project，HTTPS 200。原本 `mvp4z.vercel.app` 仍可用作 fallback。
+2. **ECPay 正式金流 keys 上 prod**：
+   - 新 MerchantID `3325455`（7 碼正式商店，已通過 KNOWN_SANDBOX 黑名單檢查）
+   - HashKey/HashIV 已寫進 mvp4z Vercel production env（`--no-sensitive` 才能 pull 驗證）
+   - ECPAY_ENV=production
+3. **三個 ECPay URL 全切 www.xunfeng.tw**：NOTIFY/RETURN/CLIENT_BACK 都更新
+4. **NEXT_PUBLIC_SITE_URL** = `https://www.xunfeng.tw`
+5. **`forgot-password` route fallback default** 改成 `www.xunfeng.tw`（commit `ad03eaf`）
+6. **Production deploy 完成**：`dpl_8C6cJZWof3fKVDyTktFdYRRr1qMd`
+7. **Smoke test 通過**：/ 200、/login 200、/member-pricing 200、ecpay/notify 405 (POST only)、ecpay/return 303 (redirect)
+8. **半 e2e 驗證**：admin 帳號刷一筆 ATM → 結帳簽章 OK、虛擬帳號取號 OK、return URL OK、後台出單。**未實際轉帳，所以 webhook server-to-server / entitlement / credits 未在 prod 驗證**。
+
+### 二、發現的事
+
+1. **🚨 發票 keys 不是 ECPay，是 EZPay**：用戶提供發票 keys 時 prefix 是 `EZPAY_INVOICE_*`、MerchantID 9 碼、HashKey 32 字元 — 全部符合 EZPay 樂點規格。**現有 `lib/payments/ecpay-invoice.ts` 是綠界 V3 API，不能套用**。需要另開 worktree 寫 `ezpay-invoice.ts`（AES-256-CBC + `cinv.ezpay.com.tw/Api/invoice_issue`）。本次先不切發票，仍跑沙箱。
+2. **bug**：notify route line 41-46 把 `RtnCode !== "1"` 都改 `status=failed`。ATM 取號成功時綠界回 `RtnCode=2`（虛擬帳號 issued），會誤改 pending 為 failed。實際入帳後 RtnCode=1 又會被覆寫回 paid（沒漏錢，後台短暫顯示醜）。低優先修。
+3. **vercel CLI 雷**：`vercel env add` 預設 sensitive；`--value` 跟 stdin 餵值在 sensitive mode 偶爾寫空字串、且 `rm` 有遞延 dupes。對策：`--no-sensitive --value <V> --yes` + while loop rm 到 not found + 一定要 pull 驗值。
+
+### 三、待辦（下次起手式）
+
+1. **信用卡 e2e 補測**（最高優先）：拿真實信用卡刷 basic 最低額 → 看 `/admin/orders` 是否 paid、`/member` credits 是否進帳、`payments` row 是否寫入。
+2. **EZPay 發票 adapter 改寫**：開 worktree 處理 helper + migration + admin issue route + checkout modal。
+3. **Supabase site_url 改成 www.xunfeng.tw**：用戶進 https://supabase.com/dashboard/project/pvasgmmjrodukudbzuhp/auth/url-configuration 1 分鐘改完。`uri_allow_list` 加 `https://www.xunfeng.tw/*`，舊的 mvp4z/localhost 都留著。
+4. **ATM RtnCode=2 bug 修**：notify route 加 `PaymentType` 含 ATM 且 RtnCode=2 → 維持 pending 不改 failed。
+5. **hardcoded mvp4z.vercel.app reference 清乾淨**：`docs/ecpay-env-config.md`、`docs/orders-cleanup-cron.md`、`scripts/test-ai-chat-e2e.mjs`（default URL）。handoff.md 歷史紀錄不動。
+
+### 四、收工狀態
+
+- main HEAD：`ad03eaf`
+- production URL（正式）：`https://www.xunfeng.tw`
+- production URL（fallback）：`https://mvp4z.vercel.app`
+- 後台登入（正式）：`https://www.xunfeng.tw/admin-login`
+- 本地工作樹：乾淨（`.env.production.local` 已刪）
+- ATM 測試訂單：留著 24h cleanup-cron 自動 cancel
