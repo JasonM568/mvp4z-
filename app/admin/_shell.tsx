@@ -18,7 +18,8 @@ const NAV = [
   { href: "/admin/bookings", label: "預約名單" },
   { href: "/admin/orders", label: "訂單管理" },
   { href: "/admin/invoices", label: "發票管理" },
-  { href: "/admin/council-runs", label: "易學決策紀錄" }
+  { href: "/admin/council-runs", label: "易學決策紀錄" },
+  { href: "/admin/token-usage", label: "Token 用量" }
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
