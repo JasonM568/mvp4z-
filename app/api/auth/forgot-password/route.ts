@@ -2,7 +2,7 @@
 // 收 email → 呼叫 supabase admin generateLink 寄送密碼重設信。
 // 為防 user enumeration：永遠回 200，不告訴前端 email 是否存在。
 //
-// 重設信內的 link 預設前綴 = Supabase Auth 設定的 site_url（已設 https://mvp4z.vercel.app）。
+// 重設信內的 link 預設前綴 = Supabase Auth 設定的 site_url（已設 https://www.xunfeng.tw）。
 // 我們明確帶 redirectTo 指向 /reset-password，需要該 URL 在 uri_allow_list 內（已加）。
 
 import { NextRequest } from "next/server";
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     const input = await readJson(request, forgotSchema);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mvp4z.vercel.app";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.xunfeng.tw";
     const redirectTo = `${siteUrl.replace(/\/$/, "")}/reset-password`;
 
     const admin = createSupabaseAdminClient();
