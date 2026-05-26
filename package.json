@@ -8,6 +8,8 @@
     "test:ecpay-idempotency": "node scripts/test-ecpay-idempotency.mjs",
     "test:ecpay-atm-allocation": "node scripts/test-ecpay-atm-allocation.mjs",
     "check:ecpay-env": "node scripts/check-ecpay-env.mjs",
+    "check:ezpay-env": "node scripts/check-ezpay-env.mjs",
+    "test:ezpay-invoice-e2e": "node scripts/test-ezpay-invoice-e2e.mjs",
     "test:ai-chat-e2e": "node scripts/test-ai-chat-e2e.mjs",
     "start": "next start",
     "lint": "next lint"
