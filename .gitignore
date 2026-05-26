@@ -10,3 +10,6 @@ supabase/.temp/
 .vercel
 .gstack/
 tsconfig.tsbuildinfo
+
+# 供應商規格文件（智財，不入 repo）
+EZP_INVI_*.pdf

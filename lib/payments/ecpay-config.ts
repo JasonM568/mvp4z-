@@ -9,8 +9,10 @@
 //   2. validate() 抓出常見錯配（sandbox MerchantID + prod URL、混搭 domain ⋯）
 //   3. validateOrThrow() 在 app boot 或第一次呼叫綠界前先抓錯，比讓綠界回 500 好 debug
 //
-// 注意：發票 V3 API 走另一組 ECPAY_INVOICE_* env，由 lib/payments/ecpay-invoice.ts
-// 的 helper 自管，這邊不處理。
+// 注意：發票走 EZPay 樂點電子發票，由 lib/payments/ezpay-invoice.ts +
+// lib/payments/ezpay-config.ts 管理（EZPAY_INVOICE_* env），跟本檔的 ECPay
+// 主金流完全獨立。歷史的 ECPAY_INVOICE_* env / ecpay-invoice helper 已於
+// 2026-05-26 PR #43 sunset。
 
 export type EcpayEnvironment = "production" | "stage";
 

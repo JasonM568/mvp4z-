@@ -1,12 +1,13 @@
 // EZPay 樂點電子發票（B2C/B2B）的環境設定集中讀取與驗證。
 //
-// 為什麼集中：sandbox / production 用「不同 host + 相同 keys」切換，但格式
-// 規則固定（MerchantID 純數字、HashKey 32 字元、HashIV 16 字元）。集中
-// 一次讀齊 + 驗證，避免上 prod 時某個 env 漏設造成 sandbox keys 打到正式
-// 環境（會真的開出發票）。
+// 為什麼集中：sandbox / production 用「不同 host」切換（sandbox 跟 production
+// 是不同商店帳號，keys 也不同），但格式規則固定（MerchantID 純數字、HashKey
+// 32 字元、HashIV 16 字元）。集中一次讀齊 + 驗證，避免上 prod 時某個 env
+// 漏設造成沙箱 host 打到正式環境（會回 KEY10006）。
 //
 // 規格來源：EZP_INVI_1_2_2.pdf 第三章「串接環境」、附件一「PostData_ 加密」
-// 注意：這跟綠界 V3 發票 (ECPAY_INVOICE_*) 完全不同流程，獨立管理。
+// 注意：這跟綠界主金流 ECPAY_* (lib/payments/ecpay-config.ts) 完全不同流程，
+// 獨立管理。先前嘗試過綠界自家 V3 發票 helper 已於 2026-05-26 PR #43 sunset。
 
 export type EzpayEnvironment = "production" | "stage";
 
