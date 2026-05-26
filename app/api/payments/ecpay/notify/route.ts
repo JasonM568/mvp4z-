@@ -15,6 +15,10 @@ export async function POST(request: NextRequest) {
     const merchantTradeNo = String(params.MerchantTradeNo || "");
     const providerTradeNo = String(params.TradeNo || "");
     const rtnCode = String(params.RtnCode || "");
+    const paymentType = String(params.PaymentType || "");
+    // 綠界非同步取號成功通知：ATM/CVS/BARCODE 的虛擬帳號或繳費代碼已產生，
+    // 用戶尚未實際付款。RtnCode=2 + PaymentType 為 ATM_xxx / CVS_xxx / BARCODE。
+    const isAsyncAllocation = rtnCode === "2" && /^(ATM|CVS|BARCODE)/.test(paymentType);
     const paidAmount = normalizeAmount(params.TradeAmt || params.TotalAmount || 0);
     const admin = createSupabaseAdminClient();
 
@@ -33,12 +37,17 @@ export async function POST(request: NextRequest) {
       merchantTradeNo,
       providerTradeNo,
       paidAmount,
-      status: rtnCode === "1" ? "paid" : "failed",
+      status: rtnCode === "1" ? "paid" : isAsyncAllocation ? "allocated" : "failed",
       checkMacValid,
       rawPayload: params
     });
 
     if (rtnCode !== "1") {
+      if (isAsyncAllocation) {
+        // ATM/CVS/BARCODE 取號成功，order 維持 pending 等用戶實際付款。
+        // 未來若啟用 PaymentInfoURL，可在這邊把虛擬帳號 / 繳費代碼 / 到期日存進 orders。
+        return ecpayText("1|OK");
+      }
       await admin.from("orders").update({ status: "failed", updated_at: new Date().toISOString() }).eq("id", currentOrder.id).eq("status", "pending");
       if ((currentOrder as { order_type?: string }).order_type === "course") {
         await admin.from("course_registrations").update({ status: "failed" }).eq("order_id", currentOrder.id).eq("status", "pending");
