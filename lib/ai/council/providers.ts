@@ -14,10 +14,14 @@ export type ModelResult = {
   tokensOut: number;
 };
 
-// 單次 45s + 最多 2 次嘗試 → 每個分身最壞 90s。
-// 三輪循序（第一輪／攻防／終稿）最壞約 270s，仍在 route maxDuration=300s 內。
+// 回合分身：單次 45s + 最多 2 次嘗試（暫時性失敗重試）。
+// 終稿不同：prompt 最重（要讀完前兩輪上萬字再生成長報告），需要「一次連續的長時間」，
+// 重試救不了「慢但正常」的呼叫，所以終稿改由 route 傳 { timeoutMs: 110000, attempts: 1 }。
+// 最壞：R1(45×2=90) + R2(45×2=90) + 終稿(110×1) = 290s，仍在 route maxDuration=300s 內。
 const PROVIDER_TIMEOUT_MS = 45000;
 const MAX_ATTEMPTS = 2;
+
+export type CallOptions = { timeoutMs?: number; attempts?: number };
 
 function timeoutSignal(ms: number) {
   const controller = new AbortController();
@@ -26,9 +30,9 @@ function timeoutSignal(ms: number) {
 }
 
 // 逾時／限流／5xx／網路中斷這類暫時性失敗再試一次；金鑰未設定不重試（重試也沒用）。
-async function withRetry(fn: () => Promise<ModelResult>): Promise<ModelResult> {
+async function withRetry(attempts: number, fn: () => Promise<ModelResult>): Promise<ModelResult> {
   let last: ModelResult | null = null;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= attempts; attempt++) {
     const result = await fn();
     if (result.ok) return result;
     last = result;
@@ -50,16 +54,18 @@ function emptyResult(role: CouncilRole, label: string, error: string): ModelResu
   return { role, label, ok: false, text: "", error, tokensIn: 0, tokensOut: 0 };
 }
 
-export function callOpenAI(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
-  return withRetry(() => callOpenAIOnce(role, label, system, prompt));
+export function callOpenAI(role: CouncilRole, label: string, system: string, prompt: string, opts: CallOptions = {}): Promise<ModelResult> {
+  const timeoutMs = opts.timeoutMs ?? PROVIDER_TIMEOUT_MS;
+  const attempts = opts.attempts ?? MAX_ATTEMPTS;
+  return withRetry(attempts, () => callOpenAIOnce(role, label, system, prompt, timeoutMs));
 }
 
-async function callOpenAIOnce(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+async function callOpenAIOnce(role: CouncilRole, label: string, system: string, prompt: string, timeoutMs: number): Promise<ModelResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
   if (!apiKey) return emptyResult(role, label, "OPENAI_API_KEY 未設定");
 
-  const timer = timeoutSignal(PROVIDER_TIMEOUT_MS);
+  const timer = timeoutSignal(timeoutMs);
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -93,16 +99,18 @@ async function callOpenAIOnce(role: CouncilRole, label: string, system: string, 
   }
 }
 
-export function callGemini(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
-  return withRetry(() => callGeminiOnce(role, label, system, prompt));
+export function callGemini(role: CouncilRole, label: string, system: string, prompt: string, opts: CallOptions = {}): Promise<ModelResult> {
+  const timeoutMs = opts.timeoutMs ?? PROVIDER_TIMEOUT_MS;
+  const attempts = opts.attempts ?? MAX_ATTEMPTS;
+  return withRetry(attempts, () => callGeminiOnce(role, label, system, prompt, timeoutMs));
 }
 
-async function callGeminiOnce(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+async function callGeminiOnce(role: CouncilRole, label: string, system: string, prompt: string, timeoutMs: number): Promise<ModelResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
   if (!apiKey) return emptyResult(role, label, "GEMINI_API_KEY 未設定");
 
-  const timer = timeoutSignal(PROVIDER_TIMEOUT_MS);
+  const timer = timeoutSignal(timeoutMs);
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`;
     const res = await fetch(url, {
@@ -145,16 +153,18 @@ async function callGeminiOnce(role: CouncilRole, label: string, system: string, 
   }
 }
 
-export function callDeepSeek(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
-  return withRetry(() => callDeepSeekOnce(role, label, system, prompt));
+export function callDeepSeek(role: CouncilRole, label: string, system: string, prompt: string, opts: CallOptions = {}): Promise<ModelResult> {
+  const timeoutMs = opts.timeoutMs ?? PROVIDER_TIMEOUT_MS;
+  const attempts = opts.attempts ?? MAX_ATTEMPTS;
+  return withRetry(attempts, () => callDeepSeekOnce(role, label, system, prompt, timeoutMs));
 }
 
-async function callDeepSeekOnce(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+async function callDeepSeekOnce(role: CouncilRole, label: string, system: string, prompt: string, timeoutMs: number): Promise<ModelResult> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const model = process.env.DEEPSEEK_MODEL || "deepseek-chat";
   if (!apiKey) return emptyResult(role, label, "DEEPSEEK_API_KEY 未設定");
 
-  const timer = timeoutSignal(PROVIDER_TIMEOUT_MS);
+  const timer = timeoutSignal(timeoutMs);
   try {
     const res = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",

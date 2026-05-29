@@ -134,15 +134,28 @@ export async function POST(request: NextRequest) {
 
     // 8. 終稿
     const finalPrompt = buildFinalPrompt(councilInput, firstRoundText, debateRoundText, qualityGate);
+    // 終稿 prompt 最重（要讀完前兩輪上萬字再生成長報告），需要一次連續的長時間，
+    // 重試救不了「慢但正常」的呼叫，所以給單次 110s、不重試。
     const final = await callOpenAI(
       "finalChatGPT",
       "風羿老師最終定稿分身",
       fengYiFinalSystem(),
-      finalPrompt
+      finalPrompt,
+      { timeoutMs: 110000, attempts: 1 }
     );
 
     const finalOk = hasUsableFinal(final);
     const fallbackUsed = !finalOk;
+    if (fallbackUsed) {
+      // 診斷用：兜底時記錄終稿實際狀態，方便從 Vercel log 判斷是「終稿呼叫失敗(逾時/錯誤)」
+      // 還是「終稿有內容但沒通過 hasUsableFinal 檢查」。
+      console.warn("[council] fallback used", {
+        finalOkFlag: final.ok,
+        finalError: final.error || null,
+        finalTextLen: (final.text || "").length,
+        finalTokensOut: final.tokensOut
+      });
+    }
     const finalLabel = finalOk ? final.label : "風羿老師備援交付稿";
     const finalText = finalOk
       ? cleanReportText(final.text)
