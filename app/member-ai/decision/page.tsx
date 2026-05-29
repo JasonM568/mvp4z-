@@ -88,6 +88,29 @@ export default function DecisionPage() {
   const canUseCouncil = tier?.canUseCouncil ?? false;
   const isGuest = memberStatus === "guest";
   const showMemberGate = memberStatus !== "loading" && !canUseCouncil;
+  // 生成鈕回饋：未登入／方案不符時不要默默停用，而是變成明確可點的引導，避免「點了沒反應」。
+  const generateLabel = loading
+    ? "校核中…"
+    : memberStatus === "loading"
+      ? "生成綜合報告"
+      : isGuest
+        ? "登入會員後生成"
+        : !canUseCouncil
+          ? "升級方案後生成"
+          : "生成綜合報告";
+
+  function handleGenerateClick() {
+    if (loading || memberStatus === "loading") return;
+    if (isGuest) {
+      window.location.href = "/login?next=/member-ai/decision";
+      return;
+    }
+    if (!canUseCouncil) {
+      window.location.href = "/member-pricing";
+      return;
+    }
+    generate();
+  }
   const costHint = useMemo(() => {
     if (!tier) return "";
     if (tier.monthlyFreeQuota > 0) {
@@ -98,7 +121,10 @@ export default function DecisionPage() {
 
   async function generate() {
     if (!form.question.trim()) {
-      setNotice("請先輸入問題主軸。");
+      setNotice("請先輸入問題主軸（在「一、共同資料」區）。");
+      const el = document.getElementById("councilQuestion");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      (el as HTMLInputElement | null)?.focus();
       return;
     }
     setLoading(true);
@@ -261,7 +287,7 @@ export default function DecisionPage() {
                 </label>
                 <label className="council-span-2">
                   問題主軸
-                  <input value={form.question} onChange={(e) => update("question", e.target.value)} placeholder="例如：我今年是否適合投資？" />
+                  <input id="councilQuestion" value={form.question} onChange={(e) => update("question", e.target.value)} placeholder="例如：我今年是否適合投資？" />
                 </label>
                 <label className="council-span-2">
                   背景補充
@@ -415,8 +441,8 @@ export default function DecisionPage() {
               )}
 
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 24 }}>
-                <button className="btn primary" onClick={generate} disabled={loading || !canUseCouncil}>
-                  {loading ? "校核中…" : "生成綜合報告"}
+                <button className="btn primary" onClick={handleGenerateClick} disabled={loading || memberStatus === "loading"}>
+                  {generateLabel}
                 </button>
                 <button className="btn" onClick={resetForm}>重設</button>
               </div>
