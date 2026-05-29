@@ -166,6 +166,13 @@
 
 /* 列印 / 存 PDF：整個畫面 display:none（不佔版面高度、避免空白頁），只輸出報告副本 */
 @media print {
+  /* 強制白底：使用者若開「背景圖形」，body 深色背景會在報告結束後印成一大塊黑。
+     列印時把 html/body/容器背景全壓成白色，徹底避免黑塊。 */
+  html,
+  body,
+  .council-print {
+    background: #fff !important;
+  }
   .council-screen {
     display: none !important;
   }
