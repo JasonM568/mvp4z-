@@ -9,7 +9,7 @@
 .council-shell {
   display: grid;
   gap: 22px;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  grid-template-columns: 1fr;
 }
 
 .council-grid-2 {
@@ -40,19 +40,9 @@
   grid-column: 1 / -1;
 }
 
+/* 輸出中心移到表單最尾端、滿版往下排（不再右側並排、不再 sticky） */
 .council-output {
-  position: sticky;
-  top: 104px;
-  align-self: start;
-}
-
-@media (max-width: 1100px) {
-  .council-shell {
-    grid-template-columns: 1fr;
-  }
-  .council-output {
-    position: static;
-  }
+  position: static;
 }
 
 @media (max-width: 840px) {
