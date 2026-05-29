@@ -15,6 +15,7 @@ import {
   liuyaoModes,
   meihuaLowerTrigrams,
   meihuaModes,
+  meihuaMovingLines,
   meihuaUpperTrigrams,
   minutes,
   months,
@@ -361,9 +362,34 @@ export default function DecisionPage() {
                 <SubPanel title="梅花易數">
                   <div className="form council-grid-3">
                     <label>起卦方式<select value={form.meihuaMode} onChange={(e) => update("meihuaMode", e.target.value)}>{meihuaModes.map((x) => <option key={x}>{x}</option>)}</select></label>
-                    <label>上卦<select value={form.upperTrigram} onChange={(e) => update("upperTrigram", e.target.value)}>{meihuaUpperTrigrams.map((x) => <option key={x}>{x}</option>)}</select></label>
-                    <label>下卦<select value={form.lowerTrigram} onChange={(e) => update("lowerTrigram", e.target.value)}>{meihuaLowerTrigrams.map((x) => <option key={x}>{x}</option>)}</select></label>
                   </div>
+
+                  {form.meihuaMode === "數字起卦" && (
+                    <>
+                      <p style={{ color: "var(--muted)", margin: "12px 0 8px", fontSize: 13 }}>
+                        請輸入三組三位數數字，系統依先天八卦數換算：第一組取上卦、第二組取下卦、第三組取動爻。
+                      </p>
+                      <div className="form council-grid-3">
+                        <label>第一組數字（上卦）<input inputMode="numeric" maxLength={3} placeholder="例如 358" value={form.meihuaNum1} onChange={(e) => update("meihuaNum1", e.target.value.replace(/\D/g, ""))} /></label>
+                        <label>第二組數字（下卦）<input inputMode="numeric" maxLength={3} placeholder="例如 624" value={form.meihuaNum2} onChange={(e) => update("meihuaNum2", e.target.value.replace(/\D/g, ""))} /></label>
+                        <label>第三組數字（動爻）<input inputMode="numeric" maxLength={3} placeholder="例如 197" value={form.meihuaNum3} onChange={(e) => update("meihuaNum3", e.target.value.replace(/\D/g, ""))} /></label>
+                      </div>
+                    </>
+                  )}
+
+                  {form.meihuaMode === "上下卦起卦" && (
+                    <div className="form council-grid-3" style={{ marginTop: 12 }}>
+                      <label>上卦<select value={form.upperTrigram} onChange={(e) => update("upperTrigram", e.target.value)}>{meihuaUpperTrigrams.map((x) => <option key={x}>{x}</option>)}</select></label>
+                      <label>下卦<select value={form.lowerTrigram} onChange={(e) => update("lowerTrigram", e.target.value)}>{meihuaLowerTrigrams.map((x) => <option key={x}>{x}</option>)}</select></label>
+                      <label>動爻<select value={form.meihuaMovingLine} onChange={(e) => update("meihuaMovingLine", e.target.value)}>{meihuaMovingLines.map((x) => <option key={x}>{x}</option>)}</select></label>
+                    </div>
+                  )}
+
+                  {form.meihuaMode === "時間起卦" && (
+                    <p style={{ color: "var(--muted)", marginTop: 12, fontSize: 13 }}>
+                      依上方「事件／起局時間」自動起卦，無需手動輸入卦象（未指定時間則以送出當下時間計算）。
+                    </p>
+                  )}
                 </SubPanel>
               )}
 

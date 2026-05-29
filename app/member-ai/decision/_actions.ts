@@ -5,6 +5,51 @@ import type { CouncilForm, CouncilModules } from "./_form-config";
 
 const TOKEN_KEY = "xunfeng_member_token";
 
+// 先天八卦數：乾1 兌2 離3 震4 巽5 坎6 艮7 坤8
+const XIANTIAN_TRIGRAMS = ["乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
+const MOVING_LINE_LABELS = ["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"];
+
+function trigramFromNumber(value: string): string | null {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n)) return null;
+  const r = n % 8; // 餘 0 視為 8（坤）
+  return XIANTIAN_TRIGRAMS[(r === 0 ? 8 : r) - 1];
+}
+
+function movingLineFromNumber(value: string): string | null {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n)) return null;
+  const r = n % 6; // 餘 0 視為 6（上爻）
+  return MOVING_LINE_LABELS[(r === 0 ? 6 : r) - 1];
+}
+
+// 依起卦方式組梅花易數資料：
+// - 數字起卦：使用者輸入三組數字，前端用先天八卦數換算上卦／下卦／動爻（確定性，不交給 LLM 算）。
+// - 上下卦起卦：使用者直接選上卦／下卦＋動爻。
+// - 時間起卦：不需手動卦象，後端依事件／起局時間起卦。
+function buildMeihua(form: CouncilForm) {
+  if (form.meihuaMode === "數字起卦") {
+    const numbers = [form.meihuaNum1, form.meihuaNum2, form.meihuaNum3].filter((n) => n.trim() !== "");
+    return {
+      mode: form.meihuaMode,
+      numbers,
+      upperTrigram: trigramFromNumber(form.meihuaNum1),
+      lowerTrigram: trigramFromNumber(form.meihuaNum2),
+      movingLine: movingLineFromNumber(form.meihuaNum3)
+    };
+  }
+  if (form.meihuaMode === "上下卦起卦") {
+    return {
+      mode: form.meihuaMode,
+      upperTrigram: form.upperTrigram,
+      lowerTrigram: form.lowerTrigram,
+      movingLine: form.meihuaMovingLine
+    };
+  }
+  // 時間起卦
+  return { mode: form.meihuaMode };
+}
+
 export function getMemberToken(): string {
   if (typeof window === "undefined") return "";
   return window.localStorage.getItem(TOKEN_KEY) || "";
@@ -53,11 +98,7 @@ export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) 
         mode: form.liuyaoMode,
         yao: [form.yao1, form.yao2, form.yao3, form.yao4, form.yao5, form.yao6]
       },
-      meihua: {
-        mode: form.meihuaMode,
-        upperTrigram: form.upperTrigram,
-        lowerTrigram: form.lowerTrigram
-      }
+      meihua: buildMeihua(form)
     },
     instruction:
       "保留原 v3 介面。內容產製必須經多重分身內部討論，但最終只呈現為風羿老師綜合判讀。"

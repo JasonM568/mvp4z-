@@ -38,11 +38,10 @@ export type YixuePayload = {
   };
   meihua?: {
     mode?: string;
-    upperNumber?: number | string;
-    lowerNumber?: number | string;
-    movingNumber?: number | string;
-    upperTrigram?: string;
-    lowerTrigram?: string;
+    numbers?: Array<number | string>;
+    upperTrigram?: string | null;
+    lowerTrigram?: string | null;
+    movingLine?: string | null;
   };
 };
 
@@ -63,6 +62,21 @@ function enabledModules(input: CouncilInput) {
   if (m.liuyao) names.push("卜卦／六爻");
   if (m.meihua) names.push("梅花易數");
   return names.length ? names.join("、") : "未指定";
+}
+
+function meihuaBlock(m: YixuePayload["meihua"]): string {
+  const mode = m?.mode || "未填";
+  const lines = [`起卦方式：${mode}`];
+  if (mode === "時間起卦") {
+    lines.push("依事件／起局時間起卦（請依上方事件時間推算上下卦與動爻）");
+    return lines.join("\n");
+  }
+  if (Array.isArray(m?.numbers) && m.numbers.length) {
+    lines.push(`輸入數字：${m.numbers.join("、")}（已依先天八卦數換算）`);
+  }
+  lines.push(`上卦：${m?.upperTrigram || "未填"}　下卦：${m?.lowerTrigram || "未填"}`);
+  lines.push(`動爻：${m?.movingLine || "未填"}`);
+  return lines.join("\n");
 }
 
 export function yixueDataBlock(input: CouncilInput) {
@@ -95,8 +109,7 @@ ${enabledModules(input)}
 六爻：${input.yixue?.liuyao?.yao?.join("、") || "未填"}
 
 【梅花易數資料】
-起卦方式：${input.yixue?.meihua?.mode || "未填"}
-上下卦：${input.yixue?.meihua?.upperTrigram || "未填"}／${input.yixue?.meihua?.lowerTrigram || "未填"}
+${meihuaBlock(input.yixue?.meihua)}
 `.trim();
 }
 
