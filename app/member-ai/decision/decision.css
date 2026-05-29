@@ -67,87 +67,96 @@
 /* 正式報告版面：白底襯線、像顧問交付書，畫面上是一張白紙文件、列印即原樣輸出 PDF */
 .report-doc {
   background: #fdfcf7;
-  color: #201c16;
+  color: #14110b; /* 近黑，強對比 */
   border-radius: 14px;
-  padding: 34px 38px;
+  padding: 36px 40px;
   font-family: "Noto Serif TC", "Songti TC", "PingFang TC", "Microsoft JhengHei", serif;
-  line-height: 1.95;
-  font-size: 15px;
+  line-height: 2;
+  font-size: 16px;
+  font-weight: 500;
   max-height: 680px;
   overflow: auto;
   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.35);
 }
 .report-doc-head {
-  border-bottom: 2px solid #c79a48;
+  border-bottom: 2px solid #b9882f;
   padding-bottom: 16px;
   margin-bottom: 22px;
 }
 .report-doc-brand {
-  color: #94712c;
+  color: #7d5f1f;
   letter-spacing: 0.28em;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 .report-doc h1 {
-  font-size: 25px;
+  font-size: 28px;
   margin: 10px 0;
-  color: #1a1611;
+  color: #110d07;
+  font-weight: 800;
   letter-spacing: 0.04em;
 }
 .report-doc-meta {
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-  color: #6f6555;
-  font-size: 13px;
+  color: #463f33;
+  font-size: 14px;
+  font-weight: 600;
 }
 .report-doc-question {
   margin-top: 12px;
+  font-size: 16px;
   font-weight: 700;
-  color: #2a2218;
+  color: #1a140c;
 }
 .report-doc-body h2 {
-  font-size: 18px;
-  margin: 24px 0 8px;
+  font-size: 21px;
+  margin: 26px 0 10px;
   padding-left: 12px;
-  border-left: 4px solid #c79a48;
-  color: #241d14;
+  border-left: 5px solid #b9882f;
+  color: #161009;
+  font-weight: 800;
   letter-spacing: 0.03em;
 }
 .report-doc-body p {
-  margin: 6px 0;
+  margin: 7px 0;
+  color: #14110b;
 }
 .report-doc-body ol {
-  margin: 6px 0 14px;
-  padding-left: 26px;
+  margin: 7px 0 16px;
+  padding-left: 28px;
 }
 .report-doc-body li {
-  margin: 5px 0;
+  margin: 6px 0;
+  color: #14110b;
 }
 .report-doc-body table {
   width: 100%;
   border-collapse: collapse;
-  margin: 12px 0;
-  font-size: 13px;
+  margin: 14px 0;
+  font-size: 14px;
 }
 .report-doc-body th,
 .report-doc-body td {
-  border: 1px solid #ddd4c0;
-  padding: 8px 11px;
+  border: 1px solid #cdbf9c;
+  padding: 9px 12px;
   text-align: left;
   vertical-align: top;
+  color: #14110b;
 }
 .report-doc-body th {
-  background: #f3ecd9;
-  font-weight: 700;
+  background: #ece2c6;
+  color: #2a2114;
+  font-weight: 800;
 }
 .report-doc-foot {
-  margin-top: 26px;
+  margin-top: 28px;
   padding-top: 16px;
-  border-top: 1px solid #e6dcc6;
-  color: #8a8070;
-  font-size: 12px;
-  line-height: 1.8;
+  border-top: 1px solid #d9cdaf;
+  color: #4f4838;
+  font-size: 13px;
+  line-height: 1.85;
 }
 
 /* 列印專用報告副本：畫面上隱藏，只在列印 / 存 PDF 時輸出 */

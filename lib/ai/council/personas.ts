@@ -56,13 +56,20 @@ export type CouncilInput = {
   yixue?: YixuePayload;
 };
 
-function enabledModules(input: CouncilInput) {
-  const m = input.yixue?.modules || {};
+// 依使用者勾選的模組回傳啟用術數名稱（有序）。報告與各輪 prompt 都只針對這些術數，
+// 未啟用的術數不應出現在輸出。全空時保底給八字。
+export function enabledTermNames(modules?: YixuePayload["modules"]): string[] {
+  const m = modules || {};
   const names: string[] = [];
   if (m.bazi) names.push("八字命理");
   if (m.qimen) names.push("奇門遁甲");
   if (m.liuyao) names.push("卜卦／六爻");
   if (m.meihua) names.push("梅花易數");
+  return names.length ? names : ["八字命理"];
+}
+
+function enabledModules(input: CouncilInput) {
+  const names = enabledTermNames(input.yixue?.modules);
   return names.length ? names.join("、") : "未指定";
 }
 
@@ -165,17 +172,17 @@ ${XUNFENG_BRAND_RULES}
 }
 
 export function firstRoundPrompt(input: CouncilInput) {
+  const terms = enabledTermNames(input.yixue?.modules);
+  const termLines = terms.map((t) => `- ${t}初判`).join("\n");
   return `
-請依「巽風易學決策系統」進行第一輪內部判讀。重點不是聊天，而是四術決策分析。
+請依「巽風易學決策系統」進行第一輪內部判讀。重點不是聊天，而是術數決策分析。
+本次只啟用以下術數：${terms.join("、")}。只針對這些術數判讀，未啟用的術數不要分析、不要提及。
 
 ${yixueDataBlock(input)}
 
 請輸出：
-- 四術資料完整度檢查
-- 八字命理初判
-- 奇門部署初判
-- 卜卦／六爻事件初判
-- 梅花象意初判
+- 啟用術數資料完整度檢查
+${termLines}
 - 主要風險
 - 可執行建議
 `.trim();
@@ -199,8 +206,10 @@ ${firstRoundText}
 }
 
 export function finalSummaryPrompt(input: CouncilInput, firstRoundText: string, debateRoundText: string) {
+  const terms = enabledTermNames(input.yixue?.modules);
   return `
 請以「風羿老師最終定稿」輸出正式報告。不要分列任何模型名稱；它們只是內部校核。
+本次只啟用以下術數：${terms.join("、")}。正式報告只能分析並輸出這些術數，未啟用的術數一律不得出現（不要寫占位、不要寫「資料不足無法判斷」）。
 
 ${yixueDataBlock(input)}
 
@@ -210,38 +219,6 @@ ${firstRoundText}
 【攻防校核內容】
 ${debateRoundText}
 
-請輸出正式商業報告，格式如下：
-
-巽風易學綜合決策報告
-
-一、個案總論
-說明本案整體局勢、可動／不可動、主風險與主策略。
-
-二、八字命理判讀
-包含承載力、節奏、色系、行為策略。若出生時辰或節氣資料不足，必須標明降權。
-
-三、奇門遁甲部署
-包含方位、時機、人事攻防、先後手策略、可借勢資源。
-
-四、卜卦／六爻事件判讀
-包含成敗條件、卡點、應期、需要補強的承諾或文件。
-
-五、梅花易數象意提示
-包含象意、變化訊號、三日內可觀察的人事物、數字、方向或語句。
-
-六、四術交叉驗證
-指出四術同向處、矛盾處、資料不足處。
-
-七、行動方案
-列出 7日、14日、30日 KPI。
-
-八、風險控管
-列出停損條件、不可做事項、需要補資料事項。
-
-九、最終建議
-直接給結論：可進、可試行、暫緩、或需重新起局／補資料。
-
-十、專業聲明
-本報告為易學決策輔助；涉及陽宅、陰宅或重大決策，仍需由風羿老師本人親至現場評估。
+請整合上述內容，依後續「最終定稿要求」所列的段落與順序輸出正式報告。
 `.trim();
 }

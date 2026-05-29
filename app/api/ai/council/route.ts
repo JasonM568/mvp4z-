@@ -21,6 +21,7 @@ import {
   CouncilInput,
   debatePrompt,
   deepseekAttackSystem,
+  enabledTermNames,
   fengYiFinalSystem,
   finalSummaryPrompt,
   firstRoundPrompt,
@@ -250,21 +251,24 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const CJK_NUM = ["一", "二", "三", "四", "五", "六", "七"];
+
 function buildFirstRoundPrompt(input: CouncilInput, qualityGate: string) {
+  const terms = enabledTermNames(input.yixue?.modules);
+  const termLines = terms.map((t, i) => `${CJK_NUM[i]}、${t}初判`).join("\n");
+  const riskNum = CJK_NUM[terms.length] || `${terms.length + 1}`;
   return `${firstRoundPrompt(input)}
 
 ${qualityGate}
 
 請用「巽風多維校核」身份進行內部判讀，不要在內容中提及任何底層模型名稱。
 
+本次只啟用以下術數：${terms.join("、")}，只判讀這些術數，未啟用者不要提及。
 第一輪請分別完成：
-一、八字命理初判
-二、奇門遁甲初判
-三、卜卦／六爻初判
-四、梅花易數初判
-五、本輪初步風險與機會
+${termLines}
+${riskNum}、本輪初步風險與機會
 
-每一術都要寫出：
+每一個啟用術數都要寫出：
 1. 採用資料
 2. 推理過程
 3. 初步判斷
@@ -280,13 +284,14 @@ ${qualityGate}
 請嚴格挑出空話、矛盾、不足與不可交付的句子，改成具體可執行建議。
 
 第二輪請特別檢查：
-一、各術數是否只有結論、沒有推理。
-二、是否把四術混在一起，沒有各自論述。
-三、是否出現星號、Markdown 粗體符號。
-四、是否出現底層工具名稱。
-五、是否缺乏具體行動與停損條件。
+一、各啟用術數是否只有結論、沒有推理。
+二、是否把各啟用術數混在一起，沒有各自論述。
+三、是否出現未啟用的術數（未啟用者不得出現）。
+四、是否出現星號、Markdown 粗體符號。
+五、是否出現底層工具名稱。
+六、是否缺乏具體行動與停損條件。
 
-請輸出修正後的四術判斷方向。`;
+請輸出修正後的各啟用術數判斷方向。`;
 }
 
 function buildFinalPrompt(
@@ -295,21 +300,23 @@ function buildFinalPrompt(
   debateRoundText: string,
   qualityGate: string
 ) {
+  const terms = enabledTermNames(input.yixue?.modules);
   return `${finalSummaryPrompt(input, firstRoundText, debateRoundText)}
 
 ${qualityGate}
 
-${buildFinalFormatPrompt()}
+${buildFinalFormatPrompt(terms)}
 
-請整合第一輪與第二輪內容，但不要只摘要。正式報告必須把八字、奇門、卜卦／六爻、梅花易數各自拆開寫，每一術都要有完整討論過程與結果。
+請整合第一輪與第二輪內容，但不要只摘要。正式報告必須把本次啟用的術數（${terms.join("、")}）各自拆開寫，每一個啟用術數都要有完整討論過程與結果；未啟用的術數不要出現。
 
 最後輸出前請自行檢查：
 1. 是否還有星號。
 2. 是否還有 Markdown 粗體。
 3. 是否還有底層工具名稱。
-4. 是否每一術都有「資料輸入、推理過程、初步判斷、風險點、可行策略、小結」。
-5. 是否有 3日、7日、30日行動方案。
-6. 是否有停損條件。
+4. 是否每一個啟用術數都有「資料輸入、推理過程、初步判斷、風險點、可行策略、小結」。
+5. 是否出現了未啟用的術數（若有，刪除）。
+6. 是否有 3日、7日、30日行動方案。
+7. 是否有停損條件。
 
 若有任何一項不符合，請自行重寫到符合為止。`;
 }
