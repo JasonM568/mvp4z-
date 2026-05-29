@@ -56,6 +56,8 @@ export const councilSchema = z.object({
       meihua: z
         .object({
           mode: z.string().optional(),
+          timeMode: z.string().optional(),
+          time: z.string().optional(),
           numbers: z.array(z.union([z.number(), z.string()])).optional(),
           upperTrigram: z.string().nullable().optional(),
           lowerTrigram: z.string().nullable().optional(),

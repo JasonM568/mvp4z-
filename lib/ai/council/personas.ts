@@ -38,6 +38,8 @@ export type YixuePayload = {
   };
   meihua?: {
     mode?: string;
+    timeMode?: string;
+    time?: string;
     numbers?: Array<number | string>;
     upperTrigram?: string | null;
     lowerTrigram?: string | null;
@@ -68,7 +70,9 @@ function meihuaBlock(m: YixuePayload["meihua"]): string {
   const mode = m?.mode || "未填";
   const lines = [`起卦方式：${mode}`];
   if (mode === "時間起卦") {
-    lines.push("依事件／起局時間起卦（請依上方事件時間推算上下卦與動爻）");
+    lines.push(`時間依據：${m?.timeMode || "現在時間"}`);
+    lines.push(`起卦時間：${m?.time || "未提供"}`);
+    lines.push("請依此時間推算上下卦與動爻");
     return lines.join("\n");
   }
   if (Array.isArray(m?.numbers) && m.numbers.length) {

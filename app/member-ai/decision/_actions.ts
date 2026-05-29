@@ -46,8 +46,19 @@ function buildMeihua(form: CouncilForm) {
       movingLine: form.meihuaMovingLine
     };
   }
-  // 時間起卦
-  return { mode: form.meihuaMode };
+  // 時間起卦：依「現在時間」或「自行輸入時間」決定起卦時間，交給後端／LLM 依時間推卦。
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const time =
+    form.meihuaTimeMode === "現在時間"
+      ? formatNow()
+      : `${form.eventYear}-${pad(form.eventMonth)}-${pad(form.eventDay)} ${pad(form.eventHour)}:${pad(form.eventMinute)}`;
+  return { mode: form.meihuaMode, timeMode: form.meihuaTimeMode, time };
+}
+
+function formatNow(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function getMemberToken(): string {

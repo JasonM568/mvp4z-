@@ -16,6 +16,7 @@ import {
   meihuaLowerTrigrams,
   meihuaModes,
   meihuaMovingLines,
+  meihuaTimeModes,
   meihuaUpperTrigrams,
   minutes,
   months,
@@ -386,9 +387,29 @@ export default function DecisionPage() {
                   )}
 
                   {form.meihuaMode === "時間起卦" && (
-                    <p style={{ color: "var(--muted)", marginTop: 12, fontSize: 13 }}>
-                      依上方「事件／起局時間」自動起卦，無需手動輸入卦象（未指定時間則以送出當下時間計算）。
-                    </p>
+                    <>
+                      <div className="form council-grid-3" style={{ marginTop: 12 }}>
+                        <label>時間依據<select value={form.meihuaTimeMode} onChange={(e) => update("meihuaTimeMode", e.target.value)}>{meihuaTimeModes.map((x) => <option key={x}>{x}</option>)}</select></label>
+                      </div>
+                      {form.meihuaTimeMode === "現在時間" ? (
+                        <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
+                          以送出當下時間自動起卦，系統依時間推算上下卦與動爻。
+                        </p>
+                      ) : (
+                        <>
+                          <p style={{ color: "var(--muted)", margin: "8px 0", fontSize: 13 }}>
+                            請輸入要起卦的時間，系統依此時間推算上下卦與動爻。
+                          </p>
+                          <div className="form council-grid-5">
+                            <label>年<select value={form.eventYear} onChange={(e) => update("eventYear", Number(e.target.value))}>{eventYears.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                            <label>月<select value={form.eventMonth} onChange={(e) => update("eventMonth", Number(e.target.value))}>{months.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                            <label>日<select value={form.eventDay} onChange={(e) => update("eventDay", Number(e.target.value))}>{days.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                            <label>時<select value={form.eventHour} onChange={(e) => update("eventHour", Number(e.target.value))}>{hours.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                            <label>分<select value={form.eventMinute} onChange={(e) => update("eventMinute", Number(e.target.value))}>{minutes.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                          </div>
+                        </>
+                      )}
+                    </>
                   )}
                 </SubPanel>
               )}

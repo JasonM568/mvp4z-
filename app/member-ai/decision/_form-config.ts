@@ -41,6 +41,7 @@ export const meihuaModes = ["時間起卦", "數字起卦", "上下卦起卦"];
 export const meihuaUpperTrigrams = ["乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
 export const meihuaLowerTrigrams = ["乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
 export const meihuaMovingLines = ["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"];
+export const meihuaTimeModes = ["現在時間", "自行輸入時間"];
 
 export type CouncilForm = {
   clientName: string;
@@ -79,6 +80,7 @@ export type CouncilForm = {
   meihuaNum2: string;
   meihuaNum3: string;
   meihuaMovingLine: string;
+  meihuaTimeMode: string;
 };
 
 export type CouncilModules = {
@@ -126,7 +128,8 @@ export function buildInitialForm(): CouncilForm {
     meihuaNum1: "",
     meihuaNum2: "",
     meihuaNum3: "",
-    meihuaMovingLine: "初爻"
+    meihuaMovingLine: "初爻",
+    meihuaTimeMode: "現在時間"
   };
 }
 
