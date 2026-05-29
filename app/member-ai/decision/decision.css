@@ -73,3 +73,120 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 正式報告版面：白底襯線、像顧問交付書，畫面上是一張白紙文件、列印即原樣輸出 PDF */
+.report-doc {
+  background: #fdfcf7;
+  color: #201c16;
+  border-radius: 14px;
+  padding: 34px 38px;
+  font-family: "Noto Serif TC", "Songti TC", "PingFang TC", "Microsoft JhengHei", serif;
+  line-height: 1.95;
+  font-size: 15px;
+  max-height: 680px;
+  overflow: auto;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.35);
+}
+.report-doc-head {
+  border-bottom: 2px solid #c79a48;
+  padding-bottom: 16px;
+  margin-bottom: 22px;
+}
+.report-doc-brand {
+  color: #94712c;
+  letter-spacing: 0.28em;
+  font-size: 12px;
+  font-weight: 700;
+}
+.report-doc h1 {
+  font-size: 25px;
+  margin: 10px 0;
+  color: #1a1611;
+  letter-spacing: 0.04em;
+}
+.report-doc-meta {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: #6f6555;
+  font-size: 13px;
+}
+.report-doc-question {
+  margin-top: 12px;
+  font-weight: 700;
+  color: #2a2218;
+}
+.report-doc-body h2 {
+  font-size: 18px;
+  margin: 24px 0 8px;
+  padding-left: 12px;
+  border-left: 4px solid #c79a48;
+  color: #241d14;
+  letter-spacing: 0.03em;
+}
+.report-doc-body p {
+  margin: 6px 0;
+}
+.report-doc-body ol {
+  margin: 6px 0 14px;
+  padding-left: 26px;
+}
+.report-doc-body li {
+  margin: 5px 0;
+}
+.report-doc-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.report-doc-body th,
+.report-doc-body td {
+  border: 1px solid #ddd4c0;
+  padding: 8px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+.report-doc-body th {
+  background: #f3ecd9;
+  font-weight: 700;
+}
+.report-doc-foot {
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid #e6dcc6;
+  color: #8a8070;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* 列印專用報告副本：畫面上隱藏，只在列印 / 存 PDF 時輸出 */
+.council-print {
+  display: none;
+}
+
+/* 列印 / 存 PDF：整個畫面 display:none（不佔版面高度、避免空白頁），只輸出報告副本 */
+@media print {
+  .council-screen {
+    display: none !important;
+  }
+  .council-print {
+    display: block !important;
+  }
+  .council-print .report-doc {
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    background: #fff;
+  }
+  .report-doc-body h2,
+  .report-doc-body table,
+  .report-doc-body ol {
+    break-inside: avoid;
+  }
+  @page {
+    margin: 18mm;
+  }
+}

@@ -33,6 +33,7 @@ import {
   type CouncilModules
 } from "./_form-config";
 import { buildCouncilPayload, runCouncilReport, getMemberToken, type CouncilApiResult } from "./_actions";
+import { ReportDocument, type ReportMeta } from "./_report-document";
 import { SiteHeader } from "@/components/SiteHeader";
 
 type MemberInfo = {
@@ -52,6 +53,7 @@ export default function DecisionPage() {
   const [notice, setNotice] = useState("尚未生成報告。完成下方表單後按「生成綜合報告」。");
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [memberStatus, setMemberStatus] = useState<"loading" | "guest" | "member">("loading");
+  const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
 
   useEffect(() => {
     const token = getMemberToken();
@@ -145,6 +147,12 @@ export default function DecisionPage() {
 
     const finalText = data?.final?.text || "未取得最終報告。";
     setReport(finalText);
+    setReportMeta({
+      clientName: form.clientName?.trim() || undefined,
+      question: form.question?.trim() || undefined,
+      topic: form.topic,
+      date: new Date().toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric" })
+    });
     setJsonPacket({ request: payload, response: data });
     setNotice(
       data?.fallback_used
@@ -180,8 +188,16 @@ export default function DecisionPage() {
     URL.revokeObjectURL(url);
   }
 
+  function downloadPdf() {
+    if (!report) return;
+    setTab("report");
+    // 等報告版面渲染後再開列印對話框（瀏覽器「儲存為 PDF」）
+    setTimeout(() => window.print(), 150);
+  }
+
   return (
     <>
+      <div className="council-screen">
       <SiteHeader />
 
       <section className="hero">
@@ -465,33 +481,67 @@ export default function DecisionPage() {
                   JSON 資料包
                 </button>
               </div>
-              <pre
-                style={{
-                  background: "rgba(0,0,0,.32)",
-                  border: "1px solid var(--line)",
-                  borderRadius: 20,
-                  padding: 18,
-                  color: "var(--text)",
-                  fontSize: 13,
-                  lineHeight: 1.85,
-                  whiteSpace: "pre-wrap",
-                  minHeight: 520,
-                  maxHeight: 680,
-                  overflow: "auto",
-                  margin: 0,
-                  fontFamily: "inherit"
-                }}
-              >
-                {currentContent}
-              </pre>
+              {tab === "report" ? (
+                report ? (
+                  <ReportDocument text={report} meta={reportMeta ?? undefined} />
+                ) : (
+                  <div
+                    style={{
+                      background: "rgba(0,0,0,.32)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 20,
+                      padding: 18,
+                      color: "var(--muted)",
+                      lineHeight: 1.85,
+                      minHeight: 520
+                    }}
+                  >
+                    {notice}
+                  </div>
+                )
+              ) : (
+                <pre
+                  style={{
+                    background: "rgba(0,0,0,.32)",
+                    border: "1px solid var(--line)",
+                    borderRadius: 20,
+                    padding: 18,
+                    color: "var(--text)",
+                    fontSize: 13,
+                    lineHeight: 1.85,
+                    whiteSpace: "pre-wrap",
+                    minHeight: 520,
+                    maxHeight: 680,
+                    overflow: "auto",
+                    margin: 0,
+                    fontFamily: "inherit"
+                  }}
+                >
+                  {currentContent}
+                </pre>
+              )}
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
-                <button className="btn primary" onClick={copy} style={{ flex: 1, minHeight: 44 }}>複製內容</button>
-                <button className="btn gold" onClick={download} style={{ flex: 1, minHeight: 44 }}>下載</button>
+                <button className="btn primary" onClick={copy} style={{ flex: 1, minHeight: 44 }}>複製文字</button>
+                <button className="btn gold" onClick={download} style={{ flex: 1, minHeight: 44 }}>
+                  下載{tab === "json" ? " JSON" : " Markdown"}
+                </button>
+                {tab === "report" && (
+                  <button className="btn primary" onClick={downloadPdf} disabled={!report} style={{ flex: 1, minHeight: 44 }}>
+                    下載 PDF
+                  </button>
+                )}
               </div>
             </article>
           </aside>
         </div>
       </section>
+      </div>
+
+      {report && (
+        <div className="council-print">
+          <ReportDocument text={report} meta={reportMeta ?? undefined} />
+        </div>
+      )}
     </>
   );
 }
