@@ -249,22 +249,39 @@ export function buildSafeFallbackReport(input: CouncilInput) {
 
 export function hasUsableFinal(final: { ok: boolean; text?: string } | null | undefined) {
   if (!final || !final.ok || !final.text) return false;
-  const text = String(final.text);
-  const forbidden = [
+  const text = String(final.text).trim();
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  // 第一關：只攔「絕不會出現在正式顧問報告」的硬錯誤／額度／金鑰／限流特徵。
+  // 不再用「失敗」這類風險／停損報告本來就會出現的正常詞，
+  // 也不攔 error／API／模型名——那些由 cleanReportText 洗稿處理，誤殺只會把好報告退成兜底稿。
+  const hardErrorMarkers = [
     "exceeded your current quota",
-    "quota",
-    "billing",
-    "denied access",
+    "insufficient_quota",
+    "incorrect api key",
+    "invalid api key",
     "access denied",
-    "timeout",
-    "逾時",
-    "失敗",
-    "API",
-    "OpenAI",
-    "Gemini",
-    "DeepSeek",
-    "error",
-    "Error"
+    "denied access",
+    "rate limit",
+    "無內容回傳",
+    "校核未完成"
   ];
-  return !forbidden.some((word) => text.includes(word));
+  if (hardErrorMarkers.some((marker) => lower.includes(marker.toLowerCase()))) return false;
+  // 第二關：結構檢查取代「字數門檻」。真正的易學決策報告一定具備十段式骨架
+  // （四術名稱 + 關鍵段落）；模型回的短拒絕訊息或錯誤短訊不會命中這些錨點。
+  // 用「命中幾個結構錨點」判斷，比猜字數更準也不用魔術數字。
+  const structureAnchors = [
+    "八字",
+    "奇門",
+    "梅花",
+    "卜卦",
+    "六爻",
+    "個案總論",
+    "行動方案",
+    "最終建議",
+    "專業聲明",
+    "交叉驗證"
+  ];
+  const anchorHits = structureAnchors.filter((anchor) => text.includes(anchor)).length;
+  return anchorHits >= 4;
 }

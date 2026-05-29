@@ -96,7 +96,6 @@ ${enabledModules(input)}
 
 【梅花易數資料】
 起卦方式：${input.yixue?.meihua?.mode || "未填"}
-數字：上數 ${input.yixue?.meihua?.upperNumber || "未填"}、下數 ${input.yixue?.meihua?.lowerNumber || "未填"}、動數 ${input.yixue?.meihua?.movingNumber || "未填"}
 上下卦：${input.yixue?.meihua?.upperTrigram || "未填"}／${input.yixue?.meihua?.lowerTrigram || "未填"}
 `.trim();
 }

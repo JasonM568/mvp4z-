@@ -14,12 +14,27 @@ export type ModelResult = {
   tokensOut: number;
 };
 
-const PROVIDER_TIMEOUT_MS = 60000;
+// 單次 45s + 最多 2 次嘗試 → 每個分身最壞 90s。
+// 三輪循序（第一輪／攻防／終稿）最壞約 270s，仍在 route maxDuration=300s 內。
+const PROVIDER_TIMEOUT_MS = 45000;
+const MAX_ATTEMPTS = 2;
 
 function timeoutSignal(ms: number) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ms);
   return { signal: controller.signal, clear: () => clearTimeout(timeout) };
+}
+
+// 逾時／限流／5xx／網路中斷這類暫時性失敗再試一次；金鑰未設定不重試（重試也沒用）。
+async function withRetry(fn: () => Promise<ModelResult>): Promise<ModelResult> {
+  let last: ModelResult | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const result = await fn();
+    if (result.ok) return result;
+    last = result;
+    if ((result.error || "").includes("未設定")) break;
+  }
+  return last as ModelResult;
 }
 
 async function safeJson(res: Response) {
@@ -35,7 +50,11 @@ function emptyResult(role: CouncilRole, label: string, error: string): ModelResu
   return { role, label, ok: false, text: "", error, tokensIn: 0, tokensOut: 0 };
 }
 
-export async function callOpenAI(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+export function callOpenAI(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+  return withRetry(() => callOpenAIOnce(role, label, system, prompt));
+}
+
+async function callOpenAIOnce(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
   if (!apiKey) return emptyResult(role, label, "OPENAI_API_KEY 未設定");
@@ -74,7 +93,11 @@ export async function callOpenAI(role: CouncilRole, label: string, system: strin
   }
 }
 
-export async function callGemini(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+export function callGemini(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+  return withRetry(() => callGeminiOnce(role, label, system, prompt));
+}
+
+async function callGeminiOnce(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
   if (!apiKey) return emptyResult(role, label, "GEMINI_API_KEY 未設定");
@@ -88,7 +111,13 @@ export async function callGemini(role: CouncilRole, label: string, system: strin
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.35 }
+        generationConfig: {
+          temperature: 0.35,
+          // gemini-2.5-flash 預設開啟 thinking，會多花 10~40s 容易頂到 timeout。
+          // 本系統要的是穩定的判讀文字、不需要長思考，thinkingBudget=0 直接關閉。
+          thinkingConfig: { thinkingBudget: 0 },
+          maxOutputTokens: 8192
+        }
       }),
       signal: timer.signal
     });
@@ -116,7 +145,11 @@ export async function callGemini(role: CouncilRole, label: string, system: strin
   }
 }
 
-export async function callDeepSeek(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+export function callDeepSeek(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
+  return withRetry(() => callDeepSeekOnce(role, label, system, prompt));
+}
+
+async function callDeepSeekOnce(role: CouncilRole, label: string, system: string, prompt: string): Promise<ModelResult> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const model = process.env.DEEPSEEK_MODEL || "deepseek-chat";
   if (!apiKey) return emptyResult(role, label, "DEEPSEEK_API_KEY 未設定");
@@ -155,8 +188,13 @@ export async function callDeepSeek(role: CouncilRole, label: string, system: str
   }
 }
 
+// 失敗分身改放中性註記：避免「校核未完成／逾時」被餵進終稿 prompt，
+// 害終稿模型把單一分身缺席誤寫成「資料不足」。終稿改以其餘分身整合即可。
+const ROUND_SKIP_NOTE =
+  "（本分身本輪未提供補充意見，請以其他分身的判讀為主進行整合，不需在正式報告中特別說明此分身缺漏。）";
+
 export function stringifyRound(title: string, results: ModelResult[]) {
-  return `\n\n## ${title}\n` + results.map((r) => `\n### ${r.label}\n${r.ok ? r.text : `校核未完成：${r.error}`}`).join("\n");
+  return `\n\n## ${title}\n` + results.map((r) => `\n### ${r.label}\n${r.ok ? r.text : ROUND_SKIP_NOTE}`).join("\n");
 }
 
 export function sumTokens(results: ModelResult[]) {

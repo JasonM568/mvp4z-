@@ -49,19 +49,26 @@ export default function DecisionPage() {
   const [jsonPacket, setJsonPacket] = useState<any>(null);
   const [notice, setNotice] = useState("尚未生成報告。完成下方表單後按「生成綜合報告」。");
   const [member, setMember] = useState<MemberInfo | null>(null);
+  const [memberStatus, setMemberStatus] = useState<"loading" | "guest" | "member">("loading");
 
   useEffect(() => {
     const token = getMemberToken();
     if (!token) {
-      setNotice("尚未登入，請先登入會員。");
+      setMemberStatus("guest");
+      setNotice("此功能為會員專屬，請先登入會員。");
       return;
     }
     fetch("/api/member/me", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((d) => {
-        if (d?.member) setMember(d.member as MemberInfo);
+        if (d?.member) {
+          setMember(d.member as MemberInfo);
+          setMemberStatus("member");
+        } else {
+          setMemberStatus("guest");
+        }
       })
-      .catch(() => {});
+      .catch(() => setMemberStatus("guest"));
   }, []);
 
   function update<K extends keyof CouncilForm>(key: K, value: CouncilForm[K]) {
@@ -77,6 +84,8 @@ export default function DecisionPage() {
   const payload = useMemo(() => buildCouncilPayload(form, modules), [form, modules]);
   const tier = member?.tier;
   const canUseCouncil = tier?.canUseCouncil ?? false;
+  const isGuest = memberStatus === "guest";
+  const showMemberGate = memberStatus !== "loading" && !canUseCouncil;
   const costHint = useMemo(() => {
     if (!tier) return "";
     if (tier.monthlyFreeQuota > 0) {
@@ -158,17 +167,67 @@ export default function DecisionPage() {
             結合八字、奇門遁甲、卜卦／六爻、梅花易數，由巽風多維校核系統內部攻防，輸出十段商業顧問報告，含 3／7／30 日行動方案與停損條件。
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 22, alignItems: "center" }}>
-            {costHint && (
+            {canUseCouncil && costHint && (
               <span className="badge" style={{ marginBottom: 0 }}>{costHint}</span>
-            )}
-            {!canUseCouncil && member && (
-              <span className="badge" style={{ background: "rgba(210,169,84,.18)", borderColor: "rgba(210,169,84,.45)", color: "#ffdfa0", marginBottom: 0 }}>
-                {member.plan?.toUpperCase()} 方案不含此功能，請升級至基礎會員以上
-              </span>
             )}
           </div>
         </div>
       </section>
+
+      {showMemberGate && (
+        <section className="section" style={{ paddingTop: 0 }}>
+          <div className="wrap">
+            <article
+              className="panel"
+              style={{
+                borderColor: "rgba(210,169,84,.5)",
+                background: "linear-gradient(180deg,rgba(210,169,84,.14),rgba(255,255,255,.03))"
+              }}
+            >
+              <span
+                className="badge"
+                style={{ background: "rgba(210,169,84,.18)", borderColor: "rgba(210,169,84,.5)", color: "#ffe2a2" }}
+              >
+                會員專屬服務
+              </span>
+              <h2 style={{ fontSize: 26, lineHeight: 1.4, margin: "8px 0 10px" }}>
+                {isGuest
+                  ? "易學決策報告為會員專屬功能"
+                  : `您目前的方案（${member?.plan?.toUpperCase() || "免費"}）尚未包含此功能`}
+              </h2>
+              <p className="lead" style={{ fontSize: 17 }}>
+                {isGuest
+                  ? "本報告由風羿老師多維校核系統產製，需登入會員並具備可用點數才能送出。您仍可先瀏覽下方表單，了解報告會分析哪些資料。"
+                  : "易學決策報告需基礎會員（含）以上方案，升級後即可使用四術同步多維校核報告。"}
+              </p>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+                {isGuest ? (
+                  <>
+                    <a className="btn primary" href="/login?next=/member-ai/decision">
+                      登入會員
+                    </a>
+                    <a className="btn gold" href="/login?tab=register&next=/member-ai/decision">
+                      免費註冊
+                    </a>
+                    <a className="btn" href="/member-pricing">
+                      查看會員方案
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <a className="btn primary" href="/member-pricing">
+                      升級方案
+                    </a>
+                    <a className="btn" href="/member">
+                      回會員中心
+                    </a>
+                  </>
+                )}
+              </div>
+            </article>
+          </div>
+        </section>
+      )}
 
       <section className="section">
         <div className="wrap council-shell">
