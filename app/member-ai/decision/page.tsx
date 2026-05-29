@@ -54,6 +54,7 @@ export default function DecisionPage() {
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [memberStatus, setMemberStatus] = useState<"loading" | "guest" | "member">("loading");
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
+  const [reportFileBase, setReportFileBase] = useState("巽風易學決策報告");
 
   useEffect(() => {
     const token = getMemberToken();
@@ -146,13 +147,21 @@ export default function DecisionPage() {
     }
 
     const finalText = data?.final?.text || "未取得最終報告。";
+    const generatedAt = new Date();
     setReport(finalText);
     setReportMeta({
       clientName: form.clientName?.trim() || undefined,
       question: form.question?.trim() || undefined,
       topic: form.topic,
-      date: new Date().toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric" })
+      date: generatedAt.toLocaleString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      })
     });
+    setReportFileBase(buildReportFileBase(form.clientName, generatedAt));
     setJsonPacket({ request: payload, response: data });
     setNotice(
       data?.fallback_used
@@ -183,7 +192,7 @@ export default function DecisionPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = tab === "json" ? "xunfeng-council-packet.json" : "xunfeng-council-report.md";
+    a.download = tab === "json" ? `${reportFileBase}.json` : `${reportFileBase}.md`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -191,8 +200,18 @@ export default function DecisionPage() {
   function downloadPdf() {
     if (!report) return;
     setTab("report");
-    // 等報告版面渲染後再開列印對話框（瀏覽器「儲存為 PDF」）
-    setTimeout(() => window.print(), 150);
+    // 列印「儲存為 PDF」的預設檔名取自 document.title，故先暫改成報告檔名（含案主+生成時間），
+    // 列印結束（afterprint）再還原。
+    setTimeout(() => {
+      const originalTitle = document.title;
+      document.title = reportFileBase;
+      const restore = () => {
+        document.title = originalTitle;
+        window.removeEventListener("afterprint", restore);
+      };
+      window.addEventListener("afterprint", restore);
+      window.print();
+    }, 150);
   }
 
   return (
@@ -567,6 +586,15 @@ export default function DecisionPage() {
       )}
     </>
   );
+}
+
+// 報告檔名基底：巽風易學決策報告_{案主姓名}_{YYYYMMDD-HHmm}
+// 檔名清掉不合法字元；無案主則用「未填案主」。
+function buildReportFileBase(clientName: string | undefined, at: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${at.getFullYear()}${pad(at.getMonth() + 1)}${pad(at.getDate())}-${pad(at.getHours())}${pad(at.getMinutes())}`;
+  const name = (clientName || "").replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "").slice(0, 40) || "未填案主";
+  return `巽風易學決策報告_${name}_${stamp}`;
 }
 
 function SubPanel({ title, children }: { title: string; children: React.ReactNode }) {
