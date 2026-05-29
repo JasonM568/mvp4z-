@@ -241,7 +241,7 @@ export default function DecisionPage() {
               </h2>
               <p className="lead" style={{ fontSize: 17 }}>
                 {isGuest
-                  ? "本報告由風羿老師多維校核系統產製，需登入會員並具備可用點數才能送出。您仍可先瀏覽下方表單，了解報告會分析哪些資料。"
+                  ? "本報告由風羿老師多維校核系統產製，需登入會員並具備可用點數才能填寫與送出。請先登入或註冊會員，下方表單將於登入後解鎖。"
                   : "易學決策報告需基礎會員（含）以上方案，升級後即可使用四術同步多維校核報告。"}
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
@@ -275,7 +275,30 @@ export default function DecisionPage() {
 
       <section className="section">
         <div className="wrap council-shell">
-          <div style={{ display: "grid", gap: 22 }}>
+          <div
+            aria-disabled={showMemberGate}
+            style={{
+              display: "grid",
+              gap: 22,
+              ...(showMemberGate
+                ? { opacity: 0.45, pointerEvents: "none" as const, userSelect: "none" as const }
+                : {})
+            }}
+          >
+            {showMemberGate && (
+              <div
+                style={{
+                  background: "rgba(210,169,84,.14)",
+                  border: "1px solid rgba(210,169,84,.5)",
+                  borderRadius: 14,
+                  padding: "12px 16px",
+                  color: "#ffe2a2",
+                  fontWeight: 700
+                }}
+              >
+                🔒 此表單為會員專屬，請先於上方登入會員後再填寫。
+              </div>
+            )}
             <article className="panel">
               <h2>一、共同資料</h2>
               <div className="form council-grid-2">
