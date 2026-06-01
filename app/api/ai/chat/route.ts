@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     // 2. 跑 LLM；失敗會 throw，整個 request 失敗、credit 不扣
     const planCode = getPlanCode(entitlement.plans);
-    const ai = await askXunfengAI({ plan: planCode, message: input.message });
+    const ai = await askXunfengAI({ plan: planCode, message: input.message, history: input.history });
 
     // 3. 寫 usage_logs（不管 credit commit 成敗都留紀錄）
     const { data: usageLog, error: usageError } = await admin

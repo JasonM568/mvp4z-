@@ -64,8 +64,40 @@ export default function MemberAiPage() {
           <article className="panel chatbox">
             <div id="messages" className="messages">
               <div className="msg bot">
-                請輸入你的問題。若是風水初判，請提供坐向、度數、建造年份、來水、去水、大門方位；若是命理，請提供四柱或出生年月日時地。正式個案仍需由風羿老師本人現場評估。
+                你好，我是風羿老師 AI 會員版。我以乾坤國寶、龍門八局、形家風水、命理與場域管理為底，協助你做初步判讀與決策整理。
+                {"\n\n"}風水初判請提供：坐向、度數、建造年份、來水、去水、大門方位；命理請提供四柱或出生年月日時與出生地。
+                {"\n"}可直接點下方常見問題開始，或輸入你自己的狀況。正式個案仍需由風羿老師本人親至現場評估。
               </div>
+            </div>
+            <div id="starters" className="starters">
+              <button
+                className="starter"
+                type="button"
+                data-q="我家大門朝西，最近運勢卡卡，想先做陽宅初判。需要我提供哪些資料？"
+              >
+                陽宅風水初判
+              </button>
+              <button
+                className="starter"
+                type="button"
+                data-q="想了解我今年的八字流年運勢，我提供出生年月日時與出生地，幫我做初步分析。"
+              >
+                八字流年運勢
+              </button>
+              <button
+                className="starter"
+                type="button"
+                data-q="公司想調整辦公室座位與動線，從場域策略角度有哪些風險與機會要注意？"
+              >
+                企業場域策略
+              </button>
+              <button
+                className="starter"
+                type="button"
+                data-q="想幫新品牌或孩子命名，從五術與現代決策語言可以怎麼切入？需要準備哪些資料？"
+              >
+                命名與擇日方向
+              </button>
             </div>
             <div className="chat-input">
               <textarea
