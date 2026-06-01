@@ -13,13 +13,15 @@ export type TierResolution = {
   monthlyFreeQuota: number;
 };
 
-const DEFAULT_COUNCIL_COST = Number(process.env.COUNCIL_CREDIT_COST || 10);
+// 2026-06-01 點數經濟：易學報告統一 20 點/份，免費體驗(trial)也能用，VIP 特規取消。
+// 直接寫死 20，不再讀 COUNCIL_CREDIT_COST env（prod 舊值 10 會被忽略，該 env 已廢棄可移除）。
+const DEFAULT_COUNCIL_COST = 20;
 
 const TIER_DEFAULTS: Record<string, Partial<TierResolution>> = {
-  trial: { canUseCouncil: false, councilCost: 0, monthlyFreeQuota: 0 },
+  trial: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 },
   basic: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 },
   pro: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 },
-  vip: { canUseCouncil: true, councilCost: 5, monthlyFreeQuota: 3 }
+  vip: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 }
 };
 
 export function resolveTierFeatures(input: {

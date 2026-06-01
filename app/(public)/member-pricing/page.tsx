@@ -51,7 +51,13 @@ export default function MemberPricingPage() {
             <span className="accent">綠界線上付款，付款完成自動開通</span>
           </h1>
           <p className="lead">
-            挑選方案 → 綠界安全付款 → 系統自動寫入會員資格與點數，立即進入 AI 會員版。VIP 會員享有易學決策報告月免額度等專屬規則。
+            挑選方案 → 綠界安全付款 → 系統自動寫入會員資格與點數，立即進入 AI 會員版。點數可用於 AI 問答（每 1000 中文字 1 點）與易學決策報告（每份 20 點）。
+          </p>
+          <p className="lead" style={{ marginTop: 18 }}>
+            還沒決定？<strong>註冊即送 30 點</strong>，付費前先免費體驗。
+            <a className="btn primary" href="/member-ai" style={{ marginLeft: 12 }}>
+              免費體驗 AI 會員版
+            </a>
           </p>
         </div>
       </section>

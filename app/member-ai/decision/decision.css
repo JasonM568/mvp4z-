@@ -196,3 +196,33 @@
     margin: 18mm;
   }
 }
+
+/* 啟動前扣點同意框（2026-06-01 點數經濟） */
+.consent-box {
+  padding: 14px 16px;
+  border: 1px solid rgba(210, 169, 84, 0.4);
+  background: rgba(210, 169, 84, 0.08);
+  border-radius: 16px;
+}
+.consent-rule {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.consent-rule strong {
+  color: #d2a954;
+}
+.consent-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+.consent-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #6ff0b4;
+  cursor: pointer;
+}

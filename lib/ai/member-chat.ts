@@ -18,6 +18,17 @@ export const chatSchema = z.object({
 
 export const XUNFENG_AI_INSTRUCTIONS = XUNFENG_PERSONA_CHAT;
 
+// 計費：以 AI 回覆的「中文字數」每 1000 字扣 1 點，至少 1 點（1～1000 字＝1 點）。
+export function countChineseChars(text: string): number {
+  // CJK 統一表意文字（U+4E00–U+9FFF）+ 擴充 A（U+3400–U+4DBF）
+  const matches = String(text || "").match(/[一-鿿㐀-䶿]/g);
+  return matches ? matches.length : 0;
+}
+
+export function chatCreditCost(replyText: string): number {
+  return Math.max(1, Math.ceil(countChineseChars(replyText) / 1000));
+}
+
 type HistoryMessage = z.infer<typeof historyMessageSchema>;
 
 export async function askXunfengAI(input: {

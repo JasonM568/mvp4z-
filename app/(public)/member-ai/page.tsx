@@ -99,6 +99,14 @@ export default function MemberAiPage() {
                 命名與擇日方向
               </button>
             </div>
+            <div id="chatConsent" className="consent-box">
+              <p className="consent-rule">
+                扣點規則：對話會依 <strong>AI 回覆的中文字數</strong> 計費，<strong>每 1000 中文字扣 1 點</strong>（1～1000 字＝1 點）。送出問題前請先閱讀並同意。
+              </p>
+              <label className="consent-check">
+                <input type="checkbox" id="chatAgree" /> 已閱讀並同意扣點規則
+              </label>
+            </div>
             <div className="chat-input">
               <textarea
                 id="message"

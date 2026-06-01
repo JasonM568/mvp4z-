@@ -11,7 +11,7 @@
 
 import { NextRequest } from "next/server";
 import { apiJson } from "../../_helpers";
-import { askXunfengAI, chatSchema } from "@/lib/ai/member-chat";
+import { askXunfengAI, chatCreditCost, chatSchema } from "@/lib/ai/member-chat";
 import {
   errorMessage,
   errorStatus,
@@ -22,7 +22,9 @@ import {
 } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-const CHAT_CHARGE = 1;
+// chat 扣點：以 AI 回覆中文字數計（每 1000 字 1 點），跑完 LLM 才知道實際字數。
+// 預檢只要求至少有 1 點；實際扣點 = min(依字數算出的點數, 餘額)。
+const MIN_CHAT_CHARGE = 1;
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,8 +48,8 @@ export async function POST(request: NextRequest) {
     if (!entitlement) throw statusError("會員尚未啟用或方案已到期", 403);
 
     const previousCredits = Number(entitlement.credits_remaining || 0);
-    if (previousCredits < CHAT_CHARGE) {
-      throw statusError("問答次數已用完，請續訂方案或啟用新方案", 403);
+    if (previousCredits < MIN_CHAT_CHARGE) {
+      throw statusError("點數已用完，請續訂方案或啟用新方案", 403);
     }
 
     // 2. 跑 LLM；失敗會 throw，整個 request 失敗、credit 不扣
@@ -70,7 +72,10 @@ export async function POST(request: NextRequest) {
       .single();
     if (usageError) throw usageError;
 
-    // 4. 原子扣點 (debit + insert credit_transactions 都在 commit_chat_credit 裡)
+    // 4. 依 AI 回覆中文字數算實際扣點，但不超過餘額（餘額不足時收乾餘額、不報錯）
+    const charge = Math.min(chatCreditCost(ai.reply), previousCredits);
+
+    // 5. 原子扣點 (debit + insert credit_transactions 都在 commit_chat_credit 裡)
     let creditsCharged = 0;
     let creditWarning: string | null = null;
 
@@ -78,7 +83,7 @@ export async function POST(request: NextRequest) {
       p_user_id: profile.id,
       p_entitlement_id: entitlement.id,
       p_previous_credits: previousCredits,
-      p_charge: CHAT_CHARGE,
+      p_charge: charge,
       p_ref_id: usageLog?.id || null
     });
 
@@ -92,7 +97,7 @@ export async function POST(request: NextRequest) {
         error: rpcError
       });
     } else {
-      creditsCharged = CHAT_CHARGE;
+      creditsCharged = charge;
     }
 
     const member = await getPublicMember(profile.id);

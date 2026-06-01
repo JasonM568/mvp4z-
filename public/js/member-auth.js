@@ -33,8 +33,8 @@ async function registerMember(){
     const data = await api("/api/register",{method:"POST",body:JSON.stringify(payload)});
     setToken(data.token);
     $("status").className = "status ok";
-    $("status").textContent = "註冊成功，請輸入付款後取得的會員啟用碼。";
-    location.href = nextPath("/member");
+    $("status").textContent = "註冊成功，已贈送 30 點免費體驗，正在進入 AI 會員版…";
+    location.href = nextPath("/member-ai");
   }catch(e){
     $("status").className = "status error";
     $("status").textContent = e.message;

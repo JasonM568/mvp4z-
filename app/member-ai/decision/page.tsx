@@ -54,6 +54,7 @@ export default function DecisionPage() {
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [memberStatus, setMemberStatus] = useState<"loading" | "guest" | "member">("loading");
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
+  const [agreed, setAgreed] = useState(false);
   const [reportFileBase, setReportFileBase] = useState("巽風易學決策報告");
 
   useEffect(() => {
@@ -110,6 +111,10 @@ export default function DecisionPage() {
     }
     if (!canUseCouncil) {
       window.location.href = "/member-pricing";
+      return;
+    }
+    if (!agreed) {
+      setNotice("請先勾選「已閱讀並同意扣點規則」再生成報告。");
       return;
     }
     generate();
@@ -498,8 +503,27 @@ export default function DecisionPage() {
                 </SubPanel>
               )}
 
+              {canUseCouncil && (
+                <div className="consent-box" style={{ marginTop: 24 }}>
+                  <p className="consent-rule">
+                    扣點規則：每生成一份易學決策報告，將扣 <strong>{tier?.councilCost ?? 20} 點</strong>。報告生成後即扣點（未通過交付門檻會自動退回）。
+                  </p>
+                  <label className="consent-check">
+                    <input
+                      type="checkbox"
+                      checked={agreed}
+                      onChange={(e) => setAgreed(e.target.checked)}
+                    />{" "}
+                    已閱讀並同意扣點規則
+                  </label>
+                </div>
+              )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 24 }}>
-                <button className="btn primary" onClick={handleGenerateClick} disabled={loading || memberStatus === "loading"}>
+                <button
+                  className="btn primary"
+                  onClick={handleGenerateClick}
+                  disabled={loading || memberStatus === "loading" || (canUseCouncil && !agreed)}
+                >
                   {generateLabel}
                 </button>
                 <button className="btn" onClick={resetForm}>重設</button>

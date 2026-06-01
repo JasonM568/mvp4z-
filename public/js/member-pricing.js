@@ -36,7 +36,7 @@ const PLAN_PRESETS = {
   vip: {
     badge: "VIP 尊享",
     description: "高頻使用者、決策者與企業顧問。",
-    features: ["全功能會員諮詢", "易學決策報告月免額度", "優先客服與專屬服務"],
+    features: ["全功能會員諮詢", "易學決策報告大量點數", "優先客服與專屬服務"],
     cardClass: "gold"
   }
 };

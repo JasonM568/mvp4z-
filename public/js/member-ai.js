@@ -39,10 +39,19 @@ function hideStarters(){
   if(el) el.style.display = "none";
 }
 
+function chatAgreed(){
+  const cb = $("chatAgree");
+  return !cb || cb.checked; // 無同意框（理論上不會）時不阻擋
+}
+
 async function sendChat(presetText){
   const input = $("message");
   const message = (presetText != null ? presetText : input.value).trim();
   if(!message) return;
+  if(!chatAgreed()){
+    addMsg("bot", "請先勾選下方「已閱讀並同意扣點規則」再送出。");
+    return;
+  }
   if(presetText == null) input.value = "";
   hideStarters();
   addMsg("user", message);
@@ -77,6 +86,13 @@ function initMemberAi(){
   document.querySelectorAll(".starter").forEach(btn => {
     btn.onclick = () => sendChat(btn.dataset.q || btn.textContent.trim());
   });
+  // 同意扣點規則前，送出鈕保持停用，避免使用者沒看到規則就送出
+  const agree = $("chatAgree");
+  if(agree){
+    const sync = () => { $("sendBtn").disabled = !agree.checked; };
+    agree.addEventListener("change", sync);
+    sync();
+  }
 }
 // 暴露到 window，讓 Next.js client component 可在 useEffect 內手動呼叫
 window.initMemberAi = initMemberAi;

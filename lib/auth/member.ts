@@ -151,6 +151,66 @@ export async function ensureProfileForAuthUser(input: {
   return data as Profile;
 }
 
+// 免費體驗漏斗：註冊即發放的點數與效期（與 plans.trial.credits 解耦，以常數為準）
+export const TRIAL_CREDITS = 30;
+export const TRIAL_DURATION_DAYS = 30;
+
+/**
+ * 為新會員發放一次免費體驗 entitlement（trial 方案 30 點 / 30 天）。
+ * 防刷：該 profile 已有任何 entitlement 就不重複發。
+ * 失敗時 throw，由呼叫端決定要不要吞掉（註冊流程吞掉、不阻斷註冊）。
+ */
+export async function grantTrialEntitlementIfNew(profileId: string) {
+  const admin = createSupabaseAdminClient();
+
+  const { data: existing, error: existingError } = await admin
+    .from("member_entitlements")
+    .select("id")
+    .eq("user_id", profileId)
+    .limit(1)
+    .maybeSingle();
+  if (existingError) throw existingError;
+  if (existing) return null; // 已發過或已有方案，不重複發
+
+  const { data: trialPlan, error: planError } = await admin
+    .from("plans")
+    .select("id")
+    .eq("code", "trial")
+    .maybeSingle();
+  if (planError) throw planError;
+
+  const now = new Date();
+  const expiresAt = new Date(now);
+  expiresAt.setDate(expiresAt.getDate() + TRIAL_DURATION_DAYS);
+
+  const { data: entitlement, error: entitlementError } = await admin
+    .from("member_entitlements")
+    .insert({
+      user_id: profileId,
+      plan_id: trialPlan?.id || null,
+      status: "active",
+      credits_remaining: TRIAL_CREDITS,
+      starts_at: now.toISOString(),
+      expires_at: expiresAt.toISOString()
+    })
+    .select("id")
+    .single();
+  if (entitlementError) throw entitlementError;
+
+  const { error: txError } = await admin.from("credit_transactions").insert({
+    user_id: profileId,
+    entitlement_id: entitlement.id,
+    type: "grant",
+    amount: TRIAL_CREDITS,
+    balance_after: TRIAL_CREDITS,
+    source: "trial_signup",
+    ref_id: null
+  });
+  if (txError) throw txError;
+
+  return entitlement.id as string;
+}
+
 export async function getPublicMember(profileId: string) {
   const admin = createSupabaseAdminClient();
   const { data: profile, error: profileError } = await admin

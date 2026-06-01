@@ -7,6 +7,7 @@ import {
   errorMessage,
   errorStatus,
   getPublicMember,
+  grantTrialEntitlementIfNew,
   readJson,
   registerSchema
 } from "@/lib/auth/member";
@@ -36,6 +37,13 @@ export async function POST(request: NextRequest) {
       name: input.name,
       phone: input.phone
     });
+
+    // 免費體驗：發 30 點 / 30 天 trial entitlement。失敗不阻斷註冊（使用者仍可改買方案）。
+    try {
+      await grantTrialEntitlementIfNew(profile.id);
+    } catch (grantError) {
+      console.warn("[register] grant trial entitlement failed", { profileId: profile.id, grantError });
+    }
 
     const passwordClient = createSupabasePasswordClient();
     const { data: sessionData, error: signInError } = await passwordClient.auth.signInWithPassword({
