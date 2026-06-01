@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "巽風堪輿研究中心｜風羿老師｜場域策略與風水顧問",
   description:
-    "巽風堪輿研究中心提供陰陽宅堪驗、企業場域顧問、命名擇日、八字流年、課程講座與 AI 初步諮詢服務。"
+    "巽風堪輿研究中心提供陰陽宅堪驗、企業場域顧問、命名擇日、八字流年與課程講座等專業服務。"
 };
 
 export default function RootLayout({

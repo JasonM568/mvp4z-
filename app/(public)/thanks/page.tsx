@@ -30,12 +30,6 @@ export default function ThanksPage() {
             <a className="btn btn-ghost" href="/">
               回到首頁
             </a>
-            <a
-              className="btn btn-ghost"
-              href="/login?tab=register&next=/member-ai"
-            >
-              會員 AI 初步諮詢
-            </a>
           </div>
         </div>
       </div>

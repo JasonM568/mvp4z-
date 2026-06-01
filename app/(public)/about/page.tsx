@@ -24,13 +24,6 @@ export default function AboutPage() {
               <a className="btn btn-primary" href="/booking">
                 預約諮詢
               </a>
-              <a
-                className="btn btn-ghost"
-                data-link="ai"
-                href="/login?tab=register&next=/member-ai"
-              >
-                會員 AI 初步諮詢
-              </a>
             </div>
           </div>
           <div className="hero-photo">

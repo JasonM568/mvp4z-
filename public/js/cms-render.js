@@ -29,14 +29,6 @@
     $$(selector).forEach(el => el.src = value);
   }
 
-  function getSafeAiUrl(value) {
-    // 舊 GPT 目前公開端會 404，因此先導到站內 AI 說明頁。
-    // 未來後台換成新的可公開 GPT 連結後，會自動改用新連結。
-    const blocked = "g-683d6cacf5648191ade78d93c3aec7ac";
-    if (!value || String(value).includes(blocked)) return "/ai";
-    return value;
-  }
-
   function escapeHTML(str) {
     return String(str || "").replace(/[&<>"']/g, s => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
@@ -392,7 +384,6 @@ ${videos.length ? `
       setText("[data-site='email']", site.email);
       setHref("[data-link='line']", site.lineUrl);
       setHref("[data-link='facebook']", site.facebookUrl);
-      setHref("[data-link='ai']", getSafeAiUrl(site.aiUrl));
       setHref("[data-link='email']", site.email ? "mailto:" + site.email : "");
       setSrc("[data-image='brandAnchor']", site.brandAnchorImage);
       setSrc("[data-image='fengyi']", site.fengyiImage);

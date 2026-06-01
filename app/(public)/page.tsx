@@ -22,7 +22,7 @@ export default function HomePage() {
                 <span className="title-line accent">重整人宅場運</span>
               </h1>
               <p className="lead" data-site="heroLead">
-                以乾坤國寶、龍門八局、形家風水、命理與現代場域管理為核心，提供陰陽宅堪驗、年度企業顧問、命名擇日、八字流年、課程講座與 AI 初步諮詢。
+                以乾坤國寶、龍門八局、形家風水、命理與現代場域管理為核心，提供陰陽宅堪驗、年度企業顧問、命名擇日、八字流年與課程講座等專業服務。
               </p>
               <div className="hero-actions">
                 <a className="btn btn-gold" href="/member-ai/decision">
@@ -63,8 +63,8 @@ export default function HomePage() {
             </p>
             <div className="kpi-grid">
               <div className="kpi">
-                <strong>AI</strong>
-                <span>24H 初步諮詢</span>
+                <strong>LINE</strong>
+                <span>官方帳號預約諮詢</span>
               </div>
               <div className="kpi">
                 <strong>22K+</strong>
