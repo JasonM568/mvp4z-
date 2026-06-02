@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { apiJson } from "../../_helpers";
 import {
   authResponse,
@@ -9,9 +9,12 @@ import {
   getPublicMember,
   grantTrialEntitlementIfNew,
   readJson,
-  registerSchema
+  registerSchema,
+  TRIAL_CREDITS,
+  TRIAL_DURATION_DAYS
 } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { sendRegistrationEmail } from "@/lib/notifications/member-emails";
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,6 +56,17 @@ export async function POST(request: NextRequest) {
 
     if (signInError) throw signInError;
     if (!sessionData.session) throw new Error("登入 session 建立失敗");
+
+    // 註冊成功歡迎信：用 after() 在回應送出後才寄，避免拖慢註冊延遲。
+    // 失敗只記 log、不影響註冊。需 production 設 RESEND_API_KEY，否則 helper 直接回 skipped。
+    after(async () => {
+      await sendRegistrationEmail({
+        email: created.user!.email!,
+        name: input.name,
+        trialCredits: TRIAL_CREDITS,
+        trialDays: TRIAL_DURATION_DAYS
+      });
+    });
 
     const member = await getPublicMember(profile.id);
     return apiJson(authResponse(sessionData.session, member));

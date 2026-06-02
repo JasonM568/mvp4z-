@@ -11,7 +11,7 @@ export async function sendAdminAlert(input: AdminAlertInput) {
     return { ok: false, skipped: true, reason: "missing_resend_config" };
   }
 
-  const from = process.env.RESEND_FROM_EMAIL || "Xunfeng System <alerts@xunfeng.app>";
+  const from = process.env.RESEND_FROM_EMAIL || "巽風系統 <noreply@xunfeng.tw>";
 
   try {
     const response = await fetch("https://api.resend.com/emails", {

@@ -13,7 +13,7 @@ interface OrderPaidEmailInput {
 
 export async function sendOrderPaidEmails(input: OrderPaidEmailInput) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL || "Xunfeng System <alerts@xunfeng.app>";
+  const from = process.env.RESEND_FROM_EMAIL || "巽風系統 <noreply@xunfeng.tw>";
   const admins = parseRecipients(process.env.ADMIN_ALERT_EMAILS || process.env.ADMIN_EMAILS || "");
 
   if (!apiKey) return { ok: false, skipped: true, reason: "missing_resend_api_key" };
