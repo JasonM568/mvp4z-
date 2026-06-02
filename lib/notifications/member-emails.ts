@@ -22,22 +22,33 @@ export async function sendRegistrationEmail(input: RegistrationEmailInput) {
 
   const siteUrl = (input.siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.xunfeng.tw").replace(/\/$/, "");
   const greetName = input.name ? `${input.name} 您好，` : "您好，";
-  const trialLine =
+  const trialBlock =
     input.trialCredits && input.trialDays
-      ? `我們已贈送您 ${input.trialCredits} 點免費體驗點數（效期 ${input.trialDays} 天），可用於易學決策報告與 AI 會員諮詢。`
-      : "";
+      ? [
+          "【註冊好禮】",
+          `我們已為您預存 ${input.trialCredits} 點免費體驗點數（效期 ${input.trialDays} 天），可立即用於：`,
+          "・易學決策報告：每份 20 點，由風羿老師多維校核系統產製",
+          "・AI 會員諮詢：與系統對話，依 AI 回覆字數計點（每 1000 字 1 點）",
+          ""
+        ]
+      : [];
 
   const lines = [
     greetName,
     "",
-    "歡迎加入巽風系統，您的會員帳號已註冊成功。",
+    "感謝您註冊成為巽風系統會員，您的帳號已開通完成。",
     "",
-    `帳號：${input.email}`,
-    ...(trialLine ? ["", trialLine] : []),
+    "【您的帳號】",
+    input.email,
     "",
-    `您可以隨時登入會員中心：${siteUrl}/login`,
+    ...trialBlock,
+    "【立即開始】",
+    `登入會員中心查看點數與服務：${siteUrl}/login`,
     "",
-    "— 巽風堪輿研究中心"
+    "期待能為您的人生與事業決策，提供一份來自易學的清晰參照。",
+    "",
+    "巽風堪輿研究中心　風羿",
+    siteUrl
   ];
 
   try {
@@ -45,7 +56,7 @@ export async function sendRegistrationEmail(input: RegistrationEmailInput) {
       apiKey,
       from,
       to: [input.email],
-      subject: "[巽風系統] 會員註冊成功通知",
+      subject: "歡迎加入巽風系統｜會員註冊成功",
       text: lines.join("\n")
     });
     return { ok: true, skipped: false };
