@@ -1497,3 +1497,55 @@ Vercel production 有主金流相關 env 名稱：
 - 後台登入（正式）：`https://www.xunfeng.tw/admin-login`
 - 本地工作樹：乾淨（`.env.production.local` 已刪）
 - ATM 測試訂單：留著 24h cleanup-cron 自動 cancel
+
+## 2026-06-02｜點數經濟交接補記 + 價目頁拆解顯示 + CLAUDE.md
+
+### 〇、先補先前的交接斷層
+
+5/26 之後到今天，main 上多了 3 個 commit 但**一直沒寫進 handoff**（交接斷層），本段補記：
+
+- `d8e3aeb` 報告下載檔名加入案主姓名與生成日期時間
+- `b68e732` 前台移除 AI 諮詢入口與手機底部浮動操作列
+- `0f4df06` 前台清除殘留 AI 諮詢入口與 GPT 連結注入
+- `7019551` 會員 AI chat 升級：多輪對話記憶 + 建議問句開場
+- `2f92f1e` **點數經濟重新設計**：免費體驗漏斗（註冊送 30 點 / 30 天）+ 啟動前扣點同意 + 入口
+  - migration `0013_point_economy_2026.sql`：basic 980→106、pro 1980→218、vip 4980→534、trial 30 點
+  - 報告固定 20 點（`lib/auth/tier.ts:18`）、chat 每 1000 中文字 1 點（`lib/ai/member-chat.ts:21`）
+  - 啟動前同意：council `decision/page.tsx:507`、chat `member-ai.js:90` 都有「已閱讀並同意扣點規則」勾選，未勾不能執行
+
+### 一、本日完成
+
+1. **新增 `CLAUDE.md`**（專案根）：開工流程（handoff→memory→git status）、點數規則、會員方案拆解、啟動前同意、架構原則、上線前 gate。
+2. **價目頁點數拆解顯示**（`public/js/member-pricing.js`）：
+   - 移除誤導文案「每期 N 次問答」
+   - 改顯示使用者定義的拆解：贈送 X 點（約 M 次易學報告）+ 額外贈送 Y 點（偽 GPT 聊天用）+ 點數效期 30 天
+   - 拆解寫死於 `PLAN_PRESETS.points`：basic 100+6 / pro 206+12 / vip 516+18，總和 = DB credits 106/218/534
+   - 加防呆：`report+chat ≠ plan.credits` 時 `console.warn` 提醒同步 migration 0013
+   - 註：點數**不分桶**，報告/聊天共用同一個 `credits_remaining`，先扣先用
+
+### 二、部署與驗證
+
+- commit `fd82225`，`git push origin main`（直接上 main，非走 PR）
+- Vercel webhook 自動觸發 production build（`www.xunfeng.tw`）
+- 驗證：`curl www.xunfeng.tw/js/member-pricing.js` 已是新版（含三組拆解數字 + console.warn 防呆）
+- ⚠️ `vercel ls` 清單當下顯示延遲（最新仍標 1h），但線上 JS 內容確認已是 `fd82225`
+- `npm run build` 通過
+
+### 三、未變更（本來就已符合規格）
+
+- 點數總額、註冊送 30、報告扣 20、chat 1000 字/1 點 → DB / 程式都已正確，無需改 migration
+- 報告 + 聊天「啟動前秀扣點說明 + 已閱讀並同意」勾選 → 兩邊都已實作
+
+### 四、下一次建議起手式
+
+1. 開工先讀 `CLAUDE.md`（新）+ `handoff.md` + `memory.md` + `git status`
+2. council 多 provider 待補 **OpenAI / Gemini / DeepSeek key**（memory 也有記）
+3. **信用卡真實刷卡 E2E 尚未補測**（ECPay 已切正式 MID `3325455`）
+4. 發票走 **EZPay 不是 ECPay**，`ezpay-invoice.ts` adapter 尚未改寫，仍沙箱
+
+### 五、收工狀態
+
+- main HEAD：`fd82225`，已 push origin（與 origin/main 齊平）
+- production：`https://www.xunfeng.tw` 已跑新價目頁
+- 本機工作樹：乾淨
+- 無 dev server 或長時間程序在跑
