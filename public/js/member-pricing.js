@@ -20,22 +20,26 @@ function escapeHTML(str) {
   }[s]));
 }
 
+// points：方案點數拆解（設計意圖，DB credits 為總和；報告每份 20 點、聊天每 1000 中文字 1 點，不分桶先扣先用）
 const PLAN_PRESETS = {
   basic: {
     badge: "主力方案",
     description: "個人會員、學員、粉絲日常諮詢前置使用。",
+    points: { report: 100, reportCount: 5, chat: 6 },
     features: ["八字流年初判", "風水方向建議", "掌訣課程問答"],
     cardClass: ""
   },
   pro: {
     badge: "進階服務",
     description: "深度學員、企業主與個案整理。",
+    points: { report: 206, reportCount: 10, chat: 12 },
     features: ["企業場域初判", "陽宅初評整理", "進階命理推演"],
     cardClass: "primary"
   },
   vip: {
     badge: "VIP 尊享",
     description: "高頻使用者、決策者與企業顧問。",
+    points: { report: 516, reportCount: 26, chat: 18 },
     features: ["全功能會員諮詢", "易學決策報告大量點數", "優先客服與專屬服務"],
     cardClass: "gold"
   }
@@ -57,6 +61,22 @@ function planCardHTML(plan) {
   const btnClass = preset.cardClass === "primary" ? "btn primary block" :
                    preset.cardClass === "gold" ? "btn gold block" : "btn block";
   const featuresLi = preset.features.map((f) => `<li>${escapeHTML(f)}</li>`).join("");
+  const pts = preset.points;
+  // 防呆：前台寫死的拆解（報告點 + 聊天點）必須等於 DB 的 plan.credits 總額，
+  // 否則代表 migration 0013 改了點數但這裡沒同步 → 顯示會誤導，先 warn 提醒。
+  if (pts && pts.report + pts.chat !== Number(plan.credits)) {
+    console.warn(
+      `[member-pricing] ${plan.code} 點數拆解不一致：` +
+      `報告 ${pts.report} + 聊天 ${pts.chat} = ${pts.report + pts.chat}，` +
+      `但 DB credits = ${plan.credits}。請同步 member-pricing.js 與 migration 0013。`
+    );
+  }
+  const pointsLi = pts
+    ? `<li>贈送 ${pts.report} 點（約 ${pts.reportCount} 次易學報告）</li>
+       <li>額外贈送 ${pts.chat} 點（偽 GPT 聊天用）</li>
+       <li>點數效期 ${escapeHTML(plan.duration_days)} 天</li>`
+    : `<li>共 ${escapeHTML(plan.credits)} 點</li>
+       <li>點數效期 ${escapeHTML(plan.duration_days)} 天</li>`;
   return `
     <article class="card">
       <span class="badge">${escapeHTML(preset.badge)}</span>
@@ -64,8 +84,7 @@ function planCardHTML(plan) {
       <div class="price">${escapeHTML(formatPrice(plan.price, plan.currency))}</div>
       <p>${escapeHTML(preset.description)}</p>
       <ul>
-        <li>每期 ${escapeHTML(plan.credits)} 次問答</li>
-        <li>方案週期 ${escapeHTML(plan.duration_days)} 天</li>
+        ${pointsLi}
         ${featuresLi}
       </ul>
       <button class="${btnClass}" data-plan-code="${escapeHTML(plan.code)}">立即購買</button>
