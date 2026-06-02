@@ -1549,3 +1549,55 @@ Vercel production 有主金流相關 env 名稱：
 - production：`https://www.xunfeng.tw` 已跑新價目頁
 - 本機工作樹：乾淨
 - 無 dev server 或長時間程序在跑
+
+## 2026-06-02 續｜註冊成功通知信 + 寄件者 rebrand 巽風系統
+
+### 一、起因
+
+使用者回報兩件事：
+1. 會員完成註冊後**沒有寄出註冊成功通知信**。
+2. 忘記密碼的重設信寄件者還是「Supabase」，想換成「巽風系統」。
+
+### 二、診斷
+
+- **註冊信**：`/api/auth/register` 用 `email_confirm:true` 直接確認 + 自動登入，**完全沒寄任何信**（連 Supabase 確認信都跳過）→ 要新增，由我們自己用 Resend 寄。
+- **忘記密碼信**：`/api/auth/forgot-password` 呼叫 `resetPasswordForEmail()`，信是 **Supabase 內建 SMTP 寄的**，寄件者程式碼改不到 → 要 rebrand 得在 Supabase 後台設 custom SMTP。
+- **共同前提**：production **沒設 `RESEND_API_KEY`**（付款通知信目前其實也沒真的寄）。
+
+### 三、使用者決策
+
+- 忘記密碼信改名 → **方案 A：Supabase 後台 custom SMTP**（零改 code，一次 rebrand 所有認證信）。
+- 寄件者統一：`巽風系統 <noreply@xunfeng.tw>`。
+- Resend：**有帳號但 `xunfeng.tw` 網域尚未驗證**。
+
+### 四、本次完成（已 push，commit `57844c8` + `d962e2b`）
+
+- 新增 `lib/notifications/member-emails.ts`：`sendRegistrationEmail`（Resend），含 30 點體驗說明 + 點數用途 + 署名「巽風堪輿研究中心 風羿」。主旨「歡迎加入巽風系統｜會員註冊成功」。
+- `app/api/auth/register`：成功後用 `after()` **非阻斷**寄歡迎信（不拖慢註冊延遲，失敗只記 log）。
+- `order-emails.ts` / `admin-alerts.ts` 預設寄件者改 `巽風系統 <noreply@xunfeng.tw>`。
+- `.env.example`：補 RESEND 用途說明 + 寄件者範例。
+- 全部 gated on `RESEND_API_KEY`，未設則 skip、不阻斷主流程。
+- 驗證：`npx tsc --noEmit` exit 0、`npm run build` Compiled successfully。
+
+### 五、⚠️ Go-live checklist（信件要真的寄出，使用者待辦）
+
+1. **Resend 驗證 `xunfeng.tw` 網域**（兩封信共同前提）：Resend → Domains → Add `xunfeng.tw` → 加 SPF/DKIM DNS 紀錄 → 等驗證。
+2. **註冊信生效**：Vercel production 設 `RESEND_API_KEY` + `RESEND_FROM_EMAIL=巽風系統 <noreply@xunfeng.tw>` → redeploy。
+3. **忘記密碼信 rebrand（方案 A）**：Supabase Dashboard → Authentication → SMTP Settings 開 custom SMTP（host `smtp.resend.com`、port `465`、user `resend`、password=Resend API key、sender name `巽風系統`、sender email `noreply@xunfeng.tw`）→ Email Templates → Reset Password 貼新主旨/HTML（文案已交付給使用者，主旨「重設您的巽風系統會員密碼」，內容保留 `{{ .ConfirmationURL }}`）。
+
+> 文案位置：註冊信／付款信在 code（`lib/notifications/*.ts`，要改 code+deploy）；忘記密碼信在 Supabase Email Templates（線上可改，跟網域驗證無關）。
+
+### 六、下一次建議起手式
+
+1. 確認使用者 Resend 網域是否驗證完成 → 完成才接著設 Vercel env + redeploy 驗收註冊信。
+2. 協助設 Supabase custom SMTP（方案 A）讓忘記密碼信變巽風系統。
+3. 設好後 E2E：註冊一個測試帳號驗收歡迎信、忘記密碼驗收寄件者已是巽風系統。
+4. 其他既有 gate 未動：council 補 OpenAI/Gemini/DeepSeek key、信用卡真實刷卡 E2E、發票 EZPay adapter 改寫。
+
+### 七、收工狀態（2026-06-02 收工）
+
+- main HEAD：`d962e2b`，已 push origin（與 origin/main 齊平）
+- production：`https://www.xunfeng.tw`（Vercel webhook 自動 build 中/已完成）
+- 本機工作樹：乾淨
+- 無 dev server 或長時間程序在跑
+- ⚠️ 寄信功能已上 code 但**尚未生效**，待使用者完成 Resend 網域驗證 + Vercel env + Supabase SMTP（見上方 go-live checklist）
