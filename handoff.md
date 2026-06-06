@@ -1601,3 +1601,52 @@ Vercel production 有主金流相關 env 名稱：
 - 本機工作樹：乾淨
 - 無 dev server 或長時間程序在跑
 - ⚠️ 寄信功能已上 code 但**尚未生效**，待使用者完成 Resend 網域驗證 + Vercel env + Supabase SMTP（見上方 go-live checklist）
+
+## 2026-06-06｜會員註冊也加寄「管理員通知」+ 規劃不綁網域先讓通知能動
+
+### 一、需求
+
+使用者：「會員註冊跟完成訂單都要寄 email 通知給我（管理員）。」
+
+### 二、診斷（現況盤點）
+
+- **訂單完成 → 通知管理員**：**早就有了**。`app/api/payments/ecpay/notify/route.ts` 付款成功分支已呼叫 `sendOrderPaidEmails`（`lib/notifications/order-emails.ts`），admins 分支收件人 = `ADMIN_ALERT_EMAILS || ADMIN_EMAILS`。無需改動。
+- **會員註冊 → 通知管理員**：**缺**。`app/api/auth/register` 的 `after()` 原本只寄 `sendRegistrationEmail`（給新會員的歡迎信），沒通知管理員。
+
+### 三、本次完成（已 push，commit `e7af305`）
+
+- `app/api/auth/register/route.ts`：在既有 `after()` 內補一發 `sendAdminAlert`（複用 `lib/notifications/admin-alerts.ts`），內容含姓名 / Email / 電話 / 註冊時間（Asia/Taipei）/ 體驗點數。
+- 兩封信各自獨立、非阻斷；收件人 = `ADMIN_ALERT_EMAILS || ADMIN_EMAILS`；全部 gated on `RESEND_API_KEY`。
+- 驗證：`npx tsc --noEmit` exit 0、`npm run build` Compiled successfully。
+
+### 四、使用者決策：先不綁網域，先讓通知能動
+
+Resend 網域未驗證時的限制（已向使用者說明）：
+- `from` 只能用 `onboarding@resend.dev`（用 `noreply@xunfeng.tw` 會 403）。
+- `to` **只能寄到 Resend 帳號本人的信箱**（寄給其他人 403）。
+- → 對「**通知給我（管理員）**」這件事剛好可行；但**對外信**（會員歡迎信、客戶付款信）寄到他人信箱仍會被擋，要等網域驗證。
+
+### 五、環境現況（盤點結果）
+
+- Vercel 已連結：project `mvp4z`（`prj_KA41OvGFgBS6wNAoy4olOxd2rDgK`）。
+- Vercel **production env**：只有 `ADMIN_EMAILS`（加密，應為 `306465@gmail.com`）。**沒有** `RESEND_API_KEY` / `RESEND_FROM_EMAIL` / `ADMIN_ALERT_EMAILS`。
+- 本機 `.env.local`：有 `ADMIN_EMAILS=306465@gmail.com`，無 RESEND 相關。
+
+### 六、下次起手式（卡在等使用者提供，未完成）
+
+讓 production 通知真的寄出，只差兩個 env + redeploy：
+1. **取得 Resend API Key**（使用者要提供 `re_...`）。
+2. `vercel env add` 到 production：
+   - `RESEND_API_KEY=<key>`
+   - `RESEND_FROM_EMAIL=巽風系統 <onboarding@resend.dev>`（未綁網域用 resend.dev 寄件網域）
+3. **確認 Resend 帳號註冊信箱是否 = `306465@gmail.com`**（未綁網域只能寄到帳號本人信箱）。若不是，把 `ADMIN_ALERT_EMAILS` 設成 Resend 帳號信箱。
+4. `vercel redeploy <prod-url> --target production`（或推 commit 觸發）。
+5. E2E：註冊一個測試帳號 → 確認 `306465@gmail.com` 收到「[巽風] 新會員註冊」；下一張測試訂單付款 → 收到「[巽風] 新付款訂單」。
+6. 對外信（歡迎信／客戶付款信）要生效仍需綁 `xunfeng.tw` 網域（見前面 go-live checklist），本次刻意延後。
+
+### 七、收工狀態（2026-06-06 收工）
+
+- main HEAD：`e7af305`，已 push origin（與 origin/main 齊平）
+- 本機工作樹：乾淨
+- 無 dev server 或長時間程序在跑
+- ⚠️ 註冊管理員通知 code 已上，但 production 尚未設 `RESEND_API_KEY` → 目前仍 skip，待使用者提供 key + 確認 Resend 帳號信箱（見上方下次起手式）
