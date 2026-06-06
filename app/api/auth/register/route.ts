@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendRegistrationEmail } from "@/lib/notifications/member-emails";
+import { sendAdminAlert } from "@/lib/notifications/admin-alerts";
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,14 +58,28 @@ export async function POST(request: NextRequest) {
     if (signInError) throw signInError;
     if (!sessionData.session) throw new Error("登入 session 建立失敗");
 
-    // 註冊成功歡迎信：用 after() 在回應送出後才寄，避免拖慢註冊延遲。
+    // 註冊後通知信：用 after() 在回應送出後才寄，避免拖慢註冊延遲。
     // 失敗只記 log、不影響註冊。需 production 設 RESEND_API_KEY，否則 helper 直接回 skipped。
+    // 兩封各自獨立寄送：給新會員的歡迎信、給管理員（ADMIN_ALERT_EMAILS）的新會員通知。
     after(async () => {
       await sendRegistrationEmail({
         email: created.user!.email!,
         name: input.name,
         trialCredits: TRIAL_CREDITS,
         trialDays: TRIAL_DURATION_DAYS
+      });
+
+      await sendAdminAlert({
+        subject: `[巽風] 新會員註冊：${input.name || created.user!.email!}`,
+        text: [
+          "後台有新的會員註冊。",
+          "",
+          `姓名：${input.name || ""}`,
+          `Email：${created.user!.email!}`,
+          `電話：${input.phone || ""}`,
+          `註冊時間：${new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}`,
+          `免費體驗：${TRIAL_CREDITS} 點 / ${TRIAL_DURATION_DAYS} 天`
+        ].join("\n")
       });
     });
 
