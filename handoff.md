@@ -1650,3 +1650,95 @@ Resend 網域未驗證時的限制（已向使用者說明）：
 - 本機工作樹：乾淨
 - 無 dev server 或長時間程序在跑
 - ⚠️ 註冊管理員通知 code 已上，但 production 尚未設 `RESEND_API_KEY` → 目前仍 skip，待使用者提供 key + 確認 Resend 帳號信箱（見上方下次起手式）
+
+## 2026-08-06｜面相運程功能 SPEC 與交接規則
+
+### 本次完成
+
+- 分析公開的「巽風面相運程 v25」原型；確認現況以照片 Base64 字串計算 seed 後產生分數，未做真實人臉／五官／光線辨識，也未串接後端、會員或金流。
+- 盤點本專案正式架構：Next.js 15 App Router、React 19、TypeScript、Supabase Auth/PostgreSQL/RLS、Vercel、ECPay、EZPay、多模型 AI、會員 entitlement 與原子扣點。
+- 將面相功能規劃為既有會員系統內的新模組，路由 `/member-ai/face`。
+- 建立四份可依序交付 coding agent 的 SPEC：基礎資料與隱私、拍照品質、AI 報告與扣點、歷史紀錄與管理後台。
+- 更新 `CLAUDE.md`：使用者說「開工」時必讀 `handoff.md`、`worklog.md`；說「收工／今天先這樣／先到這」時必須同步更新兩檔。
+- 建立 `worklog.md` 作為依日期累積、不覆蓋的工作紀錄。
+
+### 已鎖定的面相功能架構
+
+- 不建立獨立 App、會員、點數或第二套金流。
+- 免費進行照片品質檢測；完整報告成功產出後扣既有會員點數 20 點。
+- 沿用 charge-on-success 與 PostgreSQL 原子扣點，失敗不扣點、重送不重複扣點。
+- 必須做真實單人臉、模糊、亮度、角度與遮擋檢測，禁止沿用 seed 假分析。
+- 原始照片使用 Supabase private Storage，預設 24 小時內刪除。
+- 報告定位為民俗文化參考，禁止醫療診斷、投資保證、敏感屬性及由臉推論犯罪／人格可信度。
+
+### 本次新增／修改檔案
+
+- `docs/specs/face-analysis/README.md`
+- `docs/specs/face-analysis/SPEC-01-face-foundation.md`
+- `docs/specs/face-analysis/SPEC-02-face-capture-quality.md`
+- `docs/specs/face-analysis/SPEC-03-face-analysis-report.md`
+- `docs/specs/face-analysis/SPEC-04-face-history-admin.md`
+- `CLAUDE.md`
+- `handoff.md`
+- `worklog.md`
+
+### 驗證結果
+
+- SPEC 共四份、478 行，檔案與相依順序已核對。
+- 本次僅文件變更，未修改應用程式或 migration，未執行 build/test。
+- 查詢長時間程序時 macOS 權限阻擋 `ps`，因此無法由該指令確認程序；本次未主動啟動 dev server。
+
+### 下一次起手式
+
+1. 讀 `handoff.md` 與 `worklog.md` 最新紀錄。
+2. 執行 `git status --short --branch`、`git log --oneline -5`。
+3. 請使用者確認要開始實作時，依 `SPEC-01 → 02 → 03 → 04` 開發，不可跳過基礎資料、RLS 與隱私層。
+4. 第一個實作批次：新增 `0015_face_analysis_foundation.sql`、共用 schema/types、private Storage 與 RLS 測試。
+5. 既有正式上線 gate 仍保留：Resend/Vercel env、Supabase SMTP、AI provider keys、信用卡 E2E、EZPay adapter。
+
+### Git 狀態
+
+- 分支：`main`，檢查時與 `origin/main` 對齊。
+- HEAD：`729e7af`。
+- 面相 SPEC 與本次交接文件尚未 commit。
+
+## 2026-08-06 收工｜「天機四象 · 順轉人生」改版上線 + 無敵測試帳號
+
+### 本次完成（已全部部署 production www.xunfeng.tw）
+
+- 易學決策報告前端全面改版為 SPEC「天機四象 · 順轉人生」四階段體驗（SPEC 檔：`/Users/jasonmchen/codex-巽風系統/deepseek_md_20260806_823220.md`）：
+  - Landing（羅盤動畫+單一 CTA）→ Input（極簡三欄位：問題/出生/性別，34 專業欄位收進「進階設定」摺疊區）→ Scanning（四階段擬真進度動畫）→ Report（四象儀表板）。
+  - 扣點 consent 勾選紅線保留在啟動掃描前；charge-on-success 扣點邏輯完全未動。
+- 後端結構化輸出契約：終稿 LLM 在專業聲明後附機讀 JSON（定界符 `<<<XF_STRUCT>>>`），route.ts 先切 JSON 再 cleanReportText。新增 `lib/ai/council/structured.ts`（zod 寬容解析、品牌清洗、失敗回 null 降級）。
+- 四象儀表板：共鳴度 SVG 圓環（N 象動態標籤）、四象卡片（一句話總結/信心%/吉凶燈/應期 chip）、順轉結論（headline+決策徽章+三步驟）、白紙顧問書收摺疊區。structured=null 自動降級純文字模式。
+- 9:16 分享圖卡：html2canvas（新依賴 ^1.4.1，動態載入）產 1080x1920 PNG，Web Share → a.download → 長按儲存三層 fallback。
+- migration 0014：`council_runs.structured jsonb`，**已套用 production Supabase**（pvasgmmjrodukudbzuhp）。
+- 修 bug：掃描完成後不跳轉報告頁（進度 tick 反覆清掉跳轉 timer），commit `729e7af`。
+- 無敵測試帳號 ×2（production DB 直改 member_entitlements）：
+  - `306465@gmail.com`（admin/pro）：999,999 點、效期 2099-12-31（原本 6/22 已過期，這才是「點數不足」的真因）
+  - `kingking0909@yahoo.com.tw`（admin/vip）：999,999 點、效期 2099-12-31
+
+### 改過的檔
+
+- 新增：`lib/ai/council/structured.ts`、`supabase/migrations/0014_council_structured.sql`、`app/member-ai/decision/_aspects.tsx`、`_share-card.tsx`、`_steps/{landing,input,scanning,report}-step.tsx`、`scripts/test-council-structured.mjs`
+- 修改：`app/api/ai/council/route.ts`、`app/member-ai/decision/{page.tsx,_actions.ts,decision.css}`、`package.json`（+html2canvas）
+
+### 驗證結果
+
+- tsc + next build 全綠；structured.ts 10 項單元測試全過（esbuild bundle 直測）。
+- production 首跑實測成功：正式稿、structured 齊全（共鳴度 87、四象 4 卡）、扣 20 點、~10 萬 tokens 約 2 分鐘。
+- 掃描不跳轉 bug 修正後已部署（dpl_2yvMciZDJLsMQxMKKyAcKr2RAofY READY），使用者尚未回報修正後的完整流程實測結果。
+
+### 未完成 / 待辦
+
+- 使用者端待實測：修正後掃描→報告跳轉、四象儀表板視覺、分享圖卡（手機 iOS Safari Web Share/長按）。
+- structured JSON 成功率監控：admin `/admin/council-runs` 看 structured 是否為 null（null=降級純文字，屬合法路徑）。
+- e2e 腳本 `scripts/test-council-structured.mjs` 尚未跑過真實一輪（需 --token，會扣 20 點）。
+- 既有 go-live gate 不變：Resend key/網域驗證、信用卡 E2E、EZPay 正式、Gemini/DeepSeek key（目前 council 靠 OpenAI 撐三輪）。
+- 另一 session 的面相 SPEC（docs/specs/face-analysis/）仍 staged 未 commit，等使用者確認開發才動。
+
+### 下次起手式
+
+1. 問使用者修正後的四階段流程實測結果（跳轉/儀表板/圖卡）。
+2. 有問題就修；沒問題可考慮 SPEC v2.0 擴充（歷史報告牆——structured 已落 DB，資料就緒）。
+3. 長時間程序：無。

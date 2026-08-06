@@ -3,16 +3,22 @@
 正式商用系統：Next.js + Supabase + 綠界(ECPay)金流 + EZPay 發票 + OpenAI + Vercel。
 正式線 `https://www.xunfeng.tw`（fallback `mvp4z.vercel.app`）。Repo：`JasonM568/mvp4z-`。
 
-## 開工流程（每次重開本專案，務必依序讀）
+## 開工流程（使用者說「開工」或每次重開本專案，務必依序讀）
 
 1. `handoff.md` — 最新進度與待辦（單一交接來源）
-2. `memory.md` — 長期架構決策與不可忘的約束
-3. `git status --short --branch` + `git log --oneline -5` — 對齊實際 code 狀態
-4. 必要時再讀 `README.md` 與相關程式檔
+2. `worklog.md` — 依日期累積的實際工作紀錄
+3. `memory.md` — 長期架構決策與不可忘的約束
+4. `git status --short --branch` + `git log --oneline -5` — 對齊實際 code 狀態
+5. 必要時再讀 `README.md` 與相關程式檔
 
 > ⚠️ handoff.md 可能落後實際 commit。若 git log 比 handoff 新，以 **code / migration 為準**。
 
-收工（使用者說「收工 / 今天先這樣 / 先到這」）要更新 `handoff.md`：當下時間、已完成、改過的檔、驗證結果、未完成、下次起手式、是否有長時間程序在跑。
+收工（使用者說「收工 / 今天先這樣 / 先到這」）必須同時更新：
+
+- `handoff.md`：最新狀態、已完成、改過的檔、驗證結果、未完成、待辦優先順序、下次起手式、Git 狀態、是否有長時間程序在跑。此檔只維持「下一次接手所需的最新摘要」。
+- `worklog.md`：以日期追加本次工作內容、重要判斷、產出檔案、驗證結果與遺留事項，不覆蓋歷史紀錄。
+
+使用者說「開工」時，先讀完 `handoff.md` 與 `worklog.md` 的最新紀錄，再依上述順序核對 code 與 Git；不要只依聊天記憶開始工作。
 
 ## 點數規則（single source of truth = 程式碼，非本檔；改價要 commit）
 
