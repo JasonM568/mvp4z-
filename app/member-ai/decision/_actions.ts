@@ -2,6 +2,7 @@
 // 對應後端 app/api/ai/council/route.ts
 
 import type { CouncilForm, CouncilModules } from "./_form-config";
+import type { CouncilStructured } from "@/lib/ai/council/structured";
 
 const TOKEN_KEY = "xunfeng_member_token";
 
@@ -70,6 +71,7 @@ export type CouncilApiResult = {
   ok?: boolean;
   error?: string;
   final?: { ok: boolean; label: string; text: string };
+  structured?: CouncilStructured | null;
   fallback_used?: boolean;
   credits_charged?: number;
   free_quota_used?: boolean;

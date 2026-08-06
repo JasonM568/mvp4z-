@@ -226,3 +226,622 @@
   accent-color: #6ff0b4;
   cursor: pointer;
 }
+
+/* ============================================================
+   天機四象 · 順轉人生（2026-08 前端體驗改版）
+   以下全部為新增，不動上方既有規則。前綴 xf- 避免衝突。
+   ============================================================ */
+
+/* --- 共用 --- */
+.xf-step-hint {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin-bottom: 16px;
+}
+.xf-field-label {
+  font-weight: 800;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.xf-cta-main {
+  font-size: 17px;
+  padding: 14px 28px;
+  min-height: 52px;
+}
+
+/* --- 階段一：Landing --- */
+.xf-landing {
+  padding: 72px 0 48px;
+  text-align: center;
+}
+.xf-landing-title {
+  font-family: "Noto Serif TC", "Songti TC", "PingFang TC", serif;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin: 26px 0 14px;
+}
+.xf-landing-sub {
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.9;
+  margin: 0 auto;
+  max-width: 560px;
+}
+.xf-landing-cta {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+}
+.xf-landing-trust {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 14px;
+  letter-spacing: 0.06em;
+}
+.xf-landing-cost {
+  margin-top: 10px;
+}
+
+/* --- 羅盤動畫（Landing + Scanning 共用） --- */
+.xf-compass {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+}
+.xf-compass-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(210, 169, 84, 0.35);
+  border-top-color: #d2a954;
+  animation: xf-spin 8s linear infinite;
+}
+.xf-compass-ring-inner {
+  inset: 22px;
+  border-color: rgba(111, 240, 180, 0.3);
+  border-top-color: var(--green, #6ff0b4);
+  animation: xf-spin-rev 5s linear infinite;
+}
+.xf-compass-core {
+  position: absolute;
+  inset: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 30px;
+  font-weight: 900;
+  color: #d2a954;
+  background: radial-gradient(circle, rgba(210, 169, 84, 0.16), rgba(0, 0, 0, 0.25));
+  border: 1px solid rgba(210, 169, 84, 0.4);
+  animation: xf-pulse 2.6s ease-in-out infinite;
+}
+.xf-compass-mark {
+  position: absolute;
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.xf-compass-mark-n { top: -24px; left: 50%; transform: translateX(-50%); }
+.xf-compass-mark-e { right: -22px; top: 50%; transform: translateY(-50%); }
+.xf-compass-mark-s { bottom: -24px; left: 50%; transform: translateX(-50%); }
+.xf-compass-mark-w { left: -22px; top: 50%; transform: translateY(-50%); }
+
+@keyframes xf-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes xf-spin-rev {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+@keyframes xf-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(210, 169, 84, 0.25); }
+  50% { box-shadow: 0 0 26px 6px rgba(210, 169, 84, 0.18); }
+}
+
+/* --- 階段二：Input --- */
+.xf-input-title {
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 26px;
+  margin: 0;
+}
+.xf-gender-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.xf-gender-btn {
+  padding: 12px 26px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+.xf-gender-btn.active {
+  border-color: var(--green, #6ff0b4);
+  background: linear-gradient(180deg, rgba(111, 240, 180, 0.18), rgba(111, 240, 180, 0.06));
+  color: var(--green, #6ff0b4);
+}
+.xf-advanced {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.xf-advanced > summary {
+  cursor: pointer;
+  padding: 16px 20px;
+  font-weight: 800;
+  color: var(--muted);
+  list-style: none;
+}
+.xf-advanced > summary::before {
+  content: "▸ ";
+  color: #d2a954;
+}
+.xf-advanced[open] > summary::before {
+  content: "▾ ";
+}
+.xf-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+.xf-advanced-body {
+  display: grid;
+  gap: 22px;
+  padding: 0 16px 16px;
+}
+
+/* --- 階段三：Scanning --- */
+.xf-scan-wrap {
+  max-width: 620px;
+  text-align: center;
+  padding-top: 20px;
+}
+.xf-scan-wrap .xf-step-hint {
+  text-align: left;
+}
+.xf-compass-scan {
+  margin-top: 26px;
+}
+.xf-scan-stage-current {
+  margin-top: 30px;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+.xf-progress {
+  margin: 20px auto 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.xf-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d2a954, var(--green, #6ff0b4));
+  transition: width 0.4s ease;
+}
+.xf-progress-num {
+  font-weight: 900;
+  font-size: 15px;
+  color: #d2a954;
+}
+.xf-scan-stages {
+  list-style: none;
+  margin: 24px auto 0;
+  padding: 0;
+  max-width: 340px;
+  text-align: left;
+  display: grid;
+  gap: 10px;
+}
+.xf-scan-stage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.xf-scan-stage-done {
+  color: var(--green, #6ff0b4);
+}
+.xf-scan-stage-active {
+  color: var(--text);
+  animation: xf-blink 1.4s ease-in-out infinite;
+}
+.xf-scan-stage-icon {
+  width: 20px;
+  text-align: center;
+}
+@keyframes xf-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.xf-scan-micro {
+  margin-top: 26px;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+.xf-scan-long {
+  margin-top: 8px;
+  color: #ffe2a2;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* --- 階段四：Report --- */
+.xf-report-wrap {
+  display: grid;
+  gap: 20px;
+  max-width: 860px;
+}
+.xf-report-head {
+  text-align: center;
+}
+.xf-report-question {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.xf-report-title {
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+.xf-report-date {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+.xf-resonance {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+.xf-resonance-label {
+  font-size: 19px;
+  font-weight: 900;
+  color: #d2a954;
+  margin-bottom: 6px;
+}
+.xf-resonance-text {
+  flex: 1;
+  min-width: 220px;
+}
+.xf-resonance-text p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0;
+}
+.xf-aspect-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+}
+.xf-aspect-card {
+  border-top: 3px solid transparent;
+}
+.xf-aspect-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.xf-aspect-name {
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 20px;
+  font-weight: 900;
+}
+.xf-aspect-sub {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+.xf-aspect-signal {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-left: auto;
+}
+.xf-aspect-summary {
+  margin: 12px 0;
+  line-height: 1.85;
+  font-size: 15px;
+}
+.xf-aspect-conf {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.xf-aspect-conf-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.xf-aspect-conf-bar > div {
+  height: 100%;
+  border-radius: 999px;
+}
+.xf-aspect-timing {
+  margin-top: 10px;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffe2a2;
+  border: 1px solid rgba(210, 169, 84, 0.4);
+  background: rgba(210, 169, 84, 0.1);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.xf-conclusion h2 {
+  margin-top: 0;
+}
+.xf-decision-badge {
+  display: inline-block;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 4px 16px;
+  font-weight: 900;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.xf-conclusion-headline {
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.8;
+  color: #d2a954;
+  margin: 6px 0 0;
+}
+.xf-conclusion-steps {
+  margin: 8px 0 0;
+  padding-left: 24px;
+  line-height: 2;
+  font-size: 15px;
+}
+.xf-report-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.xf-report-actions .btn {
+  min-height: 44px;
+}
+.xf-report-collapse {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0 16px 16px;
+}
+.xf-report-collapse > summary {
+  cursor: pointer;
+  padding: 16px 4px;
+  font-weight: 800;
+  color: var(--muted);
+  list-style: none;
+}
+.xf-report-collapse > summary::before {
+  content: "▸ ";
+  color: #d2a954;
+}
+.xf-report-collapse[open] > summary::before {
+  content: "▾ ";
+}
+.xf-report-collapse > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* --- 分享圖卡（9:16，html2canvas 截圖用） --- */
+.xf-card-stage {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  /* 不可 display:none：html2canvas 需要 layout */
+}
+.xf-card {
+  width: 360px;
+  height: 640px;
+  background: linear-gradient(180deg, #062018, #04120d 55%, #071410);
+  color: #f4efe4;
+  padding: 34px 30px 26px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+}
+.xf-card-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.xf-card-logo {
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: #d2a954;
+  border: 1px solid rgba(210, 169, 84, 0.55);
+  border-radius: 8px;
+  padding: 2px 8px;
+}
+.xf-card-brand-sub {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: rgba(244, 239, 228, 0.65);
+}
+.xf-card-title {
+  margin-top: 14px;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #f4efe4;
+}
+.xf-card-question {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(244, 239, 228, 0.8);
+}
+.xf-card-ring {
+  margin-top: 16px;
+}
+.xf-card-ring-label {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #d2a954;
+}
+.xf-card-headline {
+  margin-top: 14px;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.75;
+  color: #f4efe4;
+}
+.xf-card-aspects {
+  margin-top: 16px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+}
+.xf-card-aspect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+.xf-card-aspect-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.xf-card-aspect-pct {
+  margin-left: auto;
+  color: rgba(244, 239, 228, 0.75);
+  font-weight: 700;
+}
+.xf-card-steps {
+  margin: 14px 0 0;
+  padding-left: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: rgba(244, 239, 228, 0.9);
+}
+.xf-card-foot {
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(244, 239, 228, 0.55);
+  letter-spacing: 0.06em;
+}
+
+/* 圖卡預覽 modal */
+.xf-card-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.xf-card-modal-inner {
+  background: var(--bg, #04120d);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+}
+.xf-card-modal-inner img {
+  width: 100%;
+  max-height: 62vh;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.xf-card-modal-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 10px 0;
+}
+.xf-card-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* --- RWD --- */
+@media (max-width: 640px) {
+  .xf-landing {
+    padding: 48px 0 36px;
+  }
+  .xf-landing-title {
+    font-size: 30px;
+  }
+  .xf-compass {
+    width: 150px;
+    height: 150px;
+  }
+  .xf-compass-core {
+    inset: 46px;
+    font-size: 24px;
+  }
+  .xf-aspect-grid {
+    grid-template-columns: 1fr;
+  }
+  .xf-report-title {
+    font-size: 24px;
+  }
+  .xf-resonance {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* 動畫敏感者：關閉旋轉與閃爍，只留進度條 */
+@media (prefers-reduced-motion: reduce) {
+  .xf-compass-ring,
+  .xf-compass-core,
+  .xf-scan-stage-active {
+    animation: none;
+  }
+}
+

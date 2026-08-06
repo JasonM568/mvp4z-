@@ -43,6 +43,12 @@ import {
   cleanReportText,
   hasUsableFinal
 } from "@/lib/ai/council/quality";
+import {
+  buildStructuredPrompt,
+  CouncilStructured,
+  extractStructuredBlock,
+  parseStructured
+} from "@/lib/ai/council/structured";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -145,8 +151,19 @@ export async function POST(request: NextRequest) {
       { timeoutMs: 110000, attempts: 1 }
     );
 
-    const finalOk = hasUsableFinal(final);
+    // 先切出機讀 JSON 區塊再處理正文：JSON 不能進 cleanReportText（會被洗壞），
+    // 正文判定與洗稿都用去掉區塊後的文字。解析失敗只降級（structured=null），不影響交付與扣點。
+    const { reportText, structuredRaw } = extractStructuredBlock(final.text || "");
+    const finalOk = hasUsableFinal({ ...final, text: reportText });
     const fallbackUsed = !finalOk;
+    let structured: CouncilStructured | null = null;
+    if (!fallbackUsed) {
+      try {
+        structured = parseStructured(structuredRaw, councilInput.yixue?.modules);
+      } catch {
+        structured = null;
+      }
+    }
     if (fallbackUsed) {
       // 診斷用：兜底時記錄終稿實際狀態，方便從 Vercel log 判斷是「終稿呼叫失敗(逾時/錯誤)」
       // 還是「終稿有內容但沒通過 hasUsableFinal 檢查」。
@@ -159,7 +176,7 @@ export async function POST(request: NextRequest) {
     }
     const finalLabel = finalOk ? final.label : "風羿老師備援交付稿";
     const finalText = finalOk
-      ? cleanReportText(final.text)
+      ? cleanReportText(reportText)
       : cleanReportText(buildSafeFallbackReport(councilInput));
 
     const totalTokensIn = firstTokens.in + debateTokens.in + (final.tokensIn || 0);
@@ -228,6 +245,7 @@ export async function POST(request: NextRequest) {
       final_text: finalText,
       final_ok: finalOk,
       fallback_used: fallbackUsed,
+      structured,
       total_tokens_in: totalTokensIn,
       total_tokens_out: totalTokensOut,
       credits_charged: actualCharge,
@@ -239,6 +257,7 @@ export async function POST(request: NextRequest) {
     return apiJson({
       ok: true,
       final: { ok: finalOk, label: finalLabel, text: finalText },
+      structured,
       fallback_used: fallbackUsed,
       credits_charged: actualCharge,
       free_quota_used: actualFreeQuotaUsed,
@@ -318,7 +337,9 @@ ${buildFinalFormatPrompt(terms)}
 6. 是否有 3日、7日、30日行動方案。
 7. 是否有停損條件。
 
-若有任何一項不符合，請自行重寫到符合為止。`;
+若有任何一項不符合，請自行重寫到符合為止。
+
+${buildStructuredPrompt(input.yixue?.modules)}`;
 }
 
 function getPlanCode(value: unknown) {
