@@ -4,7 +4,7 @@
 // fetch 完成（done）且至少展示 6 秒後跳 100%，停 900ms 再進報告頁。
 // 注意：fallback 兜底稿是 ok:true，不會走 errorMsg 這條路。
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ASPECT_CONFIG, type AspectKey } from "../_aspects";
 
 const RAMP_SECONDS = 70;
@@ -31,6 +31,7 @@ export function ScanningStep({
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [finishing, setFinishing] = useState(false);
+  const completedRef = useRef(false);
 
   useEffect(() => {
     if (errorMsg) return;
@@ -38,13 +39,15 @@ export function ScanningStep({
     return () => clearInterval(timer);
   }, [errorMsg]);
 
+  // 完成跳轉必須 fire-and-forget：elapsed 每 250ms 變動會重跑此 effect，
+  // 若把 setTimeout 放進 cleanup 會被反覆清掉、永遠跳不到報告頁。
+  // 用 ref 保證只觸發一次。
   useEffect(() => {
-    if (done && !errorMsg && !finishing && elapsed >= MIN_SHOW_SECONDS) {
-      setFinishing(true);
-      const t = setTimeout(onComplete, 900);
-      return () => clearTimeout(t);
-    }
-  }, [done, errorMsg, finishing, elapsed, onComplete]);
+    if (!done || errorMsg || completedRef.current || elapsed < MIN_SHOW_SECONDS) return;
+    completedRef.current = true;
+    setFinishing(true);
+    window.setTimeout(onComplete, 900);
+  }, [done, errorMsg, elapsed, onComplete]);
 
   const stageLabels = [
     ...aspects.map((k) => ASPECT_CONFIG[k].scanLabel),
