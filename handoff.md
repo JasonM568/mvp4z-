@@ -1735,7 +1735,7 @@ Resend 網域未驗證時的限制（已向使用者說明）：
 - structured JSON 成功率監控：admin `/admin/council-runs` 看 structured 是否為 null（null=降級純文字，屬合法路徑）。
 - e2e 腳本 `scripts/test-council-structured.mjs` 尚未跑過真實一輪（需 --token，會扣 20 點）。
 - 既有 go-live gate 不變：Resend key/網域驗證、信用卡 E2E、EZPay 正式、Gemini/DeepSeek key（目前 council 靠 OpenAI 撐三輪）。
-- 另一 session 的面相 SPEC（docs/specs/face-analysis/）仍 staged 未 commit，等使用者確認開發才動。
+- 面相 SPEC（docs/specs/face-analysis/）已隨本次收工 commit 一併進 repo（ce3753f，僅文件）；實作仍等使用者確認才開始。
 
 ### 下次起手式
 
