@@ -49,9 +49,9 @@ export default function MemberAiPage() {
     <>
       <section className="hero">
         <div className="wrap">
-          <div className="kicker">FENGYI AI MEMBER</div>
+          <div className="kicker">XUNFENG MEMBER CONSULTATION</div>
           <h1>
-            風羿老師 AI<span className="accent">會員專屬諮詢</span>
+            巽風即時問答<span className="accent">會員專屬初步諮詢</span>
           </h1>
           <p id="memberLine" className="lead">
             讀取會員資料中…
@@ -64,7 +64,7 @@ export default function MemberAiPage() {
           <article className="panel chatbox">
             <div id="messages" className="messages">
               <div className="msg bot">
-                你好，我是風羿老師 AI 會員版。我以乾坤國寶、龍門八局、形家風水、命理與場域管理為底，協助你做初步判讀與決策整理。
+                你好，這裡是巽風會員即時問答。我以乾坤國寶、龍門八局、形家風水、命理與場域管理為底，協助你做初步判讀與決策整理。
                 {"\n\n"}風水初判請提供：坐向、度數、建造年份、來水、去水、大門方位；命理請提供四柱或出生年月日時與出生地。
                 {"\n"}可直接點下方常見問題開始，或輸入你自己的狀況。正式個案仍需由風羿老師本人親至現場評估。
               </div>

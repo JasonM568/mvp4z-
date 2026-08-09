@@ -382,7 +382,8 @@ ${videos.length ? `
     ]);
 
     if (site) {
-      if (site.seoTitle) document.title = site.seoTitle;
+      // 頁面標題由各 Next.js route 的 metadata 管理，避免首頁與產品頁
+      // 在 hydration 後又被舊 CMS 的全站 SEO 標題覆寫。
       setText("[data-site='brand']", site.brand);
       setText("[data-site='shortBrand']", site.shortBrand);
       setText("[data-site='subBrand']", site.subBrand);

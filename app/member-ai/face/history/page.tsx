@@ -96,10 +96,10 @@ export default function FaceHistoryPage() {
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader showMobileDock={false} />
       <main className="face-history-page">
         <header className="face-history-head">
-          <div><span>巽風易學 AI</span><h1>面相報告紀錄</h1><p>這裡只顯示報告資料，不會以人臉縮圖作為歷史封面。</p></div>
+          <div><span>我的巽風</span><h1>面相報告紀錄</h1><p>這裡只顯示報告資料，不會以人臉縮圖作為歷史封面。</p></div>
           <a href="/member-ai/face">新增面相分析</a>
         </header>
         {notice && <p className="face-history-notice" role="status">{notice}</p>}

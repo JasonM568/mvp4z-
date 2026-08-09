@@ -39,7 +39,7 @@ export default function LoginPage() {
           <div className="kicker">MEMBER LOGIN</div>
           <h1>
             會員登入
-            <span className="accent">進入風羿老師 AI 會員版</span>
+            <span className="accent">進入我的巽風</span>
           </h1>
         </div>
       </section>

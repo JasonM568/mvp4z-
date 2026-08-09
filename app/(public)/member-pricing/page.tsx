@@ -47,16 +47,16 @@ export default function MemberPricingPage() {
         <div className="wrap">
           <div className="kicker">XUNFENG AI MEMBERSHIP</div>
           <h1>
-            巽風 AI 會員方案
-            <span className="accent">綠界線上付款，付款完成自動開通</span>
+            巽風會員方案
+            <span className="accent">一次開通四象問天機、面相與即時問答</span>
           </h1>
           <p className="lead">
-            挑選方案 → 綠界安全付款 → 系統自動寫入會員資格與點數，立即進入 AI 會員版。點數可用於 AI 問答（每 1000 中文字 1 點）與四象問天機（每份 20 點）。
+            挑選方案 → 綠界安全付款 → 系統自動寫入會員資格與點數，立即進入「我的巽風」。點數可用於即時問答（每 1000 中文字 1 點）、四象問天機與面相文化觀察報告（每份 20 點）。
           </p>
           <p className="lead" style={{ marginTop: 18 }}>
             還沒決定？<strong>註冊即送 30 點</strong>，付費前先免費體驗。
             <a className="btn primary" href="/member-ai" style={{ marginLeft: 12 }}>
-              免費體驗 AI 會員版
+              進入我的巽風
             </a>
           </p>
         </div>

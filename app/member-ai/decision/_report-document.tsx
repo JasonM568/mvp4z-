@@ -83,7 +83,7 @@ function ReportTable({ rows }: { rows: string[][] }) {
   );
 }
 
-export function ReportDocument({ text, meta }: { text: string; meta?: ReportMeta }) {
+export function ReportDocument({ text, meta, idPrefix = "report" }: { text: string; meta?: ReportMeta; idPrefix?: string }) {
   const blocks = parseReport(text);
   return (
     <article className="report-doc" id="reportDoc">
@@ -100,7 +100,7 @@ export function ReportDocument({ text, meta }: { text: string; meta?: ReportMeta
 
       <div className="report-doc-body">
         {blocks.map((b, idx) => {
-          if (b.type === "h2") return <h2 key={idx}>{b.text}</h2>;
+          if (b.type === "h2") return <h2 id={`${idPrefix}-section-${idx}`} key={idx}>{b.text}</h2>;
           if (b.type === "table") return <ReportTable key={idx} rows={b.rows} />;
           if (b.type === "ol")
             return (
@@ -116,5 +116,18 @@ export function ReportDocument({ text, meta }: { text: string; meta?: ReportMeta
         本報告由風羿老師多維校核系統產製，為易學決策輔助；涉及陽宅、陰宅、重大投資、法律、醫療或不可逆決策，仍需由風羿老師本人進一步確認或親至現場評估。
       </footer>
     </article>
+  );
+}
+
+export function ReportToc({ text, idPrefix = "report" }: { text: string; idPrefix?: string }) {
+  const sections = parseReport(text)
+    .map((block, index) => block.type === "h2" ? { title: block.text, id: `${idPrefix}-section-${index}` } : null)
+    .filter((section): section is { title: string; id: string } => section !== null);
+  if (sections.length < 2) return null;
+  return (
+    <nav className="report-toc" aria-label="天機書章節目錄">
+      <strong>章節目錄</strong>
+      <ol>{sections.map((section) => <li key={section.id}><a href={`#${section.id}`}>{section.title}</a></li>)}</ol>
+    </nav>
   );
 }

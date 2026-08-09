@@ -17,6 +17,7 @@ import { InputStep } from "./_steps/input-step";
 import { ScanningStep } from "./_steps/scanning-step";
 import { ReportStep } from "./_steps/report-step";
 import { SiteHeader } from "@/components/SiteHeader";
+import { track } from "@vercel/analytics/react";
 
 type MemberInfo = {
   plan: string;
@@ -26,6 +27,8 @@ type MemberInfo = {
 };
 
 type Step = "landing" | "input" | "scanning" | "report";
+const DRAFT_KEY = "xunfeng_four_aspects_draft";
+const PENDING_KEY = "xunfeng_four_aspects_pending";
 
 export default function DecisionPage() {
   const [step, setStep] = useState<Step>("landing");
@@ -61,6 +64,87 @@ export default function DecisionPage() {
       })
       .catch(() => setMemberStatus("guest"));
   }, []);
+
+  useEffect(() => {
+    const token = getMemberToken();
+    const raw = window.localStorage.getItem(PENDING_KEY);
+    if (!token || !raw) return;
+    let pending: { startedAt: string; question: string } | null = null;
+    try {
+      pending = JSON.parse(raw);
+    } catch {
+      window.localStorage.removeItem(PENDING_KEY);
+      return;
+    }
+    if (!pending?.startedAt) return;
+    const cutoff = Date.now() - 6 * 60 * 1000;
+    if (Date.parse(pending.startedAt) < cutoff) {
+      window.localStorage.removeItem(PENDING_KEY);
+      return;
+    }
+    setStep("scanning");
+    setLoading(true);
+    setNotice("正在找回先前進行中的四象合參…");
+    let stopped = false;
+    let attempts = 0;
+    const recover = async () => {
+      attempts += 1;
+      try {
+        const response = await fetch("/api/member/council-runs?limit=3", {
+          headers: { Authorization: "Bearer " + token }
+        });
+        const data = await response.json().catch(() => ({}));
+        const match = (Array.isArray(data.items) ? data.items : []).find((item: any) =>
+          Date.parse(item.created_at) >= Date.parse(pending!.startedAt) - 5000
+        );
+        if (match && !stopped) {
+          const generatedAt = new Date(match.generated_at || match.created_at);
+          setReport(match.final_text || "");
+          setStructured(match.structured || null);
+          setReportMeta({
+            question: match.request?.question || pending!.question,
+            topic: match.request?.topic,
+            clientName: match.request?.clientName,
+            date: generatedAt.toLocaleString("zh-TW", {
+              year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
+            })
+          });
+          setReportFileBase(buildReportFileBase(match.request?.clientName, generatedAt));
+          setNotice("已找回完成的天機書，本次扣除 " + Number(match.credits_charged || 0) + " 點。");
+          setLoading(false);
+          setStep("report");
+          window.localStorage.removeItem(PENDING_KEY);
+          return;
+        }
+      } catch {}
+      if (!stopped && attempts < 60) window.setTimeout(recover, 5000);
+      else if (!stopped) {
+        setLoading(false);
+        setScanError("目前仍找不到完成的天機書，請到「我的巽風」查看最新報告；系統不會重複送出或扣點。");
+      }
+    };
+    void recover();
+    return () => { stopped = true; };
+  }, []);
+
+  useEffect(() => {
+    try {
+      const draft = window.localStorage.getItem(DRAFT_KEY);
+      if (!draft) return;
+      const parsed = JSON.parse(draft) as { form?: Partial<CouncilForm>; modules?: Partial<CouncilModules> };
+      if (parsed.form) setForm((current) => ({ ...current, ...parsed.form }));
+      if (parsed.modules) setModules((current) => ({ ...current, ...parsed.modules }));
+    } catch {
+      window.localStorage.removeItem(DRAFT_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, modules }));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [form, modules]);
 
   // 掃描中關頁攔截：後端 LLM 跑完照樣扣點，中途關頁＝付了點數沒拿到報告
   useEffect(() => {
@@ -140,12 +224,17 @@ export default function DecisionPage() {
     setReport("");
     setStructured(null);
     setJsonPacket(null);
+    window.localStorage.setItem(PENDING_KEY, JSON.stringify({
+      startedAt: new Date().toISOString(),
+      question: form.question.trim()
+    }));
 
     const data: CouncilApiResult = await runCouncilReport(payload).catch((err) => ({
       error: err?.message || "送出失敗"
     }));
 
     if (data?.error) {
+      track("four_aspects_failed", { stage: "generation" });
       setScanError(data.error);
       setJsonPacket({ request: payload, error: data.error });
       setLoading(false);
@@ -177,6 +266,12 @@ export default function DecisionPage() {
           ? "本次使用 VIP 月內免費額度，未扣點。"
           : `已扣 ${data?.credits_charged || 0} 點，剩餘 ${data?.member?.credits_remaining ?? "未知"} 點。`
     );
+    track("four_aspects_completed", {
+      result: data?.fallback_used ? "fallback" : "completed",
+      charged: Number(data?.credits_charged || 0)
+    });
+    window.localStorage.removeItem(DRAFT_KEY);
+    window.localStorage.removeItem(PENDING_KEY);
     if (data?.member) setMember(data.member as MemberInfo);
     setLoading(false);
   }
@@ -216,6 +311,7 @@ export default function DecisionPage() {
 
   function downloadPdf() {
     if (!report) return;
+    track("four_aspects_download_pdf");
     // 列印「儲存為 PDF」的預設檔名取自 document.title，故先暫改成報告檔名（含案主+生成時間），
     // 列印結束（afterprint）再還原。
     setTimeout(() => {
@@ -233,7 +329,7 @@ export default function DecisionPage() {
   return (
     <>
       <div className="council-screen">
-        <SiteHeader />
+        <SiteHeader showMobileDock={false} />
 
         {step === "landing" && (
           <LandingStep
@@ -298,7 +394,7 @@ export default function DecisionPage() {
       {/* 列印專用副本：掛在 .council-screen 外，列印時只輸出這份白紙顧問書 */}
       {report && (
         <div className="council-print">
-          <ReportDocument text={report} meta={reportMeta ?? undefined} />
+          <ReportDocument text={report} meta={reportMeta ?? undefined} idPrefix="print-report" />
         </div>
       )}
     </>

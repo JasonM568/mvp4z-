@@ -34,12 +34,17 @@ export function LandingStep({
             命、局、卦、象，四術合參，一事定向。
           </p>
           <div className="xf-landing-cta">
-            <button className="btn primary xf-cta-main" onClick={onStart}>
+            <button className="btn primary xf-cta-main" onClick={onStart} data-xf-event="four_aspects_start">
               🧭 開始問天機
             </button>
           </div>
           <p className="xf-landing-trust">四套古法交叉驗算・約需 2 分鐘</p>
           {costHint && <span className="badge xf-landing-cost">{costHint}</span>}
+          <div className="xf-landing-guide">
+            <article><strong>適合問什麼</strong><span>一次聚焦工作、合作、關係或時機中的一件具體事情。</span></article>
+            <article><strong>需要準備什麼</strong><span>你的問題與出生資料；其他專業資料可以稍後選填。</span></article>
+            <article><strong>最後得到什麼</strong><span>四象共識、決策方向、行動步驟、風險與停損條件。</span></article>
+          </div>
         </div>
       </section>
 
@@ -88,7 +93,7 @@ export function LandingStep({
                       升級方案
                     </a>
                     <a className="btn" href="/member">
-                      回會員中心
+                      回我的巽風
                     </a>
                   </>
                 )}

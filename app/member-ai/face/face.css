@@ -35,17 +35,20 @@
 .face-upload { display: inline-flex; align-items: center; }
 .face-upload input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .face-consents { display: grid; gap: 13px; padding: 18px; border-radius: 14px; background: rgba(255,255,255,.04); color: #c9c2b5; line-height: 1.6; }
-.face-consents label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 10px; }
+.face-consents label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 10px; width: 100%; cursor: pointer; }
 .face-consents input {
   appearance: auto;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
+  box-sizing: border-box;
+  inline-size: 18px !important;
+  block-size: 18px;
+  min-inline-size: 18px;
+  max-inline-size: 18px;
   margin: 4px 0 0;
   padding: 0;
   border-radius: 3px;
   flex: none;
 }
+.face-consents label > span { min-width: 0; overflow-wrap: anywhere; }
 .face-notice { padding: 13px 16px; border-left: 3px solid #d5ad60; background: rgba(213,173,96,.1); color: #f0dcae; line-height: 1.6; overflow-wrap: anywhere; }
 .face-submit { width: 100%; margin-top: 20px; }
 .face-quality-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 28px 0; }
@@ -54,5 +57,26 @@
 .face-quality-grid dd { margin: 8px 0 0; color: #ecd49d; font-size: 20px; font-weight: 800; }
 .face-report-content { margin: 24px 0; padding: clamp(18px, 4vw, 36px); border-radius: 16px; background: #f6f0e5; color: #241d13; }
 .face-report-content pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 16px/1.9 ui-serif, "Noto Serif TC", serif; }
+.face-price-note { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; margin: -12px 0 22px; }
+.face-photo-guide { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 720px; margin: -18px auto 32px; text-align: left; }
+.face-photo-guide > div { display: grid; grid-template-columns: 48px 1fr; gap: 2px 12px; align-items: center; padding: 15px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(255,255,255,.025); }
+.face-photo-guide i { grid-row: 1/3; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid currentColor; border-radius: 50%; color: #d5ad60; font-style: normal; font-size: 24px; }
+.face-photo-guide .bad i { color: #a76b5d; }.face-photo-guide strong { color: #e6d3a7; }.face-photo-guide span { color: #938c81; font-size: 12px; }
+.face-price-note span, .face-price-note strong { padding: 7px 11px; border: 1px solid rgba(213,173,96,.22); border-radius: 999px; color: #bdb5a8; font-size: 12px; }
+.face-price-note strong { color: #ecd49d; }
+.face-landing-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.face-landing-actions a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.face-file-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; color: #9f978a; font-size: 12px; }
+.face-file-meta span { padding: 5px 9px; border: 1px solid rgba(255,255,255,.09); border-radius: 999px; }
+.face-report-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.face-report-actions a { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 @media (max-width: 720px) { .face-page { padding: 38px 14px 70px; } .face-hero { padding-top: 24px; } .face-benefits { grid-template-columns: 1fr; } .face-mode-grid { grid-template-columns: 1fr; } .face-panel { border-radius: 15px; } .face-preview { min-height: 240px; } .face-actions > * { width: 100%; justify-content: center; text-align: center; } }
 @media (max-width: 720px) { .face-quality-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 720px) { .face-landing-actions > *, .face-report-actions > * { width: 100%; } }
+@media (max-width: 560px) { .face-photo-guide { grid-template-columns: 1fr; } }
+@media print {
+  .topbar, .xf-mobile-cta, .face-report-actions, .face-eyebrow, .face-notice { display: none !important; }
+  .face-page { padding: 0; background: #fff; }
+  .face-panel { border: 0; box-shadow: none; padding: 0; }
+  .face-report-content { margin: 0; }
+}

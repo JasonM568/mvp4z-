@@ -121,6 +121,7 @@ export function ScanningStep({
         </ul>
 
         <p className="xf-scan-micro">{MICRO_COPY[microIdx]}</p>
+        <p className="xf-scan-leave-note">可以切換到其他分頁，但請先不要關閉或重新整理此頁；完成後會自動開啟天機書。</p>
         {elapsed > 120 && !finishing && (
           <p className="xf-scan-long">仍在深度校核，最長約需 4～5 分鐘，請勿關閉此頁面。</p>
         )}

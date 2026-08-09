@@ -226,6 +226,15 @@
   accent-color: #6ff0b4;
   cursor: pointer;
 }
+.xf-download-more { margin: 12px 0 24px; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; background: rgba(255,255,255,.025); }
+.xf-download-more summary { padding: 13px 16px; color: var(--muted); font-weight: 800; cursor: pointer; }
+.xf-download-more > div { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 14px 14px; }
+.xf-landing-guide { width: min(940px,100%); display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 34px auto 0; text-align: left; }
+.xf-landing-guide article { padding: 18px; border: 1px solid rgba(210,169,84,.18); border-radius: 4px 20px 4px 20px; background: rgba(255,255,255,.025); }
+.xf-landing-guide strong { display: block; margin-bottom: 7px; color: #ead49c; }
+.xf-landing-guide span { color: var(--muted); font-size: 13px; line-height: 1.7; }
+.xf-scan-leave-note { max-width: 620px; margin: 14px auto 0; color: #9f978a; font-size: 13px; line-height: 1.7; text-align: center; }
+@media (max-width: 720px) { .xf-landing-guide { grid-template-columns: 1fr; } }
 
 /* ============================================================
    天機四象 · 順轉人生（2026-08 前端體驗改版）
@@ -655,6 +664,29 @@
 .xf-report-collapse > summary::-webkit-details-marker {
   display: none;
 }
+.report-toc {
+  margin: 0 0 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(210, 169, 84, 0.25);
+  border-radius: 16px;
+  background: rgba(210, 169, 84, 0.06);
+}
+.report-toc strong { color: #d2a954; }
+.report-toc ol {
+  columns: 2;
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+.report-toc li { break-inside: avoid; margin: 6px 0; }
+.report-toc a { color: var(--text); text-underline-offset: 3px; }
+.xf-back-to-top {
+  display: block;
+  width: fit-content;
+  margin: 20px auto 4px;
+  color: #d2a954;
+  font-weight: 800;
+  text-decoration: none;
+}
 
 /* --- 分享圖卡（9:16，html2canvas 截圖用） --- */
 .xf-card-stage {
@@ -834,6 +866,7 @@
     justify-content: center;
     text-align: center;
   }
+  .report-toc ol { columns: 1; }
 }
 
 /* 動畫敏感者：關閉旋轉與閃爍，只留進度條 */
@@ -844,4 +877,3 @@
     animation: none;
   }
 }
-

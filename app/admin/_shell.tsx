@@ -12,22 +12,38 @@ type AdminMember = {
   role: string;
 };
 
-const NAV = [
-  { href: "/admin", label: "總覽" },
-  { href: "/admin/members", label: "會員管理" },
-  { href: "/admin/bookings", label: "預約名單" },
-  { href: "/admin/orders", label: "訂單管理" },
-  { href: "/admin/invoices", label: "發票管理" },
-  { href: "/admin/council-runs", label: "四象問天機紀錄" },
-  { href: "/admin/prompt-settings", label: "報告內容維護" },
-  { href: "/admin/school-settings", label: "排盤流派設定" },
-  { href: "/admin/documents", label: "老師文件" },
-  ...(process.env.NEXT_PUBLIC_FACE_ANALYSIS_ENABLED === "true"
-    ? [{ href: "/admin/face-analysis", label: "面相分析紀錄" }]
-    : []),
-  { href: "/admin/face-knowledge", label: "面相知識庫" },
-  { href: "/admin/face-provider", label: "OpenAI 照片認證" },
-  { href: "/admin/token-usage", label: "Token 用量" }
+const NAV_GROUPS = [
+  {
+    label: "營運總覽",
+    items: [
+      { href: "/admin", label: "總覽" },
+      { href: "/admin/members", label: "會員管理" },
+      { href: "/admin/orders", label: "訂單管理" },
+      { href: "/admin/invoices", label: "發票管理" },
+      { href: "/admin/token-usage", label: "Token 用量" }
+    ]
+  },
+  {
+    label: "四象問天機",
+    items: [
+      { href: "/admin/council-runs", label: "天機書紀錄" },
+      { href: "/admin/prompt-settings", label: "報告內容維護" },
+      { href: "/admin/school-settings", label: "排盤流派設定" },
+      { href: "/admin/documents", label: "老師文件" }
+    ]
+  },
+  {
+    label: "面相系統",
+    items: [
+      { href: "/admin/face-analysis", label: "面相分析紀錄" },
+      { href: "/admin/face-knowledge", label: "面相知識庫" },
+      { href: "/admin/face-provider", label: "OpenAI 照片認證" }
+    ]
+  },
+  {
+    label: "顧問服務",
+    items: [{ href: "/admin/bookings", label: "預約名單" }]
+  }
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -80,14 +96,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav>
-          {NAV.map((item) => {
-            const active = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href));
-            return (
-              <Link key={item.href} href={item.href} className={active ? "active" : ""}>
-                {item.label}
-              </Link>
-            );
-          })}
+          {NAV_GROUPS.map((group) => (
+            <section className="admin-nav-group" key={group.label}>
+              <h2>{group.label}</h2>
+              {group.items.map((item) => {
+                const active = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href));
+                return <Link key={item.href} href={item.href} className={active ? "active" : ""}>{item.label}</Link>;
+              })}
+            </section>
+          ))}
         </nav>
 
         <div className="admin-footer">

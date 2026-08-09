@@ -58,6 +58,9 @@
   flex-direction: column;
   gap: 4px;
 }
+.admin-nav-group { display: grid; gap: 4px; padding: 13px 0; border-top: 1px solid rgba(255,255,255,.055); }
+.admin-nav-group:first-child { border-top: 0; padding-top: 0; }
+.admin-nav-group h2 { margin: 0 0 5px; padding: 0 12px; color: #8d7b54; font-size: 10px; font-weight: 900; letter-spacing: .18em; }
 
 .admin-side nav a {
   display: flex;
@@ -162,6 +165,11 @@
   font-size: 13px;
   word-break: break-all;
 }
+.admin-todo-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-bottom: 28px; }
+.admin-todo-grid a { min-height: 112px; display: grid; align-content: center; gap: 7px; padding: 18px; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; background: rgba(255,255,255,.03); }
+.admin-todo-grid strong { color: var(--text); }.admin-todo-grid span { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.admin-todo-grid a.alert { border-color: rgba(216,177,95,.4); background: rgba(216,177,95,.07); }.admin-todo-grid a.done strong { color: var(--green); }
+@media(max-width:1100px){.admin-todo-grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.admin-todo-grid{grid-template-columns:1fr}}
 
 .admin-form-grid {
   display: grid;

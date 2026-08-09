@@ -5,7 +5,7 @@
 
 import type { CouncilStructured } from "@/lib/ai/council/structured";
 import { ASPECT_CONFIG, ResonanceRing, resonanceLabel, SIGNAL_COLORS } from "../_aspects";
-import { ReportDocument, type ReportMeta } from "../_report-document";
+import { ReportDocument, ReportToc, type ReportMeta } from "../_report-document";
 import { ShareCardButton } from "../_share-card";
 
 const DECISION_COLORS: Record<string, string> = {
@@ -125,31 +125,43 @@ export function ReportStep({
         )}
 
         <div className="xf-report-actions">
-          {structured && (
-            <ShareCardButton
-              question={question}
-              structured={structured}
-              dateLabel={reportMeta?.date || ""}
-              fileBase={fileBase}
-            />
-          )}
-          <button className="btn" onClick={onRetry}>🔄 換個問題，再測一次</button>
-          <button className="btn primary" onClick={onDownloadPdf} disabled={!report}>下載 PDF</button>
-          <button className="btn gold" onClick={onDownloadMd}>下載 Markdown</button>
-          <button className="btn" onClick={onDownloadJson}>下載 JSON</button>
-          <button className="btn" onClick={onCopy}>複製文字</button>
+          <button className="btn gold" onClick={onDownloadPdf} disabled={!report}>下載天機書 PDF</button>
+          <a className="btn primary" href="/member">儲存於我的巽風</a>
+          <a className="btn" href="/booking">預約老師覆核</a>
+          <button className="btn" onClick={onRetry}>再問一件事</button>
         </div>
+
+        <details className="xf-download-more">
+          <summary>分享與更多下載</summary>
+          <div>
+            {structured && (
+              <ShareCardButton
+                question={question}
+                structured={structured}
+                dateLabel={reportMeta?.date || ""}
+                fileBase={fileBase}
+              />
+            )}
+            <button className="btn" onClick={onDownloadMd}>下載 Markdown</button>
+            <button className="btn" onClick={onDownloadJson}>下載 JSON</button>
+            <button className="btn" onClick={onCopy}>複製文字</button>
+          </div>
+        </details>
 
         {structured ? (
           <details className="xf-report-collapse">
             <summary>展開完整顧問書全文（十段式專業報告）</summary>
             <div style={{ marginTop: 14 }}>
-              <ReportDocument text={report} meta={reportMeta ?? undefined} />
+              <ReportToc text={report} idPrefix="screen-report" />
+              <ReportDocument text={report} meta={reportMeta ?? undefined} idPrefix="screen-report" />
+              <a className="xf-back-to-top" href="#top">回到頁面頂端 ↑</a>
             </div>
           </details>
         ) : (
           <div style={{ marginTop: 8 }}>
-            <ReportDocument text={report} meta={reportMeta ?? undefined} />
+            <ReportToc text={report} idPrefix="screen-report" />
+            <ReportDocument text={report} meta={reportMeta ?? undefined} idPrefix="screen-report" />
+            <a className="xf-back-to-top" href="#top">回到頁面頂端 ↑</a>
           </div>
         )}
       </div>

@@ -37,19 +37,25 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [councils, setCouncils] = useState<CouncilRun[]>([]);
   const [bookingSummary, setBookingSummary] = useState<Record<string, number>>({});
+  const [faceRuns, setFaceRuns] = useState<{ id: string; status: string; created_at: string }[]>([]);
+  const [providerReady, setProviderReady] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       adminFetch("/api/admin/bookings?limit=200").then((r) => r.json()),
       adminFetch("/api/admin/orders").then((r) => r.json()),
-      adminFetch("/api/admin/council-runs?limit=200").then((r) => r.json())
+      adminFetch("/api/admin/council-runs?limit=200").then((r) => r.json()),
+      adminFetch("/api/admin/face-analysis?limit=30").then((r) => r.json()),
+      adminFetch("/api/admin/face-provider-approval").then((r) => r.json())
     ])
-      .then(([b, o, c]) => {
+      .then(([b, o, c, f, p]) => {
         setBookings(b?.bookings || []);
         setBookingSummary(b?.summary || {});
         setOrders(o?.orders || []);
         setCouncils(c?.runs || []);
+        setFaceRuns(f?.runs || []);
+        setProviderReady(p?.approval?.status === "active");
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -62,6 +68,8 @@ export default function AdminDashboard() {
   const bookingsThisMonth = bookings.filter((b) => b.created_at >= monthStart).length;
   const ordersThisMonth = orders.filter((o) => o.created_at >= monthStart && o.status === "paid").length;
   const councilThisMonth = councils.filter((c) => c.created_at >= monthStart).length;
+  const faceThisMonth = faceRuns.filter((run) => run.created_at >= monthStart).length;
+  const failedFaces = faceRuns.filter((run) => run.status === "failed").length;
 
   const recentBookings = bookings.slice(0, 10);
 
@@ -78,7 +86,24 @@ export default function AdminDashboard() {
         <Kpi label="待處理預約" value={pendingBookings} hint="status = pending" />
         <Kpi label="本月新增預約" value={bookingsThisMonth} hint="所有狀態" />
         <Kpi label="本月已付訂單" value={ordersThisMonth} hint="status = paid" />
-        <Kpi label="本月易學報告" value={councilThisMonth} hint="council_runs" />
+        <Kpi label="本月天機書" value={councilThisMonth} hint="四象問天機" />
+        <Kpi label="本月面相任務" value={faceThisMonth} hint={failedFaces ? failedFaces + " 筆需注意" : "運作正常"} />
+      </div>
+
+      <div className="admin-section-title"><span>今日待辦</span><span>先處理影響會員使用的項目</span></div>
+      <div className="admin-todo-grid">
+        <Link className={providerReady ? "done" : "alert"} href="/admin/face-provider">
+          <strong>OpenAI 照片認證</strong><span>{providerReady ? "認證有效" : "尚未完成，面相分析維持關閉"}</span>
+        </Link>
+        <Link className={failedFaces ? "alert" : "done"} href="/admin/face-analysis">
+          <strong>面相任務</strong><span>{failedFaces ? failedFaces + " 筆失敗待檢查" : "最近沒有失敗任務"}</span>
+        </Link>
+        <Link className={pendingBookings ? "alert" : "done"} href="/admin/bookings">
+          <strong>預約名單</strong><span>{pendingBookings ? pendingBookings + " 筆待處理" : "目前沒有待處理預約"}</span>
+        </Link>
+        <Link href="/admin/face-knowledge">
+          <strong>面相知識庫</strong><span>維護老師文獻、流派與判讀技巧</span>
+        </Link>
       </div>
 
       <div className="admin-section-title">
