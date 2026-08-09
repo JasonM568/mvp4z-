@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         published: null,
         ...base,
         setup_required:
-          "資料表尚未建立，請先在 Supabase SQL Editor 執行 supabase/migrations/0017_school_profiles.sql。"
+          "資料表尚未建立，請先執行 supabase/migrations/20260809144146_school_profiles.sql。"
       });
     }
     if (error) throw statusError(error.message, 500);

@@ -1,4 +1,4 @@
--- 0017_school_profiles.sql
+-- school_profiles（檔名與遠端 migration history 對齊）
 -- 排盤流派設定版本化
 --
 -- 重點：

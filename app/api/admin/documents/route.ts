@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         char_budget: DOCUMENT_CHAR_BUDGET,
         included_chars: 0,
         setup_required:
-          "資料表尚未建立，請先執行 supabase/migrations/0015_prompt_profiles_and_documents.sql。"
+          "資料表尚未建立，請先執行 supabase/migrations/20260809141108_prompt_profiles_and_documents.sql。"
       });
     }
     if (error) throw statusError(error.message, 500);

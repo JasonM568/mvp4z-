@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       .in("status", ["draft", "published"])
       .order("updated_at", { ascending: false });
 
-    // 42P01 = 資料表不存在。migration 0015 還沒在 Supabase 執行時會走到這裡，
+    // 42P01 = 資料表不存在。prompt profiles migration 還沒在 Supabase 執行時會走到這裡，
     // 回一個看得懂的訊息，不要把 postgres 原始錯誤丟給老師。
     if (error?.code === "42P01") {
       return apiJson({
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         env_overrides: promptEnvOverrides(),
         cache_seconds: PROMPT_SETTINGS_CACHE_SECONDS,
         char_budget: SETTINGS_CHAR_BUDGET,
-        setup_required: "資料表尚未建立，請先在 Supabase SQL Editor 執行 supabase/migrations/0015_prompt_profiles_and_documents.sql。在那之前可以先瀏覽內容，但無法儲存。"
+        setup_required: "資料表尚未建立，請先執行 supabase/migrations/20260809141108_prompt_profiles_and_documents.sql。在那之前可以先瀏覽內容，但無法儲存。"
       });
     }
     if (error) throw statusError(error.message, 500);

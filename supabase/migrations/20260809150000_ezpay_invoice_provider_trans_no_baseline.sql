@@ -1,4 +1,4 @@
--- 0012_ezpay_invoice_provider_trans_no.sql
+-- 遠端既有結構的可重跑基線：EZPay provider transaction number。
 -- EZPay 發票切換：invoices 表加 provider_trans_no 欄位（EZPay 的 InvoiceTransNo）。
 --
 -- EZPay 作廢發票時必須帶 InvoiceTransNo（樂點端的交易序號），不像 invoice_number
@@ -9,7 +9,7 @@
 -- - 不 backfill 既有 row（歷史只有沙箱測試，無 production 真實發票）
 
 alter table public.invoices
-  add column provider_trans_no text;
+  add column if not exists provider_trans_no text;
 
 comment on column public.invoices.provider_trans_no is
   '發票供應商的交易序號（EZPay = InvoiceTransNo, 20 chars），作廢/查詢時必要。綠界發票不會用到。';

@@ -1,4 +1,4 @@
--- 0020｜面相子系統上線前強化：重試／刪除鎖、合法扣點、刪除資料最小化。
+-- 面相子系統上線前強化：重試／刪除鎖、合法扣點、刪除資料最小化。
 
 alter table public.face_analysis_runs
   add column if not exists analysis_attempts integer not null default 0,

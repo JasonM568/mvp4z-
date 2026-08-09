@@ -1,4 +1,4 @@
--- 0021｜面相老師知識庫
+-- 面相老師知識庫
 create table if not exists public.face_knowledge_cards (
   id uuid primary key default gen_random_uuid(),
   card_id text not null unique,
@@ -31,9 +31,20 @@ create index if not exists face_knowledge_category_status_idx on public.face_kno
 create index if not exists face_knowledge_school_idx on public.face_knowledge_cards(school);
 create index if not exists face_knowledge_source_idx on public.face_knowledge_cards(source_file);
 
+create or replace function public.touch_face_knowledge_updated_at()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
 drop trigger if exists face_knowledge_cards_updated_at on public.face_knowledge_cards;
 create trigger face_knowledge_cards_updated_at before update on public.face_knowledge_cards
-for each row execute function public.set_updated_at();
+for each row execute function public.touch_face_knowledge_updated_at();
 
 create table if not exists public.face_knowledge_revisions (
   id uuid primary key default gen_random_uuid(),

@@ -32,7 +32,7 @@
 
 ## 4. 技術環境與約束
 
-- migration 接續易學後台的 0015～0017，建立 `supabase/migrations/0018_face_analysis_foundation.sql`。
+- migration 接續已確認的易學 timestamp 歷史，建立 `supabase/migrations/20260809160000_face_analysis_foundation.sql`。
 - `service_role` 只能在 server-side 使用。
 - 原始照片不得寫入 `public/assets`、Git、log、usage_logs.prompt 或第三方分析服務。
 - Storage bucket 必須 private；下載只允許短效 signed URL，最長 5 分鐘。
@@ -129,6 +129,6 @@
 ## 9. 非功能要求與 Agent 執行指示
 
 - 所有 DB 狀態以 server 為準；禁止先在前端假設成功。
-- 不修改既有 migration；新增 0015。
+- 不修改已套用的遠端 migration；面相 migration 一律排在 `20260809144146` 之後。
 - 保持現有 RLS/admin 慣例與命名方式。
 - 完成後執行 typecheck/build 與新增的資料層測試，附 migration 套用與 rollback 說明。

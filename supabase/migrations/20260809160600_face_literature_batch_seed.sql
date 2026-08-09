@@ -1,4 +1,4 @@
--- 0024｜十二宮、流年、外襲與望診文獻草稿
+-- 十二宮、流年、外襲與望診文獻草稿
 insert into public.face_knowledge_cards
   (card_id, title, category, school, technique, observation, teacher_original, editor_summary, safety_level, auto_report, source_file, source_pages, status)
 values

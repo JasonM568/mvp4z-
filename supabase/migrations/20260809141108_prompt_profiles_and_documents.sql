@@ -1,4 +1,4 @@
--- 0015_prompt_profiles_and_documents.sql
+-- prompt_profiles_and_documents（檔名與遠端 migration history 對齊）
 -- 風羿老師後台維護模組：報告設定版本化 + 專業文件庫
 --
 -- 重點：

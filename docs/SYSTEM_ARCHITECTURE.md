@@ -195,7 +195,7 @@ Next.js API Routes
     └── 易學決策報告
 ```
 
-方案定義於 migration `0013_point_economy_2026.sql`（純 update，可重複執行）；trial 的 30 點以程式常數 `TRIAL_CREDITS` 為準。點數不分桶，報告與聊天共用同一個 `credits_remaining`。
+方案定義於 migration `20260809150100_point_economy_2026_baseline.sql`（純 update，可重複執行）；trial 的 30 點以程式常數 `TRIAL_CREDITS` 為準。點數不分桶，報告與聊天共用同一個 `credits_remaining`。
 
 扣點費率（權威來源為程式碼，非本文件）：
 
@@ -679,4 +679,3 @@ course_products
 4. 補齊金流、發票、AI Council 與點數競爭情境的自動化測試。
 5. 補充正式環境的備份、監控、錯誤告警及事故處理流程。
 6. 完成正式營運 gate：ezPay 切正式字軌、信用卡真實刷卡 E2E、Gemini / DeepSeek 正式 key、Resend 網域驗證。
-

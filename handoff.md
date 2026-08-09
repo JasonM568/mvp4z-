@@ -1849,6 +1849,35 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 
 ---
 
+## 2026-08-09 Codex｜面相 × 易學安全整合 Preview 與 migration 對齊
+
+分支：`integration/face-analysis-on-yixue`。
+
+### 已完成
+
+- 從已上線的最新 `main` 建立獨立整合 worktree，未直接改動正式分支。
+- 整合面相分析、會員頁、營運後台、老師知識庫與文獻種子資料。
+- 易學與面相 migration 已改用 timestamp 排序；遠端既有 5 筆 timestamp 歷史已逐筆對應，不執行 `migration repair`。
+- 0012 EZPay 欄位及 0013 點數方案已透過唯讀 REST 確認存在，改為可重跑 baseline。
+- Vercel Preview `dpl_8T1YbpinETuYzNBRRAPfkPp3bhp2` 已 READY：`https://mvp4z-eefs80atp-tjs-projects-435187fd.vercel.app`。
+
+### 驗證與限制
+
+- 整合前驗證：unit 82/82、face 5/5、TypeScript、production build 全數通過。
+- Preview 受 Vercel Deployment Protection 保護，匿名請求會 302 到 SSO；尚未用登入 session 做 UI E2E。
+- `supabase db push --dry-run` 只列出 2 筆安全 baseline 與 7 筆面相 migration，未改正式資料庫。
+- 面相功能旗標維持關閉；正式資料庫尚未建立面相資料表。
+- `npm audit` 尚有 3 個 high，修正方案要求升級 Next 16，屬重大版本決策；不可用 `--force` 直接升級。
+
+### 下一步（依安全順序）
+
+1. 重跑完整測試並 commit/push migration 對齊結果。
+2. 對 9 筆待套用 SQL 做最終靜態檢查；確認無 destructive statement 後，才考慮套用正式 Supabase。
+3. migration 套用後先保持面相旗標關閉，驗證 admin 知識庫與 owner/RLS，再設定 provider URL 與小流量開啟。
+4. production merge 前另開 Next 16 升級驗證，不與本批功能整合混在同一 commit。
+
+---
+
 ## 2026-08-09 Codex 接續｜老師純文字文件後台完成
 
 分支：`feature/yixue-engine-and-admin-maintenance`。

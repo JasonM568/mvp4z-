@@ -165,3 +165,20 @@
 2. Preview 已 READY：`https://mvp4z-j98nzlhg4-tjs-projects-435187fd.vercel.app`；請老師實測 `/admin/prompt-settings`、`/admin/school-settings`、`/admin/documents`。
 3. 老師確認後才合併／部署易學功能。
 4. 易學穩定後，以最新主線重建面相整合分支並重編 migration，避免 0015～0017 撞號。
+
+## 2026-08-09｜面相安全整合與 Preview
+
+### 完成
+
+- 建立 `integration/face-analysis-on-yixue`，由最新易學 `main` 整合面相，不覆寫四術或共用扣點路徑。
+- migration 改為與正式 Supabase history 一致的 timestamp 序列；面相排在既有易學 migration 之後。
+- 以遠端 migration fetch 確認對應：`20260806065135`=structured、`20260809141108/141126`=prompt/documents+bucket、`143730`=chart、`144146`=school profiles。
+- 唯讀確認 EZPay 欄位及 2026 方案點數已存在；baseline 可重跑。
+- `supabase db push --dry-run` 成功，沒有 repair、沒有套用 schema。
+- Preview deployment `dpl_8T1YbpinETuYzNBRRAPfkPp3bhp2` READY，受 Vercel SSO 保護。
+
+### 下一步
+
+1. 完整測試、commit、push 本批 migration 對齊。
+2. 最終 SQL 安全檢查後才套用面相 schema；功能旗標繼續關閉。
+3. migration 後執行 admin／RLS／owner 驗收，再處理 provider 與小流量開啟。

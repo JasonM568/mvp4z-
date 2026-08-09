@@ -45,7 +45,7 @@
 2. 建立 `lib/face-analysis/rules.ts` 純函式規則引擎。
 3. 建立 `lib/face-analysis/report-schema.ts`。
 4. 建立 analyze route 與 run lock。
-5. 建立 `commit_face_analysis_credit` migration `0019_face_analysis_atomic_commit.sql`。
+5. 建立 `commit_face_analysis_credit` migration `20260809160100_face_analysis_atomic_commit.sql`。
 6. 建立掃描與報告 UI。
 7. 建立安全、競態、fallback 與 E2E 測試。
 

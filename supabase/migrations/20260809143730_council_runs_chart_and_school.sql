@@ -1,4 +1,4 @@
--- 0016_council_runs_chart.sql
+-- council_runs_chart_and_school（檔名與遠端 migration history 對齊）
 -- council_runs 記錄系統排盤結果與採用的流派
 --
 -- 重點：

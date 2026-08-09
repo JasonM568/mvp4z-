@@ -1,4 +1,4 @@
--- 0023｜記錄面相報告使用的已發布知識來源
+-- 記錄面相報告使用的已發布知識來源
 alter table public.face_analysis_runs
   add column if not exists knowledge_sources_used jsonb not null default '[]'::jsonb;
 
