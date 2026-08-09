@@ -1891,6 +1891,16 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 - 不可直接把人臉照片送往任何模型；必須先確認該組織帳號具備零資料保留／不訓練承諾，再設定 `FACE_VISION_ZERO_RETENTION=true`。
 - 可先實作 OpenAI adapter 並維持 fail-closed；在零保留政策確認前不做真實照片呼叫、不開 Production。
 
+### 2026-08-10 OpenAI Quality／Vision adapter
+
+- 已新增使用現有 `OPENAI_API_KEY` 的 Quality 與 Vision adapter；必須分別明確設定 `FACE_QUALITY_PROVIDER=openai`、`FACE_VISION_PROVIDER=openai`。
+- 兩條照片呼叫都受 `FACE_VISION_ZERO_RETENTION=true` 硬閘控制；未確認時 fail-closed，不會呼叫 API。
+- OpenAI Responses 請求使用 `store:false`；報告文字請求也補上 `store:false`。
+- prompt 僅允許可見幾何、光線、遮擋與 landmark，Zod strict schema 拒絕額外身份、年齡、健康、人格與敏感屬性欄位。
+- 驗證：unit 85/85、face 8/8、TypeScript、production build 全數通過；尚未送出任何真實照片。
+
+下一步：確認 OpenAI 組織的資料保留資格；確認前只部署 flag-off Preview，確認後才可用非真人合成測試圖做首次 provider E2E。
+
 ---
 
 ## 2026-08-09 Codex 接續｜老師純文字文件後台完成

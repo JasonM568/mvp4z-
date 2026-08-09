@@ -1,14 +1,27 @@
 import {
   FaceVisionInput,
-  FaceVisionProvider
+  FaceVisionProvider,
+  faceVisionResultSchema
 } from "@/lib/face-analysis/vision";
+import { isOpenAIFaceProvider, parseOpenAIImage } from "@/lib/face-analysis/openai-image";
 
 export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
-  readonly name = "configured_face_vision";
+  readonly name = isOpenAIFaceProvider(process.env.FACE_VISION_PROVIDER)
+    ? "openai_face_vision"
+    : "configured_face_vision";
   readonly model = process.env.FACE_VISION_MODEL || "organization-approved";
   readonly supportsZeroRetention = process.env.FACE_VISION_ZERO_RETENTION === "true";
 
   async analyze(input: FaceVisionInput) {
+    if (isOpenAIFaceProvider(process.env.FACE_VISION_PROVIDER)) {
+      return parseOpenAIImage({
+        ...input,
+        schema: faceVisionResultSchema,
+        schemaName: "face_visible_geometry",
+        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋，以及額頭、眉毛、眼睛、鼻子、臉頰、嘴巴、下顎、耳朵八區的可見度、相對寬高、輪廓、對稱與光線。不可推論任何人格、命運、健康或敏感屬性。"
+      });
+    }
+
     const endpoint = process.env.FACE_VISION_PROVIDER_URL?.trim();
     if (!endpoint) throw new Error("FACE_VISION_PROVIDER_NOT_CONFIGURED");
 
@@ -38,4 +51,3 @@ export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
     }
   }
 }
-

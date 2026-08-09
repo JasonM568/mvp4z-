@@ -1,6 +1,11 @@
 import { z } from "zod";
+import {
+  hasAcknowledgedZeroRetention,
+  isOpenAIFaceProvider,
+  parseOpenAIImage
+} from "@/lib/face-analysis/openai-image";
 
-const providerObservationSchema = z.object({
+export const providerObservationSchema = z.object({
   faceCount: z.number().int().min(0).max(20),
   faceCoverage: z.number().min(0).max(1),
   pose: z.object({
@@ -25,6 +30,23 @@ export async function inspectFaceGeometry(input: {
   bytes: Buffer;
   mimeType: string;
 }): Promise<FaceProviderObservation> {
+  if (isOpenAIFaceProvider(process.env.FACE_QUALITY_PROVIDER)) {
+    if (!hasAcknowledgedZeroRetention()) {
+      throw new FaceQualityProviderError("QUALITY_RETENTION_POLICY_UNSUPPORTED", 503);
+    }
+    try {
+      return await parseOpenAIImage({
+        ...input,
+        schema: providerObservationSchema,
+        schemaName: "face_quality_geometry",
+        task: "只為照片品質檢查回傳人臉數量、最大人臉畫面覆蓋比例、頭部 yaw/pitch/roll，以及眼睛、鼻子、嘴巴是否被遮擋。不得進行面相解讀。"
+      });
+    } catch (error) {
+      if (error instanceof FaceQualityProviderError) throw error;
+      throw new FaceQualityProviderError("QUALITY_PROVIDER_FAILED", 502);
+    }
+  }
+
   const endpoint = process.env.FACE_QUALITY_PROVIDER_URL?.trim();
   if (!endpoint) throw new FaceQualityProviderError("QUALITY_PROVIDER_NOT_CONFIGURED", 503);
 
@@ -58,7 +80,13 @@ export async function inspectFaceGeometry(input: {
 
 export class FaceQualityProviderError extends Error {
   constructor(public readonly code: string, public readonly status: number) {
-    super(code === "QUALITY_PROVIDER_NOT_CONFIGURED" ? "照片品質服務尚未設定" : "照片品質服務暫時無法使用");
+    super(
+      code === "QUALITY_PROVIDER_NOT_CONFIGURED"
+        ? "照片品質服務尚未設定"
+        : code === "QUALITY_RETENTION_POLICY_UNSUPPORTED"
+          ? "照片品質服務尚未確認零資料保留政策"
+          : "照片品質服務暫時無法使用"
+    );
     this.name = "FaceQualityProviderError";
   }
 }

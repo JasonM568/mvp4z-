@@ -27,6 +27,7 @@ export async function generateFaceReport(input: {
   const startedAt = Date.now();
   const response = await client.responses.parse({
     model: process.env.FACE_REPORT_MODEL || openAIModel(),
+    store: false,
     instructions: REPORT_INSTRUCTIONS,
     input: JSON.stringify({
       mode: input.mode,

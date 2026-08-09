@@ -190,3 +190,11 @@
 - 會員 0 點建立、requestId 冪等、owner/cross-owner、欄位遮蔽、刪除冪等與零扣點全通過。
 - authenticated 直讀 base table 為 403；短命帳號與所有關聯資料已清除，token 已 401，runs/events 為 0。
 - 下一步：先做 fail-closed OpenAI quality/vision adapter；零保留資格確認前不得送真實照片或開正式旗標。
+
+## 2026-08-10｜OpenAI 照片 provider adapter
+
+- 新增 OpenAI Quality／Vision structured-output adapter，沿用既有 OpenAI key。
+- `store:false`、明確 provider 選擇、零保留環境旗標與 strict schema 四層防護。
+- report Responses 同步改為 `store:false`。
+- unit 85/85、face 8/8、tsc、build 通過；沒有真實照片呼叫。
+- 下一步：先確認組織零保留資格，再以合成測試圖執行受保護 Preview E2E。

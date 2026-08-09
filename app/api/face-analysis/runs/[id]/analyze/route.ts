@@ -69,7 +69,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     await appendFaceRunEvent({ runId: run.id, userId: profile.id, eventType: "analysis_started" });
     const bytes = await downloadPrivateImage(run.storage_path);
     const visionStartedAt = Date.now();
-    const vision = await runFaceVisionProvider(new ConfiguredFaceVisionProvider(), {
+    const visionProvider = new ConfiguredFaceVisionProvider();
+    const vision = await runFaceVisionProvider(visionProvider, {
       bytes,
       mimeType: run.mime_type as "image/jpeg" | "image/png" | "image/webp"
     });
@@ -86,8 +87,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const reportText = renderFaceReportText(generated.report);
     const modelTrace = {
       vision: {
-        provider: "configured_face_vision",
-        model: process.env.FACE_VISION_MODEL || "organization-approved",
+        provider: visionProvider.name,
+        model: visionProvider.model,
         latencyMs: Date.now() - visionStartedAt
       },
       report: generated.trace,
