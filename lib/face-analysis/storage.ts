@@ -46,6 +46,13 @@ export async function createPrivateImagePreview(storagePath: string) {
   return data.signedUrl;
 }
 
+export async function downloadPrivateImage(storagePath: string) {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin.storage.from(FACE_ANALYSIS_BUCKET).download(storagePath);
+  if (error) throw error;
+  return Buffer.from(await data.arrayBuffer());
+}
+
 export async function deleteRunImage(storagePath: string | null | undefined) {
   if (!storagePath) return false;
   const admin = createSupabaseAdminClient();

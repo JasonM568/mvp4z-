@@ -1,0 +1,117 @@
+import { z } from "zod";
+import { FACE_PALACE_NAMES } from "@/lib/face-analysis/rules";
+
+export const FACE_REPORT_DISCLAIMER =
+  "本報告依照照片中清楚可見的面部特徵，以傳統民俗文化角度提供趨勢觀察與自我反思素材，不具科學診斷、醫療、心理、法律或投資建議效力，也不應用於判斷他人的人格、可信度或受保護屬性。重要決定請以實際資料與專業意見為準。" as const;
+
+const boundedText = (minimum: number, maximum: number) =>
+  z.string().trim().min(minimum).max(maximum);
+
+const palaceSchema = z
+  .object({
+    name: z.enum(FACE_PALACE_NAMES),
+    status: z.enum(["balanced", "watch", "limited"]),
+    evidence: boundedText(1, 500),
+    interpretation: boundedText(1, 800),
+    advice: boundedText(1, 500)
+  })
+  .strict();
+
+const actionSchema = z
+  .object({
+    period: z.enum(["30_days", "60_days", "90_days"]),
+    action: boundedText(1, 500)
+  })
+  .strict();
+
+const baseReportShape = {
+  schemaVersion: z.literal("1.0"),
+  summary: boundedText(100, 180),
+  photoQuality: boundedText(1, 600),
+  currentTrend: boundedText(1, 1200),
+  palaces: z
+    .array(palaceSchema)
+    .length(12)
+    .superRefine((palaces, context) => {
+      const names = new Set(palaces.map((palace) => palace.name));
+      if (names.size !== FACE_PALACE_NAMES.length) {
+        context.addIssue({ code: z.ZodIssueCode.custom, message: "十二宮不得重複或缺漏" });
+      }
+    }),
+  flowYear: z
+    .object({
+      age: z.number().int().min(1).max(120),
+      stage: boundedText(1, 120),
+      reflection: boundedText(1, 800)
+    })
+    .strict()
+    .nullable(),
+  actions: z.array(actionSchema).length(3).superRefine((actions, context) => {
+    const periods = new Set(actions.map((action) => action.period));
+    if (periods.size !== 3) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "30/60/90 天行動不得重複或缺漏" });
+    }
+  }),
+  disclaimer: z.literal(FACE_REPORT_DISCLAIMER)
+};
+
+const selfReportSchema = z
+  .object({
+    ...baseReportShape,
+    mode: z.literal("self"),
+    lifeAreas: z
+      .object({
+        finance: boundedText(1, 800),
+        career: boundedText(1, 800),
+        relationship: boundedText(1, 800),
+        communication: boundedText(1, 800),
+        routine: boundedText(1, 800)
+      })
+      .strict()
+  })
+  .strict();
+
+const otherReportSchema = z
+  .object({
+    ...baseReportShape,
+    mode: z.literal("other"),
+    collaborationFramework: z
+      .object({
+        observableInteraction: boundedText(1, 800),
+        questionsToVerify: z.array(boundedText(1, 300)).min(2).max(8),
+        boundaries: boundedText(1, 800)
+      })
+      .strict()
+  })
+  .strict();
+
+const unsafeClaims = [
+  /患有/,
+  /罹患/,
+  /犯罪傾向/,
+  /值得信任/,
+  /不可信/,
+  /性傾向(?:是|為)/,
+  /宗教信仰(?:是|為)/,
+  /種族(?:是|為)/,
+  /保證(?:獲利|賺錢|成功)/
+] as const;
+
+export const faceReportSchema = z
+  .discriminatedUnion("mode", [selfReportSchema, otherReportSchema])
+  .superRefine((report, context) => {
+    // The fixed disclaimer necessarily names prohibited uses, so only inspect
+    // generated content. This is a final deny-list guard, not a substitute for
+    // provider moderation or human review.
+    const generatedContent = JSON.stringify({ ...report, disclaimer: "" });
+    for (const pattern of unsafeClaims) {
+      if (pattern.test(generatedContent)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "報告含有禁止的敏感或保證性推論"
+        });
+        break;
+      }
+    }
+  });
+export type FaceReport = z.infer<typeof faceReportSchema>;

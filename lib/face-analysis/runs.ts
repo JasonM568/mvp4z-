@@ -97,6 +97,47 @@ export async function appendFaceRunEvent(input: {
   if (error) throw error;
 }
 
+export async function recordFaceUploadResult(input: {
+  runId: string;
+  userId: string;
+  status: "uploaded" | "quality_rejected";
+  storagePath: string | null;
+  mimeType: string;
+  fileSize: number;
+  width: number;
+  height: number;
+  qualityResult: unknown;
+}) {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("face_analysis_runs")
+    .update({
+      status: input.status,
+      storage_path: input.storagePath,
+      mime_type: input.mimeType,
+      file_size: input.fileSize,
+      width: input.width,
+      height: input.height,
+      quality_result: input.qualityResult,
+      error_code: input.status === "quality_rejected" ? "QUALITY_REJECTED" : null
+    })
+    .eq("id", input.runId)
+    .eq("user_id", input.userId)
+    .in("status", ["created", "quality_rejected"])
+    .select("id, status")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("分析任務狀態已變更，請重新整理");
+
+  await appendFaceRunEvent({
+    runId: input.runId,
+    userId: input.userId,
+    eventType: input.status === "uploaded" ? "quality_passed" : "quality_rejected",
+    metadata: { reasons: qualityReasons(input.qualityResult) }
+  });
+  return data;
+}
+
 async function getOwnedRunByRequestId(profileId: string, requestId: string) {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
@@ -109,3 +150,7 @@ async function getOwnedRunByRequestId(profileId: string, requestId: string) {
   return (data as FaceAnalysisRun | null) || null;
 }
 
+function qualityReasons(value: unknown) {
+  if (!value || typeof value !== "object" || !("reasons" in value)) return [];
+  return Array.isArray(value.reasons) ? value.reasons : [];
+}
