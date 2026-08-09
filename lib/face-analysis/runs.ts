@@ -1,0 +1,111 @@
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { CreateFaceRunInput } from "@/lib/face-analysis/schema";
+import { FaceAnalysisRun, FaceRunPublicSummary } from "@/lib/face-analysis/types";
+
+const PUBLIC_RUN_FIELDS = [
+  "id",
+  "request_id",
+  "mode",
+  "subject_age",
+  "status",
+  "quality_result",
+  "report_structured",
+  "report_text",
+  "credits_charged",
+  "image_deleted_at",
+  "completed_at",
+  "created_at",
+  "updated_at"
+].join(", ");
+
+export async function createRun(input: {
+  profileId: string;
+  entitlementId?: string | null;
+  request: CreateFaceRunInput;
+}) {
+  const admin = createSupabaseAdminClient();
+  const payload = {
+    request_id: input.request.requestId,
+    user_id: input.profileId,
+    entitlement_id: input.entitlementId || null,
+    mode: input.request.mode,
+    subject_age: input.request.subjectAge,
+    consent_version: input.request.consentVersion,
+    third_party_consent: input.request.thirdPartyConsent,
+    status: "created"
+  };
+
+  const { data, error } = await admin
+    .from("face_analysis_runs")
+    .upsert(payload, { onConflict: "request_id", ignoreDuplicates: true })
+    .select("*")
+    .maybeSingle();
+  if (error) throw error;
+
+  if (data) {
+    await appendFaceRunEvent({
+      runId: data.id,
+      userId: input.profileId,
+      eventType: "run_created",
+      metadata: { mode: input.request.mode, consentVersion: input.request.consentVersion }
+    });
+    return data as FaceAnalysisRun;
+  }
+
+  const existing = await getOwnedRunByRequestId(input.profileId, input.request.requestId);
+  if (!existing) throw new Error("無法建立面相分析任務");
+  return existing;
+}
+
+export async function getOwnedRun(profileId: string, runId: string) {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("face_analysis_runs")
+    .select("*")
+    .eq("id", runId)
+    .eq("user_id", profileId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as FaceAnalysisRun | null) || null;
+}
+
+export async function getOwnedPublicRun(profileId: string, runId: string) {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("face_analysis_runs")
+    .select(PUBLIC_RUN_FIELDS)
+    .eq("id", runId)
+    .eq("user_id", profileId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as FaceRunPublicSummary | null) || null;
+}
+
+export async function appendFaceRunEvent(input: {
+  runId: string;
+  userId: string;
+  eventType: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const admin = createSupabaseAdminClient();
+  const { error } = await admin.from("face_analysis_events").insert({
+    run_id: input.runId,
+    user_id: input.userId,
+    event_type: input.eventType,
+    metadata: input.metadata || {}
+  });
+  if (error) throw error;
+}
+
+async function getOwnedRunByRequestId(profileId: string, requestId: string) {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("face_analysis_runs")
+    .select("*")
+    .eq("request_id", requestId)
+    .eq("user_id", profileId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as FaceAnalysisRun | null) || null;
+}
+
