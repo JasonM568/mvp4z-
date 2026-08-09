@@ -9,10 +9,14 @@ import { ConfiguredFaceVisionProvider } from "@/lib/face-analysis/vision-http";
 
 const originalProvider = process.env.FACE_VISION_PROVIDER;
 const originalRetention = process.env.FACE_VISION_ZERO_RETENTION;
+const originalRetentionMode = process.env.FACE_VISION_RETENTION_MODE;
+const originalApprovedAt = process.env.FACE_VISION_RETENTION_APPROVED_AT;
 
 afterEach(() => {
   restore("FACE_VISION_PROVIDER", originalProvider);
   restore("FACE_VISION_ZERO_RETENTION", originalRetention);
+  restore("FACE_VISION_RETENTION_MODE", originalRetentionMode);
+  restore("FACE_VISION_RETENTION_APPROVED_AT", originalApprovedAt);
 });
 
 describe("OpenAI face provider safety gates", () => {
@@ -23,10 +27,22 @@ describe("OpenAI face provider safety gates", () => {
   });
 
   it("requires an exact zero-retention acknowledgement", () => {
+    process.env.FACE_VISION_RETENTION_MODE = "zero_data_retention";
+    process.env.FACE_VISION_RETENTION_APPROVED_AT = "2026-08-10";
     process.env.FACE_VISION_ZERO_RETENTION = "false";
     expect(hasAcknowledgedZeroRetention()).toBe(false);
     process.env.FACE_VISION_ZERO_RETENTION = "true";
     expect(hasAcknowledgedZeroRetention()).toBe(true);
+  });
+
+  it("rejects a boolean without recorded ZDR mode and approval date", () => {
+    process.env.FACE_VISION_ZERO_RETENTION = "true";
+    delete process.env.FACE_VISION_RETENTION_MODE;
+    delete process.env.FACE_VISION_RETENTION_APPROVED_AT;
+    expect(hasAcknowledgedZeroRetention()).toBe(false);
+    process.env.FACE_VISION_RETENTION_MODE = "modified_abuse_monitoring";
+    process.env.FACE_VISION_RETENTION_APPROVED_AT = "2026-08-10";
+    expect(hasAcknowledgedZeroRetention()).toBe(false);
   });
 
   it("reports the selected provider without weakening retention checks", () => {

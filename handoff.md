@@ -1901,6 +1901,8 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 
 下一步：確認 OpenAI 組織的資料保留資格；確認前只部署 flag-off Preview，確認後才可用非真人合成測試圖做首次 provider E2E。
 
+官方文件核對結果：API key 無法程式化證明 ZDR；核准後才會在 OpenAI Platform 的 Organization → Data controls 出現設定。一般 Responses 即使 `store:false`，濫用監控內容預設仍可能保留最多 30 天；影像安全掃描另有例外。因此 gate 已加強為三項同時成立：boolean、`zero_data_retention` 模式、ISO 核准日期。Modified Abuse Monitoring 不視為本系統的人臉照片上線條件。
+
 ---
 
 ## 2026-08-09 Codex 接續｜老師純文字文件後台完成

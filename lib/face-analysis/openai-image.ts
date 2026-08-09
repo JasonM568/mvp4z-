@@ -11,7 +11,11 @@ export function isOpenAIFaceProvider(provider: string | undefined) {
 }
 
 export function hasAcknowledgedZeroRetention() {
-  return process.env.FACE_VISION_ZERO_RETENTION === "true";
+  const approvedAt = process.env.FACE_VISION_RETENTION_APPROVED_AT?.trim() || "";
+  return process.env.FACE_VISION_ZERO_RETENTION === "true"
+    && process.env.FACE_VISION_RETENTION_MODE === "zero_data_retention"
+    && /^\d{4}-\d{2}-\d{2}$/.test(approvedAt)
+    && !Number.isNaN(Date.parse(`${approvedAt}T00:00:00Z`));
 }
 
 export async function parseOpenAIImage<T>(input: {

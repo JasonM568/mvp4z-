@@ -198,3 +198,4 @@
 - report Responses 同步改為 `store:false`。
 - unit 85/85、face 8/8、tsc、build 通過；沒有真實照片呼叫。
 - 下一步：先確認組織零保留資格，再以合成測試圖執行受保護 Preview E2E。
+- 官方文件確認 ZDR 無 API/key 自動探測方式；gate 加強為 ZDR boolean + mode + approved date，MAM 不放行人臉照片。

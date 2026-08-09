@@ -3,14 +3,18 @@ import {
   FaceVisionProvider,
   faceVisionResultSchema
 } from "@/lib/face-analysis/vision";
-import { isOpenAIFaceProvider, parseOpenAIImage } from "@/lib/face-analysis/openai-image";
+import {
+  hasAcknowledgedZeroRetention,
+  isOpenAIFaceProvider,
+  parseOpenAIImage
+} from "@/lib/face-analysis/openai-image";
 
 export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
   readonly name = isOpenAIFaceProvider(process.env.FACE_VISION_PROVIDER)
     ? "openai_face_vision"
     : "configured_face_vision";
   readonly model = process.env.FACE_VISION_MODEL || "organization-approved";
-  readonly supportsZeroRetention = process.env.FACE_VISION_ZERO_RETENTION === "true";
+  readonly supportsZeroRetention = hasAcknowledgedZeroRetention();
 
   async analyze(input: FaceVisionInput) {
     if (isOpenAIFaceProvider(process.env.FACE_VISION_PROVIDER)) {

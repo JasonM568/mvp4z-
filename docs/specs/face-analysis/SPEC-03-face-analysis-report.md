@@ -37,7 +37,7 @@
 - 採 charge-on-success：先預檢餘額，合格報告生成並寫入後，再以 PostgreSQL function 原子扣點。
 - 同一 `run_id` 完成後重送必須回既有結果，不再次呼叫 provider 或扣點。
 - provider key、原始照片、signed URL 不得進 prompt log、model_trace 或錯誤訊息。
-- Vision provider 必須設定禁止訓練／最低資料保留模式；若供應商無法滿足，功能不得上正式環境。
+- Vision provider 必須設定禁止訓練／Zero Data Retention；若供應商無法滿足，功能不得上正式環境。OpenAI 不可只靠 `store:false` 判定，須由管理員確認 Platform Data controls 已核准並啟用 ZDR，再同時設定 `FACE_VISION_ZERO_RETENTION=true`、`FACE_VISION_RETENTION_MODE=zero_data_retention` 與核准日期。
 
 ## 5. 相依與執行順序
 
