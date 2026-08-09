@@ -1,0 +1,5 @@
+import { NextRequest } from "next/server";
+import { requireAdmin } from "@/lib/auth/admin";
+import { errorMessage, errorStatus } from "@/lib/auth/member";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+export async function GET(request: NextRequest) { try { await requireAdmin(request); const { data, error } = await createSupabaseAdminClient().from("face_knowledge_cards").select("card_id,title,category,school,technique,observation,teacher_original,editor_summary,rule_condition,safety_level,auto_report,source_file,source_pages,status,version,created_at,updated_at").order("card_id"); if (error) throw error; return new Response(JSON.stringify({ exportedAt: new Date().toISOString(), items: data || [] }, null, 2), { headers: { "Content-Type": "application/json; charset=utf-8", "Content-Disposition": "attachment; filename=face-knowledge-export.json", "Cache-Control": "no-store" } }); } catch (error) { return Response.json({ error: errorMessage(error) }, { status: errorStatus(error) }); } }
