@@ -24,8 +24,9 @@ export async function parseOpenAIImage<T>(input: {
   schema: z.ZodType<T>;
   schemaName: string;
   task: string;
+  databaseApproved?: boolean;
 }): Promise<T> {
-  if (!hasAcknowledgedZeroRetention()) {
+  if (!input.databaseApproved && !hasAcknowledgedZeroRetention()) {
     throw new Error("FACE_VISION_RETENTION_POLICY_UNSUPPORTED");
   }
 

@@ -1903,6 +1903,17 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 
 官方文件核對結果：API key 無法程式化證明 ZDR；核准後才會在 OpenAI Platform 的 Organization → Data controls 出現設定。一般 Responses 即使 `store:false`，濫用監控內容預設仍可能保留最多 30 天；影像安全掃描另有例外。因此 gate 已加強為三項同時成立：boolean、`zero_data_retention` 模式、ISO 核准日期。Modified Abuse Monitoring 不視為本系統的人臉照片上線條件。
 
+### 2026-08-10 老師 ZDR 認證後台
+
+- 新增 `/admin/face-provider` 與 `/api/admin/face-provider-approval`，提供官方 Data controls 連結、四步說明、組織／Project／核准日期欄位、具名聲明與撤銷按鈕。
+- 不接收或保存 OpenAI 密碼、API key、OTP、token；server 也會拒絕疑似 `sk-...`／Bearer token 內容。
+- 簽署與撤銷只允許具名 admin bearer，禁止共用 `ADMIN_KEY`；寫入 `verified_by`、時間與 admin audit。
+- 認證生效後成為 Quality／Vision 的資料庫 ZDR gate；正式 face feature flag 仍是獨立最後開關。
+- migration `20260810010000_face_provider_approvals.sql` 已套用正式 Supabase；表為 0 筆、anon 讀取 401。
+- 驗證：unit 88/88、face 11/11、tsc、build（80 routes）通過。
+
+下一步：風建老師登入正式後台完成認證；工程端再用合成圖執行受保護 provider E2E，通過前不開正式旗標。
+
 ---
 
 ## 2026-08-09 Codex 接續｜老師純文字文件後台完成

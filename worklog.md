@@ -199,3 +199,10 @@
 - unit 85/85、face 8/8、tsc、build 通過；沒有真實照片呼叫。
 - 下一步：先確認組織零保留資格，再以合成測試圖執行受保護 Preview E2E。
 - 官方文件確認 ZDR 無 API/key 自動探測方式；gate 加強為 ZDR boolean + mode + approved date，MAM 不放行人臉照片。
+
+## 2026-08-10｜老師 ZDR 認證後台
+
+- 新增具名認證資料表、admin API、`/admin/face-provider` 操作頁與撤銷閉環。
+- 禁止 ADMIN_KEY 簽署，拒絕疑似 key/token，保存 verified_by/time 與 audit；不保存 OpenAI 登入資料。
+- runtime 可讀有效認證作為 Quality/Vision ZDR gate，face feature flag 仍獨立。
+- migration 已套用；空表、anon 401。unit 88/88、face 11/11、tsc、build 通過。

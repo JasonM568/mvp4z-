@@ -10,19 +10,21 @@ import {
 } from "@/lib/face-analysis/openai-image";
 
 export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
-  readonly name = isOpenAIFaceProvider(process.env.FACE_VISION_PROVIDER)
+  constructor(private readonly databaseApproved = false) {}
+  readonly name = this.databaseApproved || isOpenAIFaceProvider(process.env.FACE_VISION_PROVIDER)
     ? "openai_face_vision"
     : "configured_face_vision";
   readonly model = process.env.FACE_VISION_MODEL || "organization-approved";
-  readonly supportsZeroRetention = hasAcknowledgedZeroRetention();
+  readonly supportsZeroRetention = this.databaseApproved || hasAcknowledgedZeroRetention();
 
   async analyze(input: FaceVisionInput) {
-    if (isOpenAIFaceProvider(process.env.FACE_VISION_PROVIDER)) {
+    if (this.databaseApproved || isOpenAIFaceProvider(process.env.FACE_VISION_PROVIDER)) {
       return parseOpenAIImage({
         ...input,
         schema: faceVisionResultSchema,
         schemaName: "face_visible_geometry",
-        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋，以及額頭、眉毛、眼睛、鼻子、臉頰、嘴巴、下顎、耳朵八區的可見度、相對寬高、輪廓、對稱與光線。不可推論任何人格、命運、健康或敏感屬性。"
+        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋，以及額頭、眉毛、眼睛、鼻子、臉頰、嘴巴、下顎、耳朵八區的可見度、相對寬高、輪廓、對稱與光線。不可推論任何人格、命運、健康或敏感屬性。",
+        databaseApproved: this.databaseApproved
       });
     }
 

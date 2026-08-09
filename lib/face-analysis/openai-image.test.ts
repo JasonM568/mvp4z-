@@ -53,6 +53,14 @@ describe("OpenAI face provider safety gates", () => {
     expect(provider.supportsZeroRetention).toBe(false);
   });
 
+  it("accepts a named-admin database approval without requiring duplicate env attestation", () => {
+    delete process.env.FACE_VISION_PROVIDER;
+    process.env.FACE_VISION_ZERO_RETENTION = "false";
+    const provider = new ConfiguredFaceVisionProvider(true);
+    expect(provider.name).toBe("openai_face_vision");
+    expect(provider.supportsZeroRetention).toBe(true);
+  });
+
   it("fails before creating an API request when retention is not acknowledged", async () => {
     process.env.FACE_VISION_ZERO_RETENTION = "false";
     await expect(parseOpenAIImage({

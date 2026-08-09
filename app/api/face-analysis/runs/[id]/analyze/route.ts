@@ -18,6 +18,7 @@ import { generateFaceReport, renderFaceReportText } from "@/lib/face-analysis/re
 import { faceQualityResultSchema } from "@/lib/face-analysis/schema";
 import { isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
 import { getPublishedFaceKnowledge } from "@/lib/face-analysis/knowledge";
+import { getActiveOpenAIZdrApproval } from "@/lib/face-analysis/provider-approval";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     await appendFaceRunEvent({ runId: run.id, userId: profile.id, eventType: "analysis_started" });
     const bytes = await downloadPrivateImage(run.storage_path);
     const visionStartedAt = Date.now();
-    const visionProvider = new ConfiguredFaceVisionProvider();
+    const visionProvider = new ConfiguredFaceVisionProvider(Boolean(await getActiveOpenAIZdrApproval()));
     const vision = await runFaceVisionProvider(visionProvider, {
       bytes,
       mimeType: run.mime_type as "image/jpeg" | "image/png" | "image/webp"

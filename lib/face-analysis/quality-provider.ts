@@ -4,6 +4,7 @@ import {
   isOpenAIFaceProvider,
   parseOpenAIImage
 } from "@/lib/face-analysis/openai-image";
+import { getActiveOpenAIZdrApproval } from "@/lib/face-analysis/provider-approval";
 
 export const providerObservationSchema = z.object({
   faceCount: z.number().int().min(0).max(20),
@@ -30,8 +31,9 @@ export async function inspectFaceGeometry(input: {
   bytes: Buffer;
   mimeType: string;
 }): Promise<FaceProviderObservation> {
-  if (isOpenAIFaceProvider(process.env.FACE_QUALITY_PROVIDER)) {
-    if (!hasAcknowledgedZeroRetention()) {
+  const databaseApproved = Boolean(await getActiveOpenAIZdrApproval());
+  if (databaseApproved || isOpenAIFaceProvider(process.env.FACE_QUALITY_PROVIDER)) {
+    if (!databaseApproved && !hasAcknowledgedZeroRetention()) {
       throw new FaceQualityProviderError("QUALITY_RETENTION_POLICY_UNSUPPORTED", 503);
     }
     try {
@@ -39,7 +41,8 @@ export async function inspectFaceGeometry(input: {
         ...input,
         schema: providerObservationSchema,
         schemaName: "face_quality_geometry",
-        task: "只為照片品質檢查回傳人臉數量、最大人臉畫面覆蓋比例、頭部 yaw/pitch/roll，以及眼睛、鼻子、嘴巴是否被遮擋。不得進行面相解讀。"
+        task: "只為照片品質檢查回傳人臉數量、最大人臉畫面覆蓋比例、頭部 yaw/pitch/roll，以及眼睛、鼻子、嘴巴是否被遮擋。不得進行面相解讀。",
+        databaseApproved
       });
     } catch (error) {
       if (error instanceof FaceQualityProviderError) throw error;
