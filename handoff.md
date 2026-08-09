@@ -1765,7 +1765,8 @@ Resend 網域未驗證時的限制（已向使用者說明）：
 
 ## 2026-08-09 交接：轉 Codex 執行
 
-分支：`feature/yixue-engine-and-admin-maintenance`（未 push、未部署）
+分支：`feature/yixue-engine-and-admin-maintenance`　commit：`b83038d`（未 push、未部署）
+舊原型封存 commit：`00aafa2` on `xunfeng-yixue-system`（未 push）
 本次工作完整紀錄見 `worklog.md` 同日期章節。
 
 ### 已完成並驗證（tsc / build / 73 項測試全綠）
