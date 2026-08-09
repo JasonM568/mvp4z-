@@ -1877,6 +1877,20 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 3. 確認 quality／vision provider URL 與零保留政策後，才進小流量開啟。
 4. production merge 前另開 Next 16 升級驗證，不與本批功能整合混在同一 commit。
 
+### 2026-08-10 Preview E2E 驗收
+
+- 建立單次受保護 Preview `dpl_FjQG5X42vUSAuu5r2ZtjF7yxdsUk`，只開 server-side face flag；前端旗標、Vision、Quality、OpenAI 均未注入。
+- 知識庫 API：原有草稿 28、create 201、patch version 2、revision 2 筆、export 29、archive 200；E2E 卡與 revisions 已清除，恢復 28 筆。
+- 會員 API：兩個短命會員完成 0 點建立、requestId 冪等、owner 200、cross-owner 404、敏感欄位不回傳、刪除冪等、扣點 0。
+- authenticated 直讀 `face_analysis_runs` 回 403；兩個 auth user 與 run/entitlement/transactions 已清除，舊 token 回 401；runs/events 恢復 0。
+- Preview 分支已補 Supabase key 與獨立 ADMIN_KEY；Production 環境未改。單次 E2E deployment 雖 server flag 開啟，但受 Vercel Protection 保護且測試帳號已撤銷。
+
+### 下一步安全關卡
+
+- 現有 report 已使用 OpenAI key，但照片品質與 Vision 仍要求獨立 provider URL。
+- 不可直接把人臉照片送往任何模型；必須先確認該組織帳號具備零資料保留／不訓練承諾，再設定 `FACE_VISION_ZERO_RETENTION=true`。
+- 可先實作 OpenAI adapter 並維持 fail-closed；在零保留政策確認前不做真實照片呼叫、不開 Production。
+
 ---
 
 ## 2026-08-09 Codex 接續｜老師純文字文件後台完成

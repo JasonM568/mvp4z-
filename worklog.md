@@ -183,3 +183,10 @@
 1. 部署最新 Preview；功能旗標繼續關閉。
 2. 執行具名 admin 知識庫 CRUD 與測試會員 owner/RLS E2E。
 3. 確認 provider 與零保留政策後才小流量開啟。
+
+## 2026-08-10｜受保護 Preview E2E
+
+- 知識庫 CRUD／revision／export／archive 全通過；測試卡已清除，正式草稿維持 28。
+- 會員 0 點建立、requestId 冪等、owner/cross-owner、欄位遮蔽、刪除冪等與零扣點全通過。
+- authenticated 直讀 base table 為 403；短命帳號與所有關聯資料已清除，token 已 401，runs/events 為 0。
+- 下一步：先做 fail-closed OpenAI quality/vision adapter；零保留資格確認前不得送真實照片或開正式旗標。
