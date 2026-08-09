@@ -100,7 +100,7 @@ export function ScanningStep({
         </div>
 
         <div className="xf-scan-stage-current">
-          {finishing ? "順轉路徑生成完畢！" : stageLabels[stageIdx]}
+          {finishing ? "天機書生成完畢！" : stageLabels[stageIdx]}
         </div>
 
         <div className="xf-progress">

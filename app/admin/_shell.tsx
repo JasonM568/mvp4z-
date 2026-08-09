@@ -18,7 +18,7 @@ const NAV = [
   { href: "/admin/bookings", label: "預約名單" },
   { href: "/admin/orders", label: "訂單管理" },
   { href: "/admin/invoices", label: "發票管理" },
-  { href: "/admin/council-runs", label: "易學決策紀錄" },
+  { href: "/admin/council-runs", label: "四象問天機紀錄" },
   { href: "/admin/prompt-settings", label: "報告內容維護" },
   { href: "/admin/school-settings", label: "排盤流派設定" },
   { href: "/admin/documents", label: "老師文件" },

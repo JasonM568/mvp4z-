@@ -41,7 +41,7 @@ export default function DecisionPage() {
   const [memberStatus, setMemberStatus] = useState<"loading" | "guest" | "member">("loading");
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
   const [agreed, setAgreed] = useState(false);
-  const [reportFileBase, setReportFileBase] = useState("巽風易學決策報告");
+  const [reportFileBase, setReportFileBase] = useState("巽風四象天機書");
 
   useEffect(() => {
     const token = getMemberToken();
@@ -93,12 +93,12 @@ export default function DecisionPage() {
   const generateLabel = loading
     ? "掃描中…"
     : memberStatus === "loading"
-      ? "下一步：啟動四象掃描 →"
+      ? "生成天機書 →"
       : isGuest
         ? "登入會員後啟動掃描"
         : !canUseCouncil
           ? "升級方案後啟動掃描"
-          : "下一步：啟動四象掃描 →";
+          : "生成天機書 →";
 
   const costHint = useMemo(() => {
     if (!tier) return "";
@@ -305,11 +305,11 @@ export default function DecisionPage() {
   );
 }
 
-// 報告檔名基底：巽風易學決策報告_{案主姓名}_{YYYYMMDD-HHmm}
+// 報告檔名基底：巽風四象天機書_{案主姓名}_{YYYYMMDD-HHmm}
 // 檔名清掉不合法字元；無案主則用「未填案主」。
 function buildReportFileBase(clientName: string | undefined, at: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   const stamp = `${at.getFullYear()}${pad(at.getMonth() + 1)}${pad(at.getDate())}-${pad(at.getHours())}${pad(at.getMinutes())}`;
   const name = (clientName || "").replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "").slice(0, 40) || "未填案主";
-  return `巽風易學決策報告_${name}_${stamp}`;
+  return `巽風四象天機書_${name}_${stamp}`;
 }

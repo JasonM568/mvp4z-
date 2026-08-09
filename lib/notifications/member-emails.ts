@@ -27,7 +27,7 @@ export async function sendRegistrationEmail(input: RegistrationEmailInput) {
       ? [
           "【註冊好禮】",
           `我們已為您預存 ${input.trialCredits} 點免費體驗點數（效期 ${input.trialDays} 天），可立即用於：`,
-          "・易學決策報告：每份 20 點，由風羿老師多維校核系統產製",
+          "・四象問天機：每份 20 點，生成《巽風四象天機書》",
           "・AI 會員諮詢：與系統對話，依 AI 回覆字數計點（每 1000 字 1 點）",
           ""
         ]

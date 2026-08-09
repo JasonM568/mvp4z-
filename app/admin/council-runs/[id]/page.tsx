@@ -51,7 +51,7 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
 
   async function deleteRun() {
     if (!id || !run) return;
-    const ok = window.confirm("確定要刪除這一份易學決策報告？刪除後後台將不再顯示這份報告。");
+    const ok = window.confirm("確定要刪除這一份《巽風四象天機書》？刪除後後台將不再顯示這份天機書。");
     if (!ok) return;
 
     setDeleting(true);
@@ -95,7 +95,7 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
         </button>
       </div>
 
-      <h1 style={{ marginTop: 14 }}>巽風易學決策報告詳情</h1>
+      <h1 style={{ marginTop: 14 }}>巽風四象天機書詳情</h1>
       <p className="lead">
         {new Date(run.created_at).toLocaleString("zh-TW")} ｜ {run.profiles?.email || run.user_id}
       </p>

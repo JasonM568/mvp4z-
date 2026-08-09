@@ -103,7 +103,7 @@ export default function PromptSettingsPage() {
 
   async function publish() {
     if (dirty && !window.confirm("還有未儲存的修改不會被發布。要先發布已儲存的草稿嗎？")) return;
-    if (!window.confirm("發布後，之後每一份易學決策報告都會採用這份設定。確定發布？")) return;
+    if (!window.confirm("發布後，之後每一份《巽風四象天機書》都會採用這份設定。確定發布？")) return;
     setSaving(true);
     setMessage("");
     try {
@@ -134,7 +134,7 @@ export default function PromptSettingsPage() {
     <>
       <h1>報告內容維護</h1>
       <p className="lead">
-        易學決策報告的專業內容。修改後先存成草稿，確認無誤再發布；發布後之後的每一份報告都會採用。
+        《巽風四象天機書》的專業內容。修改後先存成草稿，確認無誤再發布；發布後之後的每一份天機書都會採用。
       </p>
 
       {state.setup_required && (

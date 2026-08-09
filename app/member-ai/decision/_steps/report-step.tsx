@@ -44,11 +44,11 @@ export function ReportStep({
   return (
     <section className="section" style={{ paddingTop: 26 }}>
       <div className="wrap xf-report-wrap">
-        <div className="xf-step-hint">步驟 3/3：你的順轉路徑</div>
+        <div className="xf-step-hint">步驟 3/3：四象合參</div>
 
         <header className="xf-report-head">
           {question && <p className="xf-report-question">你問的是：「{question}」</p>}
-          <h1 className="xf-report-title">《風羿・四象順轉導航》</h1>
+          <h1 className="xf-report-title">《巽風四象天機書》</h1>
           {reportMeta?.date && <p className="xf-report-date">{reportMeta.date} 生成</p>}
           {notice && <div className="status ok" style={{ marginTop: 10 }}>{notice}</div>}
         </header>

@@ -17,7 +17,7 @@ type Block =
 
 const SECTION_RE = /^[一二三四五六七八九十]+、/;
 const OL_RE = /^\d+[.、]\s*/;
-const DOC_TITLE = "巽風易學綜合決策報告";
+const DOC_TITLE = "巽風四象天機書";
 
 export function parseReport(text: string): Block[] {
   const lines = text.split("\n").map((l) => l.replace(/\s+$/, ""));

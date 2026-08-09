@@ -57,7 +57,7 @@ export function ShareCardButton({
     const file = new File([preview.blob], fileName, { type: "image/png" });
     if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({ files: [file], title: "風羿・四象順轉導航" });
+        await navigator.share({ files: [file], title: "巽風四象天機書" });
         return;
       } catch (err: any) {
         if (err?.name === "AbortError") return; // 使用者取消分享，不強制下載
@@ -85,7 +85,7 @@ export function ShareCardButton({
             <span className="xf-card-logo">巽風</span>
             <span className="xf-card-brand-sub">巽風堪輿研究中心</span>
           </div>
-          <div className="xf-card-title">風羿・四象順轉導航</div>
+          <div className="xf-card-title">巽風四象天機書</div>
           {question && <div className="xf-card-question">「{truncate(question, 40)}」</div>}
           <div className="xf-card-ring">
             <ResonanceRing value={structured.resonance} size={140} stroke={11} color="#d2a954" />

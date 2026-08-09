@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       tierFeatures: (entitlement.tier_features || {}) as TierFeatures
     });
     if (!tier.canUseCouncil) {
-      throw statusError("目前方案不含易學決策報告，請升級至基礎會員以上", 403);
+      throw statusError("目前方案不含四象問天機，請升級至基礎會員以上", 403);
     }
 
     // 3. 計算本月免費額度使用量

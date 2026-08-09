@@ -30,7 +30,7 @@ export default function CouncilRunsPage() {
 
   return (
     <>
-      <h1>易學決策紀錄</h1>
+      <h1>四象問天機紀錄</h1>
       <p className="lead">每份報告的 7 次 LLM 校核結果、token 用量、扣點明細。</p>
 
       <div className="admin-table-wrap">

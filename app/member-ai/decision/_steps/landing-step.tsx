@@ -29,15 +29,13 @@ export function LandingStep({
             <span className="xf-compass-mark xf-compass-mark-s">測</span>
             <span className="xf-compass-mark xf-compass-mark-w">感</span>
           </div>
-          <h1 className="xf-landing-title">天機四象 · 順轉人生</h1>
+          <h1 className="xf-landing-title">四象問天機</h1>
           <p className="xf-landing-sub">
-            四術聯算：八字・奇門・六爻・梅花。
-            <br />
-            輸入你的當下困局，幫你找到「轉」的方向。
+            命、局、卦、象，四術合參，一事定向。
           </p>
           <div className="xf-landing-cta">
             <button className="btn primary xf-cta-main" onClick={onStart}>
-              🧭 開始順轉我的人生
+              🧭 開始問天機
             </button>
           </div>
           <p className="xf-landing-trust">四套古法交叉驗算・約需 2 分鐘</p>
@@ -63,13 +61,13 @@ export function LandingStep({
               </span>
               <h2 style={{ fontSize: 26, lineHeight: 1.4, margin: "8px 0 10px" }}>
                 {gate.isGuest
-                  ? "順轉導航為會員專屬功能"
+                  ? "四象問天機為會員專屬功能"
                   : `您目前的方案（${gate.planLabel}）尚未包含此功能`}
               </h2>
               <p className="lead" style={{ fontSize: 17 }}>
                 {gate.isGuest
                   ? "本報告由風羿老師多維校核系統產製，需登入會員並具備可用點數才能啟動四象掃描。請先登入或註冊會員。"
-                  : "順轉導航需基礎會員（含）以上方案，升級後即可使用四術同步多維校核報告。"}
+                  : "四象問天機需基礎會員（含）以上方案，升級後即可生成四術合參的天機書。"}
               </p>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
                 {gate.isGuest ? (

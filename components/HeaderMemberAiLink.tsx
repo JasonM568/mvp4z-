@@ -12,9 +12,7 @@ export function HeaderMemberAiLink() {
   return (
     <>
       <a href="/member-ai">AI 會員版</a>
-      {process.env.NEXT_PUBLIC_FACE_ANALYSIS_ENABLED === "true" && (
-        <a href="/member-ai/face">面相分析</a>
-      )}
+      <a href="/member-ai/face">面相系統</a>
     </>
   );
 }

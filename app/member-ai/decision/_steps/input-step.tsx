@@ -342,7 +342,7 @@ export function InputStep({
             {canUseCouncil && (
               <div className="consent-box">
                 <p className="consent-rule">
-                  扣點規則：每生成一份順轉導航報告，將扣 <strong>{councilCost} 點</strong>。報告生成後即扣點（未通過交付門檻會自動退回）。
+                  扣點規則：每生成一份《巽風四象天機書》，將扣 <strong>{councilCost} 點</strong>。天機書生成後即扣點（未通過交付門檻會自動退回）。
                 </p>
                 <label className="consent-check">
                   <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /> 已閱讀並同意扣點規則

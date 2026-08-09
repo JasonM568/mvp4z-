@@ -63,7 +63,7 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
         </a>
 
         <div style={card}>
-          <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>巽風易學決策報告詳情</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>巽風四象天機書詳情</h1>
           <div style={{ color: "#64748b", marginTop: 4, fontSize: 13 }}>
             {new Date(run.created_at).toLocaleString("zh-TW")} ｜ {run.profiles?.email || run.user_id}
           </div>

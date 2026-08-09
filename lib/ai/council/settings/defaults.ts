@@ -88,7 +88,7 @@ export const DEFAULT_PROMPT_SETTINGS: PromptSettings = {
         "奇門遁甲：部署、時間窗口、方位、人事攻防",
         "卜卦／六爻：成敗、卡點、應期、條件",
         "梅花易數：象意、變化、觸發訊號",
-        "四術交叉驗證",
+        "四象合參",
         "風險控管與停損條件",
         "7日、14日、30日 KPI",
         "最終決策建議",
@@ -167,7 +167,7 @@ export const DEFAULT_PROMPT_SETTINGS: PromptSettings = {
       body: "正式報告「只能」分析並輸出這些術數，絕對不要出現未啟用的術數（未啟用者一律不提、不要寫「資料不足無法判斷」之類占位內容）。每一個啟用術數都要依：資料輸入、推理過程、初步判斷、風險點、可行策略、本術數小結 完整輸出。"
     },
     layoutHeading: "正式報告格式（嚴格依下列段落與順序，中文序號照抄）：",
-    reportTitle: "巽風易學綜合決策報告",
+    reportTitle: "巽風四象天機書",
     overview: {
       title: "個案總論",
       items: [
@@ -185,7 +185,7 @@ export const DEFAULT_PROMPT_SETTINGS: PromptSettings = {
     },
     termSubsections: ["資料輸入", "推理過程", "初步判斷", "風險點", "可行策略", `${T.TERM_NAME}小結`],
     crossValidation: {
-      title: "術數交叉驗證",
+      title: "四象合參",
       items: ["同向訊號", "矛盾訊號", "權重排序", "綜合判斷"],
       body: ""
     },
@@ -210,7 +210,7 @@ export const DEFAULT_PROMPT_SETTINGS: PromptSettings = {
   },
 
   fallbackReport: {
-    reportTitle: "巽風易學綜合決策報告",
+    reportTitle: "巽風四象天機書",
     overview: {
       title: "個案總論",
       items: [
@@ -243,7 +243,7 @@ export const DEFAULT_PROMPT_SETTINGS: PromptSettings = {
       梅花易數: "本段需補動爻、互卦、變卦資料，方能完整判斷後勢。"
     },
     crossValidation: {
-      title: "四術交叉驗證",
+      title: "四象合參",
       items: [
         "同向訊號：四術共同指向「資料尚需補強，暫不宜做不可逆決策」。",
         "矛盾訊號：尚待補齊資料後再判定。",

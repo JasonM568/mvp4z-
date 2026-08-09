@@ -61,7 +61,7 @@ export default function CouncilRunsPage() {
   return (
     <main style={{ minHeight: "100vh", padding: "32px 24px", fontFamily: "system-ui, -apple-system, sans-serif", background: "#f7f9fc" }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>巽風易學決策報告｜後台</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>四象問天機｜後台</h1>
         <p style={{ color: "#607089", marginBottom: 24 }}>近 50 份報告紀錄（含 fallback、token、扣點狀況）。</p>
 
         <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
