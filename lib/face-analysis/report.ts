@@ -21,6 +21,7 @@ export async function generateFaceReport(input: {
   subjectAge: number | null;
   quality: FaceQualityResult;
   rules: FaceRuleResult;
+  knowledge?: Array<{ cardId: string; title: string; category: string; observation: string; editorSummary: string | null }>;
 }) {
   const client = createOpenAIClient();
   const startedAt = Date.now();
@@ -37,6 +38,7 @@ export async function generateFaceReport(input: {
         limitations: input.quality.reasons
       },
       rules: input.rules,
+      approvedKnowledge: (input.knowledge || []).map((item) => ({ cardId: item.cardId, title: item.title, category: item.category, observation: item.observation, editorSummary: item.editorSummary })),
       fixedDisclaimer: FACE_REPORT_DISCLAIMER
     }),
     text: { format: zodTextFormat(faceReportSchema, "face_analysis_report") },
@@ -88,4 +90,3 @@ export function renderFaceReportText(report: FaceReport) {
   );
   return sections.join("\n\n");
 }
-

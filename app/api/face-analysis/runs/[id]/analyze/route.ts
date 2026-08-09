@@ -17,6 +17,7 @@ import { applyFaceRules } from "@/lib/face-analysis/rules";
 import { generateFaceReport, renderFaceReportText } from "@/lib/face-analysis/report";
 import { faceQualityResultSchema } from "@/lib/face-analysis/schema";
 import { isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
+import { getPublishedFaceKnowledge } from "@/lib/face-analysis/knowledge";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -74,11 +75,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
     const rules = applyFaceRules({ vision, mode: run.mode, subjectAge: run.subject_age });
     const quality = faceQualityResultSchema.parse(run.quality_result);
+    const approvedKnowledge = await getPublishedFaceKnowledge();
     const generated = await generateFaceReport({
       mode: run.mode,
       subjectAge: run.subject_age,
       quality,
-      rules
+      rules,
+      knowledge: approvedKnowledge
     });
     const reportText = renderFaceReportText(generated.report);
     const modelTrace = {
@@ -88,6 +91,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         latencyMs: Date.now() - visionStartedAt
       },
       report: generated.trace
+      ,knowledgeSources: approvedKnowledge.map((item) => item.cardId)
     };
 
     const { error: reportWriteError } = await admin
@@ -98,6 +102,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         report_structured: generated.report,
         report_text: reportText,
         model_trace: modelTrace
+        ,knowledge_sources_used: approvedKnowledge.map((item) => ({ cardId: item.cardId, title: item.title, sourceFile: item.sourceFile, sourcePages: item.sourcePages }))
       })
       .eq("id", run.id)
       .eq("user_id", profile.id)
