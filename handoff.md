@@ -1,8 +1,14 @@
 # Handoff
 
-更新時間：2026-05-19 Asia/Taipei，整合測試進度
+**最新進度請直接跳到檔案最末章節「2026-08-06 收工｜『天機四象 · 順轉人生』改版上線 + 無敵測試帳號」。**
 
-## 目前狀態
+本檔為累積式紀錄，章節依日期由舊到新排列。下方「目前狀態」「已完成」「尚未完成」「電子發票串接 TODO」「下次建議先做」等未標日期的章節，皆是 **2026-05-19 專案骨架期**的內容，已大量過期，僅供追溯，勿據以開工。已知過期處已就地加上 ⚠️ 更正框。
+
+系統架構的權威描述見 `docs/SYSTEM_ARCHITECTURE.md`，點數與方案規則見 `CLAUDE.md`。
+
+---
+
+## 目前狀態（2026-05-19 骨架期，已過期）
 
 這是巽風官方網站 V2 的本機新專案，目標是把舊版 Cloudflare Pages + Worker + D1 架構，改成 Next.js + Supabase + 綠界金流 + OpenAI + Vercel。
 
@@ -220,11 +226,23 @@ git status --short --branch
 
 ## 尚未完成
 
+> ⚠️ 2026-08-09 更正：本節與下方「電子發票串接 TODO」是 2026-05-19 的狀態，**三項皆已完成**，勿再依此開工。
+> 發票已實作（見下方更正框）、AI chat 有 `npm run test:ai-chat-e2e`、Vercel 已上正式站 `www.xunfeng.tw`。
+
 - **電子發票串接**（依台灣稅法，付款成功後須開立統一發票，目前完全沒做。詳見下方「電子發票串接 TODO」）。
 - AI chat 流程尚未完整端到端驗證。
 - Vercel 部署設定（新 GitHub repo 已存在 `JasonM568/mvp4z-`，但 Vercel project 還沒建）。
 
 ## 電子發票串接 TODO
+
+> ⚠️ 2026-08-09 更正：本章節已過期，僅保留為當時的設計討論紀錄。實際狀態：
+>
+> - **供應商不是綠界，是 ezPay**（migration `0012_ezpay_invoice_provider_trans_no.sql` 切換），實作在 `lib/payments/ezpay-invoice.ts` + `lib/payments/ezpay-config.ts`。
+> - `invoices` 表與 RLS 已建：migration `0008_invoices.sql`、`0009_invoices_rls.sql`，另在 `orders` 加 `invoice_request` jsonb 與 `legacy_no_invoice` 旗標。
+> - 付款後自動開票已接上：`/api/payments/ecpay/notify` 呼叫 `lib/payments/issue-invoice-from-order.ts`，開票失敗不阻擋付款流程，僅記錄並可後台補開。
+> - 管理介面與 API 已有：`/admin/invoices`、`GET /api/admin/invoices`、`POST /api/admin/invoices/[orderId]/issue`。
+> - 環境檢查與 E2E：`npm run check:ezpay-env`、`npm run test:ezpay-invoice-e2e`。
+> - **仍未完成**：ezPay 目前跑 stage 環境（`EZPAY_INVOICE_ENV` 未設為 `production`），正式字軌未切；會員端「我的發票」查詢頁與作廢 API 未做。
 
 付款流程是收費系統的「前半段」，電子發票是「後半段」，目前**完全沒實作**，正式對外營運前必須補上。
 
@@ -1742,3 +1760,88 @@ Resend 網域未驗證時的限制（已向使用者說明）：
 1. 問使用者修正後的四階段流程實測結果（跳轉/儀表板/圖卡）。
 2. 有問題就修；沒問題可考慮 SPEC v2.0 擴充（歷史報告牆——structured 已落 DB，資料就緒）。
 3. 長時間程序：無。
+
+---
+
+## 2026-08-09 交接：轉 Codex 執行
+
+分支：`feature/yixue-engine-and-admin-maintenance`（未 push、未部署）
+本次工作完整紀錄見 `worklog.md` 同日期章節。
+
+### 已完成並驗證（tsc / build / 73 項測試全綠）
+
+1. SYSTEM_ARCHITECTURE.md 第 12 節四項已知問題全數處理。
+2. 排盤引擎 Phase 0：`lib/yixue/`，曆法底座與四柱，節氣對中央氣象署 5/5 吻合。
+3. 後台兩個維護頁：`/admin/prompt-settings`（報告內容）、`/admin/school-settings`（排盤流派，含即時試算）。
+4. 排盤已接進報告 prompt；表單新增出生地與精確時分。
+
+### ⚠️ 資料庫已改，程式未部署
+
+三個 migration **已套用正式專案** `pvasgmmjrodukudbzuhp`：
+
+| 檔案 | 內容 |
+|---|---|
+| `0015_prompt_profiles_and_documents.sql` | `ai_prompt_profiles`、`ai_documents`、`yixue-documents` storage bucket |
+| `0016_council_runs_chart.sql` | `council_runs.chart`、`council_runs.school_version` |
+| `0017_school_profiles.sql` | `ai_school_profiles` |
+
+全部純新增、向下相容，**目前線上的舊程式不會壞**（新欄位它不讀、新表它不查）。
+
+### 未完成事項（依優先順序）
+
+#### 1. 文件上傳（做到一半）
+
+使用者已定調：**先只做純文字檔**，不引入 PDF／Word 解析套件。
+
+已完成：
+- `lib/documents/text.ts` — 副檔名與大小限制、**Big5／UTF-8 編碼偵測**、字數計算、零寬字元清理。
+- DB 與 storage bucket 已建（`ai_documents` + `yixue-documents`）。
+
+待做：
+- `app/api/admin/documents/route.ts` — GET 列表、POST 上傳（`request.formData()`，上傳到 storage、抽文字存 `extracted_text` 與 `char_count`）
+- `app/api/admin/documents/[id]/route.ts` — PATCH（切換 `include_in_prompt`、改標題／分類）、DELETE（同時刪 storage 檔案）
+- `app/admin/documents/page.tsx` — 清單、上傳、勾選納入、字數預算顯示
+- `_shell.tsx` 的 `NAV` 加一筆
+
+關鍵約束：
+- 納入 prompt 的總字數上限 `DOCUMENT_CHAR_BUDGET = 6000`（`lib/ai/council/settings/schema.ts`）。理由是 prompt 一份報告要送 7 次，且過長會擠壓每次 45 秒的模型視窗。
+- 讀取端 `lib/ai/council/settings/load.ts` 的 `buildDocumentBlock()` **已經寫好並接上 council route**，會自動撈 `include_in_prompt = true` 的文件、裁到字數上限、超出的部分註明未納入。**後台做完就會自動生效，不用改 route。**
+- 圖片（jpg/png）之後若要支援，只能歸檔不能進 prompt——純文字模型讀不到。
+
+#### 2. 流派尚未定案就在出正式報告
+
+使用者選擇「現在就接進報告」，所以目前用的是暫定值（晚子進位／真太陽時全開／依精確時刻分節）。老師到 `/admin/school-settings` 定案並發布前，這段期間產出的報告與之後的盤會不一致。已把流派版本記進 `council_runs.school_version`，至少查得出來。
+
+**請盡快請風羿老師去後台定案。**
+
+#### 3. 排盤引擎後續階段
+
+Phase 0 只做到曆法底座與四柱。仍待實作：
+- Phase 1 八字（藏干、十神、旺衰、大運）— 需老師先拍板旺衰模型與起運法
+- Phase 2 梅花（三種起卦法、本互變卦、體用生剋）
+- Phase 3 六爻（納甲、世應、六親、六神、旬空）
+- Phase 4 奇門（局數三法、九星八門八神、值符值使）
+
+驗收需要老師提供 20–30 個手排好的已知命盤，這個蒐集時間比寫程式久，建議即刻開始要。
+完整規劃見 `/Users/jasonmchen/.claude/plans/quirky-fluttering-otter.md`。
+
+#### 4. 會員問答人設仍寫死
+
+`lib/ai/brand.ts` 的 `XUNFENG_PERSONA_CHAT` 還在程式裡。那是另一條計價路徑（每 1000 中文字 1 點），之後比照 council 搬進後台。
+
+### 環境變數待清理
+
+- `COUNCIL_CREDIT_COST` 仍在正式站，但 `lib/auth/tier.ts` 已寫死 20 點不讀它。
+- `GEMINI_API_KEY` / `DEEPSEEK_API_KEY` **正式站早就設好了**，先前交接寫「待補」是錯的，可從上線關卡劃掉。
+
+### 下次起手式
+
+1. `git checkout feature/yixue-engine-and-admin-maintenance`
+2. `npm install`（新增 tyme4ts、vitest）
+3. `npm run test:unit` 確認 73 項全綠
+4. 接文件上傳（第 1 項），後台做完即自動生效
+5. 部署前請老師先到兩個後台頁面實測一輪
+
+### 長時間程序
+
+無。

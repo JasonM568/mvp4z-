@@ -17,6 +17,11 @@ import { resolveTierFeatures, TierFeatures } from "@/lib/auth/tier";
 import { getMonthlyCouncilUsage } from "@/lib/auth/council-quota";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { councilSchema, CouncilRequest } from "@/lib/ai/council/schema";
+import { loadPromptSettings } from "@/lib/ai/council/settings/load";
+import { buildChartForCouncil } from "@/lib/ai/council/chart";
+import { loadSchool } from "@/lib/school-settings/load";
+import { renderChartDigest, renderChartForPrompt } from "@/lib/yixue/format/prompt";
+import type { PromptSettings } from "@/lib/ai/council/settings/schema";
 import {
   CouncilInput,
   debatePrompt,
@@ -102,8 +107,30 @@ export async function POST(request: NextRequest) {
       throw statusError("點數不足，請先儲值或升級方案", 403);
     }
 
-    // 5. 組 council input
-    const qualityGate = buildQualityGate(input as CouncilInput);
+    // 5. 載入報告設定（風羿老師後台維護的內容）
+    // 讀取失敗一律回退程式預設值，不讓設定問題打斷已經通過點數檢查的請求。
+    const prompt = await loadPromptSettings(Date.now());
+    if (prompt.fallbackReason) {
+      console.warn("[council] 使用預設報告設定", { reason: prompt.fallbackReason });
+    }
+
+    // 6. 系統排盤
+    // 純 CPU、預期 <1ms。任何失敗一律降級成 chart=null（等同排盤上線前的行為），
+    // 絕不 throw 出去——排盤引擎的 bug 不該有能力讓已通過點數檢查的報告產不出來。
+    const loadedSchool = await loadSchool(Date.now());
+    const school = loadedSchool.school;
+    if (loadedSchool.fallbackReason) {
+      console.warn("[council] 使用預設流派設定", { reason: loadedSchool.fallbackReason });
+    }
+    const { chart, error: chartError } = buildChartForCouncil(input as CouncilInput, school);
+    if (chartError) {
+      console.warn("[council] 排盤未完成，改用原始生辰資料", { reason: chartError });
+    }
+    const chartBlock = chart ? renderChartForPrompt(chart, school.label) : "";
+    const chartDigest = chart ? renderChartDigest(chart) : "";
+
+    // 7. 組 council input
+    const qualityGate = buildQualityGate(input as CouncilInput, prompt.settings);
     const councilInput: CouncilInput = {
       ...input,
       question: input.question.trim(),
@@ -113,40 +140,50 @@ export async function POST(request: NextRequest) {
       deliverableMode: input.deliverableMode || "商業決策顧問報告"
     };
 
-    // 6. 第一輪：三模型平行
-    const firstPrompt = buildFirstRoundPrompt(councilInput, qualityGate);
+    // 8. 第一輪：三模型平行
+    // 老師的參考文件只掛在第一輪與終稿。第二輪是攻擊第一輪的文字，不需要重讀原始資料，
+    // 而 prompt 每多一段就要多送 6 次（三模型兩輪），成本與逾時風險都會放大。
+    const firstPrompt = buildFirstRoundPrompt(councilInput, qualityGate, prompt.documentBlock, chartBlock);
     const firstRound = await Promise.all([
-      callOpenAI("openaiFengYi", "巽風主判讀分身", openaiFengYiSystem(), firstPrompt),
-      callGemini("geminiFengYi", "巽風策略推演分身", geminiFengYiSystem(), firstPrompt),
-      callDeepSeek("deepseekAttack", "巽風攻防反證分身", deepseekAttackSystem(), firstPrompt)
+      callOpenAI("openaiFengYi", "巽風主判讀分身", openaiFengYiSystem(prompt.settings), firstPrompt),
+      callGemini("geminiFengYi", "巽風策略推演分身", geminiFengYiSystem(prompt.settings), firstPrompt),
+      callDeepSeek("deepseekAttack", "巽風攻防反證分身", deepseekAttackSystem(prompt.settings), firstPrompt)
     ]);
     const firstRoundText = stringifyRound("第一輪：巽風多維初判", firstRound);
     const firstTokens = sumTokens(firstRound);
 
-    // 7. 第二輪：攻防修正（可由 env 關閉）
+    // 9. 第二輪：攻防修正（可由 env 關閉）
     let debateRound: ModelResult[] = [];
     let debateRoundText = "第二輪攻防未啟用。";
     let debateTokens = { in: 0, out: 0 };
     const enableDebate = (process.env.ENABLE_DEBATE_ROUND || "true").toLowerCase() === "true";
     if (enableDebate) {
-      const secondPrompt = buildDebatePrompt(councilInput, firstRoundText, qualityGate);
+      const secondPrompt = buildDebatePrompt(councilInput, firstRoundText, qualityGate, chartDigest);
       debateRound = await Promise.all([
-        callOpenAI("openaiFengYi", "巽風主判讀分身｜修正", openaiFengYiSystem(), secondPrompt),
-        callGemini("geminiFengYi", "巽風策略推演分身｜修正", geminiFengYiSystem(), secondPrompt),
-        callDeepSeek("deepseekAttack", "巽風攻防反證分身｜修正", deepseekAttackSystem(), secondPrompt)
+        callOpenAI("openaiFengYi", "巽風主判讀分身｜修正", openaiFengYiSystem(prompt.settings), secondPrompt),
+        callGemini("geminiFengYi", "巽風策略推演分身｜修正", geminiFengYiSystem(prompt.settings), secondPrompt),
+        callDeepSeek("deepseekAttack", "巽風攻防反證分身｜修正", deepseekAttackSystem(prompt.settings), secondPrompt)
       ]);
       debateRoundText = stringifyRound("第二輪：巽風多維攻防修正", debateRound);
       debateTokens = sumTokens(debateRound);
     }
 
-    // 8. 終稿
-    const finalPrompt = buildFinalPrompt(councilInput, firstRoundText, debateRoundText, qualityGate);
+    // 10. 終稿
+    const finalPrompt = buildFinalPrompt(
+      councilInput,
+      firstRoundText,
+      debateRoundText,
+      qualityGate,
+      prompt.settings,
+      prompt.documentBlock,
+      chartBlock
+    );
     // 終稿 prompt 最重（要讀完前兩輪上萬字再生成長報告），需要一次連續的長時間，
     // 重試救不了「慢但正常」的呼叫，所以給單次 110s、不重試。
     const final = await callOpenAI(
       "finalChatGPT",
       "風羿老師最終定稿分身",
-      fengYiFinalSystem(),
+      fengYiFinalSystem(prompt.settings),
       finalPrompt,
       { timeoutMs: 110000, attempts: 1 }
     );
@@ -177,7 +214,7 @@ export async function POST(request: NextRequest) {
     const finalLabel = finalOk ? final.label : "風羿老師備援交付稿";
     const finalText = finalOk
       ? cleanReportText(reportText)
-      : cleanReportText(buildSafeFallbackReport(councilInput));
+      : cleanReportText(buildSafeFallbackReport(councilInput, prompt.settings));
 
     const totalTokensIn = firstTokens.in + debateTokens.in + (final.tokensIn || 0);
     const totalTokensOut = firstTokens.out + debateTokens.out + (final.tokensOut || 0);
@@ -249,7 +286,12 @@ export async function POST(request: NextRequest) {
       total_tokens_in: totalTokensIn,
       total_tokens_out: totalTokensOut,
       credits_charged: actualCharge,
-      free_quota_used: actualFreeQuotaUsed
+      free_quota_used: actualFreeQuotaUsed,
+      // 記下本份報告採用的設定版本。老師日後改版時，舊報告仍能對回當時的設定。
+      prompt_profile_id: prompt.profileId,
+      // 排盤結果與當時的流派。流派改版後，舊報告的盤才有辦法重現。
+      chart,
+      school_version: chart ? school.id : null
     });
     if (runError) throw runError;
 
@@ -272,14 +314,19 @@ export async function POST(request: NextRequest) {
 
 const CJK_NUM = ["一", "二", "三", "四", "五", "六", "七"];
 
-function buildFirstRoundPrompt(input: CouncilInput, qualityGate: string) {
+function buildFirstRoundPrompt(
+  input: CouncilInput,
+  qualityGate: string,
+  documentBlock = "",
+  chartBlock = ""
+) {
   const terms = enabledTermNames(input.yixue?.modules);
   const termLines = terms.map((t, i) => `${CJK_NUM[i]}、${t}初判`).join("\n");
   const riskNum = CJK_NUM[terms.length] || `${terms.length + 1}`;
-  return `${firstRoundPrompt(input)}
+  return `${firstRoundPrompt(input, chartBlock)}
 
 ${qualityGate}
-
+${documentBlock ? `\n${documentBlock}\n` : ""}
 請用「巽風多維校核」身份進行內部判讀，不要在內容中提及任何底層模型名稱。
 
 本次只啟用以下術數：${terms.join("、")}，只判讀這些術數，未啟用者不要提及。
@@ -295,8 +342,13 @@ ${riskNum}、本輪初步風險與機會
 5. 可執行建議`;
 }
 
-function buildDebatePrompt(input: CouncilInput, firstRoundText: string, qualityGate: string) {
-  return `${debatePrompt(input, firstRoundText)}
+function buildDebatePrompt(
+  input: CouncilInput,
+  firstRoundText: string,
+  qualityGate: string,
+  chartDigest = ""
+) {
+  return `${debatePrompt(input, firstRoundText, chartDigest)}
 
 ${qualityGate}
 
@@ -317,14 +369,17 @@ function buildFinalPrompt(
   input: CouncilInput,
   firstRoundText: string,
   debateRoundText: string,
-  qualityGate: string
+  qualityGate: string,
+  settings: PromptSettings,
+  documentBlock = "",
+  chartBlock = ""
 ) {
   const terms = enabledTermNames(input.yixue?.modules);
-  return `${finalSummaryPrompt(input, firstRoundText, debateRoundText)}
+  return `${finalSummaryPrompt(input, firstRoundText, debateRoundText, chartBlock)}
 
 ${qualityGate}
-
-${buildFinalFormatPrompt(terms)}
+${documentBlock ? `\n${documentBlock}\n` : ""}
+${buildFinalFormatPrompt(terms, settings)}
 
 請整合第一輪與第二輪內容，但不要只摘要。正式報告必須把本次啟用的術數（${terms.join("、")}）各自拆開寫，每一個啟用術數都要有完整討論過程與結果；未啟用的術數不要出現。
 

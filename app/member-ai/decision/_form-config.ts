@@ -1,6 +1,8 @@
 // 巽風易學決策報告｜表單常數（從 v3 巽風 yixue system 搬入）
 // 抽到獨立檔案，方便 SSR / 後台共用、減少 page.tsx 行數
 
+import { TAIWAN_PLACES } from "@/lib/yixue/geo/places";
+
 export const years = Array.from({ length: 101 }, (_, i) => new Date().getFullYear() - i);
 export const eventYears = Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - 5 + i);
 export const months = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -31,6 +33,10 @@ export const topics = ["事業／工作", "財運／投資", "考試／升學", 
 export const reviewModes = ["啟用策略校核層", "啟用深度反證層", "不啟用"];
 export const genderOptions = ["男", "女", "其他／不指定", "企業主", "考生"];
 export const calendarOptions = ["國曆", "農曆"];
+
+// 出生地：只為真太陽時校正而收。清單直接取自排盤引擎的經緯度表，
+// 不另外維護一份，避免兩邊縣市名稱對不起來。
+export const birthPlaceOptions = ["不確定", ...TAIWAN_PLACES.map((p) => p.label), "海外／其他"];
 export const yesNoUncertain = ["否", "是", "不確定"];
 export const yesNoUncertain2 = ["是", "否", "不確定"];
 
@@ -55,6 +61,11 @@ export type CouncilForm = {
   birthMonth: number;
   birthDay: number;
   birthHourBranch: string;
+  /** 精確出生鐘點（選填）。有填時優先於時辰中點，真太陽時校正才有意義。 */
+  birthHour: string;
+  birthMinute: string;
+  /** 出生地縣市，用於真太陽時的經度校正。 */
+  birthPlace: string;
   isLeapMonth: string;
   birthTimeKnown: string;
   reviewMode: string;
@@ -104,6 +115,9 @@ export function buildInitialForm(): CouncilForm {
     birthMonth: 1,
     birthDay: 1,
     birthHourBranch: "寅",
+    birthHour: "",
+    birthMinute: "",
+    birthPlace: "不確定",
     isLeapMonth: "否",
     birthTimeKnown: "是",
     reviewMode: "啟用策略校核層",

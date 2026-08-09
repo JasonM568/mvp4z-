@@ -35,6 +35,13 @@
     }[s]));
   }
 
+  function serviceCta(s) {
+    // 數位服務（有 href）直接進站內功能頁，實體顧問服務走預約表單。
+    return s.href
+      ? `<a class="btn btn-primary" href="${escapeHTML(s.href)}">前往${escapeHTML(s.title)}</a>`
+      : `<a class="btn btn-primary" href="/booking">預約${escapeHTML(s.title)}</a>`;
+  }
+
   function renderServices(data) {
     const pricing = $("#cmsPricing");
     const cards = $("#cmsServices");
@@ -48,7 +55,7 @@
           <div class="price-range">${escapeHTML(s.price)}</div>
           <p class="price-note">${escapeHTML(s.note)}</p>
           <p>${escapeHTML(s.description)}</p>
-          <div class="actions"><a class="btn btn-primary" href="/booking">預約${escapeHTML(s.title)}</a></div>
+          <div class="actions">${serviceCta(s)}</div>
         </article>
       `).join("");
     }

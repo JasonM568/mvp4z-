@@ -19,6 +19,8 @@ const NAV = [
   { href: "/admin/orders", label: "訂單管理" },
   { href: "/admin/invoices", label: "發票管理" },
   { href: "/admin/council-runs", label: "易學決策紀錄" },
+  { href: "/admin/prompt-settings", label: "報告內容維護" },
+  { href: "/admin/school-settings", label: "排盤流派設定" },
   { href: "/admin/token-usage", label: "Token 用量" }
 ];
 

@@ -96,7 +96,11 @@ export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) 
         month: form.birthMonth,
         day: form.birthDay,
         hourBranch: form.birthHourBranch,
-        timeKnown: form.birthTimeKnown
+        timeKnown: form.birthTimeKnown,
+        // 以下為選填精度補充。空字串代表未填，後端會退回時辰中點與預設經度。
+        hour: form.birthHour,
+        minute: form.birthMinute,
+        place: form.birthPlace
       },
       eventTime: {
         year: form.eventYear,

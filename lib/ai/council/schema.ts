@@ -21,7 +21,12 @@ export const councilSchema = z.object({
           month: z.union([z.number(), z.string()]).optional(),
           day: z.union([z.number(), z.string()]).optional(),
           hourBranch: z.string().optional(),
-          timeKnown: z.string().optional()
+          timeKnown: z.string().optional(),
+          // 2026-08-09 新增的精度欄位，一律 optional：舊版前端與既有測試腳本
+          // 不帶這些欄位仍須通過驗證，不可回 400。
+          hour: z.union([z.number(), z.string()]).optional(),
+          minute: z.union([z.number(), z.string()]).optional(),
+          place: z.string().optional()
         })
         .optional(),
       eventTime: z

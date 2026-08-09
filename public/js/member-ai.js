@@ -23,7 +23,7 @@ function addMsg(role, text){
 
 async function loadMe(){
   try{
-    const me = await api("/api/me");
+    const me = await api("/api/member/me");
     if(me.member.status !== "active") location.href = "/member";
     $("memberLine").textContent = `${me.member.name || me.member.email}｜${me.member.plan}｜剩餘 ${me.member.credits_remaining} 次｜到期 ${me.member.expires_at}`;
   }catch(e){
@@ -58,7 +58,7 @@ async function sendChat(presetText){
   $("sendBtn").disabled = true;
   $("sendBtn").textContent = "推演中…";
   try{
-    const data = await api("/api/chat", {method:"POST", body: JSON.stringify({
+    const data = await api("/api/ai/chat", {method:"POST", body: JSON.stringify({
       message,
       history: chatHistory.slice(-12)
     })});

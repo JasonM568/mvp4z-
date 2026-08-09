@@ -4,6 +4,7 @@
 
 import {
   baziModes,
+  birthPlaceOptions,
   calendarOptions,
   days,
   eventYears,
@@ -176,10 +177,31 @@ export function InputStep({
 
               <article className="panel">
                 <h2>出生資料補充</h2>
+                <p style={{ color: "var(--muted)", marginTop: -8, marginBottom: 18 }}>
+                  以下皆為選填。填得越精確，四柱與時柱的判定越準；出生地用於真太陽時校正，
+                  對出生在時辰交界前後的個案影響最明顯。
+                </p>
                 <div className="form council-grid-4">
                   <label>是否閏月<select value={form.isLeapMonth} onChange={(e) => update("isLeapMonth", e.target.value)}>{yesNoUncertain.map((x) => <option key={x}>{x}</option>)}</select></label>
                   <label>時辰是否確定<select value={form.birthTimeKnown} onChange={(e) => update("birthTimeKnown", e.target.value)}>{yesNoUncertain2.map((x) => <option key={x}>{x}</option>)}</select></label>
+                  <label>出生地<select value={form.birthPlace} onChange={(e) => update("birthPlace", e.target.value)}>{birthPlaceOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
                   <label>策略校核層<select value={form.reviewMode} onChange={(e) => update("reviewMode", e.target.value)}>{reviewModes.map((x) => <option key={x}>{x}</option>)}</select></label>
+                </div>
+                <div className="form council-grid-4">
+                  <label>
+                    出生時（選填）
+                    <select value={form.birthHour} onChange={(e) => update("birthHour", e.target.value)}>
+                      <option value="">不確定</option>
+                      {hours.map((h) => <option key={h} value={String(h)}>{String(h).padStart(2, "0")} 時</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    出生分（選填）
+                    <select value={form.birthMinute} onChange={(e) => update("birthMinute", e.target.value)}>
+                      <option value="">不確定</option>
+                      {minutes.map((m) => <option key={m} value={String(m)}>{String(m).padStart(2, "0")} 分</option>)}
+                    </select>
+                  </label>
                 </div>
               </article>
 

@@ -30,7 +30,7 @@ async function registerMember(){
     password: $("password").value
   };
   try{
-    const data = await api("/api/register",{method:"POST",body:JSON.stringify(payload)});
+    const data = await api("/api/auth/register",{method:"POST",body:JSON.stringify(payload)});
     setToken(data.token);
     $("status").className = "status ok";
     $("status").textContent = "註冊成功，已贈送 30 點免費體驗，正在進入 AI 會員版…";
@@ -43,7 +43,7 @@ async function registerMember(){
 
 async function loginMember(){
   try{
-    const data = await api("/api/login",{method:"POST",body:JSON.stringify({
+    const data = await api("/api/auth/login",{method:"POST",body:JSON.stringify({
       email:$("loginEmail").value.trim(),
       password:$("loginPassword").value
     })});
@@ -94,7 +94,7 @@ function showPaymentResult(){
 async function loadMember(){
   showPaymentResult();
   try{
-    const me = await api("/api/me");
+    const me = await api("/api/member/me");
     const m = me.member;
     $("memberName").textContent = m.name || m.email;
     $("memberPlan").textContent = m.plan || "尚未啟用";
@@ -142,7 +142,7 @@ if(document.readyState === "loading"){
 
 async function redeemCode(){
   try{
-    const data = await api("/api/redeem",{method:"POST",body:JSON.stringify({code:$("code").value.trim()})});
+    const data = await api("/api/member/redeem",{method:"POST",body:JSON.stringify({code:$("code").value.trim()})});
     $("redeemStatus").className = "status ok";
     $("redeemStatus").textContent = "啟用成功：" + data.plan + "，可用次數：" + data.credits_remaining;
     await loadMember();
