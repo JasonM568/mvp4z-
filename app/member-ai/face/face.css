@@ -35,8 +35,17 @@
 .face-upload { display: inline-flex; align-items: center; }
 .face-upload input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .face-consents { display: grid; gap: 13px; padding: 18px; border-radius: 14px; background: rgba(255,255,255,.04); color: #c9c2b5; line-height: 1.6; }
-.face-consents label { display: flex; align-items: flex-start; }
-.face-consents input { margin-top: 5px; flex: 0 0 auto; }
+.face-consents label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 10px; }
+.face-consents input {
+  appearance: auto;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin: 4px 0 0;
+  padding: 0;
+  border-radius: 3px;
+  flex: none;
+}
 .face-notice { padding: 13px 16px; border-left: 3px solid #d5ad60; background: rgba(213,173,96,.1); color: #f0dcae; line-height: 1.6; overflow-wrap: anywhere; }
 .face-submit { width: 100%; margin-top: 20px; }
 .face-quality-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 28px 0; }

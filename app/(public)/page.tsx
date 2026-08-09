@@ -9,23 +9,24 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
-      <section className="hero">
+      <section className="hero home-oracle">
         <div className="wrap">
           <div className="brand-anchor">
-            <div>
+            <div className="oracle-copy">
+              <div className="oracle-kicker"><span>巽</span> 風羿老師・四術決策</div>
               <h1 className="hero-title">
                 <span className="title-line title-main">
                   四象問天機
                 </span>
-                <span className="title-line accent">命・局・卦・象</span>
-                <span className="title-line accent">四術合參・一事定向</span>
+                <span className="oracle-four">命 <i>・</i> 局 <i>・</i> 卦 <i>・</i> 象</span>
               </h1>
+              <div className="oracle-motto">四術合參 <b>一事定向</b></div>
               <p className="lead">
-                以八字觀命、奇門定局、六爻斷卦、梅花取象，將四術結果交叉合參，為你當下的一件事找出方向，生成《巽風四象天機書》。
+                以八字觀命、奇門定局、六爻斷卦、梅花取象。四道術理彼此印證，為你正在面對的一件事辨明時機、局勢與行動方向。
               </p>
               <div className="hero-actions">
                 <a className="btn btn-gold" href="/member-ai/decision">
-                  開始問天機
+                  <span>開始問天機</span><span aria-hidden>→</span>
                 </a>
                 <a className="btn btn-ghost" href="/member-ai/face">
                   進入面相系統
@@ -34,17 +35,26 @@ export default function HomePage() {
                   查看企業顧問
                 </a>
               </div>
-              <div className="brand-points">
-                <div>四象問天機：命、局、卦、象四術合參</div>
-                <div>面相系統：正面影像品質檢查與民俗文化觀察</div>
-                <div>專業服務：重大決策與現場風水仍由風羿老師覆核</div>
+              <div className="oracle-methods" aria-label="四術">
+                <div><strong>命</strong><span>八字命理</span></div>
+                <div><strong>局</strong><span>奇門遁甲</span></div>
+                <div><strong>卦</strong><span>六爻占斷</span></div>
+                <div><strong>象</strong><span>梅花易數</span></div>
               </div>
             </div>
-            <img
-              data-image="brandAnchor"
-              src="/assets/brand-anchor.jpg"
-              alt="巽風堪輿研究中心品牌主視覺鎮山母圖"
-            />
+            <div className="oracle-visual" aria-hidden="true">
+              <div className="oracle-stars"><i /><i /><i /><i /><i /><i /></div>
+              <div className="oracle-compass">
+                <div className="oracle-ring oracle-ring-one"><span>乾</span><span>坎</span><span>艮</span><span>震</span></div>
+                <div className="oracle-ring oracle-ring-two"><span>巽</span><span>離</span><span>坤</span><span>兌</span></div>
+                <div className="oracle-core">
+                  <small>一事</small>
+                  <strong>定</strong>
+                  <small>一向</small>
+                </div>
+              </div>
+              <div className="oracle-seal">巽風<br />天機</div>
+            </div>
           </div>
         </div>
       </section>
@@ -58,21 +68,24 @@ export default function HomePage() {
             </div>
             <p className="section-desc">選擇你要進入的專業系統。</p>
           </div>
-          <div className="grid-3">
-            <article className="panel">
-              <div className="tag">FOUR METHODS</div>
+          <div className="grid-3 oracle-system-grid">
+            <article className="panel oracle-system-card oracle-system-primary">
+              <div className="oracle-card-mark">象</div>
+              <div className="tag">命・局・卦・象</div>
               <h3>四象問天機</h3>
               <p>命、局、卦、象，四術合參，一事定向。</p>
               <a className="btn btn-gold" href="/member-ai/decision">開始問天機</a>
             </article>
-            <article className="panel">
-              <div className="tag">FACE CULTURE</div>
+            <article className="panel oracle-system-card">
+              <div className="oracle-card-mark">相</div>
+              <div className="tag">觀形・察氣・讀勢</div>
               <h3>巽風面相系統</h3>
               <p>以正面照片進行品質檢查，產出可追溯的民俗文化觀察報告。</p>
               <a className="btn btn-primary" href="/member-ai/face">進入面相系統</a>
             </article>
-            <article className="panel">
-              <div className="tag">FENG YI CONSULTING</div>
+            <article className="panel oracle-system-card">
+              <div className="oracle-card-mark">師</div>
+              <div className="tag">現場勘驗・專業覆核</div>
               <h3>風羿老師專業諮詢</h3>
               <p>重大決策、陰陽宅與企業場域，預約老師本人進一步評估。</p>
               <a className="btn btn-ghost" href="/booking">預約專業諮詢</a>

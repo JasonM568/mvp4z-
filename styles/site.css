@@ -251,6 +251,237 @@ h3 { font-size: 24px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
 .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
 
+/* 首頁｜四象問天機：東方玄學主視覺 */
+.home-oracle {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 62px 0 88px;
+}
+.home-oracle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    linear-gradient(rgba(216,177,95,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(216,177,95,.035) 1px, transparent 1px),
+    radial-gradient(circle at 78% 44%, rgba(180,83,58,.17), transparent 22%),
+    radial-gradient(circle at 70% 40%, rgba(216,177,95,.14), transparent 42%);
+  background-size: 52px 52px, 52px 52px, auto, auto;
+  mask-image: linear-gradient(to bottom, black 75%, transparent);
+}
+.home-oracle .brand-anchor {
+  position: relative;
+  grid-template-columns: minmax(0, 1.08fr) minmax(380px, .92fr);
+  min-height: 650px;
+  padding: clamp(34px, 5vw, 68px);
+  overflow: hidden;
+  border-radius: 6px 54px 6px 54px;
+  border-color: rgba(216,177,95,.36);
+  background:
+    linear-gradient(115deg, rgba(7,17,15,.96), rgba(14,26,22,.88)),
+    rgba(7,17,15,.9);
+  box-shadow: 0 40px 100px rgba(0,0,0,.45), inset 0 0 80px rgba(216,177,95,.035);
+}
+.home-oracle .brand-anchor::before,
+.home-oracle .brand-anchor::after {
+  content: "";
+  position: absolute;
+  width: 86px;
+  height: 86px;
+  border-color: rgba(216,177,95,.6);
+  pointer-events: none;
+}
+.home-oracle .brand-anchor::before { left: 16px; top: 16px; border-left: 1px solid; border-top: 1px solid; }
+.home-oracle .brand-anchor::after { right: 16px; bottom: 16px; border-right: 1px solid; border-bottom: 1px solid; }
+.oracle-copy { position: relative; z-index: 2; }
+.oracle-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #cbb78a;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 13px;
+  letter-spacing: .32em;
+}
+.oracle-kicker span {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(180,83,58,.8);
+  color: #e9c977;
+  background: rgba(180,83,58,.18);
+  font-size: 18px;
+  letter-spacing: 0;
+  transform: rotate(45deg);
+}
+.oracle-kicker span::first-letter { transform: rotate(-45deg); }
+.home-oracle .hero-title {
+  margin: 34px 0 12px;
+  font-family: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+}
+.home-oracle .hero-title .title-main {
+  color: #f3e7c3;
+  font-size: clamp(54px, 6.6vw, 94px);
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-shadow: 0 8px 40px rgba(216,177,95,.12);
+}
+.oracle-four {
+  display: block;
+  margin-top: 20px;
+  color: #d8b15f;
+  font-size: clamp(22px, 2.4vw, 34px);
+  font-weight: 600;
+  letter-spacing: .45em;
+}
+.oracle-four i { color: #8d7950; font-style: normal; }
+.oracle-motto {
+  color: #d3c7ab;
+  font-family: "Noto Serif TC", "Songti TC", serif;
+  font-size: 18px;
+  letter-spacing: .22em;
+}
+.oracle-motto b { margin-left: 14px; color: #f1d58f; font-weight: 600; }
+.home-oracle .lead { max-width: 620px; margin-top: 24px; color: #bdb5a4; }
+.home-oracle .btn-gold {
+  color: #151008;
+  border-color: #d8b15f;
+  background: linear-gradient(135deg, #f1d58f, #bd8e37);
+  box-shadow: 0 16px 40px rgba(189,142,55,.2);
+}
+.oracle-methods {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin-top: 36px;
+  border: 1px solid rgba(216,177,95,.18);
+  background: rgba(216,177,95,.18);
+}
+.oracle-methods div { padding: 15px 10px; text-align: center; background: rgba(5,13,11,.94); }
+.oracle-methods strong {
+  display: block;
+  color: #e8c878;
+  font-family: "Noto Serif TC", serif;
+  font-size: 24px;
+  font-weight: 500;
+}
+.oracle-methods span { color: #8f887d; font-size: 11px; letter-spacing: .08em; }
+.oracle-visual { position: relative; min-height: 500px; display: grid; place-items: center; }
+.oracle-compass {
+  position: relative;
+  width: min(39vw, 430px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(216,177,95,.55);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(180,83,58,.19), transparent 27%), rgba(3,10,8,.45);
+  box-shadow: 0 0 0 18px rgba(216,177,95,.035), 0 0 90px rgba(216,177,95,.11), inset 0 0 50px rgba(0,0,0,.75);
+  animation: oracle-breathe 6s ease-in-out infinite;
+}
+.oracle-compass::before,
+.oracle-compass::after {
+  content: "";
+  position: absolute;
+  inset: 9%;
+  border: 1px dashed rgba(216,177,95,.32);
+  border-radius: 50%;
+  transform: rotate(22.5deg);
+}
+.oracle-compass::after { inset: 25%; border-style: solid; border-color: rgba(180,83,58,.38); }
+.oracle-ring { position: absolute; inset: 4%; border-radius: 50%; animation: oracle-turn 80s linear infinite; }
+.oracle-ring-two { inset: 17%; animation-direction: reverse; animation-duration: 58s; }
+.oracle-ring span {
+  position: absolute;
+  color: #d8b15f;
+  font-family: "Noto Serif TC", serif;
+  font-size: 22px;
+}
+.oracle-ring span:nth-child(1) { left: 50%; top: 0; transform: translateX(-50%); }
+.oracle-ring span:nth-child(2) { right: 0; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.oracle-ring span:nth-child(3) { left: 50%; bottom: 0; transform: translateX(-50%) rotate(180deg); }
+.oracle-ring span:nth-child(4) { left: 0; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+.oracle-core {
+  position: absolute;
+  inset: 34%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  border: 1px solid rgba(216,177,95,.5);
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, rgba(180,83,58,.35), rgba(7,17,15,.9));
+}
+.oracle-core > * { transform: rotate(-45deg); }
+.oracle-core strong { color: #f2d890; font-family: "Noto Serif TC", serif; font-size: 54px; line-height: 1; font-weight: 500; }
+.oracle-core small { color: #b8a57a; font-size: 10px; letter-spacing: .2em; }
+.oracle-seal {
+  position: absolute;
+  right: 1%;
+  bottom: 4%;
+  padding: 8px;
+  border: 2px solid rgba(180,83,58,.8);
+  color: #c76750;
+  font-family: "Noto Serif TC", serif;
+  font-size: 15px;
+  line-height: 1.25;
+  letter-spacing: .12em;
+  transform: rotate(-5deg);
+}
+.oracle-stars i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #e6c879; box-shadow: 0 0 12px #d8b15f; }
+.oracle-stars i:nth-child(1) { top: 10%; left: 10%; }.oracle-stars i:nth-child(2) { top: 19%; right: 7%; }
+.oracle-stars i:nth-child(3) { top: 52%; left: 3%; }.oracle-stars i:nth-child(4) { bottom: 15%; left: 15%; }
+.oracle-stars i:nth-child(5) { bottom: 8%; right: 22%; }.oracle-stars i:nth-child(6) { top: 36%; right: 1%; }
+.oracle-system-grid { align-items: stretch; }
+.oracle-system-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 330px;
+  padding: 34px;
+  border-radius: 4px 32px 4px 32px;
+  background: linear-gradient(145deg, rgba(16,31,26,.96), rgba(7,17,15,.94));
+}
+.oracle-system-card::after {
+  content: "";
+  position: absolute;
+  right: -50px;
+  bottom: -60px;
+  width: 170px;
+  height: 170px;
+  border: 1px solid rgba(216,177,95,.12);
+  border-radius: 50%;
+}
+.oracle-system-primary { border-color: rgba(216,177,95,.5); }
+.oracle-card-mark {
+  position: absolute;
+  right: 22px;
+  top: 10px;
+  color: rgba(216,177,95,.08);
+  font-family: "Noto Serif TC", serif;
+  font-size: 92px;
+  line-height: 1;
+}
+.oracle-system-card h3 { position: relative; color: #f1dfb3; font-family: "Noto Serif TC", serif; font-size: 29px; letter-spacing: .08em; }
+.oracle-system-card .btn { position: absolute; left: 34px; bottom: 30px; }
+@keyframes oracle-turn { to { transform: rotate(360deg); } }
+@keyframes oracle-breathe { 50% { box-shadow: 0 0 0 24px rgba(216,177,95,.025), 0 0 110px rgba(216,177,95,.16), inset 0 0 50px rgba(0,0,0,.75); } }
+@media (prefers-reduced-motion: reduce) { .oracle-compass, .oracle-ring { animation: none; } }
+@media (max-width: 900px) {
+  .home-oracle .brand-anchor { grid-template-columns: 1fr; }
+  .oracle-visual { min-height: 430px; }
+  .oracle-compass { width: min(78vw, 390px); }
+}
+@media (max-width: 640px) {
+  .home-oracle { padding-top: 28px; }
+  .home-oracle .brand-anchor { min-height: 0; padding: 34px 22px 44px; border-radius: 4px 32px 4px 32px; }
+  .home-oracle .hero-title .title-main { font-size: clamp(44px, 14vw, 62px); letter-spacing: .04em; }
+  .oracle-four { letter-spacing: .24em; }
+  .oracle-methods { grid-template-columns: repeat(2, 1fr); }
+  .oracle-visual { min-height: 340px; }
+  .oracle-compass { width: min(78vw, 320px); }
+  .oracle-system-card { min-height: 310px; }
+}
+
 .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
 .kpi {
   border: 1px solid var(--line);
