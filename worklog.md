@@ -161,7 +161,7 @@
 
 ### 下一步
 
-1. commit 本批次並推送功能分支。
-2. 建立 Preview，請老師實測 `/admin/prompt-settings`、`/admin/school-settings`、`/admin/documents`。
+1. 本批次已 commit `c0b19a2` 並推送功能分支。
+2. Preview 已 READY：`https://mvp4z-j98nzlhg4-tjs-projects-435187fd.vercel.app`；請老師實測 `/admin/prompt-settings`、`/admin/school-settings`、`/admin/documents`。
 3. 老師確認後才合併／部署易學功能。
 4. 易學穩定後，以最新主線重建面相整合分支並重編 migration，避免 0015～0017 撞號。

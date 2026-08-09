@@ -1867,13 +1867,13 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 - TypeScript 通過。
 - Vitest：77/77 通過。
 - Next production build 通過。
+- Preview 已建立且 READY：`https://mvp4z-j98nzlhg4-tjs-projects-435187fd.vercel.app`（deployment `dpl_E4adNWnjFgvjFHPVgJGzXPZhzCH9`）。
 
 ### 下一步（安全整合順序）
 
-1. commit 並 push 本功能分支。
-2. 建立 Preview，請風羿老師依序實測報告內容、排盤流派、老師文件三個後台頁面。
-3. 老師定案流派並發布後，才合併／部署易學功能。
-4. 易學上線穩定後，以最新主線整合面相功能；面相分支原本的 migration 0015～0021 必須重新編號，禁止直接 db push。
+1. 請風羿老師在 Preview 依序實測報告內容、排盤流派、老師文件三個後台頁面。
+2. 老師定案流派並發布後，才合併／部署易學功能。
+3. 易學上線穩定後，以最新主線整合面相功能；面相分支原本的 migration 0015～0021 必須重新編號，禁止直接 db push。
 
 ### 長時間程序
 
