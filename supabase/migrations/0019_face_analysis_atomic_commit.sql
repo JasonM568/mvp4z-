@@ -1,4 +1,4 @@
--- 巽風面相分析｜成功後原子扣 20 點並完成 run
+-- 0019｜巽風面相分析：成功後原子扣 20 點並完成 run
 
 create unique index if not exists idx_face_credit_debit_once
   on public.credit_transactions(source, ref_id)
@@ -112,4 +112,3 @@ revoke all on function public.commit_face_analysis_credit(uuid, uuid, uuid, uuid
   from public, anon, authenticated;
 grant execute on function public.commit_face_analysis_credit(uuid, uuid, uuid, uuid, integer)
   to service_role;
-

@@ -32,7 +32,7 @@
 
 ## 4. 技術環境與約束
 
-- migration 接續現有編號，建立 `supabase/migrations/0015_face_analysis_foundation.sql`。
+- migration 接續易學後台的 0015～0017，建立 `supabase/migrations/0018_face_analysis_foundation.sql`。
 - `service_role` 只能在 server-side 使用。
 - 原始照片不得寫入 `public/assets`、Git、log、usage_logs.prompt 或第三方分析服務。
 - Storage bucket 必須 private；下載只允許短效 signed URL，最長 5 分鐘。

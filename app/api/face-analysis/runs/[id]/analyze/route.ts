@@ -90,8 +90,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         model: process.env.FACE_VISION_MODEL || "organization-approved",
         latencyMs: Date.now() - visionStartedAt
       },
-      report: generated.trace
-      ,knowledgeSources: approvedKnowledge.map((item) => item.cardId)
+      report: generated.trace,
+      knowledgeSources: approvedKnowledge.map((item) => item.cardId)
     };
 
     const { error: reportWriteError } = await admin
@@ -101,8 +101,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         vision_result: vision,
         report_structured: generated.report,
         report_text: reportText,
-        model_trace: modelTrace
-        ,knowledge_sources_used: approvedKnowledge.map((item) => ({ cardId: item.cardId, title: item.title, sourceFile: item.sourceFile, sourcePages: item.sourcePages }))
+        model_trace: modelTrace,
+        knowledge_sources_used: approvedKnowledge.map((item) => ({
+          cardId: item.cardId,
+          title: item.title,
+          sourceFile: item.sourceFile,
+          sourcePages: item.sourcePages
+        }))
       })
       .eq("id", run.id)
       .eq("user_id", profile.id)

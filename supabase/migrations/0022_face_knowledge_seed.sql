@@ -1,3 +1,4 @@
+-- 0022｜第一批面相知識卡片草稿
 insert into public.face_knowledge_cards
   (card_id, title, category, school, technique, observation, teacher_original, editor_summary, safety_level, auto_report, source_file, source_pages, status)
 values

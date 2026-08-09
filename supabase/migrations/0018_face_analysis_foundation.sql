@@ -1,4 +1,4 @@
--- 巽風面相分析｜資料、隱私與私有照片儲存地基
+-- 0018｜巽風面相分析：資料、隱私與私有照片儲存地基
 -- 原始照片只能由 server-side service role 存取；一般 client 沒有 Storage object policy。
 
 create table if not exists public.face_analysis_runs (

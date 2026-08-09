@@ -1,3 +1,4 @@
+-- 0021｜面相老師知識庫
 create table if not exists public.face_knowledge_cards (
   id uuid primary key default gen_random_uuid(),
   card_id text not null unique,
