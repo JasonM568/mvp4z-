@@ -176,7 +176,7 @@
 - 唯讀確認 EZPay 欄位及 2026 方案點數已存在；baseline 可重跑。
 - `supabase db push --dry-run` 成功後已受控套用正式 schema，全程沒有 migration repair。
 - 遠端驗證：migration history 完全對齊；runs/events 皆 0；knowledge cards 28；anon 讀 base tables 401；方案點數不變。
-- Preview deployment `dpl_8T1YbpinETuYzNBRRAPfkPp3bhp2` READY，受 Vercel SSO 保護。
+- 最新 Preview deployment `dpl_9fsDzBLgzVcJXDbD8MSRpdxZTNUi` READY；CLI bypass smoke：公開頁 200、未授權 API 401、旗標關閉 POST 404。
 
 ### 下一步
 
