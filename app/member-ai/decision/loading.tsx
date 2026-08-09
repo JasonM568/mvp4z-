@@ -13,7 +13,7 @@ export default function Loading() {
             animation: "council-spin 0.8s linear infinite"
           }}
         />
-        <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: ".08em" }}>巽風易學決策系統</div>
+        <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: ".08em" }}>四象問天機</div>
         <div style={{ marginTop: 6, color: "var(--muted)", fontSize: 13 }}>載入工作台中⋯</div>
         <style>{`@keyframes council-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </article>

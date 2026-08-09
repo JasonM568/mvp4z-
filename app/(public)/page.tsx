@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "四象問天機｜巽風易學決策系統",
+  title: "四象問天機｜巽風堪輿研究中心",
   description:
     "命、局、卦、象，四術合參，一事定向。進入巽風四象問天機與面相民俗文化觀察系統。"
 };
@@ -13,15 +13,14 @@ export default function HomePage() {
         <div className="wrap">
           <div className="brand-anchor">
             <div>
-              <div className="tag">巽風易學決策系統</div>
               <h1 className="hero-title">
-                <span className="title-line title-main" data-site="heroTitle">
+                <span className="title-line title-main">
                   四象問天機
                 </span>
-                <span className="title-line accent">命、局、卦、象</span>
-                <span className="title-line accent">四術合參，一事定向</span>
+                <span className="title-line accent">命・局・卦・象</span>
+                <span className="title-line accent">四術合參・一事定向</span>
               </h1>
-              <p className="lead" data-site="heroLead">
+              <p className="lead">
                 以八字觀命、奇門定局、六爻斷卦、梅花取象，將四術結果交叉合參，為你當下的一件事找出方向，生成《巽風四象天機書》。
               </p>
               <div className="hero-actions">
