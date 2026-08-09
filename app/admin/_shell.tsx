@@ -21,6 +21,7 @@ const NAV = [
   { href: "/admin/council-runs", label: "易學決策紀錄" },
   { href: "/admin/prompt-settings", label: "報告內容維護" },
   { href: "/admin/school-settings", label: "排盤流派設定" },
+  { href: "/admin/documents", label: "老師文件" },
   { href: "/admin/token-usage", label: "Token 用量" }
 ];
 
@@ -99,12 +100,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
 export function adminFetch(path: string, init: RequestInit = {}) {
   const token = typeof window !== "undefined" ? window.localStorage.getItem("xunfeng_member_token") || "" : "";
+  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
   return fetch(path, {
     ...init,
     headers: {
       ...(init.headers || {}),
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
+      ...(isFormData ? {} : { "Content-Type": "application/json" })
     }
   });
 }

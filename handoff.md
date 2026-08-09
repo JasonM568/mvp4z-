@@ -1846,3 +1846,35 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 ### 長時間程序
 
 無。
+
+---
+
+## 2026-08-09 Codex 接續｜老師純文字文件後台完成
+
+分支：`feature/yixue-engine-and-admin-maintenance`。
+
+### 已完成
+
+- `/api/admin/documents`：GET 列表、POST 純文字上傳。
+- `/api/admin/documents/[id]`：PATCH 標題／分類／術別／納入設定、DELETE Storage 與 DB。
+- `/admin/documents`：上傳、列表、字數預算、納入勾選、改名與刪除。
+- 後台導覽新增「老師文件」。
+- 只接受 `.txt`／`.md`，支援 UTF-8／Big5，單檔 2MB，納入 Prompt 總上限 6,000 字。
+- 新文件預設不納入；Storage 私有；寫入與刪除均由 admin API 的 service role 執行。
+
+### 驗證
+
+- TypeScript 通過。
+- Vitest：77/77 通過。
+- Next production build 通過。
+
+### 下一步（安全整合順序）
+
+1. commit 並 push 本功能分支。
+2. 建立 Preview，請風羿老師依序實測報告內容、排盤流派、老師文件三個後台頁面。
+3. 老師定案流派並發布後，才合併／部署易學功能。
+4. 易學上線穩定後，以最新主線整合面相功能；面相分支原本的 migration 0015～0021 必須重新編號，禁止直接 db push。
+
+### 長時間程序
+
+無。

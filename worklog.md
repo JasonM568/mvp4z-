@@ -134,3 +134,34 @@
 ### 待辦
 
 見 handoff.md「2026-08-09 交接：轉 Codex 執行」章節。
+
+## 2026-08-09｜老師純文字文件後台完成
+
+### 本次完成
+
+- 新增 `GET/POST /api/admin/documents`：管理員文件列表、`.txt`／`.md` 上傳、UTF-8／Big5 解碼、文字正規化、Storage 私有上傳與 DB metadata 寫入。
+- 新增 `PATCH/DELETE /api/admin/documents/[id]`：改標題、分類、術別、切換是否納入 Prompt，以及同步刪除 Storage 與資料列。
+- 啟用文件前由後端檢查 `DOCUMENT_CHAR_BUDGET=6000`；超過時拒絕，報告讀取端仍保留截斷兜底。
+- 新增 `/admin/documents`：上傳、列表、分類、術別、改名、刪除、納入勾選與字數預算進度。
+- 後台導覽新增「老師文件」；`adminFetch` 支援 FormData，不再錯誤固定 multipart 的 Content-Type。
+- 新增 `lib/documents/text.test.ts`，涵蓋副檔名、UTF-8 BOM、零寬字元、Big5 與字數統計。
+
+### 安全與一致性
+
+- 原始檔只放私有 `yixue-documents` bucket；一般會員無寫入或讀取權限。
+- 上傳 Storage 成功但 DB insert 失敗時會補償刪除檔案。
+- 新文件預設 `include_in_prompt=false`，必須由管理員明確勾選。
+- API 不接受 client 指定 storage path、created_by 或 extracted_text。
+
+### 驗證
+
+- `npx tsc --noEmit` 通過。
+- `npm run test:unit`：6 files、77 tests 全數通過。
+- `npm run build`：Compiled successfully；`/admin/documents` 與兩條 API route 均出現在 build manifest。
+
+### 下一步
+
+1. commit 本批次並推送功能分支。
+2. 建立 Preview，請老師實測 `/admin/prompt-settings`、`/admin/school-settings`、`/admin/documents`。
+3. 老師確認後才合併／部署易學功能。
+4. 易學穩定後，以最新主線重建面相整合分支並重編 migration，避免 0015～0017 撞號。
