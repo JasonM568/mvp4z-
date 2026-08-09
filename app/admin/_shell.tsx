@@ -25,6 +25,7 @@ const NAV = [
   ...(process.env.NEXT_PUBLIC_FACE_ANALYSIS_ENABLED === "true"
     ? [{ href: "/admin/face-analysis", label: "面相分析紀錄" }]
     : []),
+  { href: "/admin/face-knowledge", label: "面相知識庫" },
   { href: "/admin/token-usage", label: "Token 用量" }
 ];
 
