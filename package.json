@@ -12,6 +12,7 @@
     "test:ezpay-invoice-e2e": "node scripts/test-ezpay-invoice-e2e.mjs",
     "test:ai-chat-e2e": "node scripts/test-ai-chat-e2e.mjs",
     "test:unit": "vitest run",
+    "test:face": "vitest run lib/face-analysis",
     "start": "next start",
     "lint": "next lint"
   },
@@ -25,7 +26,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.8.1",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "tyme4ts": "^1.5.2",
     "zod": "^3.24.4"
   },

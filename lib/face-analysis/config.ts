@@ -6,6 +6,10 @@ export const FACE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const FACE_IMAGE_MAX_DIMENSION = 4096;
 export const FACE_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
+export function isFaceAnalysisEnabled() {
+  return process.env.FACE_ANALYSIS_ENABLED === "true";
+}
+
 export const FACE_QUALITY_THRESHOLDS = {
   minimumFaceCoverage: 0.18,
   maximumYawDegrees: 15,
@@ -15,4 +19,3 @@ export const FACE_QUALITY_THRESHOLDS = {
   minimumBrightnessScore: 0.25,
   maximumBrightnessScore: 0.92
 } as const;
-

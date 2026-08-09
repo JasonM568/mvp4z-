@@ -35,6 +35,7 @@ export default function FaceAnalysisPage() {
   const [reportText, setReportText] = useState("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const requestIdRef = useRef<string | null>(null);
 
   useEffect(() => () => stopCamera(), []);
   useEffect(() => () => {
@@ -79,6 +80,7 @@ export default function FaceAnalysisPage() {
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setSelectedFile(file);
+    requestIdRef.current = null;
     setPreviewUrl(URL.createObjectURL(file));
     setNotice("");
   }
@@ -121,7 +123,7 @@ export default function FaceAnalysisPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          requestId: crypto.randomUUID(),
+          requestId: (requestIdRef.current ||= crypto.randomUUID()),
           mode,
           subjectAge: subjectAge ? Number(subjectAge) : null,
           consentVersion: CONSENT_VERSION,

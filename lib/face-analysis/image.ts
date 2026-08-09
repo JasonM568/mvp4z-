@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp, { type Metadata, type Sharp } from "sharp";
 import {
   FACE_IMAGE_MAX_BYTES,
   FACE_IMAGE_MAX_DIMENSION
@@ -26,7 +26,7 @@ export async function normalizeAndInspectFaceImage(input: ArrayBuffer): Promise<
   }
 
   const source = Buffer.from(input);
-  let metadata: sharp.Metadata;
+  let metadata: Metadata;
   try {
     metadata = await sharp(source, { failOn: "error", limitInputPixels: maxInputPixels() }).metadata();
   } catch {
@@ -62,7 +62,7 @@ export async function normalizeAndInspectFaceImage(input: ArrayBuffer): Promise<
   };
 }
 
-async function encodeWithoutMetadata(image: sharp.Sharp, mimeType: NormalizedFaceImage["mimeType"]) {
+async function encodeWithoutMetadata(image: Sharp, mimeType: NormalizedFaceImage["mimeType"]) {
   if (mimeType === "image/png") return image.png({ compressionLevel: 9 }).toBuffer();
   if (mimeType === "image/webp") return image.webp({ quality: 90 }).toBuffer();
   return image.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
@@ -117,4 +117,3 @@ export class FaceImageError extends Error {
     this.name = "FaceImageError";
   }
 }
-

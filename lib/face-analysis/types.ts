@@ -52,6 +52,9 @@ export type FaceAnalysisRun = {
   report_structured: unknown;
   report_text: string | null;
   model_trace: Record<string, unknown>;
+  analysis_attempts: number;
+  upload_attempts: number;
+  deletion_pending: boolean;
   usage_log_id: string | null;
   credits_charged: number;
   error_code: string | null;
@@ -79,4 +82,3 @@ export type FaceRunPublicSummary = Pick<
   | "created_at"
   | "updated_at"
 >;
-

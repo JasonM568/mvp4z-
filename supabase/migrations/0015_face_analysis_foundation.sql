@@ -101,6 +101,15 @@ begin
 end
 $$;
 
+-- Supabase public schema 預設可能授權 authenticated 直接 SELECT 全欄位；改成欄位白名單，
+-- 避免會員即使只能看到自己的 row，仍可繞過 API 讀到 storage_path 或 model_trace。
+revoke all on table public.face_analysis_runs from anon;
+revoke all on table public.face_analysis_events from anon;
+revoke insert, update, delete on table public.face_analysis_runs from authenticated;
+revoke insert, update, delete on table public.face_analysis_events from authenticated;
+revoke all on table public.face_analysis_runs from authenticated;
+revoke all on table public.face_analysis_events from authenticated;
+
 create or replace function public.touch_face_analysis_updated_at()
 returns trigger
 language plpgsql

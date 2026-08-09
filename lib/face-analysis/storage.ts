@@ -38,6 +38,7 @@ export async function storePrivateImage(input: {
 }
 
 export async function createPrivateImagePreview(storagePath: string) {
+  assertFaceStoragePath(storagePath);
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.storage
     .from(FACE_ANALYSIS_BUCKET)
@@ -47,6 +48,7 @@ export async function createPrivateImagePreview(storagePath: string) {
 }
 
 export async function downloadPrivateImage(storagePath: string) {
+  assertFaceStoragePath(storagePath);
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.storage.from(FACE_ANALYSIS_BUCKET).download(storagePath);
   if (error) throw error;
@@ -55,8 +57,15 @@ export async function downloadPrivateImage(storagePath: string) {
 
 export async function deleteRunImage(storagePath: string | null | undefined) {
   if (!storagePath) return false;
+  assertFaceStoragePath(storagePath);
   const admin = createSupabaseAdminClient();
   const { error } = await admin.storage.from(FACE_ANALYSIS_BUCKET).remove([storagePath]);
   if (error) throw error;
   return true;
+}
+
+function assertFaceStoragePath(storagePath: string) {
+  if (!/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/source\.(jpg|png|webp)$/i.test(storagePath)) {
+    throw new Error("FACE_STORAGE_PATH_INVALID");
+  }
 }

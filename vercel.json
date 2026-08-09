@@ -6,12 +6,22 @@
     },
     "app/api/ai/chat/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/face-analysis/runs/[id]/analyze/route.ts": {
+      "maxDuration": 120
+    },
+    "app/api/face-analysis/runs/[id]/upload/route.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [
     {
       "path": "/api/cron/cleanup-pending-orders",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-face-images",
+      "schedule": "15 * * * *"
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 create unique index if not exists idx_face_credit_debit_once
   on public.credit_transactions(source, ref_id)
-  where source = 'ai_face_analysis';
+  where source = 'ai_face_analysis' and type = 'debit';
 
 create or replace function public.commit_face_analysis_credit(
   p_run_id uuid,
@@ -44,6 +44,20 @@ begin
     or v_run.report_text is null
     or v_run.report_structured is null then
     raise exception 'face analysis report is not ready' using errcode = 'FA409';
+  end if;
+
+  if v_run.entitlement_id is not null and v_run.entitlement_id <> p_entitlement_id then
+    raise exception 'entitlement does not match run' using errcode = 'FA409';
+  end if;
+
+  if not exists (
+    select 1 from public.usage_logs
+    where id = p_usage_log_id
+      and user_id = p_user_id
+      and entitlement_id = p_entitlement_id
+      and type = 'face_analysis'
+  ) then
+    raise exception 'usage log does not match run' using errcode = 'FA409';
   end if;
 
   update public.member_entitlements

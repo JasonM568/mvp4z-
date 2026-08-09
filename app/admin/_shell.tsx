@@ -22,6 +22,9 @@ const NAV = [
   { href: "/admin/prompt-settings", label: "報告內容維護" },
   { href: "/admin/school-settings", label: "排盤流派設定" },
   { href: "/admin/documents", label: "老師文件" },
+  ...(process.env.NEXT_PUBLIC_FACE_ANALYSIS_ENABLED === "true"
+    ? [{ href: "/admin/face-analysis", label: "面相分析紀錄" }]
+    : []),
   { href: "/admin/token-usage", label: "Token 用量" }
 ];
 

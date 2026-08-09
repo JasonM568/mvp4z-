@@ -16,6 +16,7 @@ import { runFaceVisionProvider } from "@/lib/face-analysis/vision";
 import { applyFaceRules } from "@/lib/face-analysis/rules";
 import { generateFaceReport, renderFaceReportText } from "@/lib/face-analysis/report";
 import { faceQualityResultSchema } from "@/lib/face-analysis/schema";
+import { isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   let activeRunId: string | null = null;
   let activeUserId: string | null = null;
   try {
+    if (!isFaceAnalysisEnabled()) throw statusError("面相分析功能尚未開放", 404);
     const { profile } = await requireBearerProfile(request);
     const { id } = await context.params;
     activeRunId = id;
@@ -36,6 +38,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     if (run.status !== "uploaded" && run.status !== "failed") {
       throw statusError("照片尚未通過品質檢測，或分析正在執行", 409);
+    }
+    if (run.analysis_attempts >= 2) {
+      throw statusError("此照片已達分析重試上限，請重新拍攝並建立新任務", 409);
     }
     if (!run.storage_path || !run.mime_type || !run.quality_result) {
       throw statusError("分析照片不完整，請重新上傳", 409);
@@ -50,9 +55,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const { data: locked, error: lockError } = await admin
       .from("face_analysis_runs")
-      .update({ status: "analyzing", error_code: null })
+      .update({ status: "analyzing", error_code: null, analysis_attempts: run.analysis_attempts + 1 })
       .eq("id", run.id)
       .eq("user_id", profile.id)
+      .eq("deletion_pending", false)
       .in("status", ["uploaded", "failed"])
       .select("id")
       .maybeSingle();
@@ -123,7 +129,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       p_charge: FACE_ANALYSIS_CREDIT_COST
     });
 
-    if (creditError) {
+    if (creditError?.code === "FA001") {
       creditWarning = "報告已完成，但點數狀態在分析期間變更；本次未扣點。";
       const { error: giftError } = await admin
         .from("face_analysis_runs")
@@ -144,6 +150,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         eventType: "credit_commit_failed",
         metadata: { code: creditError.code || "unknown" }
       });
+    } else if (creditError) {
+      throw creditError;
     } else {
       creditsCharged = FACE_ANALYSIS_CREDIT_COST;
       await appendFaceRunEvent({
@@ -207,4 +215,3 @@ function safeErrorCode(error: unknown) {
   if (error instanceof Error && /^FACE_[A-Z0-9_]+$/.test(error.message)) return error.message;
   return "ANALYSIS_FAILED";
 }
-
