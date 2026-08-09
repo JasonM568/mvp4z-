@@ -1865,15 +1865,16 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 
 - 整合前驗證：unit 82/82、face 5/5、TypeScript、production build 全數通過。
 - Preview 受 Vercel Deployment Protection 保護，匿名請求會 302 到 SSO；尚未用登入 session 做 UI E2E。
-- `supabase db push --dry-run` 只列出 2 筆安全 baseline 與 7 筆面相 migration，未改正式資料庫。
-- 面相功能旗標維持關閉；正式資料庫尚未建立面相資料表。
+- `supabase db push --dry-run` 只列出 2 筆安全 baseline 與 7 筆面相 migration；隨後已受控套用正式資料庫並逐項驗證。
+- migration history 本地／遠端完全一致；runs/events 初始 0 筆，知識庫 28 張草稿卡，anon 對 base tables 讀取為 401。
+- 面相功能旗標維持關閉；schema 已就緒，但會員流程尚未開放。
 - `npm audit` 尚有 3 個 high，修正方案要求升級 Next 16，屬重大版本決策；不可用 `--force` 直接升級。
 
 ### 下一步（依安全順序）
 
-1. 重跑完整測試並 commit/push migration 對齊結果。
-2. 對 9 筆待套用 SQL 做最終靜態檢查；確認無 destructive statement 後，才考慮套用正式 Supabase。
-3. migration 套用後先保持面相旗標關閉，驗證 admin 知識庫與 owner/RLS，再設定 provider URL 與小流量開啟。
+1. 重新部署最新整合 Preview，使用具名 admin 登入驗證知識庫 CRUD 與 28 張草稿卡。
+2. 建立測試會員做 owner/RLS、0 點品質檢查不扣點、刪除／圖片清理 E2E；仍不開公開旗標。
+3. 確認 quality／vision provider URL 與零保留政策後，才進小流量開啟。
 4. production merge 前另開 Next 16 升級驗證，不與本批功能整合混在同一 commit。
 
 ---

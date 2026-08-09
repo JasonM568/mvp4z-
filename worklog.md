@@ -174,11 +174,12 @@
 - migration 改為與正式 Supabase history 一致的 timestamp 序列；面相排在既有易學 migration 之後。
 - 以遠端 migration fetch 確認對應：`20260806065135`=structured、`20260809141108/141126`=prompt/documents+bucket、`143730`=chart、`144146`=school profiles。
 - 唯讀確認 EZPay 欄位及 2026 方案點數已存在；baseline 可重跑。
-- `supabase db push --dry-run` 成功，沒有 repair、沒有套用 schema。
+- `supabase db push --dry-run` 成功後已受控套用正式 schema，全程沒有 migration repair。
+- 遠端驗證：migration history 完全對齊；runs/events 皆 0；knowledge cards 28；anon 讀 base tables 401；方案點數不變。
 - Preview deployment `dpl_8T1YbpinETuYzNBRRAPfkPp3bhp2` READY，受 Vercel SSO 保護。
 
 ### 下一步
 
-1. 完整測試、commit、push 本批 migration 對齊。
-2. 最終 SQL 安全檢查後才套用面相 schema；功能旗標繼續關閉。
-3. migration 後執行 admin／RLS／owner 驗收，再處理 provider 與小流量開啟。
+1. 部署最新 Preview；功能旗標繼續關閉。
+2. 執行具名 admin 知識庫 CRUD 與測試會員 owner/RLS E2E。
+3. 確認 provider 與零保留政策後才小流量開啟。
