@@ -37,7 +37,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin/face-analysis", label: "面相分析紀錄" },
       { href: "/admin/face-knowledge", label: "面相知識庫" },
-      { href: "/admin/face-provider", label: "OpenAI 照片認證" }
+      { href: "/admin/face-provider", label: "OpenAI 影像認證" }
     ]
   },
   {

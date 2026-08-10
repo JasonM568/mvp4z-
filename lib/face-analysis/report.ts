@@ -1,5 +1,3 @@
-import { zodTextFormat } from "openai/helpers/zod";
-import { createOpenAIClient, openAIModel } from "@/lib/ai/openai";
 import { FaceRuleResult } from "@/lib/face-analysis/rules";
 import {
   FACE_REPORT_DISCLAIMER,
@@ -16,6 +14,9 @@ const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 mode=other 時只提供合作溝通的觀察與核對問題，不判定對方忠誠、善惡或是否可信。
 十二宮與 30/60/90 天行動必須完整，disclaimer 必須逐字使用 server 提供的固定內容。`;
 
+const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
+const DEEPSEEK_REPORT_MODEL = "deepseek-v4-pro";
+
 export async function generateFaceReport(input: {
   mode: FaceAnalysisMode;
   subjectAge: number | null;
@@ -23,13 +24,16 @@ export async function generateFaceReport(input: {
   rules: FaceRuleResult;
   knowledge?: Array<{ cardId: string; title: string; category: string; observation: string; editorSummary: string | null }>;
 }) {
-  const client = createOpenAIClient();
+  if ((process.env.FACE_REPORT_PROVIDER || "deepseek").trim().toLowerCase() !== "deepseek") {
+    throw new Error("FACE_REPORT_PROVIDER_UNSUPPORTED");
+  }
+  const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
+  if (!apiKey) throw new Error("FACE_REPORT_PROVIDER_UNAVAILABLE");
+  const model = process.env.FACE_REPORT_MODEL?.trim() || DEEPSEEK_REPORT_MODEL;
   const startedAt = Date.now();
-  const response = await client.responses.parse({
-    model: process.env.FACE_REPORT_MODEL || openAIModel(),
-    store: false,
-    instructions: REPORT_INSTRUCTIONS,
-    input: JSON.stringify({
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const reportInput = {
       mode: input.mode,
       subjectAge: input.subjectAge,
       photoQuality: {
@@ -41,25 +45,70 @@ export async function generateFaceReport(input: {
       rules: input.rules,
       approvedKnowledge: (input.knowledge || []).map((item) => ({ cardId: item.cardId, title: item.title, category: item.category, observation: item.observation, editorSummary: item.editorSummary })),
       fixedDisclaimer: FACE_REPORT_DISCLAIMER
-    }),
-    text: { format: zodTextFormat(faceReportSchema, "face_analysis_report") },
-    max_output_tokens: 5000,
-    temperature: 0.2
-  });
-
-  const parsed = response.output_parsed;
-  if (!parsed) throw new Error("FACE_REPORT_INVALID_OUTPUT");
-  const report = faceReportSchema.parse(parsed);
+  };
+  let response: Response;
+  try {
+    response = await fetch(DEEPSEEK_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        max_tokens: 8000,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode)}` },
+          { role: "user", content: `請依下列資料輸出單一 JSON object，不要使用 Markdown：\n${JSON.stringify(reportInput)}` }
+        ]
+      }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw new Error("FACE_REPORT_PROVIDER_TIMEOUT");
+    throw new Error("FACE_REPORT_PROVIDER_ERROR");
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = await response.json().catch(() => null) as {
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  } | null;
+  if (!response.ok) throw new Error("FACE_REPORT_PROVIDER_ERROR");
+  const content = payload?.choices?.[0]?.message?.content?.trim();
+  if (!content) throw new Error("FACE_REPORT_INVALID_OUTPUT");
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(content.replace(/^```json\s*/i, "").replace(/\s*```$/, ""));
+  } catch {
+    throw new Error("FACE_REPORT_INVALID_OUTPUT");
+  }
+  const report = faceReportSchema.parse(decoded);
   return {
     report,
     trace: {
-      provider: "openai",
-      model: process.env.FACE_REPORT_MODEL || openAIModel(),
-      tokensInput: response.usage?.input_tokens || 0,
-      tokensOutput: response.usage?.output_tokens || 0,
+      provider: "deepseek",
+      model,
+      tokensInput: Number(payload?.usage?.prompt_tokens || 0),
+      tokensOutput: Number(payload?.usage?.completion_tokens || 0),
       latencyMs: Date.now() - startedAt
     }
   };
+}
+
+function outputContract(mode: FaceAnalysisMode) {
+  const common = `輸出 JSON 契約：
+- schemaVersion 必須為 "1.0"；mode 必須為 "${mode}"。
+- summary 必須是 100–180 個字元的繁體中文。
+- photoQuality、currentTrend 為字串。
+- palaces 必須恰好 12 筆且不可重複，name 依序為：命宮、財帛宮、兄弟宮、田宅宮、男女宮、奴僕宮、妻妾宮、疾厄宮、遷移宮、官祿宮、福德宮、相貌宮。
+- 每筆 palace 只有 name、status、evidence、interpretation、advice；status 只能是 balanced、watch 或 limited。
+- flowYear 為 null，或只含 age(整數)、stage、reflection。
+- actions 必須恰好三筆，period 依序為 30_days、60_days、90_days，每筆只有 period 與 action。
+- disclaimer 必須與 fixedDisclaimer 完全一致。
+- 不得輸出未列出的欄位。`;
+  return mode === "self"
+    ? `${common}\n- lifeAreas 必須只含 finance、career、relationship、communication、routine 五個字串欄位。\n- 不得輸出 collaborationFramework。`
+    : `${common}\n- collaborationFramework 必須只含 observableInteraction、questionsToVerify(2–8 個字串)、boundaries。\n- 不得輸出 lifeAreas。`;
 }
 
 export function renderFaceReportText(report: FaceReport) {

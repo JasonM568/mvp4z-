@@ -101,7 +101,7 @@ export default function AdminDashboard() {
       <div className="admin-section-title"><span>今日待辦</span><span>先處理影響會員使用的項目</span></div>
       <div className="admin-todo-grid">
         <Link className={providerReady ? "done" : "alert"} href="/admin/face-provider">
-          <strong>OpenAI 照片認證</strong><span>{providerReady ? "認證有效" : "尚未完成，面相分析維持關閉"}</span>
+          <strong>照片層 OpenAI 認證</strong><span>{providerReady ? "影像觀察認證有效；報告層使用 DeepSeek" : "尚未完成，面相分析維持關閉"}</span>
         </Link>
         <Link className={failedFaces ? "alert" : "done"} href="/admin/face-analysis">
           <strong>面相任務</strong><span>{failedFaces ? failedFaces + " 筆失敗待檢查" : "最近沒有失敗任務"}</span>
