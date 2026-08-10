@@ -39,6 +39,7 @@ export default function AdminDashboard() {
   const [bookingSummary, setBookingSummary] = useState<Record<string, number>>({});
   const [faceRuns, setFaceRuns] = useState<{ id: string; status: string; created_at: string }[]>([]);
   const [providerReady, setProviderReady] = useState(false);
+  const [knowledgePending, setKnowledgePending] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,15 +48,22 @@ export default function AdminDashboard() {
       adminFetch("/api/admin/orders").then((r) => r.json()),
       adminFetch("/api/admin/council-runs?limit=200").then((r) => r.json()),
       adminFetch("/api/admin/face-analysis?limit=30").then((r) => r.json()),
-      adminFetch("/api/admin/face-provider-approval").then((r) => r.json())
+      adminFetch("/api/admin/face-provider-approval").then((r) => r.json()),
+      Promise.all([
+        adminFetch("/api/admin/face-knowledge?status=draft").then((r) => r.json()),
+        adminFetch("/api/admin/face-knowledge?status=teacher_review").then((r) => r.json())
+      ])
     ])
-      .then(([b, o, c, f, p]) => {
+      .then(([b, o, c, f, p, knowledge]) => {
         setBookings(b?.bookings || []);
         setBookingSummary(b?.summary || {});
         setOrders(o?.orders || []);
         setCouncils(c?.runs || []);
         setFaceRuns(f?.runs || []);
         setProviderReady(p?.approval?.status === "active");
+        setKnowledgePending(
+          knowledge.reduce((sum, result) => sum + (Array.isArray(result?.items) ? result.items.length : 0), 0)
+        );
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -101,8 +109,8 @@ export default function AdminDashboard() {
         <Link className={pendingBookings ? "alert" : "done"} href="/admin/bookings">
           <strong>預約名單</strong><span>{pendingBookings ? pendingBookings + " 筆待處理" : "目前沒有待處理預約"}</span>
         </Link>
-        <Link href="/admin/face-knowledge">
-          <strong>面相知識庫</strong><span>維護老師文獻、流派與判讀技巧</span>
+        <Link className={knowledgePending ? "alert" : "done"} href="/admin/face-knowledge">
+          <strong>面相知識庫</strong><span>{knowledgePending ? `${knowledgePending} 筆文獻草稿待老師確認` : "目前沒有待確認草稿"}</span>
         </Link>
       </div>
 
