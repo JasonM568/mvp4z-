@@ -4,7 +4,8 @@ import {
   isOpenAIFaceProvider,
   parseOpenAIImage
 } from "@/lib/face-analysis/openai-image";
-import { getActiveOpenAIZdrApproval } from "@/lib/face-analysis/provider-approval";
+import { geminiQualityResponseSchema, parseGeminiImage } from "@/lib/face-analysis/gemini-image";
+import { getActiveFaceProviderApproval } from "@/lib/face-analysis/provider-approval";
 
 export const providerObservationSchema = z.object({
   faceCount: z.number().int().min(0).max(20),
@@ -31,8 +32,28 @@ export async function inspectFaceGeometry(input: {
   bytes: Buffer;
   mimeType: string;
 }): Promise<FaceProviderObservation> {
-  const databaseApproved = Boolean(await getActiveOpenAIZdrApproval());
-  if (databaseApproved || isOpenAIFaceProvider(process.env.FACE_QUALITY_PROVIDER)) {
+  const selected = selectedQualityProvider();
+  const databaseApproved = selected === "openai" || selected === "gemini"
+    ? Boolean(await getActiveFaceProviderApproval(selected))
+    : false;
+  if (selected === "gemini") {
+    if (!databaseApproved) {
+      throw new FaceQualityProviderError("QUALITY_RETENTION_POLICY_UNSUPPORTED", 503);
+    }
+    try {
+      return await parseGeminiImage({
+        ...input,
+        schema: providerObservationSchema,
+        responseSchema: geminiQualityResponseSchema,
+        task: "只為照片品質檢查回傳人臉數量、最大人臉畫面覆蓋比例、頭部 yaw/pitch/roll，以及眼睛、鼻子、嘴巴是否被遮擋。不得進行面相解讀。",
+        databaseApproved
+      });
+    } catch {
+      throw new FaceQualityProviderError("QUALITY_PROVIDER_FAILED", 502);
+    }
+  }
+
+  if (selected === "openai" || isOpenAIFaceProvider(process.env.FACE_QUALITY_PROVIDER)) {
     if (!databaseApproved && !hasAcknowledgedZeroRetention()) {
       throw new FaceQualityProviderError("QUALITY_RETENTION_POLICY_UNSUPPORTED", 503);
     }
@@ -79,6 +100,12 @@ export async function inspectFaceGeometry(input: {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function selectedQualityProvider(): "openai" | "gemini" | "configured" {
+  const value = (process.env.FACE_QUALITY_PROVIDER || process.env.FACE_VISION_PROVIDER)?.trim().toLowerCase();
+  if (value === "openai" || value === "gemini") return value;
+  return "configured";
 }
 
 export class FaceQualityProviderError extends Error {

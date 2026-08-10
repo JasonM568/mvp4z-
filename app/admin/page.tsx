@@ -48,7 +48,7 @@ export default function AdminDashboard() {
       adminFetch("/api/admin/orders").then((r) => r.json()),
       adminFetch("/api/admin/council-runs?limit=200").then((r) => r.json()),
       adminFetch("/api/admin/face-analysis?limit=30").then((r) => r.json()),
-      adminFetch("/api/admin/face-provider-approval").then((r) => r.json()),
+      adminFetch("/api/admin/gemini-provider-approval").then((r) => r.json()),
       Promise.all([
         adminFetch("/api/admin/face-knowledge?status=draft").then((r) => r.json()),
         adminFetch("/api/admin/face-knowledge?status=teacher_review").then((r) => r.json())
@@ -100,8 +100,8 @@ export default function AdminDashboard() {
 
       <div className="admin-section-title"><span>今日待辦</span><span>先處理影響會員使用的項目</span></div>
       <div className="admin-todo-grid">
-        <Link className={providerReady ? "done" : "alert"} href="/admin/face-provider">
-          <strong>照片層 OpenAI 認證</strong><span>{providerReady ? "影像觀察認證有效；報告層使用 DeepSeek" : "尚未完成，面相分析維持關閉"}</span>
+        <Link className={providerReady ? "done" : "alert"} href="/admin/gemini-provider">
+          <strong>照片層 Gemini 認證</strong><span>{providerReady ? "Gemini 影像觀察認證有效；報告層使用 DeepSeek" : "尚未完成，Gemini 會員照片流量維持關閉"}</span>
         </Link>
         <Link className={failedFaces ? "alert" : "done"} href="/admin/face-analysis">
           <strong>面相任務</strong><span>{failedFaces ? failedFaces + " 筆失敗待檢查" : "最近沒有失敗任務"}</span>

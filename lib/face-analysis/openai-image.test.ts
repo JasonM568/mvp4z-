@@ -54,7 +54,7 @@ describe("OpenAI face provider safety gates", () => {
   });
 
   it("accepts a named-admin database approval without requiring duplicate env attestation", () => {
-    delete process.env.FACE_VISION_PROVIDER;
+    process.env.FACE_VISION_PROVIDER = "openai";
     process.env.FACE_VISION_ZERO_RETENTION = "false";
     const provider = new ConfiguredFaceVisionProvider(true);
     expect(provider.name).toBe("openai_face_vision");

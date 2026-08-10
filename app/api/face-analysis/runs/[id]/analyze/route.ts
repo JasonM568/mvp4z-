@@ -18,7 +18,8 @@ import { generateFaceReport, renderFaceReportText } from "@/lib/face-analysis/re
 import { faceQualityResultSchema } from "@/lib/face-analysis/schema";
 import { isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
 import { getPublishedFaceKnowledge } from "@/lib/face-analysis/knowledge";
-import { getActiveOpenAIZdrApproval } from "@/lib/face-analysis/provider-approval";
+import { getActiveFaceProviderApproval } from "@/lib/face-analysis/provider-approval";
+import { selectedFaceVisionProvider } from "@/lib/face-analysis/vision-http";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -70,7 +71,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     await appendFaceRunEvent({ runId: run.id, userId: profile.id, eventType: "analysis_started" });
     const bytes = await downloadPrivateImage(run.storage_path);
     const visionStartedAt = Date.now();
-    const visionProvider = new ConfiguredFaceVisionProvider(Boolean(await getActiveOpenAIZdrApproval()));
+    const selectedVisionProvider = selectedFaceVisionProvider();
+    const providerApproval = selectedVisionProvider === "openai" || selectedVisionProvider === "gemini"
+      ? await getActiveFaceProviderApproval(selectedVisionProvider)
+      : null;
+    const visionProvider = new ConfiguredFaceVisionProvider(Boolean(providerApproval));
     const vision = await runFaceVisionProvider(visionProvider, {
       bytes,
       mimeType: run.mime_type as "image/jpeg" | "image/png" | "image/webp"
