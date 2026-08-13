@@ -62,6 +62,15 @@ export default function FaceAnalysisPage() {
     const phases = window.setInterval(() => setAnalysisPhase((value) => Math.min(value + 1, ANALYSIS_PHASES.length - 1)), 3500);
     return () => { window.clearInterval(clock); window.clearInterval(phases); };
   }, [step]);
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!cameraOpen || !video || !stream) return;
+    video.srcObject = stream;
+    void video.play().catch(() => {
+      setNotice("相機已取得權限，但瀏覽器阻擋自動播放；請點一下預覽畫面後再試。");
+    });
+  }, [cameraOpen]);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -88,7 +97,6 @@ export default function FaceAnalysisPage() {
       });
       streamRef.current = stream;
       setCameraOpen(true);
-      if (videoRef.current) videoRef.current.srcObject = stream;
     } catch {
       setNotice("無法取得相機權限，您仍可使用手機原生拍照或從相簿選擇。");
     }
