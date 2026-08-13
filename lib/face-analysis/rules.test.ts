@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFaceRules, FACE_PALACE_NAMES } from "@/lib/face-analysis/rules";
+import { applyFaceRules, FACE_PALACE_NAMES, type FaceRuleProfileSettings } from "@/lib/face-analysis/rules";
 import { faceVisionResultSchema } from "@/lib/face-analysis/vision";
 
 const region = {
@@ -94,6 +94,22 @@ describe("face vision and deterministic rules", () => {
     expect(marriage?.evidence.some((item) => item.region === "outerEyeCorners")).toBe(true);
     expect(health?.status).toBe("limited");
     expect(health?.evidence.some((item) => item.region === "nasalRoot")).toBe(true);
+  });
+
+  it("applies a published palace profile to new analysis", () => {
+    const vision = faceVisionResultSchema.parse({
+      ...validVision,
+      regions: { ...validVision.regions, eyes: { ...region, visibility: "partial" } }
+    });
+    const profile = {
+      schemaVersion: "1.0",
+      palaces: [{ name: "夫妻宮", primary: ["eyes"], auxiliary: [] }]
+    } as FaceRuleProfileSettings;
+
+    const result = applyFaceRules({ vision, mode: "self", subjectAge: 35, profileSettings: profile });
+    const marriage = result.palaces.find((item) => item.name === "夫妻宮");
+    expect(marriage?.status).toBe("limited");
+    expect(marriage?.evidence.some((item) => item.region === "eyes")).toBe(true);
   });
 
   it("uses the Shen three-treasury mapping for the subject age", () => {
