@@ -20,6 +20,7 @@ import { isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
 import { getPublishedFaceKnowledge } from "@/lib/face-analysis/knowledge";
 import { getActiveFaceProviderApproval } from "@/lib/face-analysis/provider-approval";
 import { selectedFaceVisionProvider } from "@/lib/face-analysis/vision-http";
+import { loadPublishedFaceRuleProfile } from "@/lib/face-analysis/rule-profiles";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -80,7 +81,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       bytes,
       mimeType: run.mime_type as "image/jpeg" | "image/png" | "image/webp"
     });
-    const rules = applyFaceRules({ vision, mode: run.mode, subjectAge: run.subject_age });
+    const ruleProfile = await loadPublishedFaceRuleProfile();
+    const rules = applyFaceRules({ vision, mode: run.mode, subjectAge: run.subject_age, profileSettings: ruleProfile?.settings });
     const quality = faceQualityResultSchema.parse(run.quality_result);
     const approvedKnowledge = await getPublishedFaceKnowledge();
     const generated = await generateFaceReport({
@@ -114,7 +116,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           title: item.title,
           sourceFile: item.sourceFile,
           sourcePages: item.sourcePages
-        }))
+        })),
+        face_rule_profile_id: ruleProfile?.id || null,
+        face_rule_version: ruleProfile?.version || "shen-v2-default"
       })
       .eq("id", run.id)
       .eq("user_id", profile.id)

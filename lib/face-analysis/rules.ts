@@ -69,6 +69,7 @@ type PalaceMapping = Readonly<{
   primary: readonly FaceFeatureName[];
   auxiliary: readonly FaceFeatureName[];
 }>;
+export type FaceRuleProfileSettings = Readonly<{ schemaVersion: "1.0"; palaces: readonly { name: FacePalaceName; primary: readonly FaceFeatureName[]; auxiliary: readonly FaceFeatureName[] }[] }>;
 
 /**
  * Vision v2 已納入老師核可的六個細部位；其餘仍以八大區塊近似。
@@ -219,14 +220,16 @@ export function applyFaceRules(input: {
   vision: FaceVisionResult;
   mode: FaceAnalysisMode;
   subjectAge?: number | null;
+  profileSettings?: FaceRuleProfileSettings | null;
 }): FaceRuleResult {
   const { vision, mode } = input;
   const treasury = treasuryMapping(input.subjectAge);
 
+  const configured = new Map(input.profileSettings?.palaces.map((item) => [item.name, item]) || []);
   const palaces = FACE_PALACE_NAMES.map((name) =>
     name === "財帛宮"
       ? buildPalace(vision, name, treasury, `${treasury.band}_V2`)
-      : buildPalace(vision, name, PALACE_MAPPINGS[name], "V2")
+      : buildPalace(vision, name, configured.has(name) ? { ...PALACE_MAPPINGS[name], ...configured.get(name)! } : PALACE_MAPPINGS[name], "V2")
   );
 
   const limited = palaces.filter((item) => item.status === "limited").length;
