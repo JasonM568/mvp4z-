@@ -12,6 +12,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 
 const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 你只能根據輸入的結構化規則結果撰寫，不得重新分析照片，也不得加入輸入沒有的事實。
+rules.photoFingerprint 是本張照片的專屬可見特徵指紋。摘要、三個核心重點、三項 priorityAdvice 與五大面向都必須優先引用其中的具體 observation，不能只用「中等、對稱、圓潤」產生模板結論。
 所有內容必須使用趨勢式、可驗證、非確定性的繁體中文。
 禁止推論疾病、心理診斷、犯罪傾向、種族、國籍、宗教、政治、性傾向、真實年齡、人格真相或可信度。
 不得保證財運、獲利、成功、感情或未來事件。
@@ -166,7 +167,11 @@ export async function generateFaceReport(input: {
   if (!response.output_parsed) throw new Error("FACE_REPORT_EMPTY_OUTPUT");
   let report: FaceReport;
   try {
-    report = faceReportSchema.parse(normalizeUnsafeOverclaims(response.output_parsed));
+    const normalized = normalizeUnsafeOverclaims(response.output_parsed);
+    const canonical = normalized && typeof normalized === "object"
+      ? { ...normalized, photoFingerprint: input.rules.photoFingerprint.map((item) => item.text) }
+      : normalized;
+    report = faceReportSchema.parse(canonical);
   } catch (error) {
     console.error("FACE_REPORT_SCHEMA_REJECTED", {
       issues: error && typeof error === "object" && "issues" in error ? JSON.stringify(error.issues).slice(0, 1200) : "unknown"
@@ -210,7 +215,9 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - schemaVersion 必須為 "1.0"；mode 必須為 "${mode}"。
 - summary 必須是 100–180 個字元的繁體中文。
 - photoQuality、currentTrend 為字串。
+- photoFingerprint 必須逐字複製 rules.photoFingerprint 的 text，依輸入順序輸出 5–8 筆，不得自行改寫或補充。
 - coreHighlights 必須恰好三筆，依序回答「最明顯的具體部位組合」、「該組合在民俗語境下的可用方向」、「近期最需節制的做法」。每筆必須點名至少一個宮位或部位，禁止寫成使用說明。
+- coreHighlights 三筆合計至少必須逐字引用 rules.photoFingerprint 中三個不同 observation；若無法引用就不得產生肯定結論。
 - priorityAdvice 必須恰好三筆，每筆只有 problem、reason、advice；problem 必須以「建議核對：」開頭，描述生活中可辨認的具體情境，不得宣稱該情境已存在；reason 必須點名宮位與可見形態證據；advice 必須包含明確動作、期限或檢核方式。
 - palaces 必須恰好 12 筆且不可重複，name 依序為：命宮、官祿宮、父母宮、福德宮、遷移宮、兄弟宮、夫妻宮、子女宮、疾厄宮、財帛宮、奴僕宮、田宅宮。
 - 每筆 palace 只有 name、status、evidence、interpretation、advice；status 只能是 balanced、watch 或 limited。
@@ -228,6 +235,7 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - alignment 必須逐字複製該面向 teacherAreaFramework.calculatedAlignment，不得自行評分。它是本次可見形態對老師建議觀察條件的符合度，不是人生結果、運勢分數或照片可信度。
 - conclusion 必須以「老師建議符合度為高／中／低／資料不足」開頭，再說最強的一組部位與最需要留意的一組部位；不得寫「以實際狀況為準」或其他免責廢話。
 - visibleBasis 必須點名本次實際可見部位及形態，並明說哪些主部位不可判讀；不得把拍攝品質當成生活結論。
+- 五個 visibleBasis 各自必須引用至少一項 rules.photoFingerprint 的原始 observation；不同面向應優先選擇不同特徵，不得五項重複同一句模板。
 - teacherInterpretation 必須按 teacherAreaFramework.method 進行多宮位交叉解讀，不得自創關聯。
 - watchout 必須指出一個具體的反向條件或本次判讀限制；action 必須給一個 7–30 天內可執行的驗證動作。
 - confidence 必須對應 teacherAreaFramework.assessability；sources 必須複製該面向 teacherAreaFramework.sources 中的 1–4 筆，不得虛構頁碼。
@@ -249,6 +257,7 @@ export function renderFaceReportText(report: FaceReport) {
     `## 摘要\n${report.summary}`,
     `## 照片品質\n${report.photoQuality}`,
     `## 目前趨勢\n${report.currentTrend}`,
+    `## 本張照片特徵指紋\n${report.photoFingerprint.map((item) => `- ${item}`).join("\n")}`,
     `## 三個核心重點\n${report.coreHighlights.map((item) => `- ${item}`).join("\n")}`,
     `## 明確問題與建議\n${report.priorityAdvice.map((item, index) => `### 問題 ${index + 1}：${item.problem}\n理由：${item.reason}\n\n建議：${item.advice}`).join("\n\n")}`,
     `## 斑、痣、疤、痕與氣色\n${report.surfaceAnalysis.summary}\n\n${report.surfaceAnalysis.detectedFeatures.map((item) => `- ${item.location}：${item.observation}（${item.traditionalReference}；信心度：${item.confidence}）`).join("\n") || "- 本次未辨識到可信度足夠的斑、痣、疤或痕"}\n\n氣色觀察：${report.surfaceAnalysis.complexionObservation}${report.surfaceAnalysis.filterWarning ? `\n\n照片限制：${report.surfaceAnalysis.filterWarning}` : ""}`,

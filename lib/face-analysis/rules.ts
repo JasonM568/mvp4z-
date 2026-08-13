@@ -50,6 +50,7 @@ export type PalaceRuleResult = Readonly<{
 export type FaceRuleResult = Readonly<{
   version: "2.0";
   mode: FaceAnalysisMode;
+  photoFingerprint: readonly RuleItem[];
   overallTrend: RuleItem;
   palaces: readonly PalaceRuleResult[];
   flowYear: RuleItem | null;
@@ -313,9 +314,19 @@ export function applyFaceRules(input: {
           evidence: []
         };
 
+  const photoFingerprint: RuleItem[] = [...vision.distinctiveFeatures]
+    .sort((a, b) => (b.salience * b.confidence) - (a.salience * a.confidence))
+    .slice(0, 8)
+    .map((item) => ({
+      ruleId: `FINGERPRINT_${item.feature.toUpperCase()}_V3`,
+      text: item.observation,
+      evidence: [{ region: item.region, field: `distinctive:${item.feature}`, observed: item.observation, confidence: item.confidence }]
+    }));
+
   return {
     version: "2.0",
     mode,
+    photoFingerprint,
     overallTrend,
     palaces,
     flowYear,

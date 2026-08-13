@@ -87,4 +87,4 @@ export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
   }
 }
 
-const VISION_TASK = "回傳單一正面人臉的可見觀察：姿態、幾何、八大區塊、六個細部位，並特別列出照片中可見的斑、痣、疤、痕之類型、位置、左右、明顯度與信心度。氣色只記錄畫面明暗、均勻度與色偏，並判斷是否可能有美肌、磨皮或濾鏡；不得連結器官、疾病、種族、人格或命運。看不清楚必須降低 confidence 或回 not_assessable。";
+const VISION_TASK = "回傳單一正面人臉的可見觀察。schemaVersion 必須為 3.0。除了姿態、八大區塊與六個細部位，必須選出 5–12 個本張照片最具辨識度的 distinctiveFeatures；observation 要具體描述眉形、眉尾、眼形與走向、眼距、鼻樑、鼻頭鼻翼、顴骨、唇形嘴角、人中、下顎下巴或耳形，不可只寫中等、正常、端正、均衡。salience 表示這項特徵在本張照片中的辨識度。另列出可見斑、痣、疤、痕之類型、位置、左右、明顯度與信心度。氣色只記錄畫面明暗、均勻度與色偏，並判斷是否可能有美肌、磨皮或濾鏡；不得連結器官、疾病、種族、人格或命運。看不清楚必須降低 confidence 或回 not_assessable。";

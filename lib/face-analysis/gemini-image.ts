@@ -5,7 +5,7 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models
 const BASE_INSTRUCTIONS = `你是影像品質與人臉可見特徵觀察器。
 只能輸出照片中可直接看見的人臉數量、頭部角度、遮擋、相對比例、輪廓、光線與 landmark 覆蓋程度；細部位只限印堂、山根、奸門、淚堂、人中、地閣的可見幾何。可以中性描述可見斑、痣、疤、痕的位置與明顯度，以及受光線、白平衡和濾鏡影響的畫面明暗、均勻度與色偏。
 禁止辨識或猜測身分、真實年齡、健康、疾病、情緒、人格、可信度、犯罪傾向、種族、國籍、宗教、政治立場、性傾向或其他敏感屬性。
-看不清楚時必須降低 confidence 或使用 not_assessable，不可補猜。只輸出符合指定 JSON schema 的單一 JSON object。`;
+必須找出本張照片真正有辨識度的具體形態，不得把所有部位慣性回傳為中等、圓潤、對稱。看不清楚時必須降低 confidence 或使用 not_assessable，不可補猜。只輸出符合指定 JSON schema 的單一 JSON object。`;
 
 export function isGeminiFaceProvider(provider: string | undefined) {
   return provider?.trim().toLowerCase() === "gemini";
@@ -83,6 +83,18 @@ const surfaceFeature = {
   },
   required: ["type", "region", "side", "prominence", "description", "confidence"]
 } as const;
+const distinctiveFeature = {
+  type: "OBJECT",
+  properties: {
+    feature: { type: "STRING", enum: ["foreheadShape", "eyebrowShape", "eyebrowTail", "eyeShape", "eyeTilt", "eyeSpacing", "nasalBridge", "noseTip", "noseWing", "cheekbone", "lipShape", "mouthCorner", "philtrumShape", "jawline", "chinShape", "earShape"] },
+    region: { type: "STRING", enum: ["forehead", "eyebrows", "eyes", "nose", "cheeks", "mouth", "philtrum", "jaw", "chin", "ears"] },
+    side: { type: "STRING", enum: ["left", "right", "center", "bilateral"] },
+    observation: { type: "STRING", minLength: 4, maxLength: 120 },
+    salience: confidence,
+    confidence
+  },
+  required: ["feature", "region", "side", "observation", "salience", "confidence"]
+} as const;
 
 export const geminiQualityResponseSchema = {
   type: "OBJECT",
@@ -120,7 +132,7 @@ const visibleRegion = {
 export const geminiVisionResponseSchema = {
   type: "OBJECT",
   properties: {
-    schemaVersion: { type: "STRING", enum: ["2.0"] },
+    schemaVersion: { type: "STRING", enum: ["3.0"] },
     faceCount: { type: "INTEGER", enum: [1] },
     orientation: {
       type: "OBJECT",
@@ -158,6 +170,7 @@ export const geminiVisionResponseSchema = {
       },
       required: ["glabella", "nasalRoot", "outerEyeCorners", "tearTroughs", "philtrum", "chin"]
     },
+    distinctiveFeatures: { type: "ARRAY", items: distinctiveFeature, minItems: 5, maxItems: 12 },
     surfaceFeatures: { type: "ARRAY", items: surfaceFeature, maxItems: 30 },
     complexion: {
       type: "OBJECT",
@@ -175,5 +188,5 @@ export const geminiVisionResponseSchema = {
     overallConfidence: confidence,
     limitations: { type: "ARRAY", items: { type: "STRING" }, maxItems: 12 }
   },
-  required: ["schemaVersion", "faceCount", "orientation", "landmarks", "regions", "details", "surfaceFeatures", "complexion", "overallConfidence", "limitations"]
+  required: ["schemaVersion", "faceCount", "orientation", "landmarks", "regions", "details", "distinctiveFeatures", "surfaceFeatures", "complexion", "overallConfidence", "limitations"]
 } as const;

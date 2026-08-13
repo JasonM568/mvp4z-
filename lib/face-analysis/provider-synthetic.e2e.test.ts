@@ -30,7 +30,8 @@ describe("approved provider synthetic-image E2E", () => {
       bytes,
       mimeType: "image/png"
     });
-    expect(vision.schemaVersion).toBe("2.0");
+    expect(vision.schemaVersion).toBe("3.0");
+    expect(vision.distinctiveFeatures.length).toBeGreaterThanOrEqual(5);
     expect(Object.keys(vision.details)).toEqual([
       "glabella",
       "nasalRoot",

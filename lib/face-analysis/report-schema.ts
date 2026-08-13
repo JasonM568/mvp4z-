@@ -82,6 +82,7 @@ const baseReportShape = {
   summary: boundedText(100, 180),
   photoQuality: boundedText(1, 600),
   currentTrend: boundedText(1, 1200),
+  photoFingerprint: z.array(boundedText(4, 160)).min(5).max(8),
   coreHighlights: z.array(boundedText(1, 320)).length(3),
   priorityAdvice: z.array(priorityAdviceSchema).length(3),
   palaces: z

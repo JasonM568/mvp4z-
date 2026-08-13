@@ -13,7 +13,7 @@ const region = {
 };
 
 const validVision = {
-  schemaVersion: "2.0" as const,
+  schemaVersion: "3.0" as const,
   faceCount: 1 as const,
   orientation: { yaw: 0, pitch: 0, roll: 0, confidence: 0.95 },
   landmarks: { detected: true, coverage: 0.9, confidence: 0.95 },
@@ -35,6 +35,13 @@ const validVision = {
     philtrum: region,
     chin: region
   },
+  distinctiveFeatures: [
+    { feature: "eyebrowShape" as const, region: "eyebrows" as const, side: "bilateral" as const, observation: "眉線平直且眉尾略向外延伸", salience: 0.9, confidence: 0.9 },
+    { feature: "eyeShape" as const, region: "eyes" as const, side: "bilateral" as const, observation: "眼裂橫向比例較長且上緣弧度平緩", salience: 0.85, confidence: 0.9 },
+    { feature: "nasalBridge" as const, region: "nose" as const, side: "center" as const, observation: "鼻樑中央線條平直且寬度均勻", salience: 0.8, confidence: 0.88 },
+    { feature: "lipShape" as const, region: "mouth" as const, side: "center" as const, observation: "上唇弓線明顯且下唇中央較飽滿", salience: 0.75, confidence: 0.86 },
+    { feature: "chinShape" as const, region: "chin" as const, side: "center" as const, observation: "下巴末端呈圓弧且縱向長度適中", salience: 0.7, confidence: 0.85 }
+  ],
   surfaceFeatures: [],
   complexion: { assessable: true, evenness: "even" as const, brightness: "moderate" as const, colorCast: "neutral" as const, possibleBeautyFilter: false, confidence: 0.9, limitation: "" },
   overallConfidence: 0.92,
@@ -53,11 +60,22 @@ describe("face vision and deterministic rules", () => {
     expect(first).toEqual(second);
     expect(first.palaces).toHaveLength(12);
     expect(new Set(first.palaces.map((item) => item.name))).toEqual(new Set(FACE_PALACE_NAMES));
+    expect(first.photoFingerprint.map((item) => item.text)).toEqual(validVision.distinctiveFeatures.map((item) => item.observation));
     expect(first.actionPlan.map((item) => item.ruleId)).toEqual([
       "ACTION_30_DAY_REVIEW_V1",
       "ACTION_60_DAY_REVIEW_V1",
       "ACTION_90_DAY_REVIEW_V1"
     ]);
+  });
+
+  it("produces a different fingerprint when the visible face observations differ", () => {
+    const first = applyFaceRules({ vision: faceVisionResultSchema.parse(validVision), mode: "self", subjectAge: 35 });
+    const secondVision = faceVisionResultSchema.parse({
+      ...validVision,
+      distinctiveFeatures: validVision.distinctiveFeatures.map((item, index) => index === 0 ? { ...item, observation: "眉峰弧度明顯且眉尾向下收束" } : item)
+    });
+    const second = applyFaceRules({ vision: secondVision, mode: "self", subjectAge: 35 });
+    expect(second.photoFingerprint).not.toEqual(first.photoFingerprint);
   });
 
   it("marks a broad-region palace as watch when its mapped geometry is clearly asymmetric", () => {

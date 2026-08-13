@@ -22,6 +22,7 @@ const validReport = {
   summary: Array(10).fill("以實際資料持續驗證觀察結果。").join(""),
   photoQuality: "照片品質可供有限的文化觀察參考。",
   currentTrend: "目前僅就清楚可見的結構做趨勢式整理。",
+  photoFingerprint: ["眉線平直且眉尾略向外延伸", "眼裂橫向比例較長且上緣弧度平緩", "鼻樑中央線條平直且寬度均勻", "上唇弓線明顯且下唇中央較飽滿", "下巴末端呈圓弧且縱向長度適中"],
   coreHighlights: ["先整理目前最明顯的狀態。", "把握可驗證且能持續的方向。", "避免在資料不足時做重大承諾。"],
   priorityAdvice: [
     { problem: "行動焦點分散", reason: "可見宮位資料顯示需要先收斂目標。", advice: "本週只設定一個主要目標。" },
@@ -83,6 +84,13 @@ const input = {
   rules: {
     version: "2.0" as const,
     mode: "self" as const,
+    photoFingerprint: [
+      { ruleId: "F1", text: "眉線平直且眉尾略向外延伸", evidence: [] },
+      { ruleId: "F2", text: "眼裂橫向比例較長且上緣弧度平緩", evidence: [] },
+      { ruleId: "F3", text: "鼻樑中央線條平直且寬度均勻", evidence: [] },
+      { ruleId: "F4", text: "上唇弓線明顯且下唇中央較飽滿", evidence: [] },
+      { ruleId: "F5", text: "下巴末端呈圓弧且縱向長度適中", evidence: [] }
+    ],
     overallTrend: { ruleId: "overall", text: "limited", evidence: [] },
     palaces: [],
     flowYear: null,

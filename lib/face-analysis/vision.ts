@@ -28,7 +28,7 @@ const visibleDetailSchema = visibleRegionSchema;
  */
 export const faceVisionResultSchema = z
   .object({
-    schemaVersion: z.literal("2.0"),
+    schemaVersion: z.literal("3.0"),
     faceCount: z.literal(1),
     orientation: z
       .object({
@@ -73,6 +73,18 @@ export const faceVisionResultSchema = z
         chin: visibleDetailSchema
       })
       .strict(),
+    distinctiveFeatures: z.array(z.object({
+      feature: z.enum(["foreheadShape", "eyebrowShape", "eyebrowTail", "eyeShape", "eyeTilt", "eyeSpacing", "nasalBridge", "noseTip", "noseWing", "cheekbone", "lipShape", "mouthCorner", "philtrumShape", "jawline", "chinShape", "earShape"]),
+      region: z.enum(["forehead", "eyebrows", "eyes", "nose", "cheeks", "mouth", "philtrum", "jaw", "chin", "ears"]),
+      side: z.enum(["left", "right", "center", "bilateral"]),
+      observation: z.string().trim().min(4).max(120),
+      salience: confidenceSchema,
+      confidence: confidenceSchema
+    }).strict()).min(5).max(12).superRefine((items, context) => {
+      if (new Set(items.map((item) => item.feature)).size !== items.length) {
+        context.addIssue({ code: z.ZodIssueCode.custom, message: "distinctiveFeatures 不得重複" });
+      }
+    }),
     surfaceFeatures: z.array(z.object({
       type: z.enum(["spot", "mole", "scar", "mark"]),
       region: z.enum(["forehead", "glabella", "eyebrows", "eyes", "outerEyeCorners", "tearTroughs", "nose", "nasalRoot", "cheeks", "mouth", "philtrum", "jaw", "chin", "ears"]),

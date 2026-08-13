@@ -12,6 +12,13 @@ describe("approved report provider E2E", () => {
     const rules: FaceRuleResult = {
       version: "2.0",
       mode: "self",
+      photoFingerprint: [
+        { ruleId: "F1", text: "眉線平直且眉尾略向外延伸", evidence: [] },
+        { ruleId: "F2", text: "眼裂橫向比例較長且上緣弧度平緩", evidence: [] },
+        { ruleId: "F3", text: "鼻樑中央線條平直且寬度均勻", evidence: [] },
+        { ruleId: "F4", text: "上唇弓線明顯且下唇中央較飽滿", evidence: [] },
+        { ruleId: "F5", text: "下巴末端呈圓弧且縱向長度適中", evidence: [] }
+      ],
       overallTrend: { ruleId: "OVERALL_TEST", text: "可見區域整體均衡。", evidence: [] },
       palaces: FACE_PALACE_NAMES.map((name) => ({
         name,
