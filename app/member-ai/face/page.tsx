@@ -5,8 +5,14 @@ import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { track } from "@vercel/analytics/react";
 
-type Step = "landing" | "capture" | "ready" | "report";
+type Step = "landing" | "capture" | "ready" | "analyzing" | "report";
 type Mode = "self" | "other";
+type StructuredReport = {
+  summary?: string;
+  currentTrend?: string;
+  lifeAreas?: Record<string, string>;
+  collaborationFramework?: { observableInteraction?: string; boundaries?: string };
+};
 type PublicQuality = {
   passed: boolean;
   faceCount: number;
@@ -34,6 +40,9 @@ export default function FaceAnalysisPage() {
   const [quality, setQuality] = useState<PublicQuality | null>(null);
   const [chargeConsent, setChargeConsent] = useState(false);
   const [reportText, setReportText] = useState("");
+  const [report, setReport] = useState<StructuredReport | null>(null);
+  const [analysisPhase, setAnalysisPhase] = useState(0);
+  const [analysisSeconds, setAnalysisSeconds] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const requestIdRef = useRef<string | null>(null);
@@ -42,6 +51,14 @@ export default function FaceAnalysisPage() {
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
+  useEffect(() => {
+    if (step !== "analyzing") return;
+    setAnalysisPhase(0);
+    setAnalysisSeconds(0);
+    const clock = window.setInterval(() => setAnalysisSeconds((value) => value + 1), 1000);
+    const phases = window.setInterval(() => setAnalysisPhase((value) => Math.min(value + 1, ANALYSIS_PHASES.length - 1)), 3500);
+    return () => { window.clearInterval(clock); window.clearInterval(phases); };
+  }, [step]);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -168,6 +185,7 @@ export default function FaceAnalysisPage() {
     if (!token) return (window.location.href = "/login?next=/member-ai/face");
 
     setBusy(true);
+    setStep("analyzing");
     setNotice("正在進行結構化觀察與報告整理，請勿重複送出…");
     try {
       const response = await fetch(`/api/face-analysis/runs/${runId}/analyze`, {
@@ -177,6 +195,7 @@ export default function FaceAnalysisPage() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "報告產生失敗");
       setReportText(data.run?.report_text || "");
+      setReport((data.run?.report_structured || null) as StructuredReport | null);
       track("face_report_completed", {
         charged: Number(data.creditsCharged || data.run?.credits_charged || 0)
       });
@@ -186,6 +205,7 @@ export default function FaceAnalysisPage() {
           `報告已完成，本次扣除 ${Number(data.creditsCharged || data.run?.credits_charged || 0)} 點。`
       );
     } catch (error) {
+      setStep("ready");
       setNotice(error instanceof Error ? error.message : "系統錯誤");
     } finally {
       setBusy(false);
@@ -308,12 +328,31 @@ export default function FaceAnalysisPage() {
               <p className="face-fineprint">本報告為民俗文化與自我觀察參考，不作醫療、心理、法律或投資判斷。</p>
             </div>
           </section>
+        ) : step === "analyzing" ? (
+          <section className="face-workspace" aria-labelledby="analyzing-title">
+            <div className="face-panel face-analysis-progress">
+              <div className="face-eyebrow">巽風面相 · 結構化分析中</div>
+              <h1 id="analyzing-title">先抓重點，再展開十二宮</h1>
+              <p>系統正在依核可規則整理可見特徵，完成後會先給核心結論，再提供完整依據。</p>
+              <div className="face-analysis-clock">{formatClock(analysisSeconds)}</div>
+              <ol className="face-analysis-steps">
+                {ANALYSIS_PHASES.map((phase, index) => (
+                  <li key={phase.title} className={index < analysisPhase ? "done" : index === analysisPhase ? "active" : ""}>
+                    <span>{index < analysisPhase ? "✓" : index + 1}</span>
+                    <div><strong>{phase.title}</strong><small>{phase.detail}</small></div>
+                  </li>
+                ))}
+              </ol>
+              <p className="face-fineprint">請保持此頁開啟。照片只用於本次分析，不作身分辨識或敏感屬性推論。</p>
+            </div>
+          </section>
         ) : (
           <section className="face-workspace" aria-labelledby="report-title">
             <div className="face-panel face-report">
               <div className="face-eyebrow">面相文化觀察報告</div>
               <h1 id="report-title">巽風面相報告</h1>
               {notice && <p className="face-notice" role="status">{notice}</p>}
+              {report && <ReportHighlights report={report} mode={mode} />}
               <article className="face-report-content"><pre>{reportText}</pre></article>
               <div className="face-report-actions">
                 <button className="face-primary" onClick={() => window.print()}>列印／儲存 PDF</button>
@@ -327,6 +366,35 @@ export default function FaceAnalysisPage() {
       </main>
     </>
   );
+}
+
+const ANALYSIS_PHASES = [
+  { title: "確認照片品質", detail: "清晰度、光線、角度與單一人臉" },
+  { title: "讀取可見部位", detail: "八大區塊與六個核可細部位" },
+  { title: "套用沈師十二宮", detail: "主部位先判讀，輔部位補充觀察" },
+  { title: "整理生活面向", detail: "財務、事業、關係、溝通與作息" },
+  { title: "產生重點與行動", detail: "核心結論、完整依據與 30／60／90 天建議" }
+] as const;
+
+function ReportHighlights({ report, mode }: { report: StructuredReport; mode: Mode }) {
+  const focus = mode === "self"
+    ? Object.entries(report.lifeAreas || {}).slice(0, 5)
+    : [
+        ["互動觀察", report.collaborationFramework?.observableInteraction || ""],
+        ["合作界線", report.collaborationFramework?.boundaries || ""]
+      ].filter((item): item is [string, string] => Boolean(item[1]));
+  const labels: Record<string, string> = { finance: "財務", career: "事業", relationship: "感情／關係", communication: "人際溝通", routine: "作息" };
+  return <section className="face-report-summary" aria-label="報告重點">
+    <div className="face-report-summary-head"><span>先看這裡</span><h2>本次報告重點</h2></div>
+    {report.summary && <article className="face-key-conclusion"><strong>一句話總結</strong><p>{report.summary}</p></article>}
+    {report.currentTrend && <article className="face-key-conclusion"><strong>目前最需要注意</strong><p>{report.currentTrend}</p></article>}
+    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><p>{value}</p></article>)}</div>}
+    <p className="face-report-divider">以下為十二宮完整分析與判讀依據</p>
+  </section>;
+}
+
+function formatClock(seconds: number) {
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 const QUALITY_REASON_TEXT: Record<string, string> = {
