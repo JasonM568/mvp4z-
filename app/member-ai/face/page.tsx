@@ -47,7 +47,6 @@ export default function FaceAnalysisPage() {
   const [runId, setRunId] = useState<string | null>(null);
   const [quality, setQuality] = useState<PublicQuality | null>(null);
   const [chargeConsent, setChargeConsent] = useState(false);
-  const [reportText, setReportText] = useState("");
   const [report, setReport] = useState<StructuredReport | null>(null);
   const [analysisPhase, setAnalysisPhase] = useState(0);
   const [analysisSeconds, setAnalysisSeconds] = useState(0);
@@ -215,7 +214,6 @@ export default function FaceAnalysisPage() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "報告產生失敗");
-      setReportText(data.run?.report_text || "");
       setReport((data.run?.report_structured || null) as StructuredReport | null);
       track("face_report_completed", {
         charged: Number(data.creditsCharged || data.run?.credits_charged || 0)
@@ -368,8 +366,8 @@ export default function FaceAnalysisPage() {
           <section className="face-workspace" aria-labelledby="analyzing-title">
             <div className="face-panel face-analysis-progress">
               <div className="face-eyebrow">巽風面相 · 結構化分析中</div>
-              <h1 id="analyzing-title">先抓重點，再展開十二宮</h1>
-              <p>系統正在依核可規則整理可見特徵，完成後會先給核心結論，再提供完整依據。</p>
+              <h1 id="analyzing-title">辨識照片特徵，整理實用重點</h1>
+              <p>系統正在依面相十二宮規則分析，完成後會直接呈現照片特徵、五大面向與具體建議。</p>
               <div className="face-analysis-clock">{formatClock(analysisSeconds)}</div>
               <ol className="face-analysis-steps">
                 {ANALYSIS_PHASES.map((phase, index) => (
@@ -389,10 +387,6 @@ export default function FaceAnalysisPage() {
               <h1 id="report-title">巽風面相報告</h1>
               {notice && <p className="face-notice" role="status">{notice}</p>}
               {report && <ReportHighlights report={report} mode={mode} />}
-              <details className="face-full-report">
-                <summary>查看完整十二宮與報告全文</summary>
-                <article className="face-report-content"><pre>{reportText}</pre></article>
-              </details>
               <div className="face-report-actions">
                 <button className="face-primary" onClick={() => window.print()}>列印／儲存 PDF</button>
                 <a className="face-secondary" href="/member-ai/face/history">查看我的報告</a>
@@ -425,9 +419,8 @@ function ReportHighlights({ report }: { report: StructuredReport; mode: Mode }) 
     {report.currentTrend && <article className="face-key-conclusion"><strong>目前最需要注意</strong><p>{report.currentTrend}</p></article>}
     {report.photoFingerprint?.length && <article className="face-fingerprint-card"><h3>這張照片實際辨識到的特徵</h3><p>以下是本次報告使用的照片證據，不是固定範本。</p><ol>{report.photoFingerprint.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></article>}
     {report.surfaceAnalysis && <article className="face-surface-card"><h3>斑、痣、疤、痕與氣色</h3><p>{report.surfaceAnalysis.summary}</p>{report.surfaceAnalysis.detectedFeatures?.length ? <ul>{report.surfaceAnalysis.detectedFeatures.map((item, index) => <li key={`${item.location}-${index}`}><strong>{surfaceTypeLabel(item.type)}｜{item.location}</strong><span>{item.observation}</span><small>{item.traditionalReference} · {confidenceLabel(item.confidence)}</small></li>)}</ul> : <p className="face-none-detected">本次未辨識到可信度足夠的斑、痣、疤或痕。</p>}<p><b>照片氣色：</b>{report.surfaceAnalysis.complexionObservation}</p>{report.surfaceAnalysis.filterWarning && <p className="face-filter-result">照片限制：{report.surfaceAnalysis.filterWarning}</p>}</article>}
-    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><span className={`face-confidence ${value.confidence || "low"}`}>{confidenceLabel(value.confidence)}</span><div className={`face-alignment ${value.alignment || "insufficient"}`}>老師建議符合度：{alignmentLabel(value.alignment)}</div><h3>{value.conclusion}</h3><p><b>部位依據：</b>{value.visibleBasis}</p><p><b>老師綜合判讀：</b>{value.teacherInterpretation}</p><p><b>需留意：</b>{value.watchout}</p><p><b>具體建議：</b>{value.action}</p>{value.sources?.length && <small>來源：{value.sources.join("、")}</small>}</article>)}</div>}
+    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><span className={`face-confidence ${value.confidence || "low"}`}>{confidenceLabel(value.confidence)}</span><div className={`face-alignment ${value.alignment || "insufficient"}`}>老師建議符合度：{alignmentLabel(value.alignment)}</div><h3>{value.conclusion}</h3><p><b>部位依據：</b>{value.visibleBasis}</p><p><b>老師綜合判讀：</b>{value.teacherInterpretation}</p><p><b>需留意：</b>{value.watchout}</p><p><b>具體建議：</b>{value.action}</p></article>)}</div>}
     {report.collaborationFramework && <div className="face-collaboration-card"><h3>合作對象綜合評估</h3><div className={`face-verdict ${report.collaborationFramework.verdict || "conditional"}`}>{verdictLabel(report.collaborationFramework.verdict)}</div><article><strong>為什麼</strong><p>{report.collaborationFramework.verdictReason}</p></article><article><strong>建議承擔角色</strong><p>{report.collaborationFramework.suitableRole}</p></article><article><strong>合作條件</strong><p>{report.collaborationFramework.suitability}</p></article><article><strong>建議相處模式</strong><p>{report.collaborationFramework.interactionStyle}</p></article>{report.collaborationFramework.riskSignals?.length && <article><strong>需留意的合作訊號</strong><ul>{report.collaborationFramework.riskSignals.map((item) => <li key={item}>{item}</li>)}</ul></article>}{report.collaborationFramework.questionsToVerify?.length && <article><strong>合作前先問</strong><ul>{report.collaborationFramework.questionsToVerify.map((item) => <li key={item}>{item}</li>)}</ul></article>}</div>}
-    <p className="face-report-divider">以下為十二宮完整分析與判讀依據</p>
   </section>;
 }
 

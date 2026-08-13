@@ -261,16 +261,13 @@ export function renderFaceReportText(report: FaceReport) {
     `## 三個核心重點\n${report.coreHighlights.map((item) => `- ${item}`).join("\n")}`,
     `## 明確問題與建議\n${report.priorityAdvice.map((item, index) => `### 問題 ${index + 1}：${item.problem}\n理由：${item.reason}\n\n建議：${item.advice}`).join("\n\n")}`,
     `## 斑、痣、疤、痕與氣色\n${report.surfaceAnalysis.summary}\n\n${report.surfaceAnalysis.detectedFeatures.map((item) => `- ${item.location}：${item.observation}（${item.traditionalReference}；信心度：${item.confidence}）`).join("\n") || "- 本次未辨識到可信度足夠的斑、痣、疤或痕"}\n\n氣色觀察：${report.surfaceAnalysis.complexionObservation}${report.surfaceAnalysis.filterWarning ? `\n\n照片限制：${report.surfaceAnalysis.filterWarning}` : ""}`,
-    `## 十二宮觀察\n${report.palaces
-      .map((item) => `### ${item.name}\n${item.interpretation}\n\n建議：${item.advice}\n\n依據：${item.evidence}`)
-      .join("\n\n")}`
   ];
 
   if (report.flowYear) {
     sections.push(`## 流年回顧提示\n${report.flowYear.stage}\n\n${report.flowYear.reflection}`);
   }
   if (report.collaborationFramework) sections.push(
-    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n老師建議符合度：${item.alignment}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n老師綜合判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}\n\n來源：${item.sources.join("、")}`).join("\n\n")}`,
+    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n老師建議符合度：${item.alignment}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n老師綜合判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}`).join("\n\n")}`,
     `## 合作對象綜合評估\n### 綜合結論\n${report.collaborationFramework.verdict}\n\n${report.collaborationFramework.verdictReason}\n\n### 建議承擔角色\n${report.collaborationFramework.suitableRole}\n\n### 合作適配條件\n${report.collaborationFramework.suitability}\n\n### 建議相處模式\n${report.collaborationFramework.interactionStyle}\n\n### 需留意的合作訊號\n${report.collaborationFramework.riskSignals.map((item) => `- ${item}`).join("\n")}\n\n### 合作前核對問題\n${report.collaborationFramework.questionsToVerify.map((item) => `- ${item}`).join("\n")}\n\n### 判斷界線\n${report.collaborationFramework.boundaries}`
   );
   sections.push(
