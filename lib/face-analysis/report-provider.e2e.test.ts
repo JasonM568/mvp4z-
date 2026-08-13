@@ -18,7 +18,10 @@ describe("approved report provider E2E", () => {
         parts: `${name}可見部位`,
         status: "balanced" as const,
         ruleId: `PALACE_${name}_TEST`,
-        evidence: []
+        evidence: [
+          { region: "glabella" as const, field: "contour", observed: "straight", confidence: 0.9 },
+          { region: "glabella" as const, field: "symmetry", observed: "balanced", confidence: 0.9 }
+        ]
       })),
       flowYear: null,
       observations: [],
@@ -44,6 +47,16 @@ describe("approved report provider E2E", () => {
 
     expect(result.report.mode).toBe("self");
     expect(result.report.palaces).toHaveLength(12);
+    expect(result.report.coreHighlights).toHaveLength(3);
+    expect(result.report.priorityAdvice).toHaveLength(3);
+    expect(JSON.stringify(result.report.priorityAdvice)).not.toMatch(/過度依賴面相|實際行動驗證|理性反思/);
+    expect(JSON.stringify(result.report.priorityAdvice)).not.toMatch(/過度自信|注意力分散|溝通不夠細膩|容易誤解/);
+    expect(JSON.stringify({ coreHighlights: result.report.coreHighlights, priorityAdvice: result.report.priorityAdvice })).not.toMatch(/亮度|模糊|覆蓋率|疲勞|生命力|健康狀況|收入穩定|感情穩定|家庭和諧/);
+    expect(result.report.priorityAdvice.every((item) => item.problem.startsWith("建議核對："))).toBe(true);
+    expect(new Set(result.report.actions.map((item) => item.action)).size).toBe(3);
+    if (process.env.FACE_REPORT_E2E_PRINT === "true") {
+      console.log(JSON.stringify({ coreHighlights: result.report.coreHighlights, priorityAdvice: result.report.priorityAdvice, actions: result.report.actions }, null, 2));
+    }
   }, 90_000);
 });
 

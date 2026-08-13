@@ -14,6 +14,7 @@ type StructuredReport = {
   priorityAdvice?: Array<{ problem?: string; reason?: string; advice?: string }>;
   lifeAreas?: Record<string, string>;
   collaborationFramework?: { observableInteraction?: string; boundaries?: string };
+  palaces?: Array<{ name?: string; evidence?: string; interpretation?: string; advice?: string }>;
 };
 type PublicQuality = {
   passed: boolean;
@@ -355,7 +356,10 @@ export default function FaceAnalysisPage() {
               <h1 id="report-title">巽風面相報告</h1>
               {notice && <p className="face-notice" role="status">{notice}</p>}
               {report && <ReportHighlights report={report} mode={mode} />}
-              <article className="face-report-content"><pre>{reportText}</pre></article>
+              <details className="face-full-report">
+                <summary>查看完整十二宮與報告全文</summary>
+                <article className="face-report-content"><pre>{reportText}</pre></article>
+              </details>
               <div className="face-report-actions">
                 <button className="face-primary" onClick={() => window.print()}>列印／儲存 PDF</button>
                 <a className="face-secondary" href="/member-ai/face/history">查看我的報告</a>
