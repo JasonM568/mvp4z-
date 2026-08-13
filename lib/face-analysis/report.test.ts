@@ -32,11 +32,18 @@ const validReport = {
   ],
   disclaimer: FACE_REPORT_DISCLAIMER,
   lifeAreas: {
-    finance: "以實際收支與風險資料為準。",
+    relationship: "以雙方實際互動與溝通紀錄為準。",
     career: "以可驗證的工作目標為準。",
-    relationship: "以雙方實際互動為準。",
-    communication: "保留澄清與回饋的空間。",
-    routine: "用實際作息記錄檢視狀態。"
+    health: "用實際作息、健檢與專業意見檢視狀態。",
+    finance: "以實際收支與風險資料為準。",
+    family: "以家人之間的實際分工與對話為準。"
+  },
+  collaborationFramework: {
+    suitability: "先用短期小型任務驗證配合方式，再決定是否擴大合作。",
+    interactionStyle: "每週固定書面同步進度，決策權與交付標準先寫清楚。",
+    riskSignals: ["連續兩次未按約定回覆進度。", "重要決策沒有書面確認。"],
+    questionsToVerify: ["遇到延遲時如何通知？", "最終決策由誰負責？", "驗收標準如何確認？"],
+    boundaries: "不以面部觀察代替實際合作紀錄、徵信或專業審查。"
   }
 };
 

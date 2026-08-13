@@ -30,6 +30,26 @@ const priorityAdviceSchema = z.object({
   advice: boundedText(1, 500)
 }).strict();
 
+const lifeAreasSchema = z
+  .object({
+    relationship: boundedText(1, 800),
+    career: boundedText(1, 800),
+    health: boundedText(1, 800),
+    finance: boundedText(1, 800),
+    family: boundedText(1, 800)
+  })
+  .strict();
+
+const collaborationFrameworkSchema = z
+  .object({
+    suitability: boundedText(1, 800),
+    interactionStyle: boundedText(1, 800),
+    riskSignals: z.array(boundedText(1, 300)).min(2).max(6),
+    questionsToVerify: z.array(boundedText(1, 300)).min(3).max(8),
+    boundaries: boundedText(1, 800)
+  })
+  .strict();
+
 const baseReportShape = {
   schemaVersion: z.literal("1.0"),
   summary: boundedText(100, 180),
@@ -60,36 +80,22 @@ const baseReportShape = {
       context.addIssue({ code: z.ZodIssueCode.custom, message: "30/60/90 天行動不得重複或缺漏" });
     }
   }),
+  lifeAreas: lifeAreasSchema,
+  collaborationFramework: collaborationFrameworkSchema,
   disclaimer: z.literal(FACE_REPORT_DISCLAIMER)
 };
 
 export const selfReportResponseSchema = z
   .object({
     ...baseReportShape,
-    mode: z.literal("self"),
-    lifeAreas: z
-      .object({
-        finance: boundedText(1, 800),
-        career: boundedText(1, 800),
-        relationship: boundedText(1, 800),
-        communication: boundedText(1, 800),
-        routine: boundedText(1, 800)
-      })
-      .strict()
+    mode: z.literal("self")
   })
   .strict();
 
 export const otherReportResponseSchema = z
   .object({
     ...baseReportShape,
-    mode: z.literal("other"),
-    collaborationFramework: z
-      .object({
-        observableInteraction: boundedText(1, 800),
-        questionsToVerify: z.array(boundedText(1, 300)).min(2).max(8),
-        boundaries: boundedText(1, 800)
-      })
-      .strict()
+    mode: z.literal("other")
   })
   .strict();
 

@@ -13,7 +13,7 @@ type StructuredReport = {
   coreHighlights?: string[];
   priorityAdvice?: Array<{ problem?: string; reason?: string; advice?: string }>;
   lifeAreas?: Record<string, string>;
-  collaborationFramework?: { observableInteraction?: string; boundaries?: string };
+  collaborationFramework?: { suitability?: string; interactionStyle?: string; riskSignals?: string[]; questionsToVerify?: string[]; boundaries?: string };
   palaces?: Array<{ name?: string; evidence?: string; interpretation?: string; advice?: string }>;
 };
 type PublicQuality = {
@@ -386,18 +386,14 @@ const ANALYSIS_PHASES = [
   { title: "確認照片品質", detail: "清晰度、光線、角度與單一人臉" },
   { title: "讀取可見部位", detail: "八大區塊與六個核可細部位" },
   { title: "套用沈師十二宮", detail: "主部位先判讀，輔部位補充觀察" },
-  { title: "整理生活面向", detail: "財務、事業、關係、溝通與作息" },
-  { title: "產生重點與行動", detail: "核心結論、完整依據與 30／60／90 天建議" }
+  { title: "整理五大面向", detail: "感情、事業、健康、財運與家庭" },
+  { title: "產生合作與行動建議", detail: "適配條件、相處模式、風險核對與 30／60／90 天建議" }
 ] as const;
 
-function ReportHighlights({ report, mode }: { report: StructuredReport; mode: Mode }) {
-  const focus = mode === "self"
-    ? Object.entries(report.lifeAreas || {}).slice(0, 5)
-    : [
-        ["互動觀察", report.collaborationFramework?.observableInteraction || ""],
-        ["合作界線", report.collaborationFramework?.boundaries || ""]
-      ].filter((item): item is [string, string] => Boolean(item[1]));
-  const labels: Record<string, string> = { finance: "財務", career: "事業", relationship: "感情／關係", communication: "人際溝通", routine: "作息" };
+function ReportHighlights({ report }: { report: StructuredReport; mode: Mode }) {
+  const order = ["relationship", "career", "health", "finance", "family"];
+  const focus = order.map((key) => [key, report.lifeAreas?.[key] || ""] as const).filter(([, value]) => Boolean(value));
+  const labels: Record<string, string> = { relationship: "感情", career: "事業", health: "健康", finance: "財運", family: "家庭" };
   return <section className="face-report-summary" aria-label="報告重點">
     <div className="face-report-summary-head"><span>先看這裡</span><h2>本次報告重點</h2></div>
     {report.summary && <article className="face-key-conclusion"><strong>一句話總結</strong><p>{report.summary}</p></article>}
@@ -405,6 +401,7 @@ function ReportHighlights({ report, mode }: { report: StructuredReport; mode: Mo
     {report.coreHighlights?.length && <div className="face-core-highlights">{report.coreHighlights.map((item, index) => <article key={index}><span>{index + 1}</span><p>{item}</p></article>)}</div>}
     {report.priorityAdvice?.length && <div className="face-priority-list">{report.priorityAdvice.map((item, index) => <article key={index}><strong>{item.problem}</strong><p>{item.reason}</p><b>建議：{item.advice}</b></article>)}</div>}
     {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><p>{value}</p></article>)}</div>}
+    {report.collaborationFramework && <div className="face-collaboration-card"><h3>合作與相處建議</h3><article><strong>合作適配條件</strong><p>{report.collaborationFramework.suitability}</p></article><article><strong>建議相處模式</strong><p>{report.collaborationFramework.interactionStyle}</p></article>{report.collaborationFramework.riskSignals?.length && <article><strong>需留意的合作訊號</strong><ul>{report.collaborationFramework.riskSignals.map((item) => <li key={item}>{item}</li>)}</ul></article>}{report.collaborationFramework.questionsToVerify?.length && <article><strong>合作前先問</strong><ul>{report.collaborationFramework.questionsToVerify.map((item) => <li key={item}>{item}</li>)}</ul></article>}</div>}
     <p className="face-report-divider">以下為十二宮完整分析與判讀依據</p>
   </section>;
 }

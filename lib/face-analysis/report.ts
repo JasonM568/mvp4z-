@@ -20,7 +20,8 @@ const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 核心重點與 priorityAdvice.reason 只能引用 rules.palaces.evidence 中的 contour、relativeWidth、relativeHeight、symmetry；禁止用亮度、模糊度、照片覆蓋率、拍攝品質推論疲勞、健康、溝通、財務或任何生活結果。
 「生命力、健康狀況、疾病風險、收入穩定、感情穩定、家庭和諧」均不得由照片直接宣稱。
 若十二宮全部為 balanced，仍須從 evidence 的輪廓、寬高、對稱與主輔部位差異中選出三組最具辨識度的觀察，不得把十二宮逐一寫成相同的穩定結論。
-mode=other 時只提供合作溝通的觀察與核對問題，不判定對方忠誠、善惡或是否可信。
+lifeAreas 必須固定依感情、事業、健康、財運、家庭五項整理；健康只能提供作息、自我觀察與就醫邊界，不得從面部推論健康狀況或疾病。
+collaborationFramework 必須提供合作條件、相處方式、風險訊號與核對問題，但不得只憑面相判定「適合／不適合合作」，不判定對方忠誠、善惡或是否可信。
 十二宮與 30/60/90 天行動必須完整，disclaimer 必須逐字使用 server 提供的固定內容。`;
 
 const DEFAULT_OPENAI_REPORT_MODEL = "gpt-4.1-mini";
@@ -59,7 +60,7 @@ export async function generateFaceReport(input: {
       instructions: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode)}`,
       input: `請依下列資料輸出單一 JSON object：\n${JSON.stringify(reportInput)}`,
       text: { format: zodTextFormat(faceReportResponseSchema(input.mode), "face_report") },
-      max_output_tokens: 3200, temperature: 0
+      max_output_tokens: 4800, temperature: 0
     }, { signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw new Error("FACE_REPORT_PROVIDER_TIMEOUT");
@@ -108,9 +109,13 @@ function outputContract(mode: FaceAnalysisMode) {
 - 三筆 actions 的內容不得相同：30 天是立即整理或測試，60 天是根據紀錄調整，90 天是決定保留、加碼或停止。
 - disclaimer 必須與 fixedDisclaimer 完全一致。
 - 不得輸出未列出的欄位。`;
-  return mode === "self"
-    ? `${common}\n- lifeAreas 必須只含 finance、career、relationship、communication、routine 五個字串欄位。\n- 不得輸出 collaborationFramework。`
-    : `${common}\n- collaborationFramework 必須只含 observableInteraction、questionsToVerify(2–8 個字串)、boundaries。\n- 不得輸出 lifeAreas。`;
+  return `${common}
+- lifeAreas 必須只含 relationship、career、health、finance、family 五個字串欄位，依序回答感情、事業、健康、財運、家庭。每項都要有「趨勢觀察＋現實核對方法」，不能只寫空泛提醒。
+- health 不得宣稱健康狀況、器官功能、疾病風險或壽命，只能提醒以實際作息、健檢與專業意見核對。
+- collaborationFramework 必須只含 suitability、interactionStyle、riskSignals(2–6 個字串)、questionsToVerify(3–8 個字串)、boundaries。
+- suitability 只能說明「在什麼合作條件下值得試行」，不得宣告此人適合或不適合合作。
+- interactionStyle 要給具體的溝通頻率、決策方式、分工與衝突處理建議。
+- riskSignals 與 questionsToVerify 必須是合作過程中可觀察、可記錄的現實行為，不得當作已發生的人格事實。`;
 }
 
 export function renderFaceReportText(report: FaceReport) {
@@ -129,15 +134,10 @@ export function renderFaceReportText(report: FaceReport) {
   if (report.flowYear) {
     sections.push(`## 流年回顧提示\n${report.flowYear.stage}\n\n${report.flowYear.reflection}`);
   }
-  if (report.mode === "self") {
-    sections.push(
-      `## 生活面向\n### 財務\n${report.lifeAreas.finance}\n\n### 事業\n${report.lifeAreas.career}\n\n### 關係\n${report.lifeAreas.relationship}\n\n### 溝通\n${report.lifeAreas.communication}\n\n### 作息\n${report.lifeAreas.routine}`
-    );
-  } else {
-    sections.push(
-      `## 合作觀察框架\n${report.collaborationFramework.observableInteraction}\n\n核對問題：\n${report.collaborationFramework.questionsToVerify.map((item) => `- ${item}`).join("\n")}\n\n界線：${report.collaborationFramework.boundaries}`
-    );
-  }
+  sections.push(
+    `## 五大面向\n### 感情\n${report.lifeAreas.relationship}\n\n### 事業\n${report.lifeAreas.career}\n\n### 健康\n${report.lifeAreas.health}\n\n### 財運\n${report.lifeAreas.finance}\n\n### 家庭\n${report.lifeAreas.family}`,
+    `## 合作與相處建議\n### 合作適配條件\n${report.collaborationFramework.suitability}\n\n### 建議相處模式\n${report.collaborationFramework.interactionStyle}\n\n### 需留意的合作訊號\n${report.collaborationFramework.riskSignals.map((item) => `- ${item}`).join("\n")}\n\n### 合作前核對問題\n${report.collaborationFramework.questionsToVerify.map((item) => `- ${item}`).join("\n")}\n\n### 判斷界線\n${report.collaborationFramework.boundaries}`
+  );
   sections.push(
     `## 30／60／90 天行動\n${report.actions.map((item) => `- ${item.period}: ${item.action}`).join("\n")}`,
     `## 使用說明\n${report.disclaimer}`
