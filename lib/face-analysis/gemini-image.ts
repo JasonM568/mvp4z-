@@ -2,8 +2,8 @@ import { z } from "zod";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const BASE_INSTRUCTIONS = `你是影像品質與人臉幾何觀察器。
-只能輸出照片中可直接看見的人臉數量、頭部角度、遮擋、相對比例、輪廓、光線與 landmark 覆蓋程度；細部位只限印堂、山根、奸門、淚堂、人中、地閣的可見幾何。
+const BASE_INSTRUCTIONS = `你是影像品質與人臉可見特徵觀察器。
+只能輸出照片中可直接看見的人臉數量、頭部角度、遮擋、相對比例、輪廓、光線與 landmark 覆蓋程度；細部位只限印堂、山根、奸門、淚堂、人中、地閣的可見幾何。可以中性描述可見斑、痣、疤、痕的位置與明顯度，以及受光線、白平衡和濾鏡影響的畫面明暗、均勻度與色偏。
 禁止辨識或猜測身分、真實年齡、健康、疾病、情緒、人格、可信度、犯罪傾向、種族、國籍、宗教、政治立場、性傾向或其他敏感屬性。
 看不清楚時必須降低 confidence 或使用 not_assessable，不可補猜。只輸出符合指定 JSON schema 的單一 JSON object。`;
 
@@ -71,6 +71,18 @@ export async function parseGeminiImage<T>(input: {
 const number = { type: "NUMBER" };
 const boolean = { type: "BOOLEAN" };
 const confidence = { type: "NUMBER", minimum: 0, maximum: 1 };
+const surfaceFeature = {
+  type: "OBJECT",
+  properties: {
+    type: { type: "STRING", enum: ["spot", "mole", "scar", "mark"] },
+    region: { type: "STRING", enum: ["forehead", "glabella", "eyebrows", "eyes", "outerEyeCorners", "tearTroughs", "nose", "nasalRoot", "cheeks", "mouth", "philtrum", "jaw", "chin", "ears"] },
+    side: { type: "STRING", enum: ["left", "right", "center", "bilateral", "not_assessable"] },
+    prominence: { type: "STRING", enum: ["subtle", "visible", "prominent"] },
+    description: { type: "STRING", maxLength: 160 },
+    confidence
+  },
+  required: ["type", "region", "side", "prominence", "description", "confidence"]
+} as const;
 
 export const geminiQualityResponseSchema = {
   type: "OBJECT",
@@ -146,8 +158,22 @@ export const geminiVisionResponseSchema = {
       },
       required: ["glabella", "nasalRoot", "outerEyeCorners", "tearTroughs", "philtrum", "chin"]
     },
+    surfaceFeatures: { type: "ARRAY", items: surfaceFeature, maxItems: 30 },
+    complexion: {
+      type: "OBJECT",
+      properties: {
+        assessable: boolean,
+        evenness: { type: "STRING", enum: ["even", "slightly_uneven", "uneven", "not_assessable"] },
+        brightness: { type: "STRING", enum: ["bright", "moderate", "dim", "not_assessable"] },
+        colorCast: { type: "STRING", enum: ["neutral", "warm", "cool", "mixed", "not_assessable"] },
+        possibleBeautyFilter: boolean,
+        confidence,
+        limitation: { type: "STRING", maxLength: 160 }
+      },
+      required: ["assessable", "evenness", "brightness", "colorCast", "possibleBeautyFilter", "confidence", "limitation"]
+    },
     overallConfidence: confidence,
     limitations: { type: "ARRAY", items: { type: "STRING" }, maxItems: 12 }
   },
-  required: ["schemaVersion", "faceCount", "orientation", "landmarks", "regions", "details", "overallConfidence", "limitations"]
+  required: ["schemaVersion", "faceCount", "orientation", "landmarks", "regions", "details", "surfaceFeatures", "complexion", "overallConfidence", "limitations"]
 } as const;

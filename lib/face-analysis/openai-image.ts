@@ -2,7 +2,7 @@ import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { createOpenAIClient, openAIModel } from "@/lib/ai/openai";
 
-const BASE_INSTRUCTIONS = `你是影像幾何觀察器，只能描述照片中可直接看見的人臉數量、角度、遮擋、相對比例、輪廓、光線與 landmark 覆蓋程度。
+const BASE_INSTRUCTIONS = `你是影像可見特徵觀察器，只能描述照片中可直接看見的人臉數量、角度、遮擋、相對比例、輪廓、光線與 landmark 覆蓋程度，以及中性描述斑、痣、疤、痕的位置和明顯度。氣色只記錄受光線、白平衡與濾鏡影響的畫面明暗、均勻度及色偏。
 禁止辨識或猜測身分、真實年齡、健康、疾病、情緒、人格、可信度、犯罪傾向、種族、國籍、宗教、政治立場、性傾向或其他敏感屬性。
 看不清楚時必須降低 confidence 或使用 not_assessable，不可補猜。只輸出指定 JSON schema。`;
 

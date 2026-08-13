@@ -55,7 +55,8 @@ describe("approved provider synthetic-image E2E", () => {
         occlusion: quality.occlusion,
         reasons: []
       },
-      rules: applyFaceRules({ vision, mode: "self", subjectAge: 35 })
+      rules: applyFaceRules({ vision, mode: "self", subjectAge: 35 }),
+      surface: { surfaceFeatures: vision.surfaceFeatures, complexion: vision.complexion }
     });
     expect(report.report.palaces).toHaveLength(12);
   }, 90_000);

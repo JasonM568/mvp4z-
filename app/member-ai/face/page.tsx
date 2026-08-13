@@ -13,6 +13,7 @@ type StructuredReport = {
   coreHighlights?: string[];
   priorityAdvice?: Array<{ problem?: string; reason?: string; advice?: string }>;
   lifeAreas?: Record<string, { conclusion?: string; alignment?: "high" | "medium" | "low" | "insufficient"; visibleBasis?: string; teacherInterpretation?: string; watchout?: string; action?: string; confidence?: "high" | "medium" | "low"; sources?: string[] }>;
+  surfaceAnalysis?: { detectedFeatures?: Array<{ type?: "spot" | "mole" | "scar" | "mark"; location?: string; observation?: string; traditionalReference?: string; confidence?: "high" | "medium" | "low" }>; complexionObservation?: string; filterWarning?: string | null; summary?: string };
   collaborationFramework?: { verdict?: "recommended" | "conditional" | "not_recommended"; verdictReason?: string; suitableRole?: string; suitability?: string; interactionStyle?: string; riskSignals?: string[]; questionsToVerify?: string[]; boundaries?: string } | null;
   palaces?: Array<{ name?: string; evidence?: string; interpretation?: string; advice?: string }>;
 };
@@ -33,6 +34,7 @@ export default function FaceAnalysisPage() {
   const [mode, setMode] = useState<Mode>("self");
   const [subjectAge, setSubjectAge] = useState("");
   const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [naturalPhotoConfirmed, setNaturalPhotoConfirmed] = useState(false);
   const [thirdPartyConsent, setThirdPartyConsent] = useState(false);
   const [collaborationAssessment, setCollaborationAssessment] = useState(false);
   const [collaborationProject, setCollaborationProject] = useState("");
@@ -94,11 +96,12 @@ export default function FaceAnalysisPage() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: mode === "self" ? "user" : "environment" },
+        video: { facingMode: mode === "self" ? "user" : "environment", width: { ideal: 1280 }, height: { ideal: 1280 } },
         audio: false
       });
       streamRef.current = stream;
       setCameraOpen(true);
+      setNotice("相機已在本頁開啟。請先關閉裝置或瀏覽器的美肌、濾鏡與磨皮，再拍下照片。");
     } catch {
       setNotice("無法取得相機權限，您仍可使用手機原生拍照或從相簿選擇。");
     }
@@ -138,6 +141,7 @@ export default function FaceAnalysisPage() {
 
   async function createAnalysisRun() {
     if (!selectedFile) return setNotice("請先拍攝或選擇照片。");
+    if (!naturalPhotoConfirmed) return setNotice("請確認照片未使用美肌、濾鏡、磨皮或修圖。");
     if (!privacyConsent) return setNotice("請先同意照片處理與隱私說明。");
     if (mode === "other" && !thirdPartyConsent) return setNotice("請確認已取得照片本人同意。");
     if (collaborationAssessment && collaborationProject.trim().length < 10) return setNotice("請至少輸入 10 個字的合作項目描述。");
@@ -265,8 +269,9 @@ export default function FaceAnalysisPage() {
             </div>
             <div className="face-photo-guide" aria-label="照片拍攝示意">
               <div className="good"><i aria-hidden>◯</i><strong>適合</strong><span>正面、單人、光線均勻、五官清楚</span></div>
-              <div className="bad"><i aria-hidden>╱</i><strong>請避免</strong><span>側臉、口罩、逆光、模糊或多人合照</span></div>
+              <div className="bad"><i aria-hidden>╱</i><strong>請避免</strong><span>側臉、口罩、逆光、模糊、多人合照、美肌、濾鏡或修圖</span></div>
             </div>
+            <p className="face-filter-warning"><strong>請關閉美肌、濾鏡與磨皮</strong>這些效果會抹除斑、痣、疤、痕並改變氣色，造成判讀失真。</p>
             <section className="face-report-type" aria-labelledby="report-type-title">
               <div><span>報告類型</span><h2 id="report-type-title">這次要分析什麼？</h2></div>
               <label className={!collaborationAssessment ? "selected" : ""}><input type="radio" name="landingReportType" checked={!collaborationAssessment} onChange={() => setCollaborationAssessment(false)} /><span><strong>一般面相報告</strong><small>感情、事業、健康、財運與家庭五大面向。</small></span></label>
@@ -288,6 +293,7 @@ export default function FaceAnalysisPage() {
                 <div className="face-eyebrow">步驟 1 · 拍攝準備</div>
                 <h1 id="capture-title">準備正面照片</h1>
                 <p>請正面看鏡頭、保持光線均勻，並確保畫面中只有一人。</p>
+                <p className="face-filter-warning"><strong>拍照前先關閉美肌、濾鏡與磨皮</strong>請勿上傳修圖照，系統會特別觀察斑、痣、疤、痕與照片氣色。</p>
               </div>
 
               <fieldset className="face-fieldset">
@@ -316,8 +322,10 @@ export default function FaceAnalysisPage() {
               <div className="face-actions">
                 {cameraOpen ? <><button className="face-primary" onClick={captureFrame}>拍下照片</button><button className="face-secondary" onClick={stopCamera}>關閉相機</button></> : <><button className="face-secondary" onClick={openCamera}>開啟即時相機</button><label className="face-upload">拍照或選擇照片<input type="file" accept="image/jpeg,image/png,image/webp" capture={mode === "self" ? "user" : "environment"} onChange={handleFile} /></label></>}
               </div>
+              <p className="face-camera-help">「開啟即時相機」會直接在上方預覽框顯示鏡頭；首次使用請允許瀏覽器相機權限。</p>
 
               <div className="face-consents">
+                <label><input type="checkbox" checked={naturalPhotoConfirmed} onChange={(event) => setNaturalPhotoConfirmed(event.target.checked)} /><span>我確認已關閉美肌、濾鏡與磨皮，照片未經修圖。</span></label>
                 <label><input type="checkbox" checked={privacyConsent} onChange={(event) => setPrivacyConsent(event.target.checked)} /><span>我已閱讀並同意為品質檢測處理此照片，並了解照片會依保存政策刪除。</span></label>
                 {mode === "other" && <label><input type="checkbox" checked={thirdPartyConsent} onChange={(event) => setThirdPartyConsent(event.target.checked)} /><span>我確認已取得照片本人的明確同意。</span></label>}
               </div>
@@ -414,6 +422,7 @@ function ReportHighlights({ report }: { report: StructuredReport; mode: Mode }) 
     <div className="face-report-summary-head"><span>先看這裡</span><h2>本次報告重點</h2></div>
     {report.summary && <article className="face-key-conclusion"><strong>一句話總結</strong><p>{report.summary}</p></article>}
     {report.currentTrend && <article className="face-key-conclusion"><strong>目前最需要注意</strong><p>{report.currentTrend}</p></article>}
+    {report.surfaceAnalysis && <article className="face-surface-card"><h3>斑、痣、疤、痕與氣色</h3><p>{report.surfaceAnalysis.summary}</p>{report.surfaceAnalysis.detectedFeatures?.length ? <ul>{report.surfaceAnalysis.detectedFeatures.map((item, index) => <li key={`${item.location}-${index}`}><strong>{surfaceTypeLabel(item.type)}｜{item.location}</strong><span>{item.observation}</span><small>{item.traditionalReference} · {confidenceLabel(item.confidence)}</small></li>)}</ul> : <p className="face-none-detected">本次未辨識到可信度足夠的斑、痣、疤或痕。</p>}<p><b>照片氣色：</b>{report.surfaceAnalysis.complexionObservation}</p>{report.surfaceAnalysis.filterWarning && <p className="face-filter-result">照片限制：{report.surfaceAnalysis.filterWarning}</p>}</article>}
     {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><span className={`face-confidence ${value.confidence || "low"}`}>{confidenceLabel(value.confidence)}</span><div className={`face-alignment ${value.alignment || "insufficient"}`}>老師建議符合度：{alignmentLabel(value.alignment)}</div><h3>{value.conclusion}</h3><p><b>部位依據：</b>{value.visibleBasis}</p><p><b>老師綜合判讀：</b>{value.teacherInterpretation}</p><p><b>需留意：</b>{value.watchout}</p><p><b>具體建議：</b>{value.action}</p>{value.sources?.length && <small>來源：{value.sources.join("、")}</small>}</article>)}</div>}
     {report.collaborationFramework && <div className="face-collaboration-card"><h3>合作對象綜合評估</h3><div className={`face-verdict ${report.collaborationFramework.verdict || "conditional"}`}>{verdictLabel(report.collaborationFramework.verdict)}</div><article><strong>為什麼</strong><p>{report.collaborationFramework.verdictReason}</p></article><article><strong>建議承擔角色</strong><p>{report.collaborationFramework.suitableRole}</p></article><article><strong>合作條件</strong><p>{report.collaborationFramework.suitability}</p></article><article><strong>建議相處模式</strong><p>{report.collaborationFramework.interactionStyle}</p></article>{report.collaborationFramework.riskSignals?.length && <article><strong>需留意的合作訊號</strong><ul>{report.collaborationFramework.riskSignals.map((item) => <li key={item}>{item}</li>)}</ul></article>}{report.collaborationFramework.questionsToVerify?.length && <article><strong>合作前先問</strong><ul>{report.collaborationFramework.questionsToVerify.map((item) => <li key={item}>{item}</li>)}</ul></article>}</div>}
     <p className="face-report-divider">以下為十二宮完整分析與判讀依據</p>
@@ -430,6 +439,10 @@ function alignmentLabel(alignment?: "high" | "medium" | "low" | "insufficient") 
 
 function verdictLabel(verdict?: "recommended" | "conditional" | "not_recommended") {
   return verdict === "recommended" ? "建議合作" : verdict === "not_recommended" ? "暫不建議合作" : "有條件合作";
+}
+
+function surfaceTypeLabel(type?: "spot" | "mole" | "scar" | "mark") {
+  return type === "spot" ? "斑" : type === "mole" ? "痣" : type === "scar" ? "疤" : "痕";
 }
 
 function formatClock(seconds: number) {

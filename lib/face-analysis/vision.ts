@@ -73,6 +73,23 @@ export const faceVisionResultSchema = z
         chin: visibleDetailSchema
       })
       .strict(),
+    surfaceFeatures: z.array(z.object({
+      type: z.enum(["spot", "mole", "scar", "mark"]),
+      region: z.enum(["forehead", "glabella", "eyebrows", "eyes", "outerEyeCorners", "tearTroughs", "nose", "nasalRoot", "cheeks", "mouth", "philtrum", "jaw", "chin", "ears"]),
+      side: z.enum(["left", "right", "center", "bilateral", "not_assessable"]),
+      prominence: z.enum(["subtle", "visible", "prominent"]),
+      description: z.string().trim().min(1).max(160),
+      confidence: confidenceSchema
+    }).strict()).max(30),
+    complexion: z.object({
+      assessable: z.boolean(),
+      evenness: z.enum(["even", "slightly_uneven", "uneven", "not_assessable"]),
+      brightness: z.enum(["bright", "moderate", "dim", "not_assessable"]),
+      colorCast: z.enum(["neutral", "warm", "cool", "mixed", "not_assessable"]),
+      possibleBeautyFilter: z.boolean(),
+      confidence: confidenceSchema,
+      limitation: z.string().trim().max(160)
+    }).strict(),
     overallConfidence: confidenceSchema,
     limitations: z.array(z.string().trim().min(1).max(160)).max(12)
   })

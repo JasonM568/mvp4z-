@@ -49,6 +49,12 @@ const validReport = {
     finance: area("財運項目應按年齡對應三倉核對。", ["沈師筆記 p.84–86"]),
     family: area("家庭項目需要多宮位交叉觀察。", ["沈師筆記 p.66–90"])
   },
+  surfaceAnalysis: {
+    detectedFeatures: [],
+    complexionObservation: "照片呈現亮度適中、色偏中性，僅代表本次拍攝畫面。",
+    filterWarning: null,
+    summary: "本次未辨識到可信度足夠的斑、痣、疤或痕。"
+  },
   collaborationFramework: {
     verdict: "conditional",
     verdictReason: "可先以小型任務試行合作。",

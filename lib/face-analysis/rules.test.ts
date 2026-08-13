@@ -35,6 +35,8 @@ const validVision = {
     philtrum: region,
     chin: region
   },
+  surfaceFeatures: [],
+  complexion: { assessable: true, evenness: "even" as const, brightness: "moderate" as const, colorCast: "neutral" as const, possibleBeautyFilter: false, confidence: 0.9, limitation: "" },
   overallConfidence: 0.92,
   limitations: []
 };

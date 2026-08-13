@@ -6,6 +6,7 @@ import {
   faceReportSchema
 } from "@/lib/face-analysis/report-schema";
 import { FaceQualityResult, FaceAnalysisMode } from "@/lib/face-analysis/types";
+import type { FaceVisionResult } from "@/lib/face-analysis/vision";
 import { createOpenAIClient, openAIModel } from "@/lib/ai/openai";
 import { zodTextFormat } from "openai/helpers/zod";
 
@@ -22,6 +23,7 @@ rules.palaces.status 的 balanced 只代表「主部位可判讀且未見明顯�
 「生命力、健康狀況、疾病風險、收入穩定、感情穩定、家庭和諧」均不得由照片直接宣稱。
 若十二宮全部為 balanced，仍須從 evidence 的輪廓、寬高、對稱與主輔部位差異中選出三組最具辨識度的觀察，不得把十二宮逐一寫成相同的穩定結論。
 lifeAreas 必須固定依感情、事業、健康、財運、家庭五項整理；健康只能提供作息、自我觀察與就醫邊界，不得從面部推論健康狀況或疾病。
+surfaceAnalysis 必須逐項整理輸入 surface.surfaceFeatures 的斑、痣、疤、痕；若陣列為空要明確寫未辨識到可信度足夠的特徵。氣色只描述照片呈現的明暗、均勻度、色偏與美肌可能性，不得連結器官、疾病、健康、人格或命運。傳統部位參照須標為民俗說法且不可形成事實判定。
 collaborationFramework 必須提供合作條件、相處方式、風險訊號與核對問題，但不得只憑面相判定「適合／不適合合作」，不判定對方忠誠、善惡或是否可信。
 十二宮與 30/60/90 天行動必須完整，disclaimer 必須逐字使用 server 提供的固定內容。`;
 
@@ -110,6 +112,7 @@ export async function generateFaceReport(input: {
   knowledge?: Array<{ cardId: string; title: string; category: string; observation: string; editorSummary: string | null }>;
   collaborationAssessment?: boolean;
   collaborationProject?: string | null;
+  surface?: Pick<FaceVisionResult, "surfaceFeatures" | "complexion">;
 }) {
   if ((process.env.FACE_REPORT_PROVIDER || "openai").trim().toLowerCase() !== "openai") {
     throw new Error("FACE_REPORT_PROVIDER_UNSUPPORTED");
@@ -130,6 +133,10 @@ export async function generateFaceReport(input: {
         limitations: input.quality.reasons
       },
       rules: input.rules,
+      surface: input.surface || {
+        surfaceFeatures: [],
+        complexion: { assessable: false, evenness: "not_assessable", brightness: "not_assessable", colorCast: "not_assessable", possibleBeautyFilter: false, confidence: 0, limitation: "未提供表面特徵資料" }
+      },
       teacherAreaFramework: teacherGrounding(input.rules),
       approvedKnowledge: (input.knowledge || []).map((item) => ({ cardId: item.cardId, title: item.title, category: item.category, observation: item.observation, editorSummary: item.editorSummary })),
       fixedDisclaimer: FACE_REPORT_DISCLAIMER
@@ -141,7 +148,7 @@ export async function generateFaceReport(input: {
       instructions: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode, Boolean(input.collaborationAssessment))}`,
       input: `請依下列資料輸出單一 JSON object：\n${JSON.stringify(reportInput)}`,
       text: { format: zodTextFormat(faceReportResponseSchema(input.mode), "face_report") },
-      max_output_tokens: 4800, temperature: 0
+      max_output_tokens: 5400, temperature: 0
     }, { signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw new Error("FACE_REPORT_PROVIDER_TIMEOUT");
@@ -212,6 +219,8 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - actions 必須恰好三筆，period 依序為 30_days、60_days、90_days，每筆只有 period 與 action。
 - 三筆 actions 的內容不得相同：30 天是立即整理或測試，60 天是根據紀錄調整，90 天是決定保留、加碼或停止。
 - disclaimer 必須與 fixedDisclaimer 完全一致。
+- surfaceAnalysis 必須只含 detectedFeatures、complexionObservation、filterWarning、summary。detectedFeatures 必須逐筆對應 surface.surfaceFeatures，不得增加照片中未觀察到的斑、痣、疤或痕；type 保持原值，location 使用繁體中文寫明部位與左右，observation 只寫可見外觀，traditionalReference 只提供該部位的民俗參照且不得推論健康或人格，confidence 依輸入信心度轉為 high／medium／low。若沒有特徵，detectedFeatures 必須為空陣列且 summary 明確寫「本次未辨識到可信度足夠的斑、痣、疤或痕」。
+- complexionObservation 只整理 surface.complexion 的畫面明暗、均勻度、色偏與限制；possibleBeautyFilter 為 true 時 filterWarning 必須提醒美肌、磨皮或濾鏡可能造成失真，否則可為 null。
 - 不得輸出未列出的欄位。`;
   return `${common}
 - lifeAreas 必須只含 relationship、career、health、finance、family，依序回答感情、事業、健康、財運、家庭。
@@ -242,6 +251,7 @@ export function renderFaceReportText(report: FaceReport) {
     `## 目前趨勢\n${report.currentTrend}`,
     `## 三個核心重點\n${report.coreHighlights.map((item) => `- ${item}`).join("\n")}`,
     `## 明確問題與建議\n${report.priorityAdvice.map((item, index) => `### 問題 ${index + 1}：${item.problem}\n理由：${item.reason}\n\n建議：${item.advice}`).join("\n\n")}`,
+    `## 斑、痣、疤、痕與氣色\n${report.surfaceAnalysis.summary}\n\n${report.surfaceAnalysis.detectedFeatures.map((item) => `- ${item.location}：${item.observation}（${item.traditionalReference}；信心度：${item.confidence}）`).join("\n") || "- 本次未辨識到可信度足夠的斑、痣、疤或痕"}\n\n氣色觀察：${report.surfaceAnalysis.complexionObservation}${report.surfaceAnalysis.filterWarning ? `\n\n照片限制：${report.surfaceAnalysis.filterWarning}` : ""}`,
     `## 十二宮觀察\n${report.palaces
       .map((item) => `### ${item.name}\n${item.interpretation}\n\n建議：${item.advice}\n\n依據：${item.evidence}`)
       .join("\n\n")}`

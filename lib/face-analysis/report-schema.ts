@@ -64,6 +64,19 @@ const collaborationFrameworkSchema = z
   })
   .strict();
 
+const surfaceAnalysisSchema = z.object({
+  detectedFeatures: z.array(z.object({
+    type: z.enum(["spot", "mole", "scar", "mark"]),
+    location: boundedText(1, 120),
+    observation: boundedText(1, 300),
+    traditionalReference: boundedText(1, 500),
+    confidence: z.enum(["high", "medium", "low"])
+  }).strict()).max(30),
+  complexionObservation: boundedText(1, 500),
+  filterWarning: boundedText(1, 300).nullable(),
+  summary: boundedText(1, 600)
+}).strict();
+
 const baseReportShape = {
   schemaVersion: z.literal("1.0"),
   summary: boundedText(100, 180),
@@ -95,6 +108,7 @@ const baseReportShape = {
     }
   }),
   lifeAreas: lifeAreasSchema,
+  surfaceAnalysis: surfaceAnalysisSchema,
   collaborationFramework: collaborationFrameworkSchema.nullable(),
   disclaimer: z.literal(FACE_REPORT_DISCLAIMER)
 };

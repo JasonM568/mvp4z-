@@ -42,7 +42,7 @@ export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
         ...input,
         schema: faceVisionResultSchema,
         responseSchema: geminiVisionResponseSchema,
-        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋、八大區塊，以及印堂、山根、奸門、淚堂、人中、地閣六個細部位的可見度、相對寬高、輪廓、對稱與光線。細部位看不清楚必須回 not_assessable；不可推論任何人格、命運、健康、氣色疾病或敏感屬性。",
+        task: VISION_TASK,
         databaseApproved: this.databaseApproved
       });
     }
@@ -52,7 +52,7 @@ export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
         ...input,
         schema: faceVisionResultSchema,
         schemaName: "face_visible_geometry",
-        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋、八大區塊，以及印堂、山根、奸門、淚堂、人中、地閣六個細部位的可見度、相對寬高、輪廓、對稱與光線。細部位看不清楚必須回 not_assessable；不可推論任何人格、命運、健康、氣色疾病或敏感屬性。",
+        task: VISION_TASK,
         databaseApproved: this.databaseApproved
       });
     }
@@ -86,3 +86,5 @@ export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
     }
   }
 }
+
+const VISION_TASK = "回傳單一正面人臉的可見觀察：姿態、幾何、八大區塊、六個細部位，並特別列出照片中可見的斑、痣、疤、痕之類型、位置、左右、明顯度與信心度。氣色只記錄畫面明暗、均勻度與色偏，並判斷是否可能有美肌、磨皮或濾鏡；不得連結器官、疾病、種族、人格或命運。看不清楚必須降低 confidence 或回 not_assessable。";
