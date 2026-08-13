@@ -218,9 +218,29 @@ async function findEligibleEntitlement(profileId: string) {
 async function markRunFailed(runId: string, userId: string, code: string) {
   try {
     const admin = createSupabaseAdminClient();
+    const retryableInfrastructureFailure = [
+      "FACE_REPORT_PROVIDER_ERROR",
+      "FACE_REPORT_PROVIDER_TIMEOUT",
+      "FACE_REPORT_EMPTY_OUTPUT",
+      "FACE_REPORT_SCHEMA_INVALID"
+    ].includes(code);
+    let analysisAttempts: number | undefined;
+    if (retryableInfrastructureFailure) {
+      const { data: current } = await admin
+        .from("face_analysis_runs")
+        .select("analysis_attempts")
+        .eq("id", runId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      analysisAttempts = Math.max(0, Number(current?.analysis_attempts || 0) - 1);
+    }
     const { error } = await admin
       .from("face_analysis_runs")
-      .update({ status: "failed", error_code: code })
+      .update({
+        status: "failed",
+        error_code: code,
+        ...(analysisAttempts === undefined ? {} : { analysis_attempts: analysisAttempts })
+      })
       .eq("id", runId)
       .eq("user_id", userId)
       .eq("status", "analyzing");
