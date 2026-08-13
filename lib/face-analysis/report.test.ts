@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generateFaceReport } from "@/lib/face-analysis/report";
 import { FACE_REPORT_DISCLAIMER } from "@/lib/face-analysis/report-schema";
 import { FACE_PALACE_NAMES } from "@/lib/face-analysis/rules";
+const parse = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/ai/openai", () => ({ createOpenAIClient: () => ({ responses: { parse } }), openAIModel: () => "gpt-4.1-mini" }));
+const { generateFaceReport } = await import("@/lib/face-analysis/report");
 
 const validReport = {
   schemaVersion: "1.0",
@@ -57,38 +59,26 @@ const input = {
   }
 };
 
-describe("DeepSeek face report provider", () => {
+describe("OpenAI face report provider", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    parse.mockReset();
     delete process.env.FACE_REPORT_PROVIDER;
-    delete process.env.FACE_REPORT_MODEL;
+    delete process.env.FACE_REPORT_OPENAI_MODEL;
   });
 
-  it("sends only structured text input and validates DeepSeek JSON", async () => {
-    process.env.DEEPSEEK_API_KEY = "test-key";
-    process.env.FACE_REPORT_PROVIDER = "deepseek";
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      const request = JSON.parse(String(init?.body));
-      expect(request.model).toBe("deepseek-v4-pro");
-      expect(request.response_format).toEqual({ type: "json_object" });
-      expect(String(init?.body)).not.toContain("input_image");
-      expect(String(init?.body)).not.toContain("base64");
-      return new Response(JSON.stringify({
-        model: "deepseek-v4-pro",
-        choices: [{ message: { content: JSON.stringify(validReport) } }],
-        usage: { prompt_tokens: 123, completion_tokens: 456 }
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
-    });
-    vi.stubGlobal("fetch", fetchMock);
+  it("sends structured text and validates parsed output", async () => {
+    process.env.FACE_REPORT_PROVIDER = "openai";
+    parse.mockResolvedValue({ output_parsed: validReport, usage: { input_tokens: 123, output_tokens: 456 } });
 
     const result = await generateFaceReport(input);
-    expect(result.trace).toMatchObject({ provider: "deepseek", model: "deepseek-v4-pro", tokensInput: 123, tokensOutput: 456 });
+    expect(parse).toHaveBeenCalledOnce();
+    expect(result.trace).toMatchObject({ provider: "openai", model: "gpt-4.1-mini", tokensInput: 123, tokensOutput: 456 });
     expect(result.report.palaces).toHaveLength(12);
   });
 
-  it("fails closed when DeepSeek returns invalid JSON", async () => {
-    process.env.DEEPSEEK_API_KEY = "test-key";
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: "not-json" } }] }), { status: 200 })));
-    await expect(generateFaceReport(input)).rejects.toThrow("FACE_REPORT_INVALID_OUTPUT");
+  it("fails closed when OpenAI returns no parsed output", async () => {
+    process.env.FACE_REPORT_PROVIDER = "openai";
+    parse.mockResolvedValue({ output_parsed: null });
+    await expect(generateFaceReport(input)).rejects.toThrow("FACE_REPORT_EMPTY_OUTPUT");
   });
 });

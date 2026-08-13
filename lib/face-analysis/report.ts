@@ -5,6 +5,8 @@ import {
   faceReportSchema
 } from "@/lib/face-analysis/report-schema";
 import { FaceQualityResult, FaceAnalysisMode } from "@/lib/face-analysis/types";
+import { createOpenAIClient, openAIModel } from "@/lib/ai/openai";
+import { zodTextFormat } from "openai/helpers/zod";
 
 const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 你只能根據輸入的結構化規則結果撰寫，不得重新分析照片，也不得加入輸入沒有的事實。
@@ -14,8 +16,7 @@ const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 mode=other 時只提供合作溝通的觀察與核對問題，不判定對方忠誠、善惡或是否可信。
 十二宮與 30/60/90 天行動必須完整，disclaimer 必須逐字使用 server 提供的固定內容。`;
 
-const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
-const DEEPSEEK_REPORT_MODEL = "deepseek-v4-pro";
+const DEFAULT_OPENAI_REPORT_MODEL = "gpt-4.1-mini";
 
 export async function generateFaceReport(input: {
   mode: FaceAnalysisMode;
@@ -24,15 +25,13 @@ export async function generateFaceReport(input: {
   rules: FaceRuleResult;
   knowledge?: Array<{ cardId: string; title: string; category: string; observation: string; editorSummary: string | null }>;
 }) {
-  if ((process.env.FACE_REPORT_PROVIDER || "deepseek").trim().toLowerCase() !== "deepseek") {
+  if ((process.env.FACE_REPORT_PROVIDER || "openai").trim().toLowerCase() !== "openai") {
     throw new Error("FACE_REPORT_PROVIDER_UNSUPPORTED");
   }
-  const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
-  if (!apiKey) throw new Error("FACE_REPORT_PROVIDER_UNAVAILABLE");
-  const model = process.env.FACE_REPORT_MODEL?.trim() || DEEPSEEK_REPORT_MODEL;
+  const model = process.env.FACE_REPORT_OPENAI_MODEL?.trim() || openAIModel() || DEFAULT_OPENAI_REPORT_MODEL;
   const startedAt = Date.now();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const timeout = setTimeout(() => controller.abort(), 45_000);
   const reportInput = {
       mode: input.mode,
       subjectAge: input.subjectAge,
@@ -46,50 +45,35 @@ export async function generateFaceReport(input: {
       approvedKnowledge: (input.knowledge || []).map((item) => ({ cardId: item.cardId, title: item.title, category: item.category, observation: item.observation, editorSummary: item.editorSummary })),
       fixedDisclaimer: FACE_REPORT_DISCLAIMER
   };
-  let response: Response;
+  let response: { output_parsed?: unknown; usage?: { input_tokens?: number; output_tokens?: number } };
   try {
-    response = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_tokens: 8000,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode)}` },
-          { role: "user", content: `請依下列資料輸出單一 JSON object，不要使用 Markdown：\n${JSON.stringify(reportInput)}` }
-        ]
-      }),
-      signal: controller.signal
-    });
+    response = await createOpenAIClient().responses.parse({
+      model, store: false,
+      instructions: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode)}`,
+      input: `請依下列資料輸出單一 JSON object：\n${JSON.stringify(reportInput)}`,
+      text: { format: zodTextFormat(faceReportSchema, "face_report") },
+      max_output_tokens: 3200, temperature: 0
+    }, { signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw new Error("FACE_REPORT_PROVIDER_TIMEOUT");
     throw new Error("FACE_REPORT_PROVIDER_ERROR");
   } finally {
     clearTimeout(timeout);
   }
-  const payload = await response.json().catch(() => null) as {
-    choices?: Array<{ message?: { content?: string } }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
-  } | null;
-  if (!response.ok) throw new Error("FACE_REPORT_PROVIDER_ERROR");
-  const content = payload?.choices?.[0]?.message?.content?.trim();
-  if (!content) throw new Error("FACE_REPORT_INVALID_OUTPUT");
-  let decoded: unknown;
+  if (!response.output_parsed) throw new Error("FACE_REPORT_EMPTY_OUTPUT");
+  let report: FaceReport;
   try {
-    decoded = JSON.parse(content.replace(/^```json\s*/i, "").replace(/\s*```$/, ""));
+    report = faceReportSchema.parse(response.output_parsed);
   } catch {
-    throw new Error("FACE_REPORT_INVALID_OUTPUT");
+    throw new Error("FACE_REPORT_SCHEMA_INVALID");
   }
-  const report = faceReportSchema.parse(decoded);
   return {
     report,
     trace: {
-      provider: "deepseek",
+      provider: "openai",
       model,
-      tokensInput: Number(payload?.usage?.prompt_tokens || 0),
-      tokensOutput: Number(payload?.usage?.completion_tokens || 0),
+      tokensInput: Number(response.usage?.input_tokens || 0),
+      tokensOutput: Number(response.usage?.output_tokens || 0),
       latencyMs: Date.now() - startedAt
     }
   };
