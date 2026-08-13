@@ -9,7 +9,7 @@ const feature = z.enum(["forehead", "eyebrows", "eyes", "nose", "cheeks", "mouth
 const settingsSchema = z.object({
   schemaVersion: z.literal("1.0"),
   palaces: z.array(z.object({ name: z.string().trim().min(1).max(20), primary: z.array(feature).min(1).max(4), auxiliary: z.array(feature).max(6) }).strict()).length(12)
-}).strict();
+}).strict().superRefine((value, context) => { if (new Set(value.palaces.map((item) => item.name)).size !== 12) context.addIssue({ code: z.ZodIssueCode.custom, path: ["palaces"], message: "十二宮不可重複" }); });
 const saveSchema = z.object({ versionLabel: z.string().trim().min(1).max(80), note: z.string().trim().max(1000).default(""), decidedBy: z.string().trim().max(80).default(""), settings: settingsSchema }).strict();
 
 export async function GET(request: NextRequest) {

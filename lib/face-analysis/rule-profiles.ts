@@ -3,7 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { FACE_PALACE_NAMES, type FaceRuleProfileSettings } from "@/lib/face-analysis/rules";
 
 const feature = z.enum(["forehead","eyebrows","eyes","nose","cheeks","mouth","jaw","ears","glabella","nasalRoot","outerEyeCorners","tearTroughs","philtrum","chin"]);
-const schema = z.object({ schemaVersion:z.literal("1.0"), palaces:z.array(z.object({name:z.enum(FACE_PALACE_NAMES),primary:z.array(feature).min(1),auxiliary:z.array(feature)}).strict()).length(12) }).strict();
+const schema = z.object({ schemaVersion:z.literal("1.0"), palaces:z.array(z.object({name:z.enum(FACE_PALACE_NAMES),primary:z.array(feature).min(1),auxiliary:z.array(feature)}).strict()).length(12) }).strict().superRefine((value, context) => { if (new Set(value.palaces.map((item) => item.name)).size !== FACE_PALACE_NAMES.length) context.addIssue({ code:z.ZodIssueCode.custom, path:["palaces"], message:"palaces must be complete and unique" }); });
 let cached: { value: { id:string; version:string; settings:FaceRuleProfileSettings } | null; expires:number } | null = null;
 export async function loadPublishedFaceRuleProfile() {
   if (cached && cached.expires > Date.now()) return cached.value;
