@@ -36,6 +36,7 @@ const NAV_GROUPS = [
     label: "面相系統",
     items: [
       { href: "/admin/face-analysis", label: "面相分析紀錄" },
+      { href: "/admin/face-rules", label: "面相規則設定" },
       { href: "/admin/face-knowledge", label: "面相知識庫" },
       { href: "/admin/gemini-provider", label: "Gemini 影像認證" },
       { href: "/admin/face-provider", label: "OpenAI 備援認證" }
