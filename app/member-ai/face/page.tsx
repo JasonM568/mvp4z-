@@ -267,6 +267,12 @@ export default function FaceAnalysisPage() {
               <div className="good"><i aria-hidden>◯</i><strong>適合</strong><span>正面、單人、光線均勻、五官清楚</span></div>
               <div className="bad"><i aria-hidden>╱</i><strong>請避免</strong><span>側臉、口罩、逆光、模糊或多人合照</span></div>
             </div>
+            <section className="face-report-type" aria-labelledby="report-type-title">
+              <div><span>報告類型</span><h2 id="report-type-title">這次要分析什麼？</h2></div>
+              <label className={!collaborationAssessment ? "selected" : ""}><input type="radio" name="landingReportType" checked={!collaborationAssessment} onChange={() => setCollaborationAssessment(false)} /><span><strong>一般面相報告</strong><small>感情、事業、健康、財運與家庭五大面向。</small></span></label>
+              <label className={collaborationAssessment ? "selected" : ""}><input type="checkbox" checked={collaborationAssessment} onChange={(event) => setCollaborationAssessment(event.target.checked)} /><span><strong>合作對象評估</strong><small>額外給出是否建議合作、適合角色、風險與相處模式。</small></span></label>
+              {collaborationAssessment && <label className="face-field"><span>合作項目描述（必填）</span><textarea rows={5} maxLength={1000} value={collaborationProject} onChange={(event) => setCollaborationProject(event.target.value)} placeholder="例如：合作開設餐飲店，對方負責營運與人員管理，我負責資金與行銷，最擔心帳務透明與決策權。" /></label>}
+            </section>
             <div className="face-price-note"><strong>品質檢查免費</strong><span>完整報告 20 點</span><span>原始照片最長 24 小時內刪除</span></div>
             <div className="face-landing-actions">
               <button className="face-primary" onClick={() => setStep("capture")} data-xf-event="face_start_quality_check">開始免費品質檢查</button>
