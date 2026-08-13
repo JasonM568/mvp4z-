@@ -24,11 +24,19 @@ const actionSchema = z
   })
   .strict();
 
+const priorityAdviceSchema = z.object({
+  problem: boundedText(1, 180),
+  reason: boundedText(1, 500),
+  advice: boundedText(1, 500)
+}).strict();
+
 const baseReportShape = {
   schemaVersion: z.literal("1.0"),
   summary: boundedText(100, 180),
   photoQuality: boundedText(1, 600),
   currentTrend: boundedText(1, 1200),
+  coreHighlights: z.array(boundedText(1, 320)).length(3),
+  priorityAdvice: z.array(priorityAdviceSchema).length(3),
   palaces: z
     .array(palaceSchema)
     .length(12)

@@ -10,6 +10,8 @@ type Mode = "self" | "other";
 type StructuredReport = {
   summary?: string;
   currentTrend?: string;
+  coreHighlights?: string[];
+  priorityAdvice?: Array<{ problem?: string; reason?: string; advice?: string }>;
   lifeAreas?: Record<string, string>;
   collaborationFramework?: { observableInteraction?: string; boundaries?: string };
 };
@@ -388,6 +390,8 @@ function ReportHighlights({ report, mode }: { report: StructuredReport; mode: Mo
     <div className="face-report-summary-head"><span>先看這裡</span><h2>本次報告重點</h2></div>
     {report.summary && <article className="face-key-conclusion"><strong>一句話總結</strong><p>{report.summary}</p></article>}
     {report.currentTrend && <article className="face-key-conclusion"><strong>目前最需要注意</strong><p>{report.currentTrend}</p></article>}
+    {report.coreHighlights?.length && <div className="face-core-highlights">{report.coreHighlights.map((item, index) => <article key={index}><span>{index + 1}</span><p>{item}</p></article>)}</div>}
+    {report.priorityAdvice?.length && <div className="face-priority-list">{report.priorityAdvice.map((item, index) => <article key={index}><strong>{item.problem}</strong><p>{item.reason}</p><b>建議：{item.advice}</b></article>)}</div>}
     {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><p>{value}</p></article>)}</div>}
     <p className="face-report-divider">以下為十二宮完整分析與判讀依據</p>
   </section>;

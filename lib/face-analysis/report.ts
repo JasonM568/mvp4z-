@@ -92,6 +92,8 @@ function outputContract(mode: FaceAnalysisMode) {
 - schemaVersion 必須為 "1.0"；mode 必須為 "${mode}"。
 - summary 必須是 100–180 個字元的繁體中文。
 - photoQuality、currentTrend 為字串。
+- coreHighlights 必須恰好三筆，依序回答「目前最明顯的狀態」、「最值得把握的方向」、「最需要避免的風險」，每筆都要直接、有重點。
+- priorityAdvice 必須恰好三筆，每筆只有 problem、reason、advice；理由必須引用同名宮位或可見證據，建議必須能實際執行。
 - palaces 必須恰好 12 筆且不可重複，name 依序為：命宮、官祿宮、父母宮、福德宮、遷移宮、兄弟宮、夫妻宮、子女宮、疾厄宮、財帛宮、奴僕宮、田宅宮。
 - 每筆 palace 只有 name、status、evidence、interpretation、advice；status 只能是 balanced、watch 或 limited。
 - 各宮解讀必須依據輸入 rules.palaces 內同名宮位的 parts（沈師部位）與 evidence 形態特徵（輪廓／寬窄／長短／對稱），不得依光線或拍攝條件下論斷。
@@ -110,6 +112,8 @@ export function renderFaceReportText(report: FaceReport) {
     `## 摘要\n${report.summary}`,
     `## 照片品質\n${report.photoQuality}`,
     `## 目前趨勢\n${report.currentTrend}`,
+    `## 三個核心重點\n${report.coreHighlights.map((item) => `- ${item}`).join("\n")}`,
+    `## 明確問題與建議\n${report.priorityAdvice.map((item, index) => `### 問題 ${index + 1}：${item.problem}\n理由：${item.reason}\n\n建議：${item.advice}`).join("\n\n")}`,
     `## 十二宮觀察\n${report.palaces
       .map((item) => `### ${item.name}\n${item.interpretation}\n\n建議：${item.advice}\n\n依據：${item.evidence}`)
       .join("\n\n")}`

@@ -11,6 +11,12 @@ const validReport = {
   summary: Array(10).fill("以實際資料持續驗證觀察結果。").join(""),
   photoQuality: "照片品質可供有限的文化觀察參考。",
   currentTrend: "目前僅就清楚可見的結構做趨勢式整理。",
+  coreHighlights: ["先整理目前最明顯的狀態。", "把握可驗證且能持續的方向。", "避免在資料不足時做重大承諾。"],
+  priorityAdvice: [
+    { problem: "行動焦點分散", reason: "可見宮位資料顯示需要先收斂目標。", advice: "本週只設定一個主要目標。" },
+    { problem: "資訊仍不完整", reason: "部分證據仍需搭配現實資料核對。", advice: "決定前補齊三項可驗證資料。" },
+    { problem: "缺少定期回顧", reason: "單次觀察不適合直接形成長期結論。", advice: "每三十天回顧一次實際結果。" }
+  ],
   palaces: FACE_PALACE_NAMES.map((name) => ({
     name,
     status: "limited",
