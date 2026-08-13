@@ -26,7 +26,7 @@ export type FacePalaceName = (typeof FACE_PALACE_NAMES)[number];
 export type RuleStatus = "balanced" | "watch" | "limited";
 
 export type RuleEvidence = Readonly<{
-  region: keyof FaceVisionResult["regions"] | "orientation" | "landmarks";
+  region: FaceFeatureName | "orientation" | "landmarks";
   field: string;
   observed: string | number | boolean;
   confidence: number;
@@ -59,29 +59,32 @@ export type FaceRuleResult = Readonly<{
 }>;
 
 type RegionName = keyof FaceVisionResult["regions"];
+type DetailName = keyof FaceVisionResult["details"];
+type FaceFeatureName = RegionName | DetailName;
 type RegionValue = FaceVisionResult["regions"][RegionName];
+type FeatureValue = RegionValue | FaceVisionResult["details"][DetailName];
 
 type PalaceMapping = Readonly<{
   parts: string;
-  primary: readonly RegionName[];
-  auxiliary: readonly RegionName[];
+  primary: readonly FaceFeatureName[];
+  auxiliary: readonly FaceFeatureName[];
 }>;
 
 /**
- * 細部位（印堂、山根、奸門、淚堂…）在 Vision v2 之前無法直接觀察，
- * 先以現行八大區塊近似對應；主／輔劃分依 SPEC-05 對應表。
+ * Vision v2 已納入老師核可的六個細部位；其餘仍以八大區塊近似。
+ * 主／輔劃分依 SPEC-05 對應表。
  */
 const PALACE_MAPPINGS: Readonly<Record<Exclude<FacePalaceName, "財帛宮">, PalaceMapping>> = {
-  命宮: { parts: "印堂（輔：兩眉）", primary: ["forehead"], auxiliary: ["eyebrows"] },
-  官祿宮: { parts: "額頭中正（輔：印堂、眉眼）", primary: ["forehead"], auxiliary: ["eyebrows", "eyes"] },
+  命宮: { parts: "印堂（輔：兩眉）", primary: ["glabella"], auxiliary: ["eyebrows"] },
+  官祿宮: { parts: "額頭中正（輔：印堂、眉眼）", primary: ["forehead"], auxiliary: ["glabella", "eyebrows", "eyes"] },
   父母宮: { parts: "日月角（輔：上中府、眼眉、髮際）", primary: ["forehead"], auxiliary: ["eyebrows", "eyes"] },
-  福德宮: { parts: "兩眉上緣（輔：印堂）", primary: ["eyebrows"], auxiliary: ["forehead"] },
-  遷移宮: { parts: "山林驛馬／額角髮際（輔：印堂、眼神）", primary: ["forehead"], auxiliary: ["eyes"] },
+  福德宮: { parts: "兩眉上緣（輔：印堂）", primary: ["eyebrows"], auxiliary: ["glabella"] },
+  遷移宮: { parts: "山林驛馬／額角髮際（輔：印堂、眼神）", primary: ["forehead"], auxiliary: ["glabella", "eyes"] },
   兄弟宮: { parts: "眉毛（輔:顴骨）", primary: ["eyebrows"], auxiliary: ["cheeks"] },
-  夫妻宮: { parts: "眼尾奸門（輔：眉、眼、鼻、印堂十字帶）", primary: ["eyes"], auxiliary: ["eyebrows", "nose"] },
-  子女宮: { parts: "淚堂（輔：下停地閣、眼、人中）", primary: ["eyes"], auxiliary: ["mouth", "jaw"] },
-  疾厄宮: { parts: "山根（輔：鼻、眼形神氣）", primary: ["nose"], auxiliary: ["eyes"] },
-  奴僕宮: { parts: "下停鼻准以下：下顎腮骨（輔：法令、地閣、口）", primary: ["jaw"], auxiliary: ["mouth", "cheeks"] },
+  夫妻宮: { parts: "眼尾奸門（輔：眉、眼、鼻、印堂十字帶）", primary: ["outerEyeCorners"], auxiliary: ["eyebrows", "eyes", "nose", "glabella"] },
+  子女宮: { parts: "淚堂（輔：下停地閣、眼、人中）", primary: ["tearTroughs"], auxiliary: ["chin", "eyes", "philtrum"] },
+  疾厄宮: { parts: "山根（輔：鼻、眼形神氣）", primary: ["nasalRoot"], auxiliary: ["nose", "eyes"] },
+  奴僕宮: { parts: "下停鼻准以下：下顎腮骨（輔：法令、地閣、口）", primary: ["jaw"], auxiliary: ["mouth", "cheeks", "chin"] },
   田宅宮: { parts: "眼瞼（輔：下巴嘴角、准圓）", primary: ["eyes"], auxiliary: ["jaw", "mouth"] }
 };
 
@@ -91,12 +94,12 @@ function treasuryMapping(subjectAge: number | null | undefined): PalaceMapping &
     return { band: "天倉", parts: "天倉（髮際額頭；青年財，祖先父母給的）", primary: ["forehead"], auxiliary: ["eyebrows", "nose"] };
   }
   if (subjectAge != null && subjectAge >= 51) {
-    return { band: "地倉", parts: "地倉（地閣懸臂；晚年財，子女晚輩）", primary: ["jaw"], auxiliary: ["mouth", "nose"] };
+    return { band: "地倉", parts: "地倉（地閣懸臂；晚年財，子女晚輩）", primary: ["chin"], auxiliary: ["jaw", "mouth", "nose"] };
   }
   return { band: "人倉", parts: "人倉（眉眼鼻；中年 31-50 自賺之財）", primary: ["nose"], auxiliary: ["eyebrows", "eyes"] };
 }
 
-const REGION_LABELS: Readonly<Record<RegionName, string>> = {
+const FEATURE_LABELS: Readonly<Record<FaceFeatureName, string>> = {
   forehead: "額頭",
   eyebrows: "眉",
   eyes: "眼",
@@ -104,7 +107,13 @@ const REGION_LABELS: Readonly<Record<RegionName, string>> = {
   cheeks: "顴頰",
   mouth: "口",
   jaw: "下顎（地閣）",
-  ears: "耳"
+  ears: "耳",
+  glabella: "印堂",
+  nasalRoot: "山根",
+  outerEyeCorners: "奸門",
+  tearTroughs: "淚堂",
+  philtrum: "人中",
+  chin: "地閣"
 };
 
 const CONTOUR_LABELS: Readonly<Record<RegionValue["contour"], string>> = {
@@ -136,7 +145,12 @@ const SYMMETRY_LABELS: Readonly<Record<RegionValue["symmetry"], string>> = {
   not_assessable: "無法判讀"
 };
 
-function hasMorphology(value: RegionValue): boolean {
+function featureValue(vision: FaceVisionResult, feature: FaceFeatureName): FeatureValue {
+  if (feature in vision.details) return vision.details[feature as DetailName];
+  return vision.regions[feature as RegionName];
+}
+
+function hasMorphology(value: FeatureValue): boolean {
   return (
     value.contour !== "not_assessable" ||
     value.relativeWidth !== "not_assessable" ||
@@ -144,12 +158,12 @@ function hasMorphology(value: RegionValue): boolean {
   );
 }
 
-function isReadable(value: RegionValue): boolean {
+function isReadable(value: FeatureValue): boolean {
   return value.confidence >= FACE_RULE_MIN_CONFIDENCE && value.visibility === "clear" && hasMorphology(value);
 }
 
-function morphologyEvidence(vision: FaceVisionResult, region: RegionName): RuleEvidence[] {
-  const value = vision.regions[region];
+function morphologyEvidence(vision: FaceVisionResult, region: FaceFeatureName): RuleEvidence[] {
+  const value = featureValue(vision, region);
   return [
     { region, field: "contour", observed: value.contour, confidence: value.confidence },
     { region, field: "relativeWidth", observed: value.relativeWidth, confidence: value.confidence },
@@ -158,8 +172,8 @@ function morphologyEvidence(vision: FaceVisionResult, region: RegionName): RuleE
   ];
 }
 
-function auxiliaryEvidence(vision: FaceVisionResult, region: RegionName): RuleEvidence[] {
-  const value = vision.regions[region];
+function auxiliaryEvidence(vision: FaceVisionResult, region: FaceFeatureName): RuleEvidence[] {
+  const value = featureValue(vision, region);
   return [
     { region, field: "contour", observed: value.contour, confidence: value.confidence },
     { region, field: "symmetry", observed: value.symmetry, confidence: value.confidence }
@@ -171,11 +185,11 @@ function auxiliaryEvidence(vision: FaceVisionResult, region: RegionName): RuleEv
  * 光線／拍攝條件不進宮位狀態，統一收進 cautions。
  */
 function palaceStatus(vision: FaceVisionResult, mapping: PalaceMapping): RuleStatus {
-  const primaries = mapping.primary.map((region) => vision.regions[region]);
+  const primaries = mapping.primary.map((region) => featureValue(vision, region));
   const readable = primaries.filter(isReadable);
   if (readable.length === 0) return "limited";
   if (readable.length < primaries.length) return "watch";
-  const mapped = [...mapping.primary, ...mapping.auxiliary].map((region) => vision.regions[region]);
+  const mapped = [...mapping.primary, ...mapping.auxiliary].map((region) => featureValue(vision, region));
   if (mapped.some((value) => value.symmetry === "asymmetric" && value.confidence >= FACE_RULE_MIN_CONFIDENCE)) {
     return "watch";
   }
@@ -241,7 +255,7 @@ export function applyFaceRules(input: {
     const value = vision.regions[region];
     return {
       ruleId: `OBS_${region.toUpperCase()}_V2`,
-      text: `${REGION_LABELS[region]}：輪廓${CONTOUR_LABELS[value.contour]}、寬度${WIDTH_LABELS[value.relativeWidth]}、長度${HEIGHT_LABELS[value.relativeHeight]}、左右${SYMMETRY_LABELS[value.symmetry]}。`,
+      text: `${FEATURE_LABELS[region]}：輪廓${CONTOUR_LABELS[value.contour]}、寬度${WIDTH_LABELS[value.relativeWidth]}、長度${HEIGHT_LABELS[value.relativeHeight]}、左右${SYMMETRY_LABELS[value.symmetry]}。`,
       evidence: morphologyEvidence(vision, region)
     };
   });

@@ -3,7 +3,7 @@ import { z } from "zod";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const BASE_INSTRUCTIONS = `你是影像品質與人臉幾何觀察器。
-只能輸出照片中可直接看見的人臉數量、頭部角度、遮擋、相對比例、輪廓、光線與 landmark 覆蓋程度。
+只能輸出照片中可直接看見的人臉數量、頭部角度、遮擋、相對比例、輪廓、光線與 landmark 覆蓋程度；細部位只限印堂、山根、奸門、淚堂、人中、地閣的可見幾何。
 禁止辨識或猜測身分、真實年齡、健康、疾病、情緒、人格、可信度、犯罪傾向、種族、國籍、宗教、政治立場、性傾向或其他敏感屬性。
 看不清楚時必須降低 confidence 或使用 not_assessable，不可補猜。只輸出符合指定 JSON schema 的單一 JSON object。`;
 
@@ -108,7 +108,7 @@ const visibleRegion = {
 export const geminiVisionResponseSchema = {
   type: "OBJECT",
   properties: {
-    schemaVersion: { type: "STRING", enum: ["1.0"] },
+    schemaVersion: { type: "STRING", enum: ["2.0"] },
     faceCount: { type: "INTEGER", enum: [1] },
     orientation: {
       type: "OBJECT",
@@ -134,8 +134,20 @@ export const geminiVisionResponseSchema = {
       },
       required: ["forehead", "eyebrows", "eyes", "nose", "cheeks", "mouth", "jaw", "ears"]
     },
+    details: {
+      type: "OBJECT",
+      properties: {
+        glabella: visibleRegion,
+        nasalRoot: visibleRegion,
+        outerEyeCorners: visibleRegion,
+        tearTroughs: visibleRegion,
+        philtrum: visibleRegion,
+        chin: visibleRegion
+      },
+      required: ["glabella", "nasalRoot", "outerEyeCorners", "tearTroughs", "philtrum", "chin"]
+    },
     overallConfidence: confidence,
     limitations: { type: "ARRAY", items: { type: "STRING" }, maxItems: 12 }
   },
-  required: ["schemaVersion", "faceCount", "orientation", "landmarks", "regions", "overallConfidence", "limitations"]
+  required: ["schemaVersion", "faceCount", "orientation", "landmarks", "regions", "details", "overallConfidence", "limitations"]
 } as const;

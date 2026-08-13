@@ -16,13 +16,19 @@ const visibleRegionSchema = z
   .strict();
 
 /**
+ * 沈師十二宮第一批核可的細部位。這些欄位仍只允許回傳可見幾何，
+ * 絕不能藉此推論健康、年齡或任何人格／敏感屬性。
+ */
+const visibleDetailSchema = visibleRegionSchema;
+
+/**
  * The only output shape a vision provider may return.
  * Strict schemas intentionally reject identity, age, health, personality and
  * protected-attribute fields instead of silently stripping them.
  */
 export const faceVisionResultSchema = z
   .object({
-    schemaVersion: z.literal("1.0"),
+    schemaVersion: z.literal("2.0"),
     faceCount: z.literal(1),
     orientation: z
       .object({
@@ -49,6 +55,22 @@ export const faceVisionResultSchema = z
         mouth: visibleRegionSchema,
         jaw: visibleRegionSchema,
         ears: visibleRegionSchema
+      })
+      .strict(),
+    details: z
+      .object({
+        /** 印堂：命宮，亦為官祿／福德／遷移／夫妻的輔看部位。 */
+        glabella: visibleDetailSchema,
+        /** 山根：疾厄宮主部位。 */
+        nasalRoot: visibleDetailSchema,
+        /** 奸門：夫妻宮主部位。 */
+        outerEyeCorners: visibleDetailSchema,
+        /** 淚堂：子女宮主部位。 */
+        tearTroughs: visibleDetailSchema,
+        /** 人中：子女宮輔部位。 */
+        philtrum: visibleDetailSchema,
+        /** 地閣：奴僕宮輔部位及財帛地倉。 */
+        chin: visibleDetailSchema
       })
       .strict(),
     overallConfidence: confidenceSchema,
@@ -92,4 +114,3 @@ export async function runFaceVisionProvider(
   const raw = await provider.analyze(input);
   return faceVisionResultSchema.parse(raw);
 }
-

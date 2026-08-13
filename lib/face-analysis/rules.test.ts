@@ -13,7 +13,7 @@ const region = {
 };
 
 const validVision = {
-  schemaVersion: "1.0" as const,
+  schemaVersion: "2.0" as const,
   faceCount: 1 as const,
   orientation: { yaw: 0, pitch: 0, roll: 0, confidence: 0.95 },
   landmarks: { detected: true, coverage: 0.9, confidence: 0.95 },
@@ -26,6 +26,14 @@ const validVision = {
     mouth: region,
     jaw: region,
     ears: region
+  },
+  details: {
+    glabella: region,
+    nasalRoot: region,
+    outerEyeCorners: region,
+    tearTroughs: region,
+    philtrum: region,
+    chin: region
   },
   overallConfidence: 0.92,
   limitations: []
@@ -50,7 +58,7 @@ describe("face vision and deterministic rules", () => {
     ]);
   });
 
-  it("marks a palace as watch when its mapped geometry is clearly asymmetric", () => {
+  it("marks a broad-region palace as watch when its mapped geometry is clearly asymmetric", () => {
     const vision = faceVisionResultSchema.parse({
       ...validVision,
       regions: {
@@ -60,8 +68,32 @@ describe("face vision and deterministic rules", () => {
     });
 
     const result = applyFaceRules({ vision, mode: "self", subjectAge: 35 });
-    expect(result.palaces.find((item) => item.name === "命宮")?.status).toBe("watch");
+    expect(result.palaces.find((item) => item.name === "命宮")?.status).toBe("balanced");
     expect(result.palaces.find((item) => item.name === "官祿宮")?.status).toBe("watch");
+  });
+
+  it("uses approved Shen detail points as the palace primary evidence", () => {
+    const vision = faceVisionResultSchema.parse({
+      ...validVision,
+      details: {
+        ...validVision.details,
+        glabella: { ...region, symmetry: "asymmetric" },
+        outerEyeCorners: { ...region, visibility: "partial" },
+        nasalRoot: { ...region, visibility: "obscured", contour: "not_assessable", relativeWidth: "not_assessable", relativeHeight: "not_assessable" }
+      }
+    });
+
+    const result = applyFaceRules({ vision, mode: "self", subjectAge: 35 });
+    const destiny = result.palaces.find((item) => item.name === "命宮");
+    const marriage = result.palaces.find((item) => item.name === "夫妻宮");
+    const health = result.palaces.find((item) => item.name === "疾厄宮");
+
+    expect(destiny?.status).toBe("watch");
+    expect(destiny?.evidence.some((item) => item.region === "glabella")).toBe(true);
+    expect(marriage?.status).toBe("limited");
+    expect(marriage?.evidence.some((item) => item.region === "outerEyeCorners")).toBe(true);
+    expect(health?.status).toBe("limited");
+    expect(health?.evidence.some((item) => item.region === "nasalRoot")).toBe(true);
   });
 
   it("uses the Shen three-treasury mapping for the subject age", () => {
@@ -74,6 +106,7 @@ describe("face vision and deterministic rules", () => {
     expect(youth).toMatchObject({ ruleId: "PALACE_財帛宮_天倉_V2", parts: expect.stringContaining("天倉") });
     expect(middle).toMatchObject({ ruleId: "PALACE_財帛宮_人倉_V2", parts: expect.stringContaining("人倉") });
     expect(later).toMatchObject({ ruleId: "PALACE_財帛宮_地倉_V2", parts: expect.stringContaining("地倉") });
+    expect(later?.evidence.some((item) => item.region === "chin")).toBe(true);
   });
 
   it("keeps palace status morphology-led when illumination changes", () => {

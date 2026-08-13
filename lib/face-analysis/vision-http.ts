@@ -42,7 +42,7 @@ export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
         ...input,
         schema: faceVisionResultSchema,
         responseSchema: geminiVisionResponseSchema,
-        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋，以及額頭、眉毛、眼睛、鼻子、臉頰、嘴巴、下顎、耳朵八區的可見度、相對寬高、輪廓、對稱與光線。不可推論任何人格、命運、健康或敏感屬性。",
+        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋、八大區塊，以及印堂、山根、奸門、淚堂、人中、地閣六個細部位的可見度、相對寬高、輪廓、對稱與光線。細部位看不清楚必須回 not_assessable；不可推論任何人格、命運、健康、氣色疾病或敏感屬性。",
         databaseApproved: this.databaseApproved
       });
     }
@@ -52,7 +52,7 @@ export class ConfiguredFaceVisionProvider implements FaceVisionProvider {
         ...input,
         schema: faceVisionResultSchema,
         schemaName: "face_visible_geometry",
-        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋，以及額頭、眉毛、眼睛、鼻子、臉頰、嘴巴、下顎、耳朵八區的可見度、相對寬高、輪廓、對稱與光線。不可推論任何人格、命運、健康或敏感屬性。",
+        task: "回傳單一正面人臉的純幾何觀察：姿態、landmark 覆蓋、八大區塊，以及印堂、山根、奸門、淚堂、人中、地閣六個細部位的可見度、相對寬高、輪廓、對稱與光線。細部位看不清楚必須回 not_assessable；不可推論任何人格、命運、健康、氣色疾病或敏感屬性。",
         databaseApproved: this.databaseApproved
       });
     }
