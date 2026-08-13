@@ -5,6 +5,17 @@ const parse = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/ai/openai", () => ({ createOpenAIClient: () => ({ responses: { parse } }), openAIModel: () => "gpt-4.1-mini" }));
 const { generateFaceReport } = await import("@/lib/face-analysis/report");
 
+const area = (conclusion: string, sources: string[]) => ({
+  conclusion,
+  alignment: "medium" as const,
+  visibleBasis: "本次可見主部位寬度適中且左右對稱。",
+  teacherInterpretation: "依沈師教材的主輔部位進行交叉觀察。",
+  watchout: "輔助部位仍需更清晰照片核對。",
+  action: "未來十四天記錄三次實際結果再比對。",
+  confidence: "medium" as const,
+  sources
+});
+
 const validReport = {
   schemaVersion: "1.0",
   mode: "self",
@@ -32,11 +43,11 @@ const validReport = {
   ],
   disclaimer: FACE_REPORT_DISCLAIMER,
   lifeAreas: {
-    relationship: "以雙方實際互動與溝通紀錄為準。",
-    career: "以可驗證的工作目標為準。",
-    health: "用實際作息、健檢與專業意見檢視狀態。",
-    finance: "以實際收支與風險資料為準。",
-    family: "以家人之間的實際分工與對話為準。"
+    relationship: area("感情互動建議先觀察溝通節奏。", ["沈師筆記 p.72–77"]),
+    career: area("事業上可先用小型任務驗證執行節奏。", ["沈師筆記 p.60–69"]),
+    health: area("健康項目只作部位可判讀度說明。", ["沈師筆記 p.78–84"]),
+    finance: area("財運項目應按年齡對應三倉核對。", ["沈師筆記 p.84–86"]),
+    family: area("家庭項目需要多宮位交叉觀察。", ["沈師筆記 p.66–90"])
   },
   collaborationFramework: {
     suitability: "先用短期小型任務驗證配合方式，再決定是否擴大合作。",
@@ -85,6 +96,9 @@ describe("OpenAI face report provider", () => {
 
     const result = await generateFaceReport(input);
     expect(parse).toHaveBeenCalledOnce();
+    const providerRequest = parse.mock.calls[0][0] as { input: string };
+    const providerInput = JSON.parse(providerRequest.input.replace(/^請依下列資料輸出單一 JSON object：\n/, ""));
+    expect(providerInput.teacherAreaFramework.finance.calculatedAlignment).toBe("insufficient");
     expect(result.trace).toMatchObject({ provider: "openai", model: "gpt-4.1-mini", tokensInput: 123, tokensOutput: 456 });
     expect(result.report.palaces).toHaveLength(12);
   });

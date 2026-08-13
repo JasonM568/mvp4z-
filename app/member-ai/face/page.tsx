@@ -12,7 +12,7 @@ type StructuredReport = {
   currentTrend?: string;
   coreHighlights?: string[];
   priorityAdvice?: Array<{ problem?: string; reason?: string; advice?: string }>;
-  lifeAreas?: Record<string, string>;
+  lifeAreas?: Record<string, { conclusion?: string; alignment?: "high" | "medium" | "low" | "insufficient"; visibleBasis?: string; teacherInterpretation?: string; watchout?: string; action?: string; confidence?: "high" | "medium" | "low"; sources?: string[] }>;
   collaborationFramework?: { suitability?: string; interactionStyle?: string; riskSignals?: string[]; questionsToVerify?: string[]; boundaries?: string };
   palaces?: Array<{ name?: string; evidence?: string; interpretation?: string; advice?: string }>;
 };
@@ -392,18 +392,24 @@ const ANALYSIS_PHASES = [
 
 function ReportHighlights({ report }: { report: StructuredReport; mode: Mode }) {
   const order = ["relationship", "career", "health", "finance", "family"];
-  const focus = order.map((key) => [key, report.lifeAreas?.[key] || ""] as const).filter(([, value]) => Boolean(value));
+  const focus = order.map((key) => [key, report.lifeAreas?.[key]] as const).filter((item): item is [string, NonNullable<typeof item[1]>] => Boolean(item[1]));
   const labels: Record<string, string> = { relationship: "感情", career: "事業", health: "健康", finance: "財運", family: "家庭" };
   return <section className="face-report-summary" aria-label="報告重點">
     <div className="face-report-summary-head"><span>先看這裡</span><h2>本次報告重點</h2></div>
     {report.summary && <article className="face-key-conclusion"><strong>一句話總結</strong><p>{report.summary}</p></article>}
     {report.currentTrend && <article className="face-key-conclusion"><strong>目前最需要注意</strong><p>{report.currentTrend}</p></article>}
-    {report.coreHighlights?.length && <div className="face-core-highlights">{report.coreHighlights.map((item, index) => <article key={index}><span>{index + 1}</span><p>{item}</p></article>)}</div>}
-    {report.priorityAdvice?.length && <div className="face-priority-list">{report.priorityAdvice.map((item, index) => <article key={index}><strong>{item.problem}</strong><p>{item.reason}</p><b>建議：{item.advice}</b></article>)}</div>}
-    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><p>{value}</p></article>)}</div>}
+    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><span className={`face-confidence ${value.confidence || "low"}`}>{confidenceLabel(value.confidence)}</span><div className={`face-alignment ${value.alignment || "insufficient"}`}>沈師條件相符度：{alignmentLabel(value.alignment)}</div><h3>{value.conclusion}</h3><p><b>部位依據：</b>{value.visibleBasis}</p><p><b>沈師交叉判讀：</b>{value.teacherInterpretation}</p><p><b>需留意：</b>{value.watchout}</p><p><b>具體建議：</b>{value.action}</p>{value.sources?.length && <small>來源：{value.sources.join("、")}</small>}</article>)}</div>}
     {report.collaborationFramework && <div className="face-collaboration-card"><h3>合作與相處建議</h3><article><strong>合作適配條件</strong><p>{report.collaborationFramework.suitability}</p></article><article><strong>建議相處模式</strong><p>{report.collaborationFramework.interactionStyle}</p></article>{report.collaborationFramework.riskSignals?.length && <article><strong>需留意的合作訊號</strong><ul>{report.collaborationFramework.riskSignals.map((item) => <li key={item}>{item}</li>)}</ul></article>}{report.collaborationFramework.questionsToVerify?.length && <article><strong>合作前先問</strong><ul>{report.collaborationFramework.questionsToVerify.map((item) => <li key={item}>{item}</li>)}</ul></article>}</div>}
     <p className="face-report-divider">以下為十二宮完整分析與判讀依據</p>
   </section>;
+}
+
+function confidenceLabel(confidence?: "high" | "medium" | "low") {
+  return confidence === "high" ? "可判斷程度：高" : confidence === "medium" ? "可判斷程度：中" : "可判斷程度：低";
+}
+
+function alignmentLabel(alignment?: "high" | "medium" | "low" | "insufficient") {
+  return alignment === "high" ? "高" : alignment === "medium" ? "中" : alignment === "low" ? "低" : "資料不足";
 }
 
 function formatClock(seconds: number) {

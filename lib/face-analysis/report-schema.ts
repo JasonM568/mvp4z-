@@ -30,15 +30,26 @@ const priorityAdviceSchema = z.object({
   advice: boundedText(1, 500)
 }).strict();
 
-const lifeAreasSchema = z
+const areaReadingSchema = z
   .object({
-    relationship: boundedText(1, 800),
-    career: boundedText(1, 800),
-    health: boundedText(1, 800),
-    finance: boundedText(1, 800),
-    family: boundedText(1, 800)
+    conclusion: boundedText(1, 500),
+    alignment: z.enum(["high", "medium", "low", "insufficient"]),
+    visibleBasis: boundedText(1, 800),
+    teacherInterpretation: boundedText(1, 800),
+    watchout: boundedText(1, 500),
+    action: boundedText(1, 500),
+    confidence: z.enum(["high", "medium", "low"]),
+    sources: z.array(boundedText(1, 120)).min(1).max(4)
   })
   .strict();
+
+const lifeAreasSchema = z.object({
+  relationship: areaReadingSchema,
+  career: areaReadingSchema,
+  health: areaReadingSchema,
+  finance: areaReadingSchema,
+  family: areaReadingSchema
+}).strict();
 
 const collaborationFrameworkSchema = z
   .object({
@@ -108,7 +119,9 @@ const unsafeClaims = [
   /性傾向(?:是|為)/,
   /宗教信仰(?:是|為)/,
   /種族(?:是|為)/,
-  /保證(?:獲利|賺錢|成功)/
+  /保證(?:獲利|賺錢|成功)/,
+  /健康(?:狀況)?(?:良好|穩定|無.{0,4}異常)/,
+  /(?:財務狀況|感情關係|家庭關係|事業環境).{0,8}(?:穩定|良好|和諧)/
 ] as const;
 
 export const faceReportSchema = z

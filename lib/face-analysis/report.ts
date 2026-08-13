@@ -17,6 +17,7 @@ const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 不得把「不要依賴面相、保持理性、實際驗證」本身當成核心重點或問題；這些只能放在 disclaimer。
 不得使用「持續努力、保持正向、維持和諧、善用人脈、提升品質」等沒有具體對象與期限的萬用建議。
 不得由臉部形態斷言「過度自信、注意力分散、溝通不細膩、容易誤解、企圖心、性格」等人格或行為；只能寫成「建議核對的生活情境」，並明示需用實際紀錄確認。
+rules.palaces.status 的 balanced 只代表「主部位可判讀且未見明顯不對稱」，絕不代表感情、事業、健康、財運或家庭穩定。
 核心重點與 priorityAdvice.reason 只能引用 rules.palaces.evidence 中的 contour、relativeWidth、relativeHeight、symmetry；禁止用亮度、模糊度、照片覆蓋率、拍攝品質推論疲勞、健康、溝通、財務或任何生活結果。
 「生命力、健康狀況、疾病風險、收入穩定、感情穩定、家庭和諧」均不得由照片直接宣稱。
 若十二宮全部為 balanced，仍須從 evidence 的輪廓、寬高、對稱與主輔部位差異中選出三組最具辨識度的觀察，不得把十二宮逐一寫成相同的穩定結論。
@@ -25,6 +26,81 @@ collaborationFramework 必須提供合作條件、相處方式、風險訊號與
 十二宮與 30/60/90 天行動必須完整，disclaimer 必須逐字使用 server 提供的固定內容。`;
 
 const DEFAULT_OPENAI_REPORT_MODEL = "gpt-4.1-mini";
+
+const TEACHER_AREA_FRAMEWORK = {
+  relationship: {
+    label: "感情",
+    palaces: ["夫妻宮", "命宮", "兄弟宮"],
+    method: "夫妻宮以眼尾奸門為主，不能單看奸門；須同時交叉眉、眼、鼻、印堂十字帶。教材以奸門豐盈平整為傳統正向條件，但不可由單張照片斷定婚姻結果。",
+    sources: ["沈師筆記 p.72–77", "十二宮講義 p.10–13"]
+  },
+  career: {
+    label: "事業",
+    palaces: ["官祿宮", "命宮", "遷移宮", "奴僕宮"],
+    method: "官祿宮以額頭中正為主，交叉印堂、眉眼；教材的正向條件是正面四平八穩、側面額骨微凸。再以遷移宮看外部變動與合作環境，奴僕宮看團隊與部屬基礎。",
+    sources: ["沈師筆記 p.60–69", "沈師筆記 p.90–91"]
+  },
+  health: {
+    label: "健康",
+    palaces: ["疾厄宮", "命宮"],
+    method: "疾厄宮以山根、年壽為主，交叉鼻與眼的形神氣；教材以高、寬、厚、清楚為傳統觀察條件。自動報告只能說明部位是否可判讀，絕對不能對應器官、疾病或壽命。",
+    sources: ["沈師筆記 p.78–84", "十二宮講義 p.14–16"]
+  },
+  finance: {
+    label: "財運",
+    palaces: ["財帛宮", "福德宮", "田宅宮"],
+    method: "財帛宮必須按年齡分三倉：30 歲以下天倉，31–50 歲人倉，51 歲起地倉。教材再交叉鼻部寬厚、眉尾聚散、眼部可判讀度與地閣寬滿；田宅宮只作資產與居住的傳統參照。",
+    sources: ["沈師筆記 p.84–86", "沈師筆記 p.77–78"]
+  },
+  family: {
+    label: "家庭",
+    palaces: ["父母宮", "兄弟宮", "子女宮", "田宅宮"],
+    method: "家庭不由單一宮位下結論：父母宮看日月角與額部左右，兄弟宮以眉為主、顴骨為輔，子女宮交叉淚堂、人中、地閣，田宅宮看眼瞼與下停。只能提供關係觀察題，不推定親屬命運。",
+    sources: ["沈師筆記 p.66–78", "沈師筆記 p.86–90"]
+  }
+} as const;
+
+const AREA_FEATURES: Record<keyof typeof TEACHER_AREA_FRAMEWORK, readonly string[]> = {
+  relationship: ["outerEyeCorners", "eyebrows", "eyes", "nose", "glabella"],
+  career: ["forehead", "glabella", "eyebrows", "eyes", "jaw"],
+  health: ["nasalRoot", "nose", "eyes", "glabella"],
+  finance: ["forehead", "nose", "eyebrows", "eyes", "chin", "jaw"],
+  family: ["forehead", "eyebrows", "cheeks", "tearTroughs", "philtrum", "chin", "eyes"]
+};
+
+function calculatedAlignment(palaces: FaceRuleResult["palaces"], features: readonly string[]) {
+  const unique = new Map<string, string | number | boolean>();
+  for (const palace of palaces) {
+    for (const evidence of palace.evidence) {
+      if (features.includes(evidence.region) && ["contour", "relativeWidth", "relativeHeight", "symmetry"].includes(evidence.field)) {
+        unique.set(`${evidence.region}:${evidence.field}`, evidence.observed);
+      }
+    }
+  }
+  if (unique.size === 0) return "insufficient" as const;
+  const scores = [...unique.entries()].map(([key, value]) => {
+    if (value === "not_assessable") return 0;
+    if (key.endsWith(":symmetry")) return value === "balanced" ? 1 : value === "slightly_asymmetric" ? 0.5 : 0;
+    if (key.endsWith(":relativeWidth") || key.endsWith(":relativeHeight")) return value === "medium" ? 1 : value === "wide" || value === "long" ? 0.85 : 0.35;
+    if (key.endsWith(":contour")) return value === "rounded" || value === "straight" ? 1 : 0.5;
+    return 0;
+  });
+  const score = scores.reduce<number>((sum, value) => sum + value, 0) / scores.length;
+  return score >= 0.82 ? "high" as const : score >= 0.58 ? "medium" as const : "low" as const;
+}
+
+function teacherGrounding(rules: FaceRuleResult) {
+  return Object.fromEntries(Object.entries(TEACHER_AREA_FRAMEWORK).map(([key, framework]) => {
+    const palaces = rules.palaces.filter((palace) => (framework.palaces as readonly string[]).includes(palace.name));
+    return [key, {
+      ...framework,
+      obtainedData: palaces.map((palace) => ({ name: palace.name, parts: palace.parts, status: palace.status, evidence: palace.evidence })),
+      calculatedAlignment: calculatedAlignment(palaces, AREA_FEATURES[key as keyof typeof TEACHER_AREA_FRAMEWORK]),
+      assessability: palaces.every((palace) => palace.status === "balanced") ? "high" : palaces.some((palace) => palace.status === "limited") ? "low" : "medium",
+      downgradeReason: palaces.filter((palace) => palace.status !== "balanced").map((palace) => `${palace.name}：${palace.status === "limited" ? "主部位無法判讀" : "主輔部位有差異或資料不完整"}`)
+    }];
+  }));
+}
 
 export async function generateFaceReport(input: {
   mode: FaceAnalysisMode;
@@ -39,7 +115,7 @@ export async function generateFaceReport(input: {
   const model = process.env.FACE_REPORT_OPENAI_MODEL?.trim() || openAIModel() || DEFAULT_OPENAI_REPORT_MODEL;
   const startedAt = Date.now();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const timeout = setTimeout(() => controller.abort(), 75_000);
   const reportInput = {
       mode: input.mode,
       subjectAge: input.subjectAge,
@@ -50,6 +126,7 @@ export async function generateFaceReport(input: {
         limitations: input.quality.reasons
       },
       rules: input.rules,
+      teacherAreaFramework: teacherGrounding(input.rules),
       approvedKnowledge: (input.knowledge || []).map((item) => ({ cardId: item.cardId, title: item.title, category: item.category, observation: item.observation, editorSummary: item.editorSummary })),
       fixedDisclaimer: FACE_REPORT_DISCLAIMER
   };
@@ -110,8 +187,16 @@ function outputContract(mode: FaceAnalysisMode) {
 - disclaimer 必須與 fixedDisclaimer 完全一致。
 - 不得輸出未列出的欄位。`;
   return `${common}
-- lifeAreas 必須只含 relationship、career、health、finance、family 五個字串欄位，依序回答感情、事業、健康、財運、家庭。每項都要有「趨勢觀察＋現實核對方法」，不能只寫空泛提醒。
+- lifeAreas 必須只含 relationship、career、health、finance、family，依序回答感情、事業、健康、財運、家庭。
+- 每個 lifeArea 必須只含 conclusion、alignment、visibleBasis、teacherInterpretation、watchout、action、confidence、sources。
+- alignment 必須逐字複製該面向 teacherAreaFramework.calculatedAlignment，不得自行評分。它是本次可見形態對沈師觀察條件的相符度，不是人生結果、運勢分數或照片可信度。
+- conclusion 必須以「沈師條件相符度為高／中／低／資料不足」開頭，再說最強的一組部位與最需要留意的一組部位；不得寫「以實際狀況為準」或其他免責廢話。
+- visibleBasis 必須點名本次實際可見部位及形態，並明說哪些主部位不可判讀；不得把拍攝品質當成生活結論。
+- teacherInterpretation 必須按 teacherAreaFramework.method 進行多宮位交叉解讀，不得自創關聯。
+- watchout 必須指出一個具體的反向條件或本次判讀限制；action 必須給一個 7–30 天內可執行的驗證動作。
+- confidence 必須對應 teacherAreaFramework.assessability；sources 必須複製該面向 teacherAreaFramework.sources 中的 1–4 筆，不得虛構頁碼。
 - health 不得宣稱健康狀況、器官功能、疾病風險或壽命，只能提醒以實際作息、健檢與專業意見核對。
+- health 的 alignment 只代表山根、鼻、眼等可見形態與教材觀察條件的相符度；conclusion 禁止出現「健康良好、健康穩定、無異常、抵抗力好」。
 - collaborationFramework 必須只含 suitability、interactionStyle、riskSignals(2–6 個字串)、questionsToVerify(3–8 個字串)、boundaries。
 - suitability 只能說明「在什麼合作條件下值得試行」，不得宣告此人適合或不適合合作。
 - interactionStyle 要給具體的溝通頻率、決策方式、分工與衝突處理建議。
@@ -135,7 +220,7 @@ export function renderFaceReportText(report: FaceReport) {
     sections.push(`## 流年回顧提示\n${report.flowYear.stage}\n\n${report.flowYear.reflection}`);
   }
   sections.push(
-    `## 五大面向\n### 感情\n${report.lifeAreas.relationship}\n\n### 事業\n${report.lifeAreas.career}\n\n### 健康\n${report.lifeAreas.health}\n\n### 財運\n${report.lifeAreas.finance}\n\n### 家庭\n${report.lifeAreas.family}`,
+    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n沈師條件相符度：${item.alignment}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n沈師交叉判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}\n\n來源：${item.sources.join("、")}`).join("\n\n")}`,
     `## 合作與相處建議\n### 合作適配條件\n${report.collaborationFramework.suitability}\n\n### 建議相處模式\n${report.collaborationFramework.interactionStyle}\n\n### 需留意的合作訊號\n${report.collaborationFramework.riskSignals.map((item) => `- ${item}`).join("\n")}\n\n### 合作前核對問題\n${report.collaborationFramework.questionsToVerify.map((item) => `- ${item}`).join("\n")}\n\n### 判斷界線\n${report.collaborationFramework.boundaries}`
   );
   sections.push(

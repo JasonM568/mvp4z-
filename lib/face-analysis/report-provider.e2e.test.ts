@@ -54,8 +54,11 @@ describe("approved report provider E2E", () => {
     expect(JSON.stringify({ coreHighlights: result.report.coreHighlights, priorityAdvice: result.report.priorityAdvice })).not.toMatch(/亮度|模糊|覆蓋率|疲勞|生命力|健康狀況|收入穩定|感情穩定|家庭和諧/);
     expect(result.report.priorityAdvice.every((item) => item.problem.startsWith("建議核對："))).toBe(true);
     expect(new Set(result.report.actions.map((item) => item.action)).size).toBe(3);
+    expect(Object.keys(result.report.lifeAreas)).toEqual(["relationship", "career", "health", "finance", "family"]);
+    expect(Object.values(result.report.lifeAreas).every((area) => area.visibleBasis.length > 10 && area.teacherInterpretation.length > 10)).toBe(true);
+    expect(result.report.lifeAreas.finance.sources).toContain("沈師筆記 p.84–86");
     if (process.env.FACE_REPORT_E2E_PRINT === "true") {
-      console.log(JSON.stringify({ coreHighlights: result.report.coreHighlights, priorityAdvice: result.report.priorityAdvice, actions: result.report.actions }, null, 2));
+      console.log(JSON.stringify({ coreHighlights: result.report.coreHighlights, priorityAdvice: result.report.priorityAdvice, lifeAreas: result.report.lifeAreas, collaborationFramework: result.report.collaborationFramework, actions: result.report.actions }, null, 2));
     }
   }, 90_000);
 });
