@@ -6,9 +6,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { errorMessage, errorStatus, readJson, statusError } from "@/lib/auth/member";
 
 const feature = z.enum(["forehead", "eyebrows", "eyes", "nose", "cheeks", "mouth", "jaw", "ears", "glabella", "nasalRoot", "outerEyeCorners", "tearTroughs", "philtrum", "chin"]);
+const palaceName = z.enum(["命宮", "官祿宮", "父母宮", "福德宮", "遷移宮", "兄弟宮", "夫妻宮", "子女宮", "疾厄宮", "財帛宮", "奴僕宮", "田宅宮"]);
 const settingsSchema = z.object({
   schemaVersion: z.literal("1.0"),
-  palaces: z.array(z.object({ name: z.string().trim().min(1).max(20), primary: z.array(feature).min(1).max(4), auxiliary: z.array(feature).max(6) }).strict()).length(12)
+  palaces: z.array(z.object({ name: palaceName, primary: z.array(feature).min(1).max(4), auxiliary: z.array(feature).max(6) }).strict()).length(12)
 }).strict().superRefine((value, context) => { if (new Set(value.palaces.map((item) => item.name)).size !== 12) context.addIssue({ code: z.ZodIssueCode.custom, path: ["palaces"], message: "十二宮不可重複" }); });
 const saveSchema = z.object({ versionLabel: z.string().trim().min(1).max(80), note: z.string().trim().max(1000).default(""), decidedBy: z.string().trim().max(80).default(""), settings: settingsSchema }).strict();
 
