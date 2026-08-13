@@ -206,3 +206,22 @@
 - 禁止 ADMIN_KEY 簽署，拒絕疑似 key/token，保存 verified_by/time 與 audit；不保存 OpenAI 登入資料。
 - runtime 可讀有效認證作為 Quality/Vision ZDR gate，face feature flag 仍獨立。
 - migration 已套用；空表、anon 401。unit 88/88、face 11/11、tsc、build 通過。
+
+## 2026-08-13｜面相系統定調沈師體系、文獻總整理、rules v2
+
+### 本次完成
+
+- 檢討人臉辨識管線，確認品質層／Vision 層有真實臉部幾何與輪廓觀察，但舊 rules.ts 未使用形態特徵（只用可見度光線）——依使用者要求修正為形態導向。
+- 讀完 F17 十二宮位 22 頁與望診健康 12 頁；6 個背景 agent 整理 283 頁筆記本為六份結構化稿（約 4,178 條規則、964 條 CRITICAL），產出 `面相老師文獻/283頁筆記整理/`（含 README_總覽）。
+- 使用者定調：宮位體系以沈師版為權威。產出 SPEC-05 v0.2（十二宮×部位對應表、三倉年齡段、奴僕宮、細部位清單、安全分級）。
+- 改寫 `lib/face-analysis/rules.ts`（沈師宮名／一宮多部位主輔／財帛宮三倉／形態特徵進 status 與 evidence／palace.parts／version 2.0）；同步 `report.ts` outputContract 與 `report.test.ts`。
+- 決策存入長期記憶（xunfeng-face-shen-system）。
+
+### 驗證
+
+- tsc 通過；vitest 12 files / 94 tests 全綠。未跑 next build。變更未 commit、未部署；production 面相旗標維持關閉。
+
+### 遺留
+
+- 待 commit；rules v2 新測試、Vision v2 細部位、face_rule_profiles 後台、知識卡重核、合成圖穩定性測試——詳見 handoff 同日章節。
+- SPEC-05 五題待老師確認（含筆記 p.88 疑似誤植）。

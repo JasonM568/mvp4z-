@@ -100,8 +100,9 @@ function outputContract(mode: FaceAnalysisMode) {
 - schemaVersion 必須為 "1.0"；mode 必須為 "${mode}"。
 - summary 必須是 100–180 個字元的繁體中文。
 - photoQuality、currentTrend 為字串。
-- palaces 必須恰好 12 筆且不可重複，name 依序為：命宮、財帛宮、兄弟宮、田宅宮、男女宮、奴僕宮、妻妾宮、疾厄宮、遷移宮、官祿宮、福德宮、相貌宮。
+- palaces 必須恰好 12 筆且不可重複，name 依序為：命宮、官祿宮、父母宮、福德宮、遷移宮、兄弟宮、夫妻宮、子女宮、疾厄宮、財帛宮、奴僕宮、田宅宮。
 - 每筆 palace 只有 name、status、evidence、interpretation、advice；status 只能是 balanced、watch 或 limited。
+- 各宮解讀必須依據輸入 rules.palaces 內同名宮位的 parts（沈師部位）與 evidence 形態特徵（輪廓／寬窄／長短／對稱），不得依光線或拍攝條件下論斷。
 - flowYear 為 null，或只含 age(整數)、stage、reflection。
 - actions 必須恰好三筆，period 依序為 30_days、60_days、90_days，每筆只有 period 與 action。
 - disclaimer 必須與 fixedDisclaimer 完全一致。

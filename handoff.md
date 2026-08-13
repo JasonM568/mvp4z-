@@ -1945,3 +1945,58 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 ### 長時間程序
 
 無。
+
+---
+
+## 2026-08-13 收工｜面相系統定調沈師十二宮體系 + rules v2
+
+### 決策（使用者拍板）
+
+面相判讀邏輯**以沈全榮老師教材為權威**：宮名用沈師版（父母宮／夫妻宮／子女宮／奴僕宮），棄麻衣版（相貌宮／妻妾宮／男女宮）。使用者明確要求：報告要依「臉部輪廓與五官形態」判讀，不是照片畫素亮度。
+
+### 本次完成
+
+1. **檢查人臉辨識管線**：確認四層架構（本機畫素檢查→Gemini 人臉幾何品質→Vision 八區形態抽取→規則引擎+DeepSeek 撰稿）。發現核心缺陷：舊 `rules.ts` 丟棄 contour／寬窄／長短特徵，宮位狀態實際由光線可見度決定——已修（見 3）。
+2. **讀完 F17 核心文獻**：十二宮位 22 頁＋望診健康 12 頁全讀；283 頁筆記本由 6 個 agent 整理成六份結構化整理稿（`面相老師文獻/283頁筆記整理/`，約 4,178 條規則、964 條 ⚠️CRITICAL，總覽見該資料夾 `README_總覽.md`）。
+3. **rules v2 實作完成**（`lib/face-analysis/rules.ts` 全面改寫）：
+   - `FACE_PALACE_NAMES` 換沈師十二宮（順序依筆記 p.59 總論）。
+   - 一宮多部位＋主輔對應；財帛宮三倉分年齡段（≤30 天倉／31-50 人倉／≥51 地倉，吃 subjectAge）。
+   - 宮位狀態改由「形態可判讀程度＋對稱性」決定；光線不均降為 caution 不影響狀態。
+   - evidence 帶 contour／relativeWidth／relativeHeight／symmetry；palace 新增 `parts`（沈師部位說明）給撰稿 LLM。
+   - `FaceRuleResult.version` 升 "2.0"。
+4. `report.ts`：outputContract 宮名序列同步；新增「必須依 parts＋形態特徵解讀、不得依光線下論斷」約束。`report.test.ts` fixture 同步 2.0。
+5. **SPEC-05 定稿 v0.2**：`docs/specs/face-analysis/SPEC-05-shen-twelve-palaces.md`（十二宮對應表含頁碼出處、細部位清單、四支柱分期、待老師確認清單五題）。
+
+### 驗證結果
+
+- `npx tsc --noEmit` 通過；`npm run test:unit` 12 files / 94 tests 全綠。
+- 未跑 `next build`（僅 lib 層變更，tsc 已覆蓋；下次開工可補跑）。
+- production 面相旗標本來就關閉，本次變更未部署、零線上影響。
+
+### Git 狀態（未 commit、未 push）
+
+- 分支 `main`（與 origin/main 齊平，本地有未提交變更）：
+  - M `lib/face-analysis/rules.ts`、`lib/face-analysis/report.ts`、`lib/face-analysis/report.test.ts`
+  - ?? `docs/specs/face-analysis/SPEC-05-shen-twelve-palaces.md`
+- repo 外產出：`面相老師文獻/283頁筆記整理/`（六份整理稿＋README_總覽）。
+
+### 未完成 / 待辦（優先順序）
+
+1. **commit 本批變更**（使用者確認後）；建議訊息 `feat(face): adopt Shen twelve-palace system in rules v2`。
+2. rules v2 補形態導向單元測試（asymmetric→watch、財帛宮年齡段切換、光線不影響狀態）。
+3. Vision schema v2：八大區塊擴沈師細部位（印堂、山根、奸門、淚堂、人中、法令、地閣等，見 SPEC-05 第二節）。
+4. `face_rule_profiles` migration＋`/admin/face-rules` 後台頁（照 school-settings 模式，老師可調對應、具名發布、版本記入 runs）。
+5. 知識卡結構化條件欄位＋28 張草稿對照文獻重核；非 CRITICAL ~3,200 條為候選素材池。
+6. 合成圖穩定性測試（Gemini 輪廓判讀一致性）；通過前不開旗標。
+7. SPEC-05 末尾五題請沈老師／風羿老師確認（含 p.88 疑似誤植）。
+8. 既有 go-live gate 不變（Resend 網域、信用卡 E2E、EZPay 正式、ZDR 認證簽署）。
+
+### 下次起手式
+
+1. 讀本章節＋SPEC-05＋`283頁筆記整理/README_總覽.md`。
+2. `git status` 核對未提交變更仍在；先 commit。
+3. 接續待辦 2→3→4 順序做；老師回覆確認清單後再定 Vision v2 細部位範圍。
+
+### 長時間程序
+
+無（6 個文獻整理 agent 已全部完成收工）。

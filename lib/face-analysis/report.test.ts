@@ -46,7 +46,7 @@ const input = {
     reasons: []
   },
   rules: {
-    version: "1.0" as const,
+    version: "2.0" as const,
     mode: "self" as const,
     overallTrend: { ruleId: "overall", text: "limited", evidence: [] },
     palaces: [],
