@@ -55,7 +55,7 @@ const baseReportShape = {
   disclaimer: z.literal(FACE_REPORT_DISCLAIMER)
 };
 
-const selfReportSchema = z
+export const selfReportResponseSchema = z
   .object({
     ...baseReportShape,
     mode: z.literal("self"),
@@ -71,7 +71,7 @@ const selfReportSchema = z
   })
   .strict();
 
-const otherReportSchema = z
+export const otherReportResponseSchema = z
   .object({
     ...baseReportShape,
     mode: z.literal("other"),
@@ -98,7 +98,7 @@ const unsafeClaims = [
 ] as const;
 
 export const faceReportSchema = z
-  .discriminatedUnion("mode", [selfReportSchema, otherReportSchema])
+  .discriminatedUnion("mode", [selfReportResponseSchema, otherReportResponseSchema])
   .superRefine((report, context) => {
     // The fixed disclaimer necessarily names prohibited uses, so only inspect
     // generated content. This is a final deny-list guard, not a substitute for
@@ -115,3 +115,8 @@ export const faceReportSchema = z
     }
   });
 export type FaceReport = z.infer<typeof faceReportSchema>;
+
+/** OpenAI Structured Outputs requires an object at the schema root. */
+export function faceReportResponseSchema(mode: "self" | "other") {
+  return mode === "self" ? selfReportResponseSchema : otherReportResponseSchema;
+}

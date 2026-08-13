@@ -2,6 +2,7 @@ import { FaceRuleResult } from "@/lib/face-analysis/rules";
 import {
   FACE_REPORT_DISCLAIMER,
   FaceReport,
+  faceReportResponseSchema,
   faceReportSchema
 } from "@/lib/face-analysis/report-schema";
 import { FaceQualityResult, FaceAnalysisMode } from "@/lib/face-analysis/types";
@@ -51,11 +52,18 @@ export async function generateFaceReport(input: {
       model, store: false,
       instructions: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode)}`,
       input: `請依下列資料輸出單一 JSON object：\n${JSON.stringify(reportInput)}`,
-      text: { format: zodTextFormat(faceReportSchema, "face_report") },
+      text: { format: zodTextFormat(faceReportResponseSchema(input.mode), "face_report") },
       max_output_tokens: 3200, temperature: 0
     }, { signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw new Error("FACE_REPORT_PROVIDER_TIMEOUT");
+    const providerError = error as { name?: unknown; message?: unknown; status?: unknown; code?: unknown };
+    console.error("FACE_REPORT_PROVIDER_FAILED", {
+      name: typeof providerError.name === "string" ? providerError.name : "unknown",
+      status: typeof providerError.status === "number" ? providerError.status : null,
+      code: typeof providerError.code === "string" ? providerError.code : null,
+      message: typeof providerError.message === "string" ? providerError.message.slice(0, 240) : "unknown"
+    });
     throw new Error("FACE_REPORT_PROVIDER_ERROR");
   } finally {
     clearTimeout(timeout);
