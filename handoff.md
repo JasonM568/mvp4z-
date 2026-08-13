@@ -2000,3 +2000,72 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 ### 長時間程序
 
 無（6 個文獻整理 agent 已全部完成收工）。
+
+---
+
+## 2026-08-13 收工｜面相正式版 Vision v3、合作評估與報告精簡
+
+### 目前狀態
+
+- 正式站：`https://www.xunfeng.tw/member-ai/face?v=31`
+- Vercel production deployment：`dpl_J3ukmjke9RMT9F9mAhC5gmSNAq4d`，狀態 `READY`，正式網址 HTTP 200。
+- 正式功能已開放真人照片；Quality、Vision、十二宮規則、報告與扣點流程可運作。
+- 最新功能提交：`8089d6f fix(face): simplify report presentation`。
+
+### 本次已完成
+
+1. 合作對象評估改為選填：使用者須勾選並輸入合作項目，報告才產生合作結論、角色建議、合作條件、相處模式、風險訊號與核對問題。
+2. 名稱調整：前台使用「老師建議」與「套用面相十二宮」，不顯示「沈師」。
+3. 照片輸入改善：合作欄位排版、頁面內 `getUserMedia` 即時相機、美肌／濾鏡／磨皮提醒與未修圖確認。
+4. 表面特徵分析：Vision 與報告納入斑、痣、疤、痕及照片氣色；氣色只描述明暗、均勻度、色偏與可能濾鏡，不做疾病或器官推論。
+5. 正式資料診斷：匿名比對最近 8 份完成報告，舊 Vision 結構相似度為 89%～100%，其中 3 組完全相同，確認粗分類造成報告同質化。
+6. Vision v3 個人化重構：每張照片強制產生 5～12 項具體 `distinctiveFeatures`，規則層整理成 5～8 項 `photoFingerprint`；報告固定顯示「這張照片實際辨識到的特徵」，並要求核心重點與五大面向引用該照片證據。
+7. 報告頁精簡：不顯示教材引用來源，也移除底部「完整十二宮與報告全文」；十二宮與來源仍保留於後端結構作分析及稽核依據。
+
+### 主要修改檔案
+
+- `lib/face-analysis/vision.ts`
+- `lib/face-analysis/vision-http.ts`
+- `lib/face-analysis/openai-image.ts`
+- `lib/face-analysis/gemini-image.ts`
+- `lib/face-analysis/rules.ts`
+- `lib/face-analysis/report.ts`
+- `lib/face-analysis/report-schema.ts`
+- `app/api/face-analysis/runs/[id]/analyze/route.ts`
+- `app/member-ai/face/page.tsx`
+- `app/member-ai/face/face.css`
+- 對應 face tests。
+
+### 驗證結果
+
+- `npm run test:face`：6 files passed、2 skipped；25 tests passed、2 skipped。
+- `npx tsc --noEmit`：通過。
+- `npm run build`：通過，87 routes 完成。
+- `FACE_REPORT_PROVIDER_E2E=true npx vitest run lib/face-analysis/report-provider.e2e.test.ts`：1/1 通過，實際報告模型與新 schema 相容。
+- 正式 Vercel build：通過；deployment `READY`。
+- `https://www.xunfeng.tw/member-ai/face?v=31`：HTTP 200。
+
+### 已知限制與風險
+
+- Vision v3 已解決「資料欄位過粗」的結構問題，但不同真人照片的實際差異程度仍需使用者用至少兩張新照片驗收；舊報告不會自動重跑。
+- 斑、痣、疤、痕與可能美肌判定受解析度、白平衡、壓縮與光線影響，不能保證完全辨識。
+- 面相與合作評估屬民俗文化參考；不可用照片判定人格、能力、可信度、疾病或受保護屬性。
+- 報告 schema 內仍保存 `sources` 與完整 `palaces` 供後端分析／稽核，但前台不顯示；若未來決定減少模型 token，可另開工作移除輸出契約中的這兩部分。
+
+### 待辦優先順序
+
+1. 用兩張明顯不同人物的全新照片各產生一份 v3 報告，比較 `photoFingerprint` 與核心結論。
+2. 匿名比對新產生的 v3 runs，確認 Vision 指紋不再出現 100% 相同；若仍同質化，調整 Vision provider/model 或加入第二模型覆核。
+3. 檢查頁面內相機在 Safari／Chrome 桌機與手機的權限、預覽及拍照行為。
+4. 依實測報告品質決定是否進一步精簡後端十二宮／sources 的生成，以降低成本與延遲。
+
+### 下次起手式
+
+1. 先讀本章、`worklog.md` 最新紀錄與 `memory.md`。
+2. 執行 `git status --short --branch`、`git log --oneline -5`。
+3. 取得兩份 Vision v3 新報告後，以匿名方式比較 `vision_result.distinctiveFeatures`、`report_structured.photoFingerprint` 與五大面向，禁止輸出照片或會員個資。
+
+### Git 與長時間程序
+
+- 收工前程式提交已推送，`main` 與 `origin/main` 同步；交接文件更新另以收工提交保存。
+- 無刻意保留的 Next、Vitest、build 或 Vercel deployment 長時間程序。

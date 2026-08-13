@@ -225,3 +225,42 @@
 
 - 待 commit；rules v2 新測試、Vision v2 細部位、face_rule_profiles 後台、知識卡重核、合成圖穩定性測試——詳見 handoff 同日章節。
 - SPEC-05 五題待老師確認（含筆記 p.88 疑似誤植）。
+
+## 2026-08-13｜面相正式上線迭代與 Vision v3 個人化
+
+### 本次工作
+
+- 完成面相真人照片正式流程的連續修正與多次 production 部署。
+- 新增合作對象評估勾選與合作項目描述；輸出合作結論、角色邊界、合作條件、相處模式、風險訊號與核對問題。
+- 修正合作選項版面、名稱文字、頁面內即時相機、美肌／濾鏡／磨皮警告及自然照片確認。
+- 新增斑、痣、疤、痕與照片氣色的 Vision／報告結構及前端重點區塊。
+- 唯讀稽核正式資料庫最近 8 份完成 runs，確認舊 Vision 特徵高度同質化（89%～100%，3 組完全相同）。
+- 實作 Vision v3：新增 5～12 項具體差異特徵及 5～8 項照片指紋，並把指紋帶入五大面向與核心結論。
+- 精簡使用者報告頁：移除教材來源顯示及底部完整十二宮全文；後端仍保存分析依據。
+
+### 重要判斷
+
+- 報告相似的根因不是照片未送入模型，而是 Vision v2 的選項過粗，使多數正面照片集中在「中等／圓潤／對稱」，後續規則與固定報告骨架放大同質化。
+- 修正策略採「上游增加照片差異資訊＋報告證據可追溯」，不是只調高 LLM temperature 或要求改寫文風。
+- 十二宮與教材來源暫留後端作分析／稽核，前台只呈現使用者需要的重點，避免長文淹沒結論。
+
+### 主要提交與部署
+
+- `9d224cf feat(face): analyze visible surface features`
+- `ddbe73f feat(face): personalize reports with vision fingerprints`
+- `8089d6f fix(face): simplify report presentation`
+- 最新 production deployment：`dpl_J3ukmjke9RMT9F9mAhC5gmSNAq4d`，alias `https://www.xunfeng.tw`，狀態 `READY`。
+
+### 驗證
+
+- Face tests：25 passed、2 skipped。
+- TypeScript：通過。
+- Next production build：通過（87 routes）。
+- 真實報告模型 E2E：1/1 通過。
+- 正式面相頁 `?v=31`：HTTP 200。
+
+### 遺留事項
+
+- 需以兩張不同真人照片產生全新 Vision v3 報告，驗收照片指紋與主要結論差異。
+- 需依新 runs 做匿名相似度稽核；必要時再調整 Vision provider/model 或加入第二模型覆核。
+- Safari／Chrome 桌機與手機相機仍需跨裝置人工驗收。
