@@ -41,6 +41,8 @@ export type FaceAnalysisRun = {
   subject_age: number | null;
   consent_version: string;
   third_party_consent: boolean;
+  collaboration_assessment: boolean;
+  collaboration_project: string | null;
   status: FaceAnalysisStatus;
   storage_path: string | null;
   mime_type: string | null;

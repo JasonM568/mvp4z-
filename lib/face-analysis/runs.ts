@@ -32,6 +32,8 @@ export async function createRun(input: {
     subject_age: input.request.subjectAge,
     consent_version: input.request.consentVersion,
     third_party_consent: input.request.thirdPartyConsent,
+    collaboration_assessment: input.request.collaborationAssessment,
+    collaboration_project: input.request.collaborationAssessment ? input.request.collaborationProject : null,
     status: "created"
   };
 

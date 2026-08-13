@@ -13,7 +13,9 @@ export const createFaceRunSchema = z
     mode: faceModeSchema,
     subjectAge: z.number().int().min(1).max(120).nullable().optional().default(null),
     consentVersion: z.string().trim().min(1).max(40),
-    thirdPartyConsent: z.boolean().optional().default(false)
+    thirdPartyConsent: z.boolean().optional().default(false),
+    collaborationAssessment: z.boolean().optional().default(false),
+    collaborationProject: z.string().trim().max(1000).nullable().optional().default(null)
   })
   .strict()
   .superRefine((value, context) => {
@@ -22,6 +24,13 @@ export const createFaceRunSchema = z
         code: z.ZodIssueCode.custom,
         path: ["thirdPartyConsent"],
         message: "分析他人照片前，必須確認已取得本人同意"
+      });
+    }
+    if (value.collaborationAssessment && (!value.collaborationProject || value.collaborationProject.length < 10)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["collaborationProject"],
+        message: "啟用合作對象評估時，請至少輸入 10 個字的合作項目描述"
       });
     }
   });

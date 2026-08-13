@@ -13,7 +13,7 @@ type StructuredReport = {
   coreHighlights?: string[];
   priorityAdvice?: Array<{ problem?: string; reason?: string; advice?: string }>;
   lifeAreas?: Record<string, { conclusion?: string; alignment?: "high" | "medium" | "low" | "insufficient"; visibleBasis?: string; teacherInterpretation?: string; watchout?: string; action?: string; confidence?: "high" | "medium" | "low"; sources?: string[] }>;
-  collaborationFramework?: { suitability?: string; interactionStyle?: string; riskSignals?: string[]; questionsToVerify?: string[]; boundaries?: string };
+  collaborationFramework?: { verdict?: "recommended" | "conditional" | "not_recommended"; verdictReason?: string; suitableRole?: string; suitability?: string; interactionStyle?: string; riskSignals?: string[]; questionsToVerify?: string[]; boundaries?: string } | null;
   palaces?: Array<{ name?: string; evidence?: string; interpretation?: string; advice?: string }>;
 };
 type PublicQuality = {
@@ -34,6 +34,8 @@ export default function FaceAnalysisPage() {
   const [subjectAge, setSubjectAge] = useState("");
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [thirdPartyConsent, setThirdPartyConsent] = useState(false);
+  const [collaborationAssessment, setCollaborationAssessment] = useState(false);
+  const [collaborationProject, setCollaborationProject] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -138,6 +140,7 @@ export default function FaceAnalysisPage() {
     if (!selectedFile) return setNotice("請先拍攝或選擇照片。");
     if (!privacyConsent) return setNotice("請先同意照片處理與隱私說明。");
     if (mode === "other" && !thirdPartyConsent) return setNotice("請確認已取得照片本人同意。");
+    if (collaborationAssessment && collaborationProject.trim().length < 10) return setNotice("請至少輸入 10 個字的合作項目描述。");
 
     const token = window.localStorage.getItem(TOKEN_KEY) || "";
     if (!token) {
@@ -156,7 +159,9 @@ export default function FaceAnalysisPage() {
           mode,
           subjectAge: subjectAge ? Number(subjectAge) : null,
           consentVersion: CONSENT_VERSION,
-          thirdPartyConsent: mode === "other" ? thirdPartyConsent : false
+          thirdPartyConsent: mode === "other" ? thirdPartyConsent : false,
+          collaborationAssessment,
+          collaborationProject: collaborationAssessment ? collaborationProject.trim() : null
         })
       });
       const data = await response.json().catch(() => ({}));
@@ -292,6 +297,11 @@ export default function FaceAnalysisPage() {
                 <input type="number" min="1" max="120" inputMode="numeric" value={subjectAge} onChange={(event) => setSubjectAge(event.target.value)} placeholder="例如：35" />
               </label>
 
+              <div className="face-consents face-collaboration-option">
+                <label><input type="checkbox" checked={collaborationAssessment} onChange={(event) => setCollaborationAssessment(event.target.checked)} /><span><strong>合作對象評估</strong><small>加入合作項目、適配結論、角色建議與相處模式。</small></span></label>
+                {collaborationAssessment && <label className="face-field"><span>合作項目描述（必填）</span><textarea rows={5} maxLength={1000} value={collaborationProject} onChange={(event) => setCollaborationProject(event.target.value)} placeholder="例如：預計合作開設餐飲店，對方負責現場營運與人員管理，我負責資金與行銷，預計合作三年，最擔心帳務透明與決策權。" /></label>}
+              </div>
+
               <div className="face-preview">
                 {cameraOpen ? <video ref={videoRef} autoPlay playsInline muted aria-label="相機即時預覽" /> : previewUrl ? <img src={previewUrl} alt="已選擇的面相分析照片預覽" /> : <div><span>正面、臉部清晰</span><small>請避免口罩、逆光、側臉與多人合照</small></div>}
               </div>
@@ -385,7 +395,7 @@ export default function FaceAnalysisPage() {
 const ANALYSIS_PHASES = [
   { title: "確認照片品質", detail: "清晰度、光線、角度與單一人臉" },
   { title: "讀取可見部位", detail: "八大區塊與六個核可細部位" },
-  { title: "套用沈師十二宮", detail: "主部位先判讀，輔部位補充觀察" },
+  { title: "套用面相十二宮", detail: "主部位先判讀，輔部位補充觀察" },
   { title: "整理五大面向", detail: "感情、事業、健康、財運與家庭" },
   { title: "產生合作與行動建議", detail: "適配條件、相處模式、風險核對與 30／60／90 天建議" }
 ] as const;
@@ -398,8 +408,8 @@ function ReportHighlights({ report }: { report: StructuredReport; mode: Mode }) 
     <div className="face-report-summary-head"><span>先看這裡</span><h2>本次報告重點</h2></div>
     {report.summary && <article className="face-key-conclusion"><strong>一句話總結</strong><p>{report.summary}</p></article>}
     {report.currentTrend && <article className="face-key-conclusion"><strong>目前最需要注意</strong><p>{report.currentTrend}</p></article>}
-    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><span className={`face-confidence ${value.confidence || "low"}`}>{confidenceLabel(value.confidence)}</span><div className={`face-alignment ${value.alignment || "insufficient"}`}>沈師條件相符度：{alignmentLabel(value.alignment)}</div><h3>{value.conclusion}</h3><p><b>部位依據：</b>{value.visibleBasis}</p><p><b>沈師交叉判讀：</b>{value.teacherInterpretation}</p><p><b>需留意：</b>{value.watchout}</p><p><b>具體建議：</b>{value.action}</p>{value.sources?.length && <small>來源：{value.sources.join("、")}</small>}</article>)}</div>}
-    {report.collaborationFramework && <div className="face-collaboration-card"><h3>合作與相處建議</h3><article><strong>合作適配條件</strong><p>{report.collaborationFramework.suitability}</p></article><article><strong>建議相處模式</strong><p>{report.collaborationFramework.interactionStyle}</p></article>{report.collaborationFramework.riskSignals?.length && <article><strong>需留意的合作訊號</strong><ul>{report.collaborationFramework.riskSignals.map((item) => <li key={item}>{item}</li>)}</ul></article>}{report.collaborationFramework.questionsToVerify?.length && <article><strong>合作前先問</strong><ul>{report.collaborationFramework.questionsToVerify.map((item) => <li key={item}>{item}</li>)}</ul></article>}</div>}
+    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><span className={`face-confidence ${value.confidence || "low"}`}>{confidenceLabel(value.confidence)}</span><div className={`face-alignment ${value.alignment || "insufficient"}`}>老師建議符合度：{alignmentLabel(value.alignment)}</div><h3>{value.conclusion}</h3><p><b>部位依據：</b>{value.visibleBasis}</p><p><b>老師綜合判讀：</b>{value.teacherInterpretation}</p><p><b>需留意：</b>{value.watchout}</p><p><b>具體建議：</b>{value.action}</p>{value.sources?.length && <small>來源：{value.sources.join("、")}</small>}</article>)}</div>}
+    {report.collaborationFramework && <div className="face-collaboration-card"><h3>合作對象綜合評估</h3><div className={`face-verdict ${report.collaborationFramework.verdict || "conditional"}`}>{verdictLabel(report.collaborationFramework.verdict)}</div><article><strong>為什麼</strong><p>{report.collaborationFramework.verdictReason}</p></article><article><strong>建議承擔角色</strong><p>{report.collaborationFramework.suitableRole}</p></article><article><strong>合作條件</strong><p>{report.collaborationFramework.suitability}</p></article><article><strong>建議相處模式</strong><p>{report.collaborationFramework.interactionStyle}</p></article>{report.collaborationFramework.riskSignals?.length && <article><strong>需留意的合作訊號</strong><ul>{report.collaborationFramework.riskSignals.map((item) => <li key={item}>{item}</li>)}</ul></article>}{report.collaborationFramework.questionsToVerify?.length && <article><strong>合作前先問</strong><ul>{report.collaborationFramework.questionsToVerify.map((item) => <li key={item}>{item}</li>)}</ul></article>}</div>}
     <p className="face-report-divider">以下為十二宮完整分析與判讀依據</p>
   </section>;
 }
@@ -410,6 +420,10 @@ function confidenceLabel(confidence?: "high" | "medium" | "low") {
 
 function alignmentLabel(alignment?: "high" | "medium" | "low" | "insufficient") {
   return alignment === "high" ? "高" : alignment === "medium" ? "中" : alignment === "low" ? "低" : "資料不足";
+}
+
+function verdictLabel(verdict?: "recommended" | "conditional" | "not_recommended") {
+  return verdict === "recommended" ? "建議合作" : verdict === "not_recommended" ? "暫不建議合作" : "有條件合作";
 }
 
 function formatClock(seconds: number) {

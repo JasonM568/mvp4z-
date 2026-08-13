@@ -32,31 +32,31 @@ const TEACHER_AREA_FRAMEWORK = {
     label: "感情",
     palaces: ["夫妻宮", "命宮", "兄弟宮"],
     method: "夫妻宮以眼尾奸門為主，不能單看奸門；須同時交叉眉、眼、鼻、印堂十字帶。教材以奸門豐盈平整為傳統正向條件，但不可由單張照片斷定婚姻結果。",
-    sources: ["沈師筆記 p.72–77", "十二宮講義 p.10–13"]
+    sources: ["老師面相筆記 p.72–77", "十二宮講義 p.10–13"]
   },
   career: {
     label: "事業",
     palaces: ["官祿宮", "命宮", "遷移宮", "奴僕宮"],
     method: "官祿宮以額頭中正為主，交叉印堂、眉眼；教材的正向條件是正面四平八穩、側面額骨微凸。再以遷移宮看外部變動與合作環境，奴僕宮看團隊與部屬基礎。",
-    sources: ["沈師筆記 p.60–69", "沈師筆記 p.90–91"]
+    sources: ["老師面相筆記 p.60–69", "老師面相筆記 p.90–91"]
   },
   health: {
     label: "健康",
     palaces: ["疾厄宮", "命宮"],
     method: "疾厄宮以山根、年壽為主，交叉鼻與眼的形神氣；教材以高、寬、厚、清楚為傳統觀察條件。自動報告只能說明部位是否可判讀，絕對不能對應器官、疾病或壽命。",
-    sources: ["沈師筆記 p.78–84", "十二宮講義 p.14–16"]
+    sources: ["老師面相筆記 p.78–84", "十二宮講義 p.14–16"]
   },
   finance: {
     label: "財運",
     palaces: ["財帛宮", "福德宮", "田宅宮"],
     method: "財帛宮必須按年齡分三倉：30 歲以下天倉，31–50 歲人倉，51 歲起地倉。教材再交叉鼻部寬厚、眉尾聚散、眼部可判讀度與地閣寬滿；田宅宮只作資產與居住的傳統參照。",
-    sources: ["沈師筆記 p.84–86", "沈師筆記 p.77–78"]
+    sources: ["老師面相筆記 p.84–86", "老師面相筆記 p.77–78"]
   },
   family: {
     label: "家庭",
     palaces: ["父母宮", "兄弟宮", "子女宮", "田宅宮"],
     method: "家庭不由單一宮位下結論：父母宮看日月角與額部左右，兄弟宮以眉為主、顴骨為輔，子女宮交叉淚堂、人中、地閣，田宅宮看眼瞼與下停。只能提供關係觀察題，不推定親屬命運。",
-    sources: ["沈師筆記 p.66–78", "沈師筆記 p.86–90"]
+    sources: ["老師面相筆記 p.66–78", "老師面相筆記 p.86–90"]
   }
 } as const;
 
@@ -108,6 +108,8 @@ export async function generateFaceReport(input: {
   quality: FaceQualityResult;
   rules: FaceRuleResult;
   knowledge?: Array<{ cardId: string; title: string; category: string; observation: string; editorSummary: string | null }>;
+  collaborationAssessment?: boolean;
+  collaborationProject?: string | null;
 }) {
   if ((process.env.FACE_REPORT_PROVIDER || "openai").trim().toLowerCase() !== "openai") {
     throw new Error("FACE_REPORT_PROVIDER_UNSUPPORTED");
@@ -119,6 +121,8 @@ export async function generateFaceReport(input: {
   const reportInput = {
       mode: input.mode,
       subjectAge: input.subjectAge,
+      collaborationAssessment: Boolean(input.collaborationAssessment),
+      collaborationProject: input.collaborationAssessment ? input.collaborationProject : null,
       photoQuality: {
         faceCoverage: input.quality.faceCoverage,
         blurScore: input.quality.blurScore,
@@ -134,7 +138,7 @@ export async function generateFaceReport(input: {
   try {
     response = await createOpenAIClient().responses.parse({
       model, store: false,
-      instructions: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode)}`,
+      instructions: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode, Boolean(input.collaborationAssessment))}`,
       input: `請依下列資料輸出單一 JSON object：\n${JSON.stringify(reportInput)}`,
       text: { format: zodTextFormat(faceReportResponseSchema(input.mode), "face_report") },
       max_output_tokens: 4800, temperature: 0
@@ -178,7 +182,10 @@ function normalizeUnsafeOverclaims(value: unknown): unknown {
   if (typeof value === "string") {
     if (value === FACE_REPORT_DISCLAIMER) return value;
     return value
+      .replace(/生命力(?:良好|穩定|旺盛)?/g, "可見部位結構")
       .replace(/健康(?:狀況)?(?:良好|穩定|無.{0,4}異常)/g, "健康面向僅能觀察部位形態，不代表實際健康狀況")
+      .replace(/合作關係基礎(?:穩定|良好)/g, "合作相關部位符合部分傳統觀察條件")
+      .replace(/事業合作環境(?:穩定|良好)/g, "事業合作相關部位符合部分傳統觀察條件")
       .replace(/財務狀況.{0,8}(?:穩定|良好)/g, "財務相關部位符合部分傳統觀察條件")
       .replace(/感情關係.{0,8}(?:穩定|良好|和諧)/g, "感情相關部位符合部分傳統觀察條件")
       .replace(/家庭關係.{0,8}(?:穩定|良好|和諧)/g, "家庭相關部位符合部分傳統觀察條件")
@@ -191,7 +198,7 @@ function normalizeUnsafeOverclaims(value: unknown): unknown {
   return value;
 }
 
-function outputContract(mode: FaceAnalysisMode) {
+function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean) {
   const common = `輸出 JSON 契約：
 - schemaVersion 必須為 "1.0"；mode 必須為 "${mode}"。
 - summary 必須是 100–180 個字元的繁體中文。
@@ -200,7 +207,7 @@ function outputContract(mode: FaceAnalysisMode) {
 - priorityAdvice 必須恰好三筆，每筆只有 problem、reason、advice；problem 必須以「建議核對：」開頭，描述生活中可辨認的具體情境，不得宣稱該情境已存在；reason 必須點名宮位與可見形態證據；advice 必須包含明確動作、期限或檢核方式。
 - palaces 必須恰好 12 筆且不可重複，name 依序為：命宮、官祿宮、父母宮、福德宮、遷移宮、兄弟宮、夫妻宮、子女宮、疾厄宮、財帛宮、奴僕宮、田宅宮。
 - 每筆 palace 只有 name、status、evidence、interpretation、advice；status 只能是 balanced、watch 或 limited。
-- 各宮解讀必須依據輸入 rules.palaces 內同名宮位的 parts（沈師部位）與 evidence 形態特徵（輪廓／寬窄／長短／對稱），不得依光線或拍攝條件下論斷。
+- 各宮解讀必須依據輸入 rules.palaces 內同名宮位的 parts（老師教材部位）與 evidence 形態特徵（輪廓／寬窄／長短／對稱），不得依光線或拍攝條件下論斷。
 - flowYear 為 null，或只含 age(整數)、stage、reflection。
 - actions 必須恰好三筆，period 依序為 30_days、60_days、90_days，每筆只有 period 與 action。
 - 三筆 actions 的內容不得相同：30 天是立即整理或測試，60 天是根據紀錄調整，90 天是決定保留、加碼或停止。
@@ -209,15 +216,19 @@ function outputContract(mode: FaceAnalysisMode) {
   return `${common}
 - lifeAreas 必須只含 relationship、career、health、finance、family，依序回答感情、事業、健康、財運、家庭。
 - 每個 lifeArea 必須只含 conclusion、alignment、visibleBasis、teacherInterpretation、watchout、action、confidence、sources。
-- alignment 必須逐字複製該面向 teacherAreaFramework.calculatedAlignment，不得自行評分。它是本次可見形態對沈師觀察條件的相符度，不是人生結果、運勢分數或照片可信度。
-- conclusion 必須以「沈師條件相符度為高／中／低／資料不足」開頭，再說最強的一組部位與最需要留意的一組部位；不得寫「以實際狀況為準」或其他免責廢話。
+- alignment 必須逐字複製該面向 teacherAreaFramework.calculatedAlignment，不得自行評分。它是本次可見形態對老師建議觀察條件的符合度，不是人生結果、運勢分數或照片可信度。
+- conclusion 必須以「老師建議符合度為高／中／低／資料不足」開頭，再說最強的一組部位與最需要留意的一組部位；不得寫「以實際狀況為準」或其他免責廢話。
 - visibleBasis 必須點名本次實際可見部位及形態，並明說哪些主部位不可判讀；不得把拍攝品質當成生活結論。
 - teacherInterpretation 必須按 teacherAreaFramework.method 進行多宮位交叉解讀，不得自創關聯。
 - watchout 必須指出一個具體的反向條件或本次判讀限制；action 必須給一個 7–30 天內可執行的驗證動作。
 - confidence 必須對應 teacherAreaFramework.assessability；sources 必須複製該面向 teacherAreaFramework.sources 中的 1–4 筆，不得虛構頁碼。
 - health 不得宣稱健康狀況、器官功能、疾病風險或壽命，只能提醒以實際作息、健檢與專業意見核對。
 - health 的 alignment 只代表山根、鼻、眼等可見形態與教材觀察條件的相符度；conclusion 禁止出現「健康良好、健康穩定、無異常、抵抗力好」。
-- collaborationFramework 必須只含 suitability、interactionStyle、riskSignals(2–6 個字串)、questionsToVerify(3–8 個字串)、boundaries。
+- collaborationFramework ${collaborationAssessment ? "必須是完整物件" : "必須為 null"}。
+${collaborationAssessment ? `- collaborationFramework 必須只含 verdict、verdictReason、suitableRole、suitability、interactionStyle、riskSignals(2–6 個字串)、questionsToVerify(3–8 個字串)、boundaries。
+- verdict 只能是 recommended、conditional、not_recommended；必須綜合 collaborationProject、五大面向、部位可判讀度與實際核對條件。
+- verdictReason 必須先直接回答「這個人對此合作項目是否適合」，再說明支持與反對依據；不得將面部觀察當成人格或可信度事實。
+- suitableRole 必須說明此人較適合的專案角色、負責邊界與不建議承擔的任務。` : ""}
 - suitability 只能說明「在什麼合作條件下值得試行」，不得宣告此人適合或不適合合作。
 - interactionStyle 要給具體的溝通頻率、決策方式、分工與衝突處理建議。
 - riskSignals 與 questionsToVerify 必須是合作過程中可觀察、可記錄的現實行為，不得當作已發生的人格事實。`;
@@ -239,9 +250,9 @@ export function renderFaceReportText(report: FaceReport) {
   if (report.flowYear) {
     sections.push(`## 流年回顧提示\n${report.flowYear.stage}\n\n${report.flowYear.reflection}`);
   }
-  sections.push(
-    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n沈師條件相符度：${item.alignment}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n沈師交叉判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}\n\n來源：${item.sources.join("、")}`).join("\n\n")}`,
-    `## 合作與相處建議\n### 合作適配條件\n${report.collaborationFramework.suitability}\n\n### 建議相處模式\n${report.collaborationFramework.interactionStyle}\n\n### 需留意的合作訊號\n${report.collaborationFramework.riskSignals.map((item) => `- ${item}`).join("\n")}\n\n### 合作前核對問題\n${report.collaborationFramework.questionsToVerify.map((item) => `- ${item}`).join("\n")}\n\n### 判斷界線\n${report.collaborationFramework.boundaries}`
+  if (report.collaborationFramework) sections.push(
+    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n老師建議符合度：${item.alignment}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n老師綜合判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}\n\n來源：${item.sources.join("、")}`).join("\n\n")}`,
+    `## 合作對象綜合評估\n### 綜合結論\n${report.collaborationFramework.verdict}\n\n${report.collaborationFramework.verdictReason}\n\n### 建議承擔角色\n${report.collaborationFramework.suitableRole}\n\n### 合作適配條件\n${report.collaborationFramework.suitability}\n\n### 建議相處模式\n${report.collaborationFramework.interactionStyle}\n\n### 需留意的合作訊號\n${report.collaborationFramework.riskSignals.map((item) => `- ${item}`).join("\n")}\n\n### 合作前核對問題\n${report.collaborationFramework.questionsToVerify.map((item) => `- ${item}`).join("\n")}\n\n### 判斷界線\n${report.collaborationFramework.boundaries}`
   );
   sections.push(
     `## 30／60／90 天行動\n${report.actions.map((item) => `- ${item.period}: ${item.action}`).join("\n")}`,

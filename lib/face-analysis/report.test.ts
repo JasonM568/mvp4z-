@@ -50,6 +50,9 @@ const validReport = {
     family: area("家庭項目需要多宮位交叉觀察。", ["沈師筆記 p.66–90"])
   },
   collaborationFramework: {
+    verdict: "conditional",
+    verdictReason: "可先以小型任務試行合作。",
+    suitableRole: "適合先承擔有明確驗收標準的執行角色。",
     suitability: "先用短期小型任務驗證配合方式，再決定是否擴大合作。",
     interactionStyle: "每週固定書面同步進度，決策權與交付標準先寫清楚。",
     riskSignals: ["連續兩次未按約定回覆進度。", "重要決策沒有書面確認。"],
@@ -94,7 +97,7 @@ describe("OpenAI face report provider", () => {
     process.env.FACE_REPORT_PROVIDER = "openai";
     parse.mockResolvedValue({ output_parsed: validReport, usage: { input_tokens: 123, output_tokens: 456 } });
 
-    const result = await generateFaceReport(input);
+    const result = await generateFaceReport({ ...input, collaborationAssessment: true, collaborationProject: "合作執行一項為期三個月的網站專案。" });
     expect(parse).toHaveBeenCalledOnce();
     const providerRequest = parse.mock.calls[0][0] as { input: string };
     const providerInput = JSON.parse(providerRequest.input.replace(/^請依下列資料輸出單一 JSON object：\n/, ""));
@@ -121,7 +124,7 @@ describe("OpenAI face report provider", () => {
         }
       }
     });
-    const result = await generateFaceReport(input);
+    const result = await generateFaceReport({ ...input, collaborationAssessment: true, collaborationProject: "合作執行一項為期三個月的網站專案。" });
     expect(result.report.lifeAreas.health.conclusion).toContain("不代表實際健康狀況");
     expect(result.report.lifeAreas.finance.conclusion).toContain("傳統觀察條件");
   });

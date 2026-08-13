@@ -53,6 +53,9 @@ const lifeAreasSchema = z.object({
 
 const collaborationFrameworkSchema = z
   .object({
+    verdict: z.enum(["recommended", "conditional", "not_recommended"]),
+    verdictReason: boundedText(1, 800),
+    suitableRole: boundedText(1, 500),
     suitability: boundedText(1, 800),
     interactionStyle: boundedText(1, 800),
     riskSignals: z.array(boundedText(1, 300)).min(2).max(6),
@@ -92,7 +95,7 @@ const baseReportShape = {
     }
   }),
   lifeAreas: lifeAreasSchema,
-  collaborationFramework: collaborationFrameworkSchema,
+  collaborationFramework: collaborationFrameworkSchema.nullable(),
   disclaimer: z.literal(FACE_REPORT_DISCLAIMER)
 };
 

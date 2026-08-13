@@ -43,6 +43,8 @@ describe("approved report provider E2E", () => {
         reasons: []
       },
       rules
+      ,collaborationAssessment: true
+      ,collaborationProject: "合作開發為期三個月的網站專案，對方負責執行，我負責預算與驗收。"
     });
 
     expect(result.report.mode).toBe("self");
@@ -56,7 +58,10 @@ describe("approved report provider E2E", () => {
     expect(new Set(result.report.actions.map((item) => item.action)).size).toBe(3);
     expect(Object.keys(result.report.lifeAreas)).toEqual(["relationship", "career", "health", "finance", "family"]);
     expect(Object.values(result.report.lifeAreas).every((area) => area.visibleBasis.length > 10 && area.teacherInterpretation.length > 10)).toBe(true);
-    expect(result.report.lifeAreas.finance.sources).toContain("沈師筆記 p.84–86");
+    expect(result.report.lifeAreas.finance.sources).toContain("老師面相筆記 p.84–86");
+    expect(result.report.collaborationFramework?.verdict).toMatch(/recommended|conditional|not_recommended/);
+    expect(result.report.collaborationFramework?.verdictReason.length).toBeGreaterThan(10);
+    expect(result.report.collaborationFramework?.suitableRole.length).toBeGreaterThan(10);
     if (process.env.FACE_REPORT_E2E_PRINT === "true") {
       console.log(JSON.stringify({ coreHighlights: result.report.coreHighlights, priorityAdvice: result.report.priorityAdvice, lifeAreas: result.report.lifeAreas, collaborationFramework: result.report.collaborationFramework, actions: result.report.actions }, null, 2));
     }

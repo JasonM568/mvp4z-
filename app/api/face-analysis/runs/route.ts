@@ -106,7 +106,9 @@ export async function POST(request: NextRequest) {
       request: {
         ...input,
         subjectAge: input.subjectAge ?? null,
-        thirdPartyConsent: input.thirdPartyConsent ?? false
+        thirdPartyConsent: input.thirdPartyConsent ?? false,
+        collaborationAssessment: input.collaborationAssessment ?? false,
+        collaborationProject: input.collaborationProject ?? null
       }
     });
 

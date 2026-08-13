@@ -90,7 +90,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       subjectAge: run.subject_age,
       quality,
       rules,
-      knowledge: approvedKnowledge
+      knowledge: approvedKnowledge,
+      collaborationAssessment: run.collaboration_assessment,
+      collaborationProject: run.collaboration_project
     });
     const reportText = renderFaceReportText(generated.report);
     const modelTrace = {
