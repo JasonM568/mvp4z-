@@ -108,4 +108,21 @@ describe("OpenAI face report provider", () => {
     parse.mockResolvedValue({ output_parsed: null });
     await expect(generateFaceReport(input)).rejects.toThrow("FACE_REPORT_EMPTY_OUTPUT");
   });
+
+  it("rewrites forbidden stability overclaims instead of discarding a valid report", async () => {
+    process.env.FACE_REPORT_PROVIDER = "openai";
+    parse.mockResolvedValue({
+      output_parsed: {
+        ...validReport,
+        lifeAreas: {
+          ...validReport.lifeAreas,
+          health: { ...validReport.lifeAreas.health, conclusion: "健康狀況穩定，山根可見。" },
+          finance: { ...validReport.lifeAreas.finance, conclusion: "財務狀況穩定，財帛宮可見。" }
+        }
+      }
+    });
+    const result = await generateFaceReport(input);
+    expect(result.report.lifeAreas.health.conclusion).toContain("不代表實際健康狀況");
+    expect(result.report.lifeAreas.finance.conclusion).toContain("傳統觀察條件");
+  });
 });

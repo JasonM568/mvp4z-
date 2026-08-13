@@ -155,8 +155,11 @@ export async function generateFaceReport(input: {
   if (!response.output_parsed) throw new Error("FACE_REPORT_EMPTY_OUTPUT");
   let report: FaceReport;
   try {
-    report = faceReportSchema.parse(response.output_parsed);
-  } catch {
+    report = faceReportSchema.parse(normalizeUnsafeOverclaims(response.output_parsed));
+  } catch (error) {
+    console.error("FACE_REPORT_SCHEMA_REJECTED", {
+      issues: error && typeof error === "object" && "issues" in error ? JSON.stringify(error.issues).slice(0, 1200) : "unknown"
+    });
     throw new Error("FACE_REPORT_SCHEMA_INVALID");
   }
   return {
@@ -169,6 +172,23 @@ export async function generateFaceReport(input: {
       latencyMs: Date.now() - startedAt
     }
   };
+}
+
+function normalizeUnsafeOverclaims(value: unknown): unknown {
+  if (typeof value === "string") {
+    if (value === FACE_REPORT_DISCLAIMER) return value;
+    return value
+      .replace(/健康(?:狀況)?(?:良好|穩定|無.{0,4}異常)/g, "健康面向僅能觀察部位形態，不代表實際健康狀況")
+      .replace(/財務狀況.{0,8}(?:穩定|良好)/g, "財務相關部位符合部分傳統觀察條件")
+      .replace(/感情關係.{0,8}(?:穩定|良好|和諧)/g, "感情相關部位符合部分傳統觀察條件")
+      .replace(/家庭關係.{0,8}(?:穩定|良好|和諧)/g, "家庭相關部位符合部分傳統觀察條件")
+      .replace(/事業環境.{0,8}(?:穩定|良好)/g, "事業相關部位符合部分傳統觀察條件");
+  }
+  if (Array.isArray(value)) return value.map(normalizeUnsafeOverclaims);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeUnsafeOverclaims(item)]));
+  }
+  return value;
 }
 
 function outputContract(mode: FaceAnalysisMode) {
