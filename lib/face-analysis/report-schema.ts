@@ -85,6 +85,19 @@ const surfaceAnalysisSchema = z.object({
   summary: boundedText(1, 600)
 }).strict();
 
+/**
+ * 照片特徵指紋。observation 以下的欄位全部由規則層查表產生並在產出後蓋回，
+ * 模型只負責 interpretation ——說明這次觀察到的形態比較接近教材的哪一個條件。
+ */
+const fingerprintSchema = z.object({
+  observation: boundedText(4, 160),
+  partName: boundedText(1, 60),
+  palaces: z.array(boundedText(1, 40)).min(1).max(4),
+  flowYearNote: boundedText(1, 200),
+  teaching: boundedText(1, 600),
+  interpretation: boundedText(1, 500)
+}).strict();
+
 const flowYearPositionSchema = z.object({
   method: z.enum(["seventy_five_regions", "nine_value"]),
   /** 教材部位名，逐字取自規則層。 */
@@ -111,7 +124,7 @@ const baseReportShape = {
   summary: boundedText(100, 180),
   photoQuality: boundedText(1, 600),
   currentTrend: boundedText(1, 1200),
-  photoFingerprint: z.array(boundedText(4, 160)).min(5).max(8),
+  photoFingerprint: z.array(fingerprintSchema).min(5).max(8),
   coreHighlights: z.array(boundedText(1, 320)).length(3),
   priorityAdvice: z.array(priorityAdviceSchema).length(3),
   palaces: z

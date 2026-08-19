@@ -13,7 +13,13 @@ import { zodTextFormat } from "openai/helpers/zod";
 
 const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 你只能根據輸入的結構化規則結果撰寫，不得重新分析照片，也不得加入輸入沒有的事實。
-rules.photoFingerprint 是本張照片的專屬可見特徵指紋。摘要、三個核心重點、三項 priorityAdvice 與五大面向都必須優先引用其中的具體 observation，不能只用「中等、對稱、圓潤」產生模板結論。
+rules.photoFingerprint 是本張照片的專屬可見特徵指紋，每一筆都已由規則層接上教材部位、所屬宮位、對應流年與教材的正反向條件。
+摘要、三個核心重點、三項 priorityAdvice 與五大面向都必須優先引用其中的具體 observation，不能只用「中等、對稱、圓潤」產生模板結論。
+每一筆指紋都必須寫出 interpretation：說明這次觀察到的形態比較接近該筆的 favorable（寫成「相理合」）還是 unfavorable（寫成「相理不合」），
+接著把該條件在教材裡對應的事情講出來（例如準頭豐隆對應教材說的理財與賺錢能力、並連到流年 48）。
+只能在這兩個條件之間選，不得自創教材沒有的說法；兩者都不明顯時要直說判斷不出來。
+輸出一律用繁體中文的「相理合／相理不合」，禁止出現 favorable、unfavorable 這類英文欄位名。
+不得因為指紋是正向條件就宣稱財運、健康或感情的結果。
 rules.teachings 是本張照片實際命中的沈全榮老師教材條文，已由規則層用形態條件比對完成。這是報告的主要內容來源：
 凡是命中的條文，必須把 text 的教材說法寫進對應的宮位解讀與五大面向，並在 citedTeachings 記下條文 id。
 沒有命中條文的面向，要明說「本次可判讀的部位沒有命中教材條文」，不得自行編造教材說法或改寫成通用建議。
@@ -202,8 +208,20 @@ export async function generateFaceReport(input: {
   let report: FaceReport;
   try {
     const normalized = normalizeUnsafeOverclaims(response.output_parsed);
+    // 指紋除了 interpretation 之外全部蓋回規則層查表結果：
+    // 部位、宮位、流年、教材條件都不容模型改寫，只有「接近哪個條件」的判斷來自模型。
     const canonical = normalized && typeof normalized === "object"
-      ? { ...normalized, photoFingerprint: input.rules.photoFingerprint.map((item) => item.text) }
+      ? {
+          ...normalized,
+          photoFingerprint: input.rules.photoFingerprint.map((item, index) => ({
+            observation: item.observation,
+            partName: item.partName,
+            palaces: [...item.palaces],
+            flowYearNote: item.flowYearNote,
+            teaching: `教材看的是${item.looksAt}。相理合：${item.favorable}　相理不合：${item.unfavorable}（${item.source}）`,
+            interpretation: readModelInterpretation(normalized, index)
+          }))
+        }
       : normalized;
     report = faceReportSchema.parse(canonical);
   } catch (error) {
@@ -212,16 +230,81 @@ export async function generateFaceReport(input: {
     });
     throw new Error("FACE_REPORT_SCHEMA_INVALID");
   }
+  const enforced = enforceTeachingCitations(report, input.rules);
+  if (enforced.violations.length > 0) {
+    console.warn("FACE_REPORT_CITATION_VIOLATION", { violations: JSON.stringify(enforced.violations).slice(0, 600) });
+  }
+
   return {
-    report,
+    report: enforced.report,
     trace: {
       provider: "openai",
       model,
       tokensInput: Number(response.usage?.input_tokens || 0),
       tokensOutput: Number(response.usage?.output_tokens || 0),
-      latencyMs: Date.now() - startedAt
+      latencyMs: Date.now() - startedAt,
+      // 教材引用把關結果；空陣列代表本次引用全部對得回規則層。
+      citationViolations: enforced.violations
     }
   };
+}
+
+/** 取模型寫的第 index 筆 interpretation；缺漏時給明確的保守說明，不留空字串。 */
+export const readModelInterpretationForTest = (parsed: unknown, index: number) => readModelInterpretation(parsed, index);
+
+function readModelInterpretation(parsed: unknown, index: number): string {
+  const list = parsed && typeof parsed === "object" && "photoFingerprint" in parsed
+    ? (parsed as { photoFingerprint?: unknown }).photoFingerprint
+    : undefined;
+  const item = Array.isArray(list) ? list[index] : undefined;
+  const text = item && typeof item === "object" && "interpretation" in item ? (item as { interpretation?: unknown }).interpretation : undefined;
+  if (typeof text !== "string" || text.trim().length === 0) {
+    return "本次無法判定這項觀察比較接近教材的哪一個條件，僅列出部位與流年對照供核對。";
+  }
+  // 契約要求用「相理合／相理不合」；模型偶爾會漏出英文欄位名，這裡兜底改寫。
+  return text
+    .trim()
+    .replace(/unfavorable/gi, "相理不合")
+    .replace(/favorable/gi, "相理合");
+}
+
+export type TeachingCitationViolation = Readonly<{
+  area: string;
+  /** 模型填了但規則層根本沒命中的條文 id。 */
+  unknownIds: readonly string[];
+  /** 該面向有命中條文卻一條都沒引用。 */
+  missingCitation: boolean;
+}>;
+
+/**
+ * 強制驗證教材引用。
+ *
+ * outputContract 只能「要求」模型引用命中的條文；這裡才是真正的把關：
+ * 任何不存在於本次規則層命中結果的 id 一律剔除，並記錄違規供稽核。
+ *
+ * 不因單一違規整份退件——報告已扣點且模型已呼叫，退件對使用者是淨損失；
+ * 改為剔除假引用並把違規寫進 trace，讓老師在後台看得到哪一份報告的引用不乾淨。
+ */
+export function enforceTeachingCitations(report: FaceReport, rules: FaceRuleResult) {
+  const validIds = new Set(rules.teachings.map((item) => item.id));
+  const matchedThemes = groupTeachingsByTheme(rules.teachings);
+  const violations: TeachingCitationViolation[] = [];
+
+  const lifeAreas = Object.fromEntries(
+    Object.entries(report.lifeAreas).map(([area, reading]) => {
+      const cited = reading.citedTeachings || [];
+      const kept = cited.filter((id) => validIds.has(id));
+      const unknownIds = cited.filter((id) => !validIds.has(id));
+      const availableCount = (matchedThemes[AREA_THEMES[area as keyof typeof AREA_THEMES]] || []).length;
+      const missingCitation = availableCount > 0 && kept.length === 0;
+      if (unknownIds.length > 0 || missingCitation) {
+        violations.push({ area, unknownIds, missingCitation });
+      }
+      return [area, { ...reading, citedTeachings: kept }];
+    })
+  ) as FaceReport["lifeAreas"];
+
+  return { report: { ...report, lifeAreas } as FaceReport, violations };
 }
 
 function normalizeUnsafeOverclaims(value: unknown): unknown {
@@ -249,7 +332,12 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - schemaVersion 必須為 "1.0"；mode 必須為 "${mode}"。
 - summary 必須是 100–180 個字元的繁體中文。
 - photoQuality、currentTrend 為字串。
-- photoFingerprint 必須逐字複製 rules.photoFingerprint 的 text，依輸入順序輸出 5–8 筆，不得自行改寫或補充。
+- photoFingerprint 必須依 rules.photoFingerprint 的順序逐筆輸出，數量與輸入完全一致。
+- 每筆只有 observation、partName、palaces、flowYearNote、teaching、interpretation 六個欄位。
+- observation、partName、palaces、flowYearNote、teaching 逐字複製輸入，不得改寫（server 會再蓋回一次，改寫無效）。
+- interpretation 必須以「較接近相理合」或「較接近相理不合」開頭，接著說出該條件在教材裡對應到什麼；
+  兩者都不明顯時以「本次判斷不出偏向哪一邊」開頭。禁止在輸出中出現 favorable、unfavorable 等英文欄位名。
+- hitsCurrentAge 為 true 時，interpretation 要點明本年正好走到這個部位。禁止斷言結果或保證運勢。
 - coreHighlights 必須恰好三筆，依序回答「最明顯的具體部位組合」、「該組合在民俗語境下的可用方向」、「近期最需節制的做法」。每筆必須點名至少一個宮位或部位，禁止寫成使用說明。
 - coreHighlights 三筆合計至少必須逐字引用 rules.photoFingerprint 中三個不同 observation；若無法引用就不得產生肯定結論。
 - priorityAdvice 必須恰好三筆，每筆只有 problem、reason、advice；problem 必須以「建議核對：」開頭，描述生活中可辨認的具體情境，不得宣稱該情境已存在；reason 必須點名宮位與可見形態證據；advice 必須包含明確動作、期限或檢核方式。
@@ -313,7 +401,17 @@ export function renderFaceReportText(report: FaceReport) {
     `## 摘要\n${report.summary}`,
     `## 照片品質\n${report.photoQuality}`,
     `## 目前趨勢\n${report.currentTrend}`,
-    `## 本張照片特徵指紋\n${report.photoFingerprint.map((item) => `- ${item}`).join("\n")}`,
+    `## 這張照片實際辨識到的特徵\n${report.photoFingerprint
+      .map(
+        (item) =>
+          `### ${item.observation}\n` +
+          `教材部位：${item.partName}\n\n` +
+          `對應宮位：${item.palaces.join("、")}\n\n` +
+          `流年對照：${item.flowYearNote}\n\n` +
+          `教材依據：${item.teaching}\n\n` +
+          `本次判讀：${item.interpretation}`
+      )
+      .join("\n\n")}`,
     `## 三個核心重點\n${report.coreHighlights.map((item) => `- ${item}`).join("\n")}`,
     `## 明確問題與建議\n${report.priorityAdvice.map((item, index) => `### 問題 ${index + 1}：${item.problem}\n理由：${item.reason}\n\n建議：${item.advice}`).join("\n\n")}`,
     `## 斑、痣、疤、痕與氣色\n${report.surfaceAnalysis.summary}\n\n${
