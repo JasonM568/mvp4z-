@@ -13,6 +13,7 @@ const area = (conclusion: string, sources: string[]) => ({
   watchout: "輔助部位仍需更清晰照片核對。",
   action: "未來十四天記錄三次實際結果再比對。",
   confidence: "medium" as const,
+  citedTeachings: [],
   sources
 });
 
@@ -82,7 +83,7 @@ const input = {
     reasons: []
   },
   rules: {
-    version: "2.0" as const,
+    version: "3.0" as const,
     mode: "self" as const,
     photoFingerprint: [
       { ruleId: "F1", text: "眉線平直且眉尾略向外延伸", evidence: [] },
@@ -94,6 +95,8 @@ const input = {
     overallTrend: { ruleId: "overall", text: "limited", evidence: [] },
     palaces: [],
     flowYear: null,
+    surfaceImpacts: [],
+    teachings: [],
     observations: [],
     cautions: [],
     actionPlan: []
@@ -116,7 +119,7 @@ describe("OpenAI face report provider", () => {
     const providerRequest = parse.mock.calls[0][0] as { input: string };
     const providerInput = JSON.parse(providerRequest.input.replace(/^請依下列資料輸出單一 JSON object：\n/, ""));
     expect(providerInput.teacherAreaFramework.finance.calculatedAlignment).toBe("insufficient");
-    expect(result.trace).toMatchObject({ provider: "openai", model: "gpt-4.1-mini", tokensInput: 123, tokensOutput: 456 });
+    expect(result.trace).toMatchObject({ provider: "openai", model: "gpt-4.1", tokensInput: 123, tokensOutput: 456 });
     expect(result.report.palaces).toHaveLength(12);
   });
 

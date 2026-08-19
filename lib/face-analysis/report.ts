@@ -8,11 +8,19 @@ import {
 import { FaceQualityResult, FaceAnalysisMode } from "@/lib/face-analysis/types";
 import type { FaceVisionResult } from "@/lib/face-analysis/vision";
 import { createOpenAIClient, openAIModel } from "@/lib/ai/openai";
+import { groupTeachingsByTheme, type TeachingTheme } from "@/lib/face-analysis/teachings";
 import { zodTextFormat } from "openai/helpers/zod";
 
 const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 你只能根據輸入的結構化規則結果撰寫，不得重新分析照片，也不得加入輸入沒有的事實。
 rules.photoFingerprint 是本張照片的專屬可見特徵指紋。摘要、三個核心重點、三項 priorityAdvice 與五大面向都必須優先引用其中的具體 observation，不能只用「中等、對稱、圓潤」產生模板結論。
+rules.teachings 是本張照片實際命中的沈全榮老師教材條文，已由規則層用形態條件比對完成。這是報告的主要內容來源：
+凡是命中的條文，必須把 text 的教材說法寫進對應的宮位解讀與五大面向，並在 citedTeachings 記下條文 id。
+沒有命中條文的面向，要明說「本次可判讀的部位沒有命中教材條文」，不得自行編造教材說法或改寫成通用建議。
+rules.flowYear 是九值流年法與七十五部位流年法的確定性結果。只要不是 null，flowYear 段落就必須完整輸出，
+並且五大面向與 priorityAdvice 至少要有一項扣回本年流年部位的實際觀察。流年只作回顧與核對提示，不預測事件。
+rules.surfaceImpacts 是斑、痣、疤、痕對應到的宮位、主題與流年，已由規則層查表完成。
+每一筆都必須寫進 surfaceAnalysis.detectedFeatures，palaces 與 themes 逐字複製，不得自行改指派。
 所有內容必須使用趨勢式、可驗證、非確定性的繁體中文。
 禁止推論疾病、心理診斷、犯罪傾向、種族、國籍、宗教、政治、性傾向、真實年齡、人格真相或可信度。
 不得保證財運、獲利、成功、感情或未來事件。
@@ -24,11 +32,19 @@ rules.palaces.status 的 balanced 只代表「主部位可判讀且未見明顯�
 「生命力、健康狀況、疾病風險、收入穩定、感情穩定、家庭和諧」均不得由照片直接宣稱。
 若十二宮全部為 balanced，仍須從 evidence 的輪廓、寬高、對稱與主輔部位差異中選出三組最具辨識度的觀察，不得把十二宮逐一寫成相同的穩定結論。
 lifeAreas 必須固定依感情、事業、健康、財運、家庭五項整理；健康只能提供作息、自我觀察與就醫邊界，不得從面部推論健康狀況或疾病。
-surfaceAnalysis 必須逐項整理輸入 surface.surfaceFeatures 的斑、痣、疤、痕；若陣列為空要明確寫未辨識到可信度足夠的特徵。氣色只描述照片呈現的明暗、均勻度、色偏與美肌可能性，不得連結器官、疾病、健康、人格或命運。傳統部位參照須標為民俗說法且不可形成事實判定。
+surfaceAnalysis 必須逐項整理輸入 rules.surfaceImpacts 的斑、痣、疤、痕；若陣列為空要明確寫未辨識到可信度足夠的特徵。
+六親關係與財運兩個主題，可以直接依 memberNote 的教材說法撰寫，語氣標明為民俗說法。
+健康主題只能寫「這個部位在教材屬哪一宮、建議以健檢與作息紀錄核對」，一律不得寫出臟腑、器官、病名、疾病風險或壽元。
+氣色只描述照片呈現的明暗、均勻度、色偏與美肌可能性，不得連結器官、疾病、健康、人格或命運。
 collaborationFramework 必須提供合作條件、相處方式、風險訊號與核對問題，但不得只憑面相判定「適合／不適合合作」，不判定對方忠誠、善惡或是否可信。
 十二宮與 30/60/90 天行動必須完整，disclaimer 必須逐字使用 server 提供的固定內容。`;
 
-const DEFAULT_OPENAI_REPORT_MODEL = "gpt-4.1-mini";
+/**
+ * 面相報告有自己的模型政策，不跟著聊天用的 OPENAI_MODEL 走。
+ * 報告要引用教材條文與流年部位做具體判讀，mini 等級會退回模板式敘述，
+ * 因此預設用完整版模型；要調整只能透過 FACE_REPORT_OPENAI_MODEL。
+ */
+const DEFAULT_OPENAI_REPORT_MODEL = "gpt-4.1";
 
 const TEACHER_AREA_FRAMEWORK = {
   relationship: {
@@ -92,11 +108,23 @@ function calculatedAlignment(palaces: FaceRuleResult["palaces"], features: reado
   return score >= 0.82 ? "high" as const : score >= 0.58 ? "medium" as const : "low" as const;
 }
 
+/** 五大面向鍵值對應教材規則表的主題標籤。 */
+const AREA_THEMES: Record<keyof typeof TEACHER_AREA_FRAMEWORK, TeachingTheme> = {
+  relationship: "感情",
+  career: "事業",
+  health: "健康",
+  finance: "財運",
+  family: "家庭"
+};
+
 function teacherGrounding(rules: FaceRuleResult) {
+  const byTheme = groupTeachingsByTheme(rules.teachings);
   return Object.fromEntries(Object.entries(TEACHER_AREA_FRAMEWORK).map(([key, framework]) => {
     const palaces = rules.palaces.filter((palace) => (framework.palaces as readonly string[]).includes(palace.name));
     return [key, {
       ...framework,
+      // 本面向實際命中的教材條文；空陣列代表本次沒有可引用的教材說法。
+      matchedTeachings: byTheme[AREA_THEMES[key as keyof typeof TEACHER_AREA_FRAMEWORK]] || [],
       obtainedData: palaces.map((palace) => ({ name: palace.name, parts: palace.parts, status: palace.status, evidence: palace.evidence })),
       calculatedAlignment: calculatedAlignment(palaces, AREA_FEATURES[key as keyof typeof TEACHER_AREA_FRAMEWORK]),
       assessability: palaces.every((palace) => palace.status === "balanced") ? "high" : palaces.some((palace) => palace.status === "limited") ? "low" : "medium",
@@ -118,7 +146,7 @@ export async function generateFaceReport(input: {
   if ((process.env.FACE_REPORT_PROVIDER || "openai").trim().toLowerCase() !== "openai") {
     throw new Error("FACE_REPORT_PROVIDER_UNSUPPORTED");
   }
-  const model = process.env.FACE_REPORT_OPENAI_MODEL?.trim() || openAIModel() || DEFAULT_OPENAI_REPORT_MODEL;
+  const model = process.env.FACE_REPORT_OPENAI_MODEL?.trim() || DEFAULT_OPENAI_REPORT_MODEL;
   const startedAt = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 75_000);
@@ -134,6 +162,11 @@ export async function generateFaceReport(input: {
         limitations: input.quality.reasons
       },
       rules: input.rules,
+      // 流年、斑痣對應與教材條文都在 rules 裡，但這三段是新報告的主要內容來源，
+      // 額外提到頂層讓模型不會漏掉。teacherNote 已在規則層剝除，不會進到這裡。
+      flowYear: input.rules.flowYear,
+      surfaceImpacts: input.rules.surfaceImpacts,
+      teachings: input.rules.teachings,
       surface: input.surface || {
         surfaceFeatures: [],
         complexion: { assessable: false, evenness: "not_assessable", brightness: "not_assessable", colorCast: "not_assessable", possibleBeautyFilter: false, confidence: 0, limitation: "未提供表面特徵資料" }
@@ -149,7 +182,8 @@ export async function generateFaceReport(input: {
       instructions: `${REPORT_INSTRUCTIONS}\n\n${outputContract(input.mode, Boolean(input.collaborationAssessment))}`,
       input: `請依下列資料輸出單一 JSON object：\n${JSON.stringify(reportInput)}`,
       text: { format: zodTextFormat(faceReportResponseSchema(input.mode), "face_report") },
-      max_output_tokens: 5400, temperature: 0
+      // 契約新增流年、斑痣宮位對應與教材條文引用後輸出明顯變長，5400 會被截斷。
+      max_output_tokens: 9000, temperature: 0
     }, { signal: controller.signal });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw new Error("FACE_REPORT_PROVIDER_TIMEOUT");
@@ -222,16 +256,38 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - palaces 必須恰好 12 筆且不可重複，name 依序為：命宮、官祿宮、父母宮、福德宮、遷移宮、兄弟宮、夫妻宮、子女宮、疾厄宮、財帛宮、奴僕宮、田宅宮。
 - 每筆 palace 只有 name、status、evidence、interpretation、advice；status 只能是 balanced、watch 或 limited。
 - 各宮解讀必須依據輸入 rules.palaces 內同名宮位的 parts（老師教材部位）與 evidence 形態特徵（輪廓／寬窄／長短／對稱），不得依光線或拍攝條件下論斷。
-- flowYear 為 null，或只含 age(整數)、stage、reflection。
+- 若 rules.teachings 有條文的 palaces 含這一宮，interpretation 必須引用該條文的教材說法，不得只重述形態枚舉。
+- flowYear：rules.flowYear 為 null 時輸出 null；否則必須完整輸出且只含 age、positions、crossCheck、gates、focus、reflection。
+- flowYear.age 複製 rules.flowYear.age。positions 必須恰好兩筆，method 依序為 seventy_five_regions 與 nine_value，
+  position 逐字複製 rules.flowYear.seventyFive.position 與 rules.flowYear.nineValue.position，
+  observation 必須寫出該部位在本張照片的實際形態（引用同一筆的 morphology 與 status），不得寫成通用敘述。
+- flowYear.crossCheck 必須逐字複製 rules.flowYear.crossCheck.text。
+- flowYear.gates：rules.flowYear.gates 每一筆都要寫成一句話，包含歲數與教材說法；沒有就輸出空陣列。
+- flowYear.focus 必須寫出「本年這兩個部位對應到生活中該核對的一件具體事」，要有可執行的動作與時間點，
+  不得寫成「注意健康」「保持穩定」這類萬用句，也不得預測會發生什麼事。
+- flowYear.reflection 說明教材併看法怎麼讀這一年，並說明本次判讀的限制。
 - actions 必須恰好三筆，period 依序為 30_days、60_days、90_days，每筆只有 period 與 action。
 - 三筆 actions 的內容不得相同：30 天是立即整理或測試，60 天是根據紀錄調整，90 天是決定保留、加碼或停止。
 - disclaimer 必須與 fixedDisclaimer 完全一致。
-- surfaceAnalysis 必須只含 detectedFeatures、complexionObservation、filterWarning、summary。detectedFeatures 必須逐筆對應 surface.surfaceFeatures，不得增加照片中未觀察到的斑、痣、疤或痕；type 保持原值，location 使用繁體中文寫明部位與左右，observation 只寫可見外觀，traditionalReference 只提供該部位的民俗參照且不得推論健康或人格，confidence 依輸入信心度轉為 high／medium／low。若沒有特徵，detectedFeatures 必須為空陣列且 summary 明確寫「本次未辨識到可信度足夠的斑、痣、疤或痕」。
+- surfaceAnalysis 必須只含 detectedFeatures、complexionObservation、filterWarning、summary。
+- detectedFeatures 必須逐筆對應 rules.surfaceImpacts，一筆都不能少也不能增加照片中未觀察到的斑、痣、疤或痕。
+- 每筆：type 保持原值；location 用 regionLabel 與 sideLabel 寫成繁體中文部位與左右；observation 只寫可見外觀；
+  palaces 逐字複製該筆的 palaces；themes 逐字複製該筆的 themes；confidence 依輸入信心度轉為 high／medium／low。
+- traditionalReference 依該筆 memberNote 的教材說法撰寫。themes 含「六親」或「財運」時，必須具體寫出教材說的關係或錢財對應，
+  不得稀釋成「僅供參考」。themes 含「健康」時，只能寫出部位所屬宮位與「建議以健檢及作息紀錄核對」，
+  禁止出現任何臟腑、器官、病名、疾病風險或壽元敘述。
+- flowYearNote 必須用該筆的 flowYearPositions 與 flowYearAges 寫出對應歲數；hitsCurrentAge 為 true 時要明說本年正好走到這個部位。
+- 若沒有特徵，detectedFeatures 必須為空陣列且 summary 明確寫「本次未辨識到可信度足夠的斑、痣、疤或痕」。
 - complexionObservation 只整理 surface.complexion 的畫面明暗、均勻度、色偏與限制；possibleBeautyFilter 為 true 時 filterWarning 必須提醒美肌、磨皮或濾鏡可能造成失真，否則可為 null。
 - 不得輸出未列出的欄位。`;
   return `${common}
 - lifeAreas 必須只含 relationship、career、health、finance、family，依序回答感情、事業、健康、財運、家庭。
-- 每個 lifeArea 必須只含 conclusion、alignment、visibleBasis、teacherInterpretation、watchout、action、confidence、sources。
+- 每個 lifeArea 必須只含 conclusion、alignment、visibleBasis、teacherInterpretation、watchout、action、confidence、citedTeachings、sources。
+- teacherInterpretation 必須優先引用該面向 teacherAreaFramework.matchedTeachings 的教材說法，逐條寫成完整句子，
+  並帶出該條文命中的部位與形態（observedMorphology）。citedTeachings 必須列出實際引用到的條文 id。
+- 若該面向 matchedTeachings 為空陣列，teacherInterpretation 必須明說「本次可判讀的部位沒有命中教材條文」，
+  citedTeachings 輸出空陣列，且不得自行編造教材說法。
+- health 面向的 matchedTeachings 若含 healthSensitive 條文，只能引用其部位與核對提醒，不得寫臟腑或病名。
 - alignment 必須逐字複製該面向 teacherAreaFramework.calculatedAlignment，不得自行評分。它是本次可見形態對老師建議觀察條件的符合度，不是人生結果、運勢分數或照片可信度。
 - conclusion 必須以「老師建議符合度為高／中／低／資料不足」開頭，再說最強的一組部位與最需要留意的一組部位；不得寫「以實際狀況為準」或其他免責廢話。
 - visibleBasis 必須點名本次實際可見部位及形態，並明說哪些主部位不可判讀；不得把拍攝品質當成生活結論。
@@ -260,14 +316,38 @@ export function renderFaceReportText(report: FaceReport) {
     `## 本張照片特徵指紋\n${report.photoFingerprint.map((item) => `- ${item}`).join("\n")}`,
     `## 三個核心重點\n${report.coreHighlights.map((item) => `- ${item}`).join("\n")}`,
     `## 明確問題與建議\n${report.priorityAdvice.map((item, index) => `### 問題 ${index + 1}：${item.problem}\n理由：${item.reason}\n\n建議：${item.advice}`).join("\n\n")}`,
-    `## 斑、痣、疤、痕與氣色\n${report.surfaceAnalysis.summary}\n\n${report.surfaceAnalysis.detectedFeatures.map((item) => `- ${item.location}：${item.observation}（${item.traditionalReference}；信心度：${item.confidence}）`).join("\n") || "- 本次未辨識到可信度足夠的斑、痣、疤或痕"}\n\n氣色觀察：${report.surfaceAnalysis.complexionObservation}${report.surfaceAnalysis.filterWarning ? `\n\n照片限制：${report.surfaceAnalysis.filterWarning}` : ""}`,
+    `## 斑、痣、疤、痕與氣色\n${report.surfaceAnalysis.summary}\n\n${
+      report.surfaceAnalysis.detectedFeatures
+        .map(
+          (item) =>
+            `### ${item.location}：${item.type === "spot" ? "斑" : item.type === "mole" ? "痣" : item.type === "scar" ? "疤" : "痕"}\n` +
+            `對應宮位：${item.palaces.join("、")}\n\n` +
+            `對應主題：${item.themes.join("、")}\n\n` +
+            `外觀觀察：${item.observation}\n\n` +
+            `教材說法：${item.traditionalReference}\n\n` +
+            `流年對照：${item.flowYearNote}\n\n` +
+            `信心度：${item.confidence}`
+        )
+        .join("\n\n") || "本次未辨識到可信度足夠的斑、痣、疤或痕。"
+    }\n\n氣色觀察：${report.surfaceAnalysis.complexionObservation}${report.surfaceAnalysis.filterWarning ? `\n\n照片限制：${report.surfaceAnalysis.filterWarning}` : ""}`,
   ];
 
   if (report.flowYear) {
-    sections.push(`## 流年回顧提示\n${report.flowYear.stage}\n\n${report.flowYear.reflection}`);
+    const methodLabels = { seventy_five_regions: "七十五部位流年法", nine_value: "九值流年法" } as const;
+    sections.push(
+      `## 本年流年（${report.flowYear.age} 歲）\n` +
+        `${report.flowYear.positions.map((item) => `### ${methodLabels[item.method]}：${item.position}\n${item.observation}`).join("\n\n")}\n\n` +
+        `### 併看法\n${report.flowYear.crossCheck}\n\n` +
+        (report.flowYear.gates.length > 0 ? `### 三關四隘\n${report.flowYear.gates.map((item) => `- ${item}`).join("\n")}\n\n` : "") +
+        `### 本年該核對的事\n${report.flowYear.focus}\n\n` +
+        `### 判讀說明\n${report.flowYear.reflection}`
+    );
   }
+  // 五大面向與合作評估是兩件獨立的事：沒有勾合作評估時，五大面向仍必須輸出。
+  sections.push(
+    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n老師建議符合度：${item.alignment}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n老師綜合判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}`).join("\n\n")}`
+  );
   if (report.collaborationFramework) sections.push(
-    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n老師建議符合度：${item.alignment}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n老師綜合判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}`).join("\n\n")}`,
     `## 合作對象綜合評估\n### 綜合結論\n${report.collaborationFramework.verdict}\n\n${report.collaborationFramework.verdictReason}\n\n### 建議承擔角色\n${report.collaborationFramework.suitableRole}\n\n### 合作適配條件\n${report.collaborationFramework.suitability}\n\n### 建議相處模式\n${report.collaborationFramework.interactionStyle}\n\n### 需留意的合作訊號\n${report.collaborationFramework.riskSignals.map((item) => `- ${item}`).join("\n")}\n\n### 合作前核對問題\n${report.collaborationFramework.questionsToVerify.map((item) => `- ${item}`).join("\n")}\n\n### 判斷界線\n${report.collaborationFramework.boundaries}`
   );
   sections.push(

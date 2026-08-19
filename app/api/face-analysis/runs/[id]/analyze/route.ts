@@ -14,6 +14,8 @@ import { downloadPrivateImage } from "@/lib/face-analysis/storage";
 import { ConfiguredFaceVisionProvider } from "@/lib/face-analysis/vision-http";
 import { runFaceVisionProvider } from "@/lib/face-analysis/vision";
 import { applyFaceRules } from "@/lib/face-analysis/rules";
+import { matchTeachings } from "@/lib/face-analysis/teachings";
+import { mapSurfaceImpacts } from "@/lib/face-analysis/surface-map";
 import { generateFaceReport, renderFaceReportText } from "@/lib/face-analysis/report";
 import { faceQualityResultSchema } from "@/lib/face-analysis/schema";
 import { isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
@@ -103,7 +105,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         latencyMs: Date.now() - visionStartedAt
       },
       report: generated.trace,
-      knowledgeSources: approvedKnowledge.map((item) => item.cardId)
+      knowledgeSources: approvedKnowledge.map((item) => item.cardId),
+      // 老師版稽核資料：教材原文（含望診健康等 CRITICAL 敘述）只存在這裡。
+      // model_trace 不在 PUBLIC_RUN_FIELDS，會員 API 讀不到，也不會送進撰稿模型。
+      teacherAudit: {
+        teachings: matchTeachings(vision, "teacher"),
+        surfaceImpacts: mapSurfaceImpacts(vision.surfaceFeatures, run.subject_age).map((impact) => ({
+          region: impact.region,
+          type: impact.type,
+          side: impact.side,
+          palaces: impact.palaces,
+          themes: impact.themes,
+          teacherNote: impact.teacherNote,
+          flowYearAges: impact.flowYearAges,
+          sourcePages: impact.sourcePages
+        })),
+        flowYear: rules.flowYear
+      }
     };
 
     const { error: reportWriteError } = await admin

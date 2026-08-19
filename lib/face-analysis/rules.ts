@@ -1,7 +1,25 @@
 import type { FaceAnalysisMode } from "@/lib/face-analysis/types";
 import type { FaceVisionResult } from "@/lib/face-analysis/vision";
+import {
+  CONTOUR_LABELS,
+  FACE_RULE_MIN_CONFIDENCE,
+  FEATURE_LABELS,
+  HEIGHT_LABELS,
+  SYMMETRY_LABELS,
+  WIDTH_LABELS,
+  featureValue,
+  isReadable,
+  type DetailName,
+  type FaceFeatureName,
+  type FeatureValue,
+  type RegionName,
+  type RegionValue
+} from "@/lib/face-analysis/face-features";
+import { resolveFlowYear, type FlowYearResult } from "@/lib/face-analysis/flow-year";
+import { mapSurfaceImpacts, type SurfaceImpact } from "@/lib/face-analysis/surface-map";
+import { matchTeachings, type MatchedTeaching } from "@/lib/face-analysis/teachings";
 
-export const FACE_RULE_MIN_CONFIDENCE = 0.65;
+export { FACE_RULE_MIN_CONFIDENCE };
 
 /**
  * 沈全榮老師十二宮體系（docs/specs/face-analysis/SPEC-05）。
@@ -48,22 +66,21 @@ export type PalaceRuleResult = Readonly<{
 }>;
 
 export type FaceRuleResult = Readonly<{
-  version: "2.0";
+  version: "3.0";
   mode: FaceAnalysisMode;
   photoFingerprint: readonly RuleItem[];
   overallTrend: RuleItem;
   palaces: readonly PalaceRuleResult[];
-  flowYear: RuleItem | null;
+  /** 九值流年法＋七十五部位流年法的確定性結果（沈師教材 p.11–13）。 */
+  flowYear: FlowYearResult | null;
+  /** 斑、痣、疤、痕對應到的宮位、主題與流年（會員版，已剝除教材原文）。 */
+  surfaceImpacts: readonly Omit<SurfaceImpact, "teacherNote">[];
+  /** 本張照片命中的教材形態條文。 */
+  teachings: readonly MatchedTeaching[];
   observations: readonly RuleItem[];
   cautions: readonly RuleItem[];
   actionPlan: readonly RuleItem[];
 }>;
-
-type RegionName = keyof FaceVisionResult["regions"];
-type DetailName = keyof FaceVisionResult["details"];
-type FaceFeatureName = RegionName | DetailName;
-type RegionValue = FaceVisionResult["regions"][RegionName];
-type FeatureValue = RegionValue | FaceVisionResult["details"][DetailName];
 
 type PalaceMapping = Readonly<{
   parts: string;
@@ -99,69 +116,6 @@ function treasuryMapping(subjectAge: number | null | undefined): PalaceMapping &
     return { band: "地倉", parts: "地倉（地閣懸臂；晚年財，子女晚輩）", primary: ["chin"], auxiliary: ["jaw", "mouth", "nose"] };
   }
   return { band: "人倉", parts: "人倉（眉眼鼻；中年 31-50 自賺之財）", primary: ["nose"], auxiliary: ["eyebrows", "eyes"] };
-}
-
-const FEATURE_LABELS: Readonly<Record<FaceFeatureName, string>> = {
-  forehead: "額頭",
-  eyebrows: "眉",
-  eyes: "眼",
-  nose: "鼻",
-  cheeks: "顴頰",
-  mouth: "口",
-  jaw: "下顎（地閣）",
-  ears: "耳",
-  glabella: "印堂",
-  nasalRoot: "山根",
-  outerEyeCorners: "奸門",
-  tearTroughs: "淚堂",
-  philtrum: "人中",
-  chin: "地閣"
-};
-
-const CONTOUR_LABELS: Readonly<Record<RegionValue["contour"], string>> = {
-  rounded: "圓潤",
-  straight: "平直",
-  angular: "稜角分明",
-  mixed: "混合",
-  not_assessable: "無法判讀"
-};
-
-const WIDTH_LABELS: Readonly<Record<RegionValue["relativeWidth"], string>> = {
-  narrow: "偏窄",
-  medium: "適中",
-  wide: "偏寬",
-  not_assessable: "無法判讀"
-};
-
-const HEIGHT_LABELS: Readonly<Record<RegionValue["relativeHeight"], string>> = {
-  short: "偏短",
-  medium: "適中",
-  long: "偏長",
-  not_assessable: "無法判讀"
-};
-
-const SYMMETRY_LABELS: Readonly<Record<RegionValue["symmetry"], string>> = {
-  balanced: "對稱",
-  slightly_asymmetric: "略不對稱",
-  asymmetric: "明顯不對稱",
-  not_assessable: "無法判讀"
-};
-
-function featureValue(vision: FaceVisionResult, feature: FaceFeatureName): FeatureValue {
-  if (feature in vision.details) return vision.details[feature as DetailName];
-  return vision.regions[feature as RegionName];
-}
-
-function hasMorphology(value: FeatureValue): boolean {
-  return (
-    value.contour !== "not_assessable" ||
-    value.relativeWidth !== "not_assessable" ||
-    value.relativeHeight !== "not_assessable"
-  );
-}
-
-function isReadable(value: FeatureValue): boolean {
-  return value.confidence >= FACE_RULE_MIN_CONFIDENCE && value.visibility === "clear" && hasMorphology(value);
 }
 
 function morphologyEvidence(vision: FaceVisionResult, region: FaceFeatureName): RuleEvidence[] {
@@ -305,14 +259,36 @@ export function applyFaceRules(input: {
   }));
 
   const age = input.subjectAge;
-  const flowYear =
-    age == null
-      ? null
-      : {
-          ruleId: "FLOW_YEAR_AGE_BAND_V1",
-          text: `以當前 ${age} 歲對應的傳統流年區段作為回顧提示，不作事件預測。`,
-          evidence: []
-        };
+  const flowYear = resolveFlowYear(vision, age);
+
+  // 斑痣疤痕的教材原文只給老師版；會員報告拿到的是已剝除 teacherNote 的版本。
+  const surfaceImpacts = mapSurfaceImpacts(vision.surfaceFeatures, age).map(
+    ({ teacherNote: _teacherNote, ...rest }) => rest
+  );
+  const teachings = matchTeachings(vision, "member");
+
+  // 流年落在教材四隘、或本年部位剛好有斑痣疤痕時，升級為明確提醒。
+  if (flowYear) {
+    for (const gate of flowYear.gates) {
+      if (gate.kind !== "four_passes") continue;
+      cautions.push({
+        ruleId: `FLOW_YEAR_GATE_${gate.age}_V3`,
+        text: `${gate.age} 歲在教材屬四隘之一：${gate.label}。教材建議這一年前後把健檢、工作與重大決定的時程排開，並以實際紀錄回顧，不作事件預測。`,
+        evidence: gate.feature
+          ? [{ region: gate.feature, field: "flowYearGate", observed: gate.status, confidence: featureValue(vision, gate.feature).confidence }]
+          : []
+      });
+    }
+    const currentFeatures = new Set([flowYear.seventyFive.feature, flowYear.nineValue.feature]);
+    for (const impact of surfaceImpacts) {
+      if (!currentFeatures.has(impact.region)) continue;
+      cautions.push({
+        ruleId: `FLOW_YEAR_SURFACE_${impact.region.toUpperCase()}_V3`,
+        text: `本年流年正好走到${impact.regionLabel}，而這個部位在照片中觀察到${impact.typeLabel}。教材說流年部位以無痣痕紋斑為佳，建議把這一年相關的安排多留一次確認。`,
+        evidence: [{ region: impact.region, field: `surface:${impact.type}`, observed: impact.description, confidence: impact.confidence }]
+      });
+    }
+  }
 
   const photoFingerprint: RuleItem[] = [...vision.distinctiveFeatures]
     .sort((a, b) => (b.salience * b.confidence) - (a.salience * a.confidence))
@@ -324,12 +300,14 @@ export function applyFaceRules(input: {
     }));
 
   return {
-    version: "2.0",
+    version: "3.0",
     mode,
     photoFingerprint,
     overallTrend,
     palaces,
     flowYear,
+    surfaceImpacts,
+    teachings,
     observations,
     cautions,
     actionPlan

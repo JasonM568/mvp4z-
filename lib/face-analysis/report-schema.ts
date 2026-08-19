@@ -39,6 +39,8 @@ const areaReadingSchema = z
     watchout: boundedText(1, 500),
     action: boundedText(1, 500),
     confidence: z.enum(["high", "medium", "low"]),
+    /** 本面向引用到的教材條文 id，供稽核回查；沒有命中條文時為空陣列。 */
+    citedTeachings: z.array(boundedText(1, 40)).max(4),
     sources: z.array(boundedText(1, 120)).min(1).max(4)
   })
   .strict();
@@ -69,12 +71,39 @@ const surfaceAnalysisSchema = z.object({
     type: z.enum(["spot", "mole", "scar", "mark"]),
     location: boundedText(1, 120),
     observation: boundedText(1, 300),
-    traditionalReference: boundedText(1, 500),
+    /** 該部位所屬宮位，逐字取自規則層，不由模型自行指派。 */
+    palaces: z.array(boundedText(1, 40)).min(1).max(4),
+    /** 教材對應的主題；健康只允許給部位與核對提醒，不得寫病名或臟腑。 */
+    themes: z.array(z.enum(["六親", "財運", "健康"])).min(1).max(3),
+    traditionalReference: boundedText(1, 600),
+    /** 該部位在七十五部位流年法對應的歲數提示。 */
+    flowYearNote: boundedText(1, 300),
     confidence: z.enum(["high", "medium", "low"])
   }).strict()).max(30),
   complexionObservation: boundedText(1, 500),
   filterWarning: boundedText(1, 300).nullable(),
   summary: boundedText(1, 600)
+}).strict();
+
+const flowYearPositionSchema = z.object({
+  method: z.enum(["seventy_five_regions", "nine_value"]),
+  /** 教材部位名，逐字取自規則層。 */
+  position: boundedText(1, 20),
+  /** 本張照片該部位的形態觀察。 */
+  observation: boundedText(1, 400)
+}).strict();
+
+const flowYearSchema = z.object({
+  age: z.number().int().min(1).max(120),
+  /** 兩個流年法本年各走到哪個部位。 */
+  positions: z.array(flowYearPositionSchema).length(2),
+  /** 併看法結論，逐字複製規則層的 crossCheck。 */
+  crossCheck: boundedText(1, 600),
+  /** 本年若落在三關或四隘，逐項列出；否則為空陣列。 */
+  gates: z.array(boundedText(1, 300)).max(4),
+  /** 本年對應部位最該核對的具體事項。 */
+  focus: boundedText(1, 500),
+  reflection: boundedText(1, 800)
 }).strict();
 
 const baseReportShape = {
@@ -94,14 +123,7 @@ const baseReportShape = {
         context.addIssue({ code: z.ZodIssueCode.custom, message: "十二宮不得重複或缺漏" });
       }
     }),
-  flowYear: z
-    .object({
-      age: z.number().int().min(1).max(120),
-      stage: boundedText(1, 120),
-      reflection: boundedText(1, 800)
-    })
-    .strict()
-    .nullable(),
+  flowYear: flowYearSchema.nullable(),
   actions: z.array(actionSchema).length(3).superRefine((actions, context) => {
     const periods = new Set(actions.map((action) => action.period));
     if (periods.size !== 3) {

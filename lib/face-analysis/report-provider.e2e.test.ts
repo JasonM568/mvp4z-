@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { FACE_PALACE_NAMES, type FaceRuleResult } from "@/lib/face-analysis/rules";
+import { applyFaceRules, type FaceRuleResult } from "@/lib/face-analysis/rules";
+import { faceVisionResultSchema } from "@/lib/face-analysis/vision";
+import { e2eVision } from "@/lib/face-analysis/__fixtures__/vision";
 import { generateFaceReport } from "@/lib/face-analysis/report";
 
 const enabled = process.env.FACE_REPORT_PROVIDER_E2E === "true";
@@ -9,36 +11,19 @@ describe("approved report provider E2E", () => {
   (enabled ? it : it.skip)("generates a structured self report", async () => {
     loadOpenAIEnvironment();
     process.env.FACE_REPORT_PROVIDER = "openai";
-    const rules: FaceRuleResult = {
-      version: "2.0",
+    // 走真實規則管線，讓 E2E 實際覆蓋流年、教材條文與斑痣宮位對應三段新契約。
+    const rules: FaceRuleResult = applyFaceRules({
+      vision: faceVisionResultSchema.parse(e2eVision),
       mode: "self",
-      photoFingerprint: [
-        { ruleId: "F1", text: "眉線平直且眉尾略向外延伸", evidence: [] },
-        { ruleId: "F2", text: "眼裂橫向比例較長且上緣弧度平緩", evidence: [] },
-        { ruleId: "F3", text: "鼻樑中央線條平直且寬度均勻", evidence: [] },
-        { ruleId: "F4", text: "上唇弓線明顯且下唇中央較飽滿", evidence: [] },
-        { ruleId: "F5", text: "下巴末端呈圓弧且縱向長度適中", evidence: [] }
-      ],
-      overallTrend: { ruleId: "OVERALL_TEST", text: "可見區域整體均衡。", evidence: [] },
-      palaces: FACE_PALACE_NAMES.map((name) => ({
-        name,
-        parts: `${name}可見部位`,
-        status: "balanced" as const,
-        ruleId: `PALACE_${name}_TEST`,
-        evidence: [
-          { region: "glabella" as const, field: "contour", observed: "straight", confidence: 0.9 },
-          { region: "glabella" as const, field: "symmetry", observed: "balanced", confidence: 0.9 }
-        ]
-      })),
-      flowYear: null,
-      observations: [],
-      cautions: [],
-      actionPlan: []
-    };
+      subjectAge: 41
+    });
+    expect(rules.flowYear).not.toBeNull();
+    expect(rules.teachings.length).toBeGreaterThan(0);
+    expect(rules.surfaceImpacts.length).toBeGreaterThan(0);
 
     const result = await generateFaceReport({
       mode: "self",
-      subjectAge: 35,
+      subjectAge: 41,
       quality: {
         passed: true,
         faceCount: 1,
@@ -69,6 +54,28 @@ describe("approved report provider E2E", () => {
     expect(result.report.collaborationFramework?.verdict).toMatch(/recommended|conditional|not_recommended/);
     expect(result.report.collaborationFramework?.verdictReason.length).toBeGreaterThan(10);
     expect(result.report.collaborationFramework?.suitableRole.length).toBeGreaterThan(10);
+
+    // 流年：41 歲在教材是四隘之一（山根），兩法部位與併看法都必須輸出。
+    expect(result.report.flowYear).not.toBeNull();
+    expect(result.report.flowYear?.age).toBe(41);
+    expect(result.report.flowYear?.positions.map((item) => item.method)).toEqual(["seventy_five_regions", "nine_value"]);
+    expect(result.report.flowYear?.positions[0].position).toBe("山根");
+    expect(result.report.flowYear?.gates.length).toBeGreaterThan(0);
+    expect(result.report.flowYear?.focus.length).toBeGreaterThan(10);
+
+    // 斑痣疤痕：兩筆都要有宮位、主題與流年對照，且健康主題不得出現病名。
+    expect(result.report.surfaceAnalysis.detectedFeatures).toHaveLength(2);
+    for (const feature of result.report.surfaceAnalysis.detectedFeatures) {
+      expect(feature.palaces.length).toBeGreaterThan(0);
+      expect(feature.themes.length).toBeGreaterThan(0);
+      expect(feature.flowYearNote.length).toBeGreaterThan(4);
+    }
+    expect(JSON.stringify(result.report.surfaceAnalysis)).not.toMatch(/腎|肝|脾|肺|心臟|糖尿病|洗腎|癌|腫瘤|壽命/);
+
+    // 教材條文必須真的被引用，而不是退回模板敘述。
+    const citedTeachings = Object.values(result.report.lifeAreas).flatMap((area) => area.citedTeachings);
+    expect(citedTeachings.length).toBeGreaterThan(0);
+    expect(citedTeachings.every((id) => rules.teachings.some((teaching) => teaching.id === id))).toBe(true);
     if (process.env.FACE_REPORT_E2E_PRINT === "true") {
       console.log(JSON.stringify({ coreHighlights: result.report.coreHighlights, priorityAdvice: result.report.priorityAdvice, lifeAreas: result.report.lifeAreas, collaborationFramework: result.report.collaborationFramework, actions: result.report.actions }, null, 2));
     }
