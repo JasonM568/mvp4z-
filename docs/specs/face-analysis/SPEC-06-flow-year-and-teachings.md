@@ -1,4 +1,4 @@
-# SPEC-06：流年技法、斑痣宮位對應與教材形態規則表（v0.1）
+# SPEC-06：流年技法、斑痣宮位對應與教材形態規則表（v0.2）
 
 > 決策（2026-08-19，使用者指示）：實測報告有三個問題——內容攏統、流年完全沒派上用場、
 > 斑痣疤痕沒有對應到部位提醒。本期把三者一次補上，規則層全部走確定性查表，不由模型推導。
@@ -99,7 +99,7 @@
 - `healthSensitive` 條目：會員版只輸出部位與核對提醒，教材原文走老師版。
 - 部位「不可判讀」或信心度低於 0.65 時不套教材，避免用光線或模糊推論。
 
-第一版收錄 33 條，涵蓋額頭、印堂、眉、眼、山根、鼻、顴、人中、口、地閣、下顎、耳、奸門、淚堂。
+第一版收錄 **37 條**（v0.1 誤植為 33），涵蓋額頭、印堂、眉、眼、山根、鼻、顴、人中、口、地閣、下顎、耳、奸門、淚堂。
 
 報告契約要求每個 lifeArea 用 `citedTeachings` 記下引用的條文 id，供稽核回查；
 沒有命中條文的面向必須明說「本次可判讀的部位沒有命中教材條文」，不得自行編造。
@@ -138,3 +138,66 @@
 - `npm run build`：Compiled successfully，87 routes。
 - `FACE_REPORT_PROVIDER_E2E=true` 真實模型 E2E：1/1 通過，斷言涵蓋流年兩法部位、四隘、
   斑痣宮位與主題、健康主題不得出現臟腑病名、`citedTeachings` 必須對得回規則層條文 id。
+
+---
+
+## 七、判讀規則改為資料庫驅動（v0.2，2026-08-19）
+
+原本三張表都寫死在程式碼，每次調整都要改 code。改為 `face_teaching_rules` 提供，
+老師可在 `/admin/face-teachings` 逐條增刪改與具名發布。
+
+### 7.1 資料表
+
+migration `20260819101010_face_teaching_rules`。一條規則一列，`kind` 分三種：
+
+| kind | 比對依據 | payload |
+|---|---|---|
+| `morphology` | Vision 的四個形態枚舉 | `{condition:{contour,relativeWidth,relativeHeight,symmetry}}` |
+| `fingerprint` | distinctiveFeatures 的 16 個特徵枚舉 | `{partName,looksAt,favorable,unfavorable}` |
+| `surface` | 斑痣疤痕所在的 14 個部位 | `{}`（說法放 member_text／teacher_text） |
+
+### 7.2 安全分級三階
+
+| safety_level | 會員報告 | 老師版 |
+|---|---|---|
+| `standard` | ✅ | ✅ |
+| `high` | ✅（讀已改寫的 member_text） | ✅（teacher_text 教材原文） |
+| `critical` | ❌ 完全不進 | ✅ 僅稽核 |
+
+### 7.3 三層回退
+
+DB 異常時不讓報告失去教材依據：
+
+1. 資料表不存在（`42P01`）→ 用程式碼內建
+2. 沒有任何已發布規則 → 用程式碼內建
+3. 形態條文全被濾掉（例如全設為 critical）→ 該類回退內建
+
+指紋與斑痣**以內建表為底、DB 只覆寫有提供的項目**，保證 Vision 回傳的
+16 個特徵與 14 個部位一定查得到表。單一規則格式不合法只跳過該條，不讓整批失效。
+
+### 7.4 不可變更的欄位
+
+`rule_id` 與 `kind` 發布後不可更改，已發布規則只能封存不能刪除——
+既有報告的 `citedTeachings` 與稽核鏈都靠 `rule_id` 回溯，改掉或刪掉會讓引用對不回來。
+API 層直接擋住這兩種操作。
+
+### 7.5 版本追溯
+
+`applyFaceRules` 輸出 `teachingRulesVersion`，寫入 `face_analysis_runs.face_teaching_rules_version`：
+- `code-default` ── 當次使用程式碼內建規則
+- `db:<最新更新時間>:<規則數>` ── 當次使用資料庫規則
+
+### 7.6 匯入內建規則
+
+`POST /api/admin/face-teachings/import-builtin`（後台有按鈕）。
+採 on-conflict-do-nothing：已存在的 rule_id 不動，**老師改過的內容不會被蓋掉**，重跑安全。
+新環境初始化、或想補回被刪掉的內建規則都用它。
+
+### 7.7 目前狀態（2026-08-19）
+
+67 條已匯入正式資料庫並全部發布：形態 37（standard 33／high 4）、
+指紋 16（全 standard）、斑痣 14（standard 9／high 5）。無 critical。
+
+> 註：本次匯入由 Claude 以 service role 直接寫入，`created_by` 為 null、
+> `decided_by` 記為「系統匯入內建規則（由 Claude 代為執行，未經後台具名操作）」。
+> 之後老師逐條審核調整時，`reviewed_by` 才會掛上具名帳號。
