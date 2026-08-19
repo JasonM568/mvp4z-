@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     const status = request.nextUrl.searchParams.get("status");
     let query = createSupabaseAdminClient()
       .from("face_teaching_rules")
-      .select("id,rule_id,kind,target,payload,member_text,teacher_text,themes,palaces,flow_year_ages,safety_level,health_sensitive,source_pages,status,sort_order,note,decided_by,version,published_at,updated_at")
+      .select("id,rule_id,kind,target,payload,member_text,teacher_text,themes,palaces,flow_year_ages,safety_level,health_sensitive,source_pages,status,sort_order,note,decided_by,version,reviewed_version,reviewed_at,published_at,updated_at")
       .order("kind", { ascending: true })
       .order("sort_order", { ascending: true });
     if (kind) query = query.eq("kind", kind);

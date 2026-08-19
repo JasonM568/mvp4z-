@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { adminFetch } from "../_shell";
+import { ReviewCard, reviewState, type ReviewRule } from "./review";
 
 type Kind = "morphology" | "fingerprint" | "surface";
 type Rule = {
@@ -20,6 +21,9 @@ type Rule = {
   source_pages: string;
   status: "draft" | "published" | "archived";
   version: number;
+  reviewed_version: number | null;
+  reviewed_at: string | null;
+  decided_by: string;
   updated_at: string;
 };
 
@@ -66,6 +70,9 @@ export default function FaceTeachingsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
+  const [view, setView] = useState<"review" | "table">("review");
+  const [reviewerName, setReviewerName] = useState("");
+  const [onlyPending, setOnlyPending] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -84,12 +91,41 @@ export default function FaceTeachingsPage() {
 
   useEffect(() => { void load(); }, [kind]);
 
-  const counts = useMemo(() => ({
-    published: rules.filter((r) => r.status === "published").length,
-    draft: rules.filter((r) => r.status === "draft").length,
-    archived: rules.filter((r) => r.status === "archived").length,
-    critical: rules.filter((r) => r.safety_level === "critical").length
-  }), [rules]);
+  const counts = useMemo(() => {
+    const states = rules.map((rule) => reviewState(rule as ReviewRule));
+    return {
+      total: rules.length,
+      reviewed: states.filter((s) => s === "reviewed").length,
+      stale: states.filter((s) => s === "stale").length,
+      pending: states.filter((s) => s === "pending").length,
+      critical: rules.filter((r) => r.safety_level === "critical").length
+    };
+  }, [rules]);
+
+  const visible = useMemo(
+    () => (onlyPending ? rules.filter((rule) => reviewState(rule as ReviewRule) !== "reviewed") : rules),
+    [rules, onlyPending]
+  );
+
+  async function markReviewed(rule: Rule) {
+    if (!reviewerName.trim()) return;
+    if (!window.confirm(`以「${reviewerName.trim()}」的名義確認「${rule.rule_id}」第 ${rule.version} 版內容與教材相符？`)) return;
+    setBusy(true);
+    try {
+      const response = await adminFetch(`/api/admin/face-teachings/${rule.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ markReviewed: true, reviewerName: reviewerName.trim() })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "標記失敗");
+      setMessage(`已記錄 ${rule.rule_id} 由 ${reviewerName.trim()} 核對（v${rule.version}）。`);
+      await load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "標記失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function patch(rule: Rule, body: Record<string, unknown>, confirmText?: string) {
     if (confirmText && !window.confirm(confirmText)) return;
@@ -136,10 +172,24 @@ export default function FaceTeachingsPage() {
       {message && <div className="admin-inline-message">{message}</div>}
 
       <div className="kpi-grid">
-        <article className="kpi-card"><div className="label">已發布</div><div className="value" style={{ fontSize: 22 }}>{counts.published}</div></article>
-        <article className="kpi-card"><div className="label">草稿</div><div className="value" style={{ fontSize: 22 }}>{counts.draft}</div></article>
-        <article className="kpi-card"><div className="label">已封存</div><div className="value" style={{ fontSize: 22 }}>{counts.archived}</div></article>
+        <article className="kpi-card"><div className="label">老師已核對</div><div className="value" style={{ fontSize: 22 }}>{counts.reviewed} / {counts.total}</div></article>
+        <article className="kpi-card"><div className="label">未核對</div><div className="value" style={{ fontSize: 22 }}>{counts.pending}</div></article>
+        <article className="kpi-card"><div className="label">內容已改需重核</div><div className="value" style={{ fontSize: 22 }}>{counts.stale}</div></article>
         <article className="kpi-card"><div className="label">critical（不進報告）</div><div className="value" style={{ fontSize: 22 }}>{counts.critical}</div></article>
+      </div>
+
+      <div className="admin-form-grid" style={{ marginTop: 16 }}>
+        <label>核對人姓名（會記入稽核）
+          <input value={reviewerName} onChange={(e) => setReviewerName(e.target.value)} placeholder="例：沈全榮老師" />
+        </label>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
+        <button className={`admin-action-btn${view === "review" ? "" : " ghost"}`} onClick={() => setView("review")}>審核模式</button>
+        <button className={`admin-action-btn${view === "table" ? "" : " ghost"}`} onClick={() => setView("table")}>表格模式</button>
+        <label style={{ alignSelf: "center", display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+          <input type="checkbox" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} />
+          只看未核對
+        </label>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "18px 0 10px" }}>
@@ -163,7 +213,23 @@ export default function FaceTeachingsPage() {
         ))}
       </div>
 
-      <div className="admin-table-wrap">
+      {view === "review" && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {visible.length === 0 && <p className="admin-empty">沒有符合條件的規則。</p>}
+          {visible.map((rule) => (
+            <ReviewCard
+              key={rule.id}
+              rule={rule as ReviewRule}
+              reviewerName={reviewerName}
+              busy={busy}
+              onReview={(target) => void markReviewed(target as Rule)}
+              onEdit={(target) => setEditing(target as Rule)}
+            />
+          ))}
+        </div>
+      )}
+
+      {view === "table" && <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
             <tr>
@@ -172,8 +238,8 @@ export default function FaceTeachingsPage() {
             </tr>
           </thead>
           <tbody>
-            {rules.length === 0 && <tr><td colSpan={9} className="admin-empty">沒有規則。</td></tr>}
-            {rules.map((rule) => (
+            {visible.length === 0 && <tr><td colSpan={9} className="admin-empty">沒有規則。</td></tr>}
+            {visible.map((rule) => (
               <tr key={rule.id}>
                 <td><code style={{ fontSize: 12 }}>{rule.rule_id}</code></td>
                 <td>{KIND_LABELS[rule.kind]}</td>
@@ -196,7 +262,7 @@ export default function FaceTeachingsPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
 
       {editing && <RuleEditor rule={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(body) => void patch(editing, body)} />}
     </>
