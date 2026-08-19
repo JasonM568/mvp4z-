@@ -36,7 +36,10 @@ const patchSchema = z.object({
   status: z.enum(["draft", "published", "archived"]).optional(),
   sortOrder: z.number().int().min(0).max(100000).optional(),
   note: z.string().trim().max(1000).optional(),
-  decidedBy: z.string().trim().max(80).optional()
+  decidedBy: z.string().trim().max(80).optional(),
+  /** 標記老師已核對本版內容；內容之後再被編輯時 version 會前進，核對狀態自動失效。 */
+  markReviewed: z.boolean().optional(),
+  reviewerName: z.string().trim().min(1).max(80).optional()
 }).strict();
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -50,7 +53,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const admin = createSupabaseAdminClient();
     const { data: existing, error: readError } = await admin
       .from("face_teaching_rules")
-      .select("id,rule_id,kind,payload,status")
+      .select("id,rule_id,kind,payload,status,version")
       .eq("id", id)
       .maybeSingle();
     if (readError) throw readError;
@@ -75,6 +78,19 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     }
 
     const publishing = input.status === "published" && existing.status !== "published";
+    // 核對必須具名；沒有具名的核對在稽核上沒有意義。
+    if (input.markReviewed && !input.reviewerName) {
+      throw statusError("標記已核對時必須填寫核對人姓名", 400);
+    }
+    // 同一次請求若也改了內容，trigger 會把 version 前進，核對就會對到舊版；
+    // 因此核對必須是獨立操作。
+    const changesContent = input.condition !== undefined || input.memberText !== undefined
+      || input.teacherText !== undefined || input.themes !== undefined || input.palaces !== undefined
+      || input.flowYearAges !== undefined || input.partName !== undefined || input.looksAt !== undefined
+      || input.favorable !== undefined || input.unfavorable !== undefined;
+    if (input.markReviewed && changesContent) {
+      throw statusError("請先儲存內容修改，再單獨標記已核對", 400);
+    }
     const { error } = await admin
       .from("face_teaching_rules")
       .update({
@@ -91,7 +107,15 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
         ...(input.sortOrder === undefined ? {} : { sort_order: input.sortOrder }),
         ...(input.note === undefined ? {} : { note: input.note }),
         ...(input.decidedBy === undefined ? {} : { decided_by: input.decidedBy }),
-        ...(publishing ? { published_at: new Date().toISOString(), reviewed_by: profile?.id || null, reviewed_at: new Date().toISOString() } : {}),
+        ...(publishing ? { published_at: new Date().toISOString() } : {}),
+        ...(input.markReviewed
+          ? {
+              reviewed_at: new Date().toISOString(),
+              reviewed_by: profile?.id || null,
+              reviewed_version: existing.version,
+              decided_by: input.reviewerName
+            }
+          : {}),
         updated_by: profile?.id || null
       })
       .eq("id", id);
@@ -100,10 +124,10 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     invalidateTeachingRuleCache();
     await writeAdminAudit({
       adminUserId: profile?.id || null,
-      action: publishing ? "face_teaching_rule_publish" : "face_teaching_rule_update",
+      action: input.markReviewed ? "face_teaching_rule_review" : publishing ? "face_teaching_rule_publish" : "face_teaching_rule_update",
       targetType: "face_teaching_rule",
       targetId: existing.rule_id,
-      metadata: { status: input.status ?? existing.status }
+      metadata: { status: input.status ?? existing.status, ...(input.markReviewed ? { reviewer: input.reviewerName, reviewedVersion: existing.version } : {}) }
     });
     return apiJson({ ok: true });
   } catch (error) {
