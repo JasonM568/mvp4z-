@@ -281,7 +281,7 @@ export function applyFaceRules(input: {
       if (gate.kind !== "four_passes") continue;
       cautions.push({
         ruleId: `FLOW_YEAR_GATE_${gate.age}_V3`,
-        text: `${gate.age} 歲在教材屬四隘之一：${gate.label}。教材建議這一年前後把健檢、工作與重大決定的時程排開，並以實際紀錄回顧，不作事件預測。`,
+        text: `${gate.age} 歲屬老師說的四隘之一：${gate.label}。老師建議這一年前後把健檢、工作與重大決定的時程排開，並以實際紀錄回顧，不作事件預測。`,
         evidence: gate.feature
           ? [{ region: gate.feature, field: "flowYearGate", observed: gate.status, confidence: featureValue(vision, gate.feature).confidence }]
           : []
@@ -292,7 +292,7 @@ export function applyFaceRules(input: {
       if (!currentFeatures.has(impact.region)) continue;
       cautions.push({
         ruleId: `FLOW_YEAR_SURFACE_${impact.region.toUpperCase()}_V3`,
-        text: `本年流年正好走到${impact.regionLabel}，而這個部位在照片中觀察到${impact.typeLabel}。教材說流年部位以無痣痕紋斑為佳，建議把這一年相關的安排多留一次確認。`,
+        text: `本年流年正好走到${impact.regionLabel}，而這個部位在照片中觀察到${impact.typeLabel}。老師說流年部位以無痣痕紋斑為佳，建議把這一年相關的安排多留一次確認。`,
         evidence: [{ region: impact.region, field: `surface:${impact.type}`, observed: impact.description, confidence: impact.confidence }]
       });
     }

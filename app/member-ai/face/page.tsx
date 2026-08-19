@@ -428,17 +428,17 @@ function ReportHighlights({ report }: { report: StructuredReport; mode: Mode }) 
     {report.currentTrend && <article className="face-key-conclusion"><strong>目前最需要注意</strong><p>{report.currentTrend}</p></article>}
     {report.photoFingerprint?.length ? <article className="face-fingerprint-card">
       <h3>這張照片實際辨識到的特徵</h3>
-      <p>以下是本次報告使用的照片證據，不是固定範本。每一項都標出對應的教材部位、宮位與流年歲數。</p>
+      <p>以下是本次報告使用的照片證據，不是固定範本。每一項都標出對應的部位、宮位與流年歲數。</p>
       <div className="face-fingerprint-list">
         {report.photoFingerprint.map((item, index) => <section key={`${item.observation}-${index}`}>
           <h4>{item.observation}</h4>
           <div className="face-fingerprint-meta">
-            {item.partName && <span><b>教材部位</b>{item.partName}</span>}
+            {item.partName && <span><b>對應部位</b>{item.partName}</span>}
             {item.palaces?.length ? <span><b>對應宮位</b>{item.palaces.join("、")}</span> : null}
             {item.flowYearNote && <span><b>流年對照</b>{item.flowYearNote}</span>}
           </div>
           {item.interpretation && <p className="face-fingerprint-reading">{item.interpretation}</p>}
-          {item.teaching && <details><summary>教材依據</summary><p>{item.teaching}</p></details>}
+          {item.teaching && <details><summary>老師怎麼看這個部位</summary><p>{item.teaching}</p></details>}
         </section>)}
       </div>
     </article> : null}

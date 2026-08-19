@@ -140,10 +140,10 @@ const THREE_GATES: Readonly<Record<number, string>> = {
 
 /** 四隘（p.12–13）：41 山根、51 人中、61 承漿、71 地閣。 */
 const FOUR_PASSES: Readonly<Record<number, { position: string; feature: FaceFeatureName; theme: string }>> = {
-  41: { position: "山根", feature: "nasalRoot", theme: "教材列為健康與事業的關卡年" },
-  51: { position: "人中", feature: "philtrum", theme: "教材列為健康與事業的關卡年" },
-  61: { position: "承漿", feature: "chin", theme: "教材列為健康的關卡年" },
-  71: { position: "地閣", feature: "chin", theme: "教材列為健康的關卡年" }
+  41: { position: "山根", feature: "nasalRoot", theme: "老師列為健康與事業的關卡年" },
+  51: { position: "人中", feature: "philtrum", theme: "老師列為健康與事業的關卡年" },
+  61: { position: "承漿", feature: "chin", theme: "老師列為健康的關卡年" },
+  71: { position: "地閣", feature: "chin", theme: "老師列為健康的關卡年" }
 };
 
 export type FlowYearPositionReading = Readonly<{
@@ -240,24 +240,24 @@ function crossCheck(seventyFive: FlowYearPositionReading, nineValue: FlowYearPos
   if (bothReadable) {
     return {
       verdict: "aligned" as const,
-      text: `七十五部位流年法走${seventyFive.position}、九值流年法走${nineValue.position}，兩個部位在本張照片都清楚可判讀，可依教材併看法交互對照。`
+      text: `七十五部位流年法走${seventyFive.position}、九值流年法走${nineValue.position}，兩個部位在本張照片都清楚可判讀，可依老師的併看法交互對照。`
     };
   }
   if (bothUnreadable) {
     return {
       verdict: "both_limited" as const,
-      text: `本年對應的${seventyFive.position}與${nineValue.position}在這張照片都不夠清楚，教材的併看法無法成立，建議以正面均勻光線重拍再看。`
+      text: `本年對應的${seventyFive.position}與${nineValue.position}在這張照片都不夠清楚，老師的併看法無法成立，建議以正面均勻光線重拍再看。`
     };
   }
   if (central && central.status === "readable") {
     return {
       verdict: "central_prevails" as const,
-      text: `本年兩法分別走${seventyFive.position}與${nineValue.position}，其中${central.position}屬當陽十三部位且清楚可判讀。教材併看法以當陽為準，另一個部位判讀不完整時，以當陽這一組觀察為主。`
+      text: `本年兩法分別走${seventyFive.position}與${nineValue.position}，其中${central.position}屬當陽十三部位且清楚可判讀。老師的併看法以當陽為準，另一個部位判讀不完整時，以當陽這一組觀察為主。`
     };
   }
   return {
     verdict: "peripheral_only" as const,
-    text: `本年兩法分別走${seventyFive.position}與${nineValue.position}，當陽部位在本張照片判讀不完整，只能就看得清楚的那一組作參考，權重依教材應予保留。`
+    text: `本年兩法分別走${seventyFive.position}與${nineValue.position}，當陽部位在本張照片判讀不完整，只能就看得清楚的那一組作參考，權重應予保留。`
   };
 }
 

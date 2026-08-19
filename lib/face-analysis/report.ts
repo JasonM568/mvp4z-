@@ -13,16 +13,16 @@ import { zodTextFormat } from "openai/helpers/zod";
 
 const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 你只能根據輸入的結構化規則結果撰寫，不得重新分析照片，也不得加入輸入沒有的事實。
-rules.photoFingerprint 是本張照片的專屬可見特徵指紋，每一筆都已由規則層接上教材部位、所屬宮位、對應流年與教材的正反向條件。
+rules.photoFingerprint 是本張照片的專屬可見特徵指紋，每一筆都已由規則層接上老師部位、所屬宮位、對應流年與老師的正反向條件。
 摘要、三個核心重點、三項 priorityAdvice 與五大面向都必須優先引用其中的具體 observation，不能只用「中等、對稱、圓潤」產生模板結論。
 每一筆指紋都必須寫出 interpretation：說明這次觀察到的形態比較接近該筆的 favorable（寫成「相理合」）還是 unfavorable（寫成「相理不合」），
-接著把該條件在教材裡對應的事情講出來（例如準頭豐隆對應教材說的理財與賺錢能力、並連到流年 48）。
-只能在這兩個條件之間選，不得自創教材沒有的說法；兩者都不明顯時要直說判斷不出來。
+接著把該條件在老師裡對應的事情講出來（例如準頭豐隆對應老師說的理財與賺錢能力、並連到流年 48）。
+只能在這兩個條件之間選，不得自創老師沒有的說法；兩者都不明顯時要直說判斷不出來。
 輸出一律用繁體中文的「相理合／相理不合」，禁止出現 favorable、unfavorable 這類英文欄位名。
 不得因為指紋是正向條件就宣稱財運、健康或感情的結果。
-rules.teachings 是本張照片實際命中的沈全榮老師教材條文，已由規則層用形態條件比對完成。這是報告的主要內容來源：
-凡是命中的條文，必須把 text 的教材說法寫進對應的宮位解讀與五大面向，並在 citedTeachings 記下條文 id。
-沒有命中條文的面向，要明說「本次可判讀的部位沒有命中教材條文」，不得自行編造教材說法或改寫成通用建議。
+rules.teachings 是本張照片實際命中的沈全榮老師老師條文，已由規則層用形態條件比對完成。這是報告的主要內容來源：
+凡是命中的條文，必須把 text 的老師說法寫進對應的宮位解讀與五大面向，並在 citedTeachings 記下條文 id。
+沒有命中條文的面向，要明說「本次可判讀的部位沒有命中老師條文」，不得自行編造老師說法或改寫成通用建議。
 rules.flowYear 是九值流年法與七十五部位流年法的確定性結果。只要不是 null，flowYear 段落就必須完整輸出，
 並且五大面向與 priorityAdvice 至少要有一項扣回本年流年部位的實際觀察。流年只作回顧與核對提示，不預測事件。
 rules.surfaceImpacts 是斑、痣、疤、痕對應到的宮位、主題與流年，已由規則層查表完成。
@@ -39,15 +39,17 @@ rules.palaces.status 的 balanced 只代表「主部位可判讀且未見明顯�
 若十二宮全部為 balanced，仍須從 evidence 的輪廓、寬高、對稱與主輔部位差異中選出三組最具辨識度的觀察，不得把十二宮逐一寫成相同的穩定結論。
 lifeAreas 必須固定依感情、事業、健康、財運、家庭五項整理；健康只能提供作息、自我觀察與就醫邊界，不得從面部推論健康狀況或疾病。
 surfaceAnalysis 必須逐項整理輸入 rules.surfaceImpacts 的斑、痣、疤、痕；若陣列為空要明確寫未辨識到可信度足夠的特徵。
-六親關係與財運兩個主題，可以直接依 memberNote 的教材說法撰寫，語氣標明為民俗說法。
-健康主題只能寫「這個部位在教材屬哪一宮、建議以健檢與作息紀錄核對」，一律不得寫出臟腑、器官、病名、疾病風險或壽元。
+六親關係與財運兩個主題，可以直接依 memberNote 的老師說法撰寫，語氣標明為民俗說法。
+健康主題只能寫「這個部位在老師屬哪一宮、建議以健檢與作息紀錄核對」，一律不得寫出臟腑、器官、病名、疾病風險或壽元。
 氣色只描述照片呈現的明暗、均勻度、色偏與美肌可能性，不得連結器官、疾病、健康、人格或命運。
 collaborationFramework 必須提供合作條件、相處方式、風險訊號與核對問題，但不得只憑面相判定「適合／不適合合作」，不判定對方忠誠、善惡或是否可信。
-十二宮與 30/60/90 天行動必須完整，disclaimer 必須逐字使用 server 提供的固定內容。`;
+十二宮與 30/60/90 天行動必須完整，disclaimer 必須逐字使用 server 提供的固定內容。
+輸出一律不得出現「教材」「筆記」「講義」等字樣，也不得寫出任何頁碼或文獻出處；
+需要指明依據時一律寫成「老師」的說法。內部欄位名稱同樣不得出現在輸出文字裡。`;
 
 /**
  * 面相報告有自己的模型政策，不跟著聊天用的 OPENAI_MODEL 走。
- * 報告要引用教材條文與流年部位做具體判讀，mini 等級會退回模板式敘述，
+ * 報告要引用老師條文與流年部位做具體判讀，mini 等級會退回模板式敘述，
  * 因此預設用完整版模型；要調整只能透過 FACE_REPORT_OPENAI_MODEL。
  */
 const DEFAULT_OPENAI_REPORT_MODEL = "gpt-4.1";
@@ -56,25 +58,25 @@ const TEACHER_AREA_FRAMEWORK = {
   relationship: {
     label: "感情",
     palaces: ["夫妻宮", "命宮", "兄弟宮"],
-    method: "夫妻宮以眼尾奸門為主，不能單看奸門；須同時交叉眉、眼、鼻、印堂十字帶。教材以奸門豐盈平整為傳統正向條件，但不可由單張照片斷定婚姻結果。",
+    method: "夫妻宮以眼尾奸門為主，不能單看奸門；須同時交叉眉、眼、鼻、印堂十字帶。老師以奸門豐盈平整為傳統正向條件，但不可由單張照片斷定婚姻結果。",
     sources: ["老師面相筆記 p.72–77", "十二宮講義 p.10–13"]
   },
   career: {
     label: "事業",
     palaces: ["官祿宮", "命宮", "遷移宮", "奴僕宮"],
-    method: "官祿宮以額頭中正為主，交叉印堂、眉眼；教材的正向條件是正面四平八穩、側面額骨微凸。再以遷移宮看外部變動與合作環境，奴僕宮看團隊與部屬基礎。",
+    method: "官祿宮以額頭中正為主，交叉印堂、眉眼；老師的正向條件是正面四平八穩、側面額骨微凸。再以遷移宮看外部變動與合作環境，奴僕宮看團隊與部屬基礎。",
     sources: ["老師面相筆記 p.60–69", "老師面相筆記 p.90–91"]
   },
   health: {
     label: "健康",
     palaces: ["疾厄宮", "命宮"],
-    method: "疾厄宮以山根、年壽為主，交叉鼻與眼的形神氣；教材以高、寬、厚、清楚為傳統觀察條件。自動報告只能說明部位是否可判讀，絕對不能對應器官、疾病或壽命。",
+    method: "疾厄宮以山根、年壽為主，交叉鼻與眼的形神氣；老師以高、寬、厚、清楚為傳統觀察條件。自動報告只能說明部位是否可判讀，絕對不能對應器官、疾病或壽命。",
     sources: ["老師面相筆記 p.78–84", "十二宮講義 p.14–16"]
   },
   finance: {
     label: "財運",
     palaces: ["財帛宮", "福德宮", "田宅宮"],
-    method: "財帛宮必須按年齡分三倉：30 歲以下天倉，31–50 歲人倉，51 歲起地倉。教材再交叉鼻部寬厚、眉尾聚散、眼部可判讀度與地閣寬滿；田宅宮只作資產與居住的傳統參照。",
+    method: "財帛宮必須按年齡分三倉：30 歲以下天倉，31–50 歲人倉，51 歲起地倉。老師再交叉鼻部寬厚、眉尾聚散、眼部可判讀度與地閣寬滿；田宅宮只作資產與居住的傳統參照。",
     sources: ["老師面相筆記 p.84–86", "老師面相筆記 p.77–78"]
   },
   family: {
@@ -221,7 +223,8 @@ export async function generateFaceReport(input: {
             partName: item.partName,
             palaces: [...item.palaces],
             flowYearNote: item.flowYearNote,
-            teaching: `教材看的是${item.looksAt}。相理合：${item.favorable}　相理不合：${item.unfavorable}（${item.source}）`,
+            // 會員版不出現「教材」與出處頁碼；出處保留在 model_trace.teacherAudit 供老師稽核。
+            teaching: `老師看的是${item.looksAt}。相理合：${item.favorable}　相理不合：${item.unfavorable}`,
             interpretation: readModelInterpretation(normalized, index)
           }))
         }
@@ -233,7 +236,8 @@ export async function generateFaceReport(input: {
     });
     throw new Error("FACE_REPORT_SCHEMA_INVALID");
   }
-  const enforced = enforceTeachingCitations(report, input.rules);
+  const cleaned = faceReportSchema.parse(stripTeachingReferences(report));
+  const enforced = enforceTeachingCitations(cleaned, input.rules);
   if (enforced.violations.length > 0) {
     console.warn("FACE_REPORT_CITATION_VIOLATION", { violations: JSON.stringify(enforced.violations).slice(0, 600) });
   }
@@ -262,13 +266,48 @@ function readModelInterpretation(parsed: unknown, index: number): string {
   const item = Array.isArray(list) ? list[index] : undefined;
   const text = item && typeof item === "object" && "interpretation" in item ? (item as { interpretation?: unknown }).interpretation : undefined;
   if (typeof text !== "string" || text.trim().length === 0) {
-    return "本次無法判定這項觀察比較接近教材的哪一個條件，僅列出部位與流年對照供核對。";
+    return "本次無法判定這項觀察比較接近老師說的哪一個條件，僅列出部位與流年對照供核對。";
   }
   // 契約要求用「相理合／相理不合」；模型偶爾會漏出英文欄位名，這裡兜底改寫。
   return text
     .trim()
     .replace(/unfavorable/gi, "相理不合")
     .replace(/favorable/gi, "相理合");
+}
+
+/**
+ * 會員報告不得出現「教材」字樣與文獻出處。
+ *
+ * 判讀規則現在可由老師在後台編輯，規則文字隨時可能又寫進「教材」或頁碼；
+ * 模型也會跟著輸入的用語複述。因此這裡做確定性淨化，作為最後一道保證，
+ * 不依賴提示詞或撰稿者自律。
+ *
+ * 只處理會員看得到的欄位；`sources` 是稽核用的引用欄位，維持原樣不動。
+ */
+export const stripTeachingReferencesForTest = (value: unknown) => stripTeachingReferences(value);
+
+function stripTeachingReferences(value: unknown, key?: string): unknown {
+  if (typeof value === "string") {
+    if (key === "sources" || value === FACE_REPORT_DISCLAIMER) return value;
+    return value
+      // 先移除整段出處括號，例如「（283 頁筆記 p.11、p.49–96 鼻部段）」。
+      .replace(/[（(][^（()）]*(?:頁筆記|面相筆記|十二宮講義|講義|筆記)[^（()）]*[）)]/g, "")
+      // 再移除未加括號的出處，例如「283 頁筆記 p.103–108」。
+      .replace(/(?:\d+\s*頁)?(?:老師面相筆記|面相筆記|十二宮講義|講義|筆記)\s*(?:p\.[\d\u2013\u2014\-–—、\s]*)?/g, "")
+      .replace(/教材/g, "老師")
+      // 淨化後可能留下重複標點或空白。
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/、{2,}/g, "、")
+      .replace(/。{2,}/g, "。")
+      .replace(/（\s*）/g, "")
+      .replace(/\s+([。，、；：])/g, "$1")
+      .trim();
+  }
+  if (Array.isArray(value)) return value.map((item) => stripTeachingReferences(item, key));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([field, item]) => [field, stripTeachingReferences(item, field)]));
+  }
+  return value;
 }
 
 export type TeachingCitationViolation = Readonly<{
@@ -338,7 +377,7 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - photoFingerprint 必須依 rules.photoFingerprint 的順序逐筆輸出，數量與輸入完全一致。
 - 每筆只有 observation、partName、palaces、flowYearNote、teaching、interpretation 六個欄位。
 - observation、partName、palaces、flowYearNote、teaching 逐字複製輸入，不得改寫（server 會再蓋回一次，改寫無效）。
-- interpretation 必須以「較接近相理合」或「較接近相理不合」開頭，接著說出該條件在教材裡對應到什麼；
+- interpretation 必須以「較接近相理合」或「較接近相理不合」開頭，接著說出該條件在老師的說法裡對應到什麼；
   兩者都不明顯時以「本次判斷不出偏向哪一邊」開頭。禁止在輸出中出現 favorable、unfavorable 等英文欄位名。
 - hitsCurrentAge 為 true 時，interpretation 要點明本年正好走到這個部位。禁止斷言結果或保證運勢。
 - coreHighlights 必須恰好三筆，依序回答「最明顯的具體部位組合」、「該組合在民俗語境下的可用方向」、「近期最需節制的做法」。每筆必須點名至少一個宮位或部位，禁止寫成使用說明。
@@ -346,17 +385,17 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - priorityAdvice 必須恰好三筆，每筆只有 problem、reason、advice；problem 必須以「建議核對：」開頭，描述生活中可辨認的具體情境，不得宣稱該情境已存在；reason 必須點名宮位與可見形態證據；advice 必須包含明確動作、期限或檢核方式。
 - palaces 必須恰好 12 筆且不可重複，name 依序為：命宮、官祿宮、父母宮、福德宮、遷移宮、兄弟宮、夫妻宮、子女宮、疾厄宮、財帛宮、奴僕宮、田宅宮。
 - 每筆 palace 只有 name、status、evidence、interpretation、advice；status 只能是 balanced、watch 或 limited。
-- 各宮解讀必須依據輸入 rules.palaces 內同名宮位的 parts（老師教材部位）與 evidence 形態特徵（輪廓／寬窄／長短／對稱），不得依光線或拍攝條件下論斷。
-- 若 rules.teachings 有條文的 palaces 含這一宮，interpretation 必須引用該條文的教材說法，不得只重述形態枚舉。
+- 各宮解讀必須依據輸入 rules.palaces 內同名宮位的 parts（老師指定的部位）與 evidence 形態特徵（輪廓／寬窄／長短／對稱），不得依光線或拍攝條件下論斷。
+- 若 rules.teachings 有條文的 palaces 含這一宮，interpretation 必須引用該條文的老師說法，不得只重述形態枚舉。
 - flowYear：rules.flowYear 為 null 時輸出 null；否則必須完整輸出且只含 age、positions、crossCheck、gates、focus、reflection。
 - flowYear.age 複製 rules.flowYear.age。positions 必須恰好兩筆，method 依序為 seventy_five_regions 與 nine_value，
   position 逐字複製 rules.flowYear.seventyFive.position 與 rules.flowYear.nineValue.position，
   observation 必須寫出該部位在本張照片的實際形態（引用同一筆的 morphology 與 status），不得寫成通用敘述。
 - flowYear.crossCheck 必須逐字複製 rules.flowYear.crossCheck.text。
-- flowYear.gates：rules.flowYear.gates 每一筆都要寫成一句話，包含歲數與教材說法；沒有就輸出空陣列。
+- flowYear.gates：rules.flowYear.gates 每一筆都要寫成一句話，包含歲數與老師說法；沒有就輸出空陣列。
 - flowYear.focus 必須寫出「本年這兩個部位對應到生活中該核對的一件具體事」，要有可執行的動作與時間點，
   不得寫成「注意健康」「保持穩定」這類萬用句，也不得預測會發生什麼事。
-- flowYear.reflection 說明教材併看法怎麼讀這一年，並說明本次判讀的限制。
+- flowYear.reflection 說明老師併看法怎麼讀這一年，並說明本次判讀的限制。
 - actions 必須恰好三筆，period 依序為 30_days、60_days、90_days，每筆只有 period 與 action。
 - 三筆 actions 的內容不得相同：30 天是立即整理或測試，60 天是根據紀錄調整，90 天是決定保留、加碼或停止。
 - disclaimer 必須與 fixedDisclaimer 完全一致。
@@ -364,7 +403,7 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - detectedFeatures 必須逐筆對應 rules.surfaceImpacts，一筆都不能少也不能增加照片中未觀察到的斑、痣、疤或痕。
 - 每筆：type 保持原值；location 用 regionLabel 與 sideLabel 寫成繁體中文部位與左右；observation 只寫可見外觀；
   palaces 逐字複製該筆的 palaces；themes 逐字複製該筆的 themes；confidence 依輸入信心度轉為 high／medium／low。
-- traditionalReference 依該筆 memberNote 的教材說法撰寫。themes 含「六親」或「財運」時，必須具體寫出教材說的關係或錢財對應，
+- traditionalReference 依該筆 memberNote 的老師說法撰寫。themes 含「六親」或「財運」時，必須具體寫出老師說的關係或錢財對應，
   不得稀釋成「僅供參考」。themes 含「健康」時，只能寫出部位所屬宮位與「建議以健檢及作息紀錄核對」，
   禁止出現任何臟腑、器官、病名、疾病風險或壽元敘述。
 - flowYearNote 必須用該筆的 flowYearPositions 與 flowYearAges 寫出對應歲數；hitsCurrentAge 為 true 時要明說本年正好走到這個部位。
@@ -374,10 +413,10 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
   return `${common}
 - lifeAreas 必須只含 relationship、career、health、finance、family，依序回答感情、事業、健康、財運、家庭。
 - 每個 lifeArea 必須只含 conclusion、alignment、visibleBasis、teacherInterpretation、watchout、action、confidence、citedTeachings、sources。
-- teacherInterpretation 必須優先引用該面向 teacherAreaFramework.matchedTeachings 的教材說法，逐條寫成完整句子，
+- teacherInterpretation 必須優先引用該面向 teacherAreaFramework.matchedTeachings 的老師說法，逐條寫成完整句子，
   並帶出該條文命中的部位與形態（observedMorphology）。citedTeachings 必須列出實際引用到的條文 id。
-- 若該面向 matchedTeachings 為空陣列，teacherInterpretation 必須明說「本次可判讀的部位沒有命中教材條文」，
-  citedTeachings 輸出空陣列，且不得自行編造教材說法。
+- 若該面向 matchedTeachings 為空陣列，teacherInterpretation 必須明說「本次可判讀的部位沒有命中老師條文」，
+  citedTeachings 輸出空陣列，且不得自行編造老師沒說過的說法。
 - health 面向的 matchedTeachings 若含 healthSensitive 條文，只能引用其部位與核對提醒，不得寫臟腑或病名。
 - alignment 必須逐字複製該面向 teacherAreaFramework.calculatedAlignment，不得自行評分。它是本次可見形態對老師建議觀察條件的符合度，不是人生結果、運勢分數或照片可信度。
 - conclusion 必須以「老師建議符合度為高／中／低／資料不足」開頭，再說最強的一組部位與最需要留意的一組部位；不得寫「以實際狀況為準」或其他免責廢話。
@@ -387,7 +426,7 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
 - watchout 必須指出一個具體的反向條件或本次判讀限制；action 必須給一個 7–30 天內可執行的驗證動作。
 - confidence 必須對應 teacherAreaFramework.assessability；sources 必須複製該面向 teacherAreaFramework.sources 中的 1–4 筆，不得虛構頁碼。
 - health 不得宣稱健康狀況、器官功能、疾病風險或壽命，只能提醒以實際作息、健檢與專業意見核對。
-- health 的 alignment 只代表山根、鼻、眼等可見形態與教材觀察條件的相符度；conclusion 禁止出現「健康良好、健康穩定、無異常、抵抗力好」。
+- health 的 alignment 只代表山根、鼻、眼等可見形態與老師觀察條件的相符度；conclusion 禁止出現「健康良好、健康穩定、無異常、抵抗力好」。
 - collaborationFramework ${collaborationAssessment ? "必須是完整物件" : "必須為 null"}。
 ${collaborationAssessment ? `- collaborationFramework 必須只含 verdict、verdictReason、suitableRole、suitability、interactionStyle、riskSignals(2–6 個字串)、questionsToVerify(3–8 個字串)、boundaries。
 - verdict 只能是 recommended、conditional、not_recommended；必須綜合 collaborationProject、五大面向、部位可判讀度與實際核對條件。
@@ -408,10 +447,10 @@ export function renderFaceReportText(report: FaceReport) {
       .map(
         (item) =>
           `### ${item.observation}\n` +
-          `教材部位：${item.partName}\n\n` +
+          `對應部位：${item.partName}\n\n` +
           `對應宮位：${item.palaces.join("、")}\n\n` +
           `流年對照：${item.flowYearNote}\n\n` +
-          `教材依據：${item.teaching}\n\n` +
+          `老師怎麼看：${item.teaching}\n\n` +
           `本次判讀：${item.interpretation}`
       )
       .join("\n\n")}`,
@@ -425,7 +464,7 @@ export function renderFaceReportText(report: FaceReport) {
             `對應宮位：${item.palaces.join("、")}\n\n` +
             `對應主題：${item.themes.join("、")}\n\n` +
             `外觀觀察：${item.observation}\n\n` +
-            `教材說法：${item.traditionalReference}\n\n` +
+            `老師怎麼看：${item.traditionalReference}\n\n` +
             `流年對照：${item.flowYearNote}\n\n` +
             `信心度：${item.confidence}`
         )
