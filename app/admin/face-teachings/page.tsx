@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { adminFetch } from "../_shell";
 import { ReviewCard, reviewState, type ReviewRule } from "./review";
+import { ReviewQuestions } from "./questions";
 
 type Kind = "morphology" | "fingerprint" | "surface";
 type Rule = {
@@ -70,7 +71,7 @@ export default function FaceTeachingsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Rule | null>(null);
-  const [view, setView] = useState<"review" | "table">("review");
+  const [view, setView] = useState<"review" | "table" | "questions">("review");
   const [reviewerName, setReviewerName] = useState("");
   const [onlyPending, setOnlyPending] = useState(false);
 
@@ -171,12 +172,12 @@ export default function FaceTeachingsPage() {
       </p>
       {message && <div className="admin-inline-message">{message}</div>}
 
-      <div className="kpi-grid">
+      {view !== "questions" && <div className="kpi-grid">
         <article className="kpi-card"><div className="label">老師已核對</div><div className="value" style={{ fontSize: 22 }}>{counts.reviewed} / {counts.total}</div></article>
         <article className="kpi-card"><div className="label">未核對</div><div className="value" style={{ fontSize: 22 }}>{counts.pending}</div></article>
         <article className="kpi-card"><div className="label">內容已改需重核</div><div className="value" style={{ fontSize: 22 }}>{counts.stale}</div></article>
         <article className="kpi-card"><div className="label">critical（不進報告）</div><div className="value" style={{ fontSize: 22 }}>{counts.critical}</div></article>
-      </div>
+      </div>}
 
       <div className="admin-form-grid" style={{ marginTop: 16 }}>
         <label>核對人姓名（會記入稽核）
@@ -186,22 +187,25 @@ export default function FaceTeachingsPage() {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
         <button className={`admin-action-btn${view === "review" ? "" : " ghost"}`} onClick={() => setView("review")}>審核模式</button>
         <button className={`admin-action-btn${view === "table" ? "" : " ghost"}`} onClick={() => setView("table")}>表格模式</button>
-        <label style={{ alignSelf: "center", display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
-          <input type="checkbox" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} />
-          只看未核對
-        </label>
+        <button className={`admin-action-btn${view === "questions" ? "" : " ghost"}`} onClick={() => setView("questions")}>待老師確認事項</button>
+        {view !== "questions" && (
+          <label style={{ alignSelf: "center", display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+            <input type="checkbox" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} />
+            只看未核對
+          </label>
+        )}
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "18px 0 10px" }}>
+      {view !== "questions" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "18px 0 10px" }}>
         <button className="admin-action-btn ghost" disabled={busy} onClick={() => void importBuiltIn()}>
           從程式碼內建規則匯入
         </button>
         <span className="muted" style={{ alignSelf: "center", fontSize: 13 }}>
           已存在的識別碼不會被覆蓋，重跑安全；老師改過的內容不受影響。
         </span>
-      </div>
+      </div>}
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 18px" }}>
+      {view !== "questions" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 18px" }}>
         {(["", "morphology", "fingerprint", "surface"] as const).map((value) => (
           <button
             key={value || "all"}
@@ -211,7 +215,9 @@ export default function FaceTeachingsPage() {
             {value === "" ? "全部" : KIND_LABELS[value]}
           </button>
         ))}
-      </div>
+      </div>}
+
+      {view === "questions" && <ReviewQuestions defaultName={reviewerName} />}
 
       {view === "review" && (
         <div style={{ display: "grid", gap: 12 }}>
