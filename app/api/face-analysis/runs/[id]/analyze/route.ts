@@ -26,7 +26,8 @@ import { loadPublishedFaceRuleProfile } from "@/lib/face-analysis/rule-profiles"
 import { loadPublishedTeachingRules } from "@/lib/face-analysis/teaching-rules";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+// Vision 45s ＋ 報告 110s ＋ 下載與扣點寫入；舊值 120s 光是前兩段就用完了。
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   let activeRunId: string | null = null;

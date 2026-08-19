@@ -155,7 +155,10 @@ export async function generateFaceReport(input: {
   const model = process.env.FACE_REPORT_OPENAI_MODEL?.trim() || DEFAULT_OPENAI_REPORT_MODEL;
   const startedAt = Date.now();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 75_000);
+  // 時間預算（route maxDuration 300s）：Vision 最多 45s ＋ 報告 110s ＋ 照片下載與扣點寫入約 10s。
+  // 舊值 75s 是在契約擴大前訂的；加入流年、指紋教材對應與斑痣宮位後，
+  // 實測輸出約 6,100 tokens、耗時約 73s，已經貼著舊上限，會間歇性逾時。
+  const timeout = setTimeout(() => controller.abort(), 110_000);
   const reportInput = {
       mode: input.mode,
       subjectAge: input.subjectAge,
