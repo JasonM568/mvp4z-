@@ -16,7 +16,7 @@ import type { FaceVisionResult } from "@/lib/face-analysis/vision";
 export type SurfaceTheme = "六親" | "財運" | "健康";
 export type SurfaceRegion = FaceVisionResult["surfaceFeatures"][number]["region"];
 
-type SurfaceMapping = Readonly<{
+export type SurfaceMapping = Readonly<{
   palaces: readonly string[];
   themes: readonly SurfaceTheme[];
   /** 可進會員報告的民俗說法（六親／財運）。健康一律不在這裡寫病名。 */
@@ -28,7 +28,7 @@ type SurfaceMapping = Readonly<{
   sourcePages: readonly string[];
 }>;
 
-const SURFACE_MAPPINGS: Readonly<Record<SurfaceRegion, SurfaceMapping>> = {
+export const BUILT_IN_SURFACE_MAPPINGS: Readonly<Record<SurfaceRegion, SurfaceMapping>> = {
   forehead: {
     palaces: ["官祿宮", "父母宮", "遷移宮", "財帛宮（天倉）"],
     themes: ["六親", "財運"],
@@ -210,10 +210,11 @@ const SIDE_LABELS: Readonly<Record<SurfaceImpact["side"], string>> = {
  */
 export function mapSurfaceImpacts(
   surfaceFeatures: FaceVisionResult["surfaceFeatures"],
-  subjectAge: number | null | undefined
+  subjectAge: number | null | undefined,
+  mappings: Readonly<Record<SurfaceRegion, SurfaceMapping>> = BUILT_IN_SURFACE_MAPPINGS
 ): SurfaceImpact[] {
   return surfaceFeatures.map((feature) => {
-    const mapping = SURFACE_MAPPINGS[feature.region];
+    const mapping = mappings[feature.region] || BUILT_IN_SURFACE_MAPPINGS[feature.region];
     const flowYearPositions = flowYearPositionsForFeature(feature.region);
     const hitsCurrentAge =
       subjectAge != null &&

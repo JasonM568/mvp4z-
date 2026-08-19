@@ -23,6 +23,7 @@ import { getPublishedFaceKnowledge } from "@/lib/face-analysis/knowledge";
 import { getActiveFaceProviderApproval } from "@/lib/face-analysis/provider-approval";
 import { selectedFaceVisionProvider } from "@/lib/face-analysis/vision-http";
 import { loadPublishedFaceRuleProfile } from "@/lib/face-analysis/rule-profiles";
+import { loadPublishedTeachingRules } from "@/lib/face-analysis/teaching-rules";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -84,7 +85,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       mimeType: run.mime_type as "image/jpeg" | "image/png" | "image/webp"
     });
     const ruleProfile = await loadPublishedFaceRuleProfile();
-    const rules = applyFaceRules({ vision, mode: run.mode, subjectAge: run.subject_age, profileSettings: ruleProfile?.settings });
+    // 老師在後台發布的判讀規則；沒有已發布規則時自動回退程式碼內建預設值。
+    const teachingRules = await loadPublishedTeachingRules();
+    const rules = applyFaceRules({
+      vision,
+      mode: run.mode,
+      subjectAge: run.subject_age,
+      profileSettings: ruleProfile?.settings,
+      teachingRules
+    });
     const quality = faceQualityResultSchema.parse(run.quality_result);
     const approvedKnowledge = await getPublishedFaceKnowledge();
     const generated = await generateFaceReport({
@@ -109,8 +118,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // 老師版稽核資料：教材原文（含望診健康等 CRITICAL 敘述）只存在這裡。
       // model_trace 不在 PUBLIC_RUN_FIELDS，會員 API 讀不到，也不會送進撰稿模型。
       teacherAudit: {
-        teachings: matchTeachings(vision, "teacher"),
-        surfaceImpacts: mapSurfaceImpacts(vision.surfaceFeatures, run.subject_age).map((impact) => ({
+        teachings: matchTeachings(vision, "teacher", teachingRules.teachings),
+        surfaceImpacts: mapSurfaceImpacts(vision.surfaceFeatures, run.subject_age, teachingRules.surfaces).map((impact) => ({
           region: impact.region,
           type: impact.type,
           side: impact.side,
@@ -139,7 +148,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           sourcePages: item.sourcePages
         })),
         face_rule_profile_id: ruleProfile?.id || null,
-        face_rule_version: ruleProfile?.version || "shen-v2-default"
+        face_rule_version: ruleProfile?.version || "shen-v2-default",
+        face_teaching_rules_version: rules.teachingRulesVersion
       })
       .eq("id", run.id)
       .eq("user_id", profile.id)

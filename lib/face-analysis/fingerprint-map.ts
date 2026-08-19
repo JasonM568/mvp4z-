@@ -21,7 +21,7 @@ import type { FaceVisionResult } from "@/lib/face-analysis/vision";
 
 export type FingerprintFeature = FaceVisionResult["distinctiveFeatures"][number]["feature"];
 
-type FingerprintMapping = Readonly<{
+export type FingerprintMapping = Readonly<{
   /** 教材部位名。 */
   partName: string;
   palaces: readonly string[];
@@ -36,7 +36,7 @@ type FingerprintMapping = Readonly<{
   source: string;
 }>;
 
-const FINGERPRINT_MAPPINGS: Readonly<Record<FingerprintFeature, FingerprintMapping>> = {
+export const BUILT_IN_FINGERPRINTS: Readonly<Record<FingerprintFeature, FingerprintMapping>> = {
   foreheadShape: {
     partName: "額頭（天中、天庭、司空、中正一段）",
     palaces: ["官祿宮", "父母宮", "財帛宮（天倉）"],
@@ -221,13 +221,14 @@ function describeAges(ages: readonly number[]): string {
  */
 export function mapFingerprints(
   distinctiveFeatures: FaceVisionResult["distinctiveFeatures"],
-  subjectAge: number | null | undefined
+  subjectAge: number | null | undefined,
+  mappings: Readonly<Record<FingerprintFeature, FingerprintMapping>> = BUILT_IN_FINGERPRINTS
 ): FingerprintReading[] {
   return [...distinctiveFeatures]
     .sort((a, b) => b.salience * b.confidence - a.salience * a.confidence)
     .slice(0, 8)
     .map((item) => {
-      const mapping = FINGERPRINT_MAPPINGS[item.feature];
+      const mapping = mappings[item.feature] || BUILT_IN_FINGERPRINTS[item.feature];
       const hitsCurrentAge = subjectAge != null && mapping.flowYearAges.includes(Math.floor(subjectAge));
       return {
         feature: item.feature,
@@ -249,4 +250,4 @@ export function mapFingerprints(
     });
 }
 
-export const FINGERPRINT_FEATURE_COUNT = Object.keys(FINGERPRINT_MAPPINGS).length;
+export const FINGERPRINT_FEATURE_COUNT = Object.keys(BUILT_IN_FINGERPRINTS).length;

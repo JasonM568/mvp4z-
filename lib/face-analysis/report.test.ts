@@ -90,6 +90,7 @@ const input = {
   },
   rules: {
     version: "3.0" as const,
+    teachingRulesVersion: "code-default",
     mode: "self" as const,
     photoFingerprint: [
       { feature: "eyebrowShape" as const, observation: "眉線平直且眉尾略向外延伸", side: "bilateral" as const, partName: "眉", palaces: ["兄弟宮"], looksAt: "手足相處", favorable: "眉形秀麗", unfavorable: "眉散", flowYearAges: [31, 32, 33, 34], flowYearNote: "對應流年 31–34 歲。", hitsCurrentAge: false, source: "測試出處", confidence: 0.9 },

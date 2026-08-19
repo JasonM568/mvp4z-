@@ -46,7 +46,7 @@ export type Teaching = Readonly<{
   source: string;
 }>;
 
-const TEACHINGS: readonly Teaching[] = [
+export const BUILT_IN_TEACHINGS: readonly Teaching[] = [
   // ── 額頭（官祿宮／父母宮／遷移宮／天倉）────────────────────────────
   {
     id: "T_FOREHEAD_WIDE_HIGH",
@@ -546,10 +546,11 @@ function matchesCondition(value: RegionValue, when: Enum4): boolean {
  */
 export function matchTeachings(
   vision: FaceVisionResult,
-  audience: "member" | "teacher" = "member"
+  audience: "member" | "teacher" = "member",
+  rules: readonly Teaching[] = BUILT_IN_TEACHINGS
 ): MatchedTeaching[] {
   const matched: MatchedTeaching[] = [];
-  for (const teaching of TEACHINGS) {
+  for (const teaching of rules) {
     const value = featureValue(vision, teaching.feature);
     if (!isReadable(value)) continue;
     if (!matchesCondition(value, teaching.when)) continue;
@@ -576,4 +577,4 @@ export function groupTeachingsByTheme(matched: readonly MatchedTeaching[]) {
   ) as Record<TeachingTheme, MatchedTeaching[]>;
 }
 
-export const TEACHING_COUNT = TEACHINGS.length;
+export const TEACHING_COUNT = BUILT_IN_TEACHINGS.length;
