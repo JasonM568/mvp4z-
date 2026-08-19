@@ -19,6 +19,7 @@ import { resolveFlowYear, type FlowYearResult } from "@/lib/face-analysis/flow-y
 import { mapSurfaceImpacts, type SurfaceImpact } from "@/lib/face-analysis/surface-map";
 import { matchTeachings, type MatchedTeaching } from "@/lib/face-analysis/teachings";
 import { mapFingerprints, type FingerprintReading } from "@/lib/face-analysis/fingerprint-map";
+import { BUILT_IN_RULE_SET, type TeachingRuleSet } from "@/lib/face-analysis/teaching-rules";
 
 export { FACE_RULE_MIN_CONFIDENCE };
 
@@ -68,6 +69,8 @@ export type PalaceRuleResult = Readonly<{
 
 export type FaceRuleResult = Readonly<{
   version: "3.0";
+  /** 本次使用的判讀規則版本；"code-default" 代表回退到程式碼內建規則。 */
+  teachingRulesVersion: string;
   mode: FaceAnalysisMode;
   /** 照片特徵指紋，已接上教材部位、宮位與流年。 */
   photoFingerprint: readonly FingerprintReading[];
@@ -178,8 +181,11 @@ export function applyFaceRules(input: {
   mode: FaceAnalysisMode;
   subjectAge?: number | null;
   profileSettings?: FaceRuleProfileSettings | null;
+  /** 老師在後台發布的判讀規則；未提供時使用程式碼內建的回退預設值。 */
+  teachingRules?: TeachingRuleSet | null;
 }): FaceRuleResult {
   const { vision, mode } = input;
+  const ruleSet = input.teachingRules || BUILT_IN_RULE_SET;
   const treasury = treasuryMapping(input.subjectAge);
 
   const configured = new Map(input.profileSettings?.palaces.map((item) => [item.name, item]) || []);
@@ -264,10 +270,10 @@ export function applyFaceRules(input: {
   const flowYear = resolveFlowYear(vision, age);
 
   // 斑痣疤痕的教材原文只給老師版；會員報告拿到的是已剝除 teacherNote 的版本。
-  const surfaceImpacts = mapSurfaceImpacts(vision.surfaceFeatures, age).map(
+  const surfaceImpacts = mapSurfaceImpacts(vision.surfaceFeatures, age, ruleSet.surfaces).map(
     ({ teacherNote: _teacherNote, ...rest }) => rest
   );
-  const teachings = matchTeachings(vision, "member");
+  const teachings = matchTeachings(vision, "member", ruleSet.teachings);
 
   // 流年落在教材四隘、或本年部位剛好有斑痣疤痕時，升級為明確提醒。
   if (flowYear) {
@@ -293,10 +299,11 @@ export function applyFaceRules(input: {
   }
 
   // 指紋不再只是搬 Vision 的觀察文字：查表接上教材部位、宮位、流年與正反向條件。
-  const photoFingerprint = mapFingerprints(vision.distinctiveFeatures, age);
+  const photoFingerprint = mapFingerprints(vision.distinctiveFeatures, age, ruleSet.fingerprints);
 
   return {
     version: "3.0",
+    teachingRulesVersion: ruleSet.version,
     mode,
     photoFingerprint,
     overallTrend,
