@@ -18,6 +18,7 @@ import {
 import { resolveFlowYear, type FlowYearResult } from "@/lib/face-analysis/flow-year";
 import { mapSurfaceImpacts, type SurfaceImpact } from "@/lib/face-analysis/surface-map";
 import { matchTeachings, type MatchedTeaching } from "@/lib/face-analysis/teachings";
+import { mapFingerprints, type FingerprintReading } from "@/lib/face-analysis/fingerprint-map";
 
 export { FACE_RULE_MIN_CONFIDENCE };
 
@@ -68,7 +69,8 @@ export type PalaceRuleResult = Readonly<{
 export type FaceRuleResult = Readonly<{
   version: "3.0";
   mode: FaceAnalysisMode;
-  photoFingerprint: readonly RuleItem[];
+  /** 照片特徵指紋，已接上教材部位、宮位與流年。 */
+  photoFingerprint: readonly FingerprintReading[];
   overallTrend: RuleItem;
   palaces: readonly PalaceRuleResult[];
   /** 九值流年法＋七十五部位流年法的確定性結果（沈師教材 p.11–13）。 */
@@ -290,14 +292,8 @@ export function applyFaceRules(input: {
     }
   }
 
-  const photoFingerprint: RuleItem[] = [...vision.distinctiveFeatures]
-    .sort((a, b) => (b.salience * b.confidence) - (a.salience * a.confidence))
-    .slice(0, 8)
-    .map((item) => ({
-      ruleId: `FINGERPRINT_${item.feature.toUpperCase()}_V3`,
-      text: item.observation,
-      evidence: [{ region: item.region, field: `distinctive:${item.feature}`, observed: item.observation, confidence: item.confidence }]
-    }));
+  // 指紋不再只是搬 Vision 的觀察文字：查表接上教材部位、宮位、流年與正反向條件。
+  const photoFingerprint = mapFingerprints(vision.distinctiveFeatures, age);
 
   return {
     version: "3.0",

@@ -23,7 +23,13 @@ const validReport = {
   summary: Array(10).fill("以實際資料持續驗證觀察結果。").join(""),
   photoQuality: "照片品質可供有限的文化觀察參考。",
   currentTrend: "目前僅就清楚可見的結構做趨勢式整理。",
-  photoFingerprint: ["眉線平直且眉尾略向外延伸", "眼裂橫向比例較長且上緣弧度平緩", "鼻樑中央線條平直且寬度均勻", "上唇弓線明顯且下唇中央較飽滿", "下巴末端呈圓弧且縱向長度適中"],
+  photoFingerprint: [
+    { observation: "眉線平直且眉尾略向外延伸", partName: "眉", palaces: ["兄弟宮"], flowYearNote: "對應流年 31–34 歲。", teaching: "教材測試依據", interpretation: "較接近相理合。" },
+    { observation: "眼裂橫向比例較長且上緣弧度平緩", partName: "眼", palaces: ["田宅宮"], flowYearNote: "對應流年 35–40 歲。", teaching: "教材測試依據", interpretation: "較接近相理合。" },
+    { observation: "鼻樑中央線條平直且寬度均勻", partName: "鼻樑", palaces: ["疾厄宮"], flowYearNote: "對應流年 44–45 歲。", teaching: "教材測試依據", interpretation: "較接近相理合。" },
+    { observation: "上唇弓線明顯且下唇中央較飽滿", partName: "唇", palaces: ["奴僕宮"], flowYearNote: "對應流年 60 歲。", teaching: "教材測試依據", interpretation: "較接近相理合。" },
+    { observation: "下巴末端呈圓弧且縱向長度適中", partName: "地閣", palaces: ["財帛宮（地倉）"], flowYearNote: "對應流年 71 歲。", teaching: "教材測試依據", interpretation: "較接近相理合。" }
+  ],
   coreHighlights: ["先整理目前最明顯的狀態。", "把握可驗證且能持續的方向。", "避免在資料不足時做重大承諾。"],
   priorityAdvice: [
     { problem: "行動焦點分散", reason: "可見宮位資料顯示需要先收斂目標。", advice: "本週只設定一個主要目標。" },
@@ -86,11 +92,11 @@ const input = {
     version: "3.0" as const,
     mode: "self" as const,
     photoFingerprint: [
-      { ruleId: "F1", text: "眉線平直且眉尾略向外延伸", evidence: [] },
-      { ruleId: "F2", text: "眼裂橫向比例較長且上緣弧度平緩", evidence: [] },
-      { ruleId: "F3", text: "鼻樑中央線條平直且寬度均勻", evidence: [] },
-      { ruleId: "F4", text: "上唇弓線明顯且下唇中央較飽滿", evidence: [] },
-      { ruleId: "F5", text: "下巴末端呈圓弧且縱向長度適中", evidence: [] }
+      { feature: "eyebrowShape" as const, observation: "眉線平直且眉尾略向外延伸", side: "bilateral" as const, partName: "眉", palaces: ["兄弟宮"], looksAt: "手足相處", favorable: "眉形秀麗", unfavorable: "眉散", flowYearAges: [31, 32, 33, 34], flowYearNote: "對應流年 31–34 歲。", hitsCurrentAge: false, source: "測試出處", confidence: 0.9 },
+      { feature: "eyeShape" as const, observation: "眼裂橫向比例較長且上緣弧度平緩", side: "bilateral" as const, partName: "眼", palaces: ["田宅宮"], looksAt: "情緒收放", favorable: "眼如刀裁", unfavorable: "眼短圓", flowYearAges: [35, 36, 37, 38, 39, 40], flowYearNote: "對應流年 35–40 歲。", hitsCurrentAge: false, source: "測試出處", confidence: 0.9 },
+      { feature: "nasalBridge" as const, observation: "鼻樑中央線條平直且寬度均勻", side: "center" as const, partName: "鼻樑", palaces: ["疾厄宮"], looksAt: "自主力道", favorable: "鼻樑要挺", unfavorable: "鼻樑低陷", flowYearAges: [44, 45], flowYearNote: "對應流年 44–45 歲。", hitsCurrentAge: false, source: "測試出處", confidence: 0.88 },
+      { feature: "lipShape" as const, observation: "上唇弓線明顯且下唇中央較飽滿", side: "center" as const, partName: "唇", palaces: ["奴僕宮"], looksAt: "表達", favorable: "陵線分明", unfavorable: "嘴帶珠", flowYearAges: [60], flowYearNote: "對應流年 60 歲。", hitsCurrentAge: false, source: "測試出處", confidence: 0.86 },
+      { feature: "chinShape" as const, observation: "下巴末端呈圓弧且縱向長度適中", side: "center" as const, partName: "地閣", palaces: ["財帛宮（地倉）"], looksAt: "晚年資源", favorable: "地閣開闊", unfavorable: "地閣內縮", flowYearAges: [61, 71], flowYearNote: "對應流年 61、71 歲。", hitsCurrentAge: false, source: "測試出處", confidence: 0.85 }
     ],
     overallTrend: { ruleId: "overall", text: "limited", evidence: [] },
     palaces: [],

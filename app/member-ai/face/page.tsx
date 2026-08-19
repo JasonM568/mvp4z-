@@ -10,7 +10,7 @@ type Mode = "self" | "other";
 type StructuredReport = {
   summary?: string;
   currentTrend?: string;
-  photoFingerprint?: string[];
+  photoFingerprint?: Array<{ observation?: string; partName?: string; palaces?: string[]; flowYearNote?: string; teaching?: string; interpretation?: string }>;
   coreHighlights?: string[];
   priorityAdvice?: Array<{ problem?: string; reason?: string; advice?: string }>;
   lifeAreas?: Record<string, { conclusion?: string; alignment?: "high" | "medium" | "low" | "insufficient"; visibleBasis?: string; teacherInterpretation?: string; watchout?: string; action?: string; confidence?: "high" | "medium" | "low"; sources?: string[] }>;
@@ -426,7 +426,22 @@ function ReportHighlights({ report }: { report: StructuredReport; mode: Mode }) 
     <div className="face-report-summary-head"><span>先看這裡</span><h2>本次報告重點</h2></div>
     {report.summary && <article className="face-key-conclusion"><strong>一句話總結</strong><p>{report.summary}</p></article>}
     {report.currentTrend && <article className="face-key-conclusion"><strong>目前最需要注意</strong><p>{report.currentTrend}</p></article>}
-    {report.photoFingerprint?.length && <article className="face-fingerprint-card"><h3>這張照片實際辨識到的特徵</h3><p>以下是本次報告使用的照片證據，不是固定範本。</p><ol>{report.photoFingerprint.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></article>}
+    {report.photoFingerprint?.length ? <article className="face-fingerprint-card">
+      <h3>這張照片實際辨識到的特徵</h3>
+      <p>以下是本次報告使用的照片證據，不是固定範本。每一項都標出對應的教材部位、宮位與流年歲數。</p>
+      <div className="face-fingerprint-list">
+        {report.photoFingerprint.map((item, index) => <section key={`${item.observation}-${index}`}>
+          <h4>{item.observation}</h4>
+          <div className="face-fingerprint-meta">
+            {item.partName && <span><b>教材部位</b>{item.partName}</span>}
+            {item.palaces?.length ? <span><b>對應宮位</b>{item.palaces.join("、")}</span> : null}
+            {item.flowYearNote && <span><b>流年對照</b>{item.flowYearNote}</span>}
+          </div>
+          {item.interpretation && <p className="face-fingerprint-reading">{item.interpretation}</p>}
+          {item.teaching && <details><summary>教材依據</summary><p>{item.teaching}</p></details>}
+        </section>)}
+      </div>
+    </article> : null}
     {report.flowYear && <article className="face-flowyear-card">
       <h3>本年流年{report.flowYear.age ? `（${report.flowYear.age} 歲）` : ""}</h3>
       {report.flowYear.gates?.length ? <ul className="face-flowyear-gates">{report.flowYear.gates.map((item, index) => <li key={`gate-${index}`}>{item}</li>)}</ul> : null}

@@ -60,7 +60,9 @@ describe("face vision and deterministic rules", () => {
     expect(first).toEqual(second);
     expect(first.palaces).toHaveLength(12);
     expect(new Set(first.palaces.map((item) => item.name))).toEqual(new Set(FACE_PALACE_NAMES));
-    expect(first.photoFingerprint.map((item) => item.text)).toEqual(validVision.distinctiveFeatures.map((item) => item.observation));
+    expect(first.photoFingerprint.map((item) => item.observation)).toEqual(validVision.distinctiveFeatures.map((item) => item.observation));
+    // 指紋必須接上教材部位、宮位與流年，不能只是搬 Vision 的文字。
+    expect(first.photoFingerprint.every((item) => item.partName && item.palaces.length > 0 && item.flowYearNote)).toBe(true);
     expect(first.actionPlan.map((item) => item.ruleId)).toEqual([
       "ACTION_30_DAY_REVIEW_V1",
       "ACTION_60_DAY_REVIEW_V1",
