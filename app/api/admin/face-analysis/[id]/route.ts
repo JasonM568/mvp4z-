@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/admin";
 import { errorMessage, errorStatus } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { buildFaceAudit } from "@/lib/face-analysis/audit";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -28,9 +29,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       .limit(200);
     if (eventError) throw eventError;
 
+    // 教材依據稽核鏈：Vision 觀測 → 命中條件 → 教材條文與頁碼 → 報告是否引用。
+    const audit = buildFaceAudit({
+      visionResult: run.vision_result,
+      reportStructured: run.report_structured,
+      modelTrace: run.model_trace
+    });
+
     // storage_path is deliberately omitted. This endpoint never creates previews.
     return NextResponse.json(
-      { ok: true, run, events: events || [] },
+      { ok: true, run, events: events || [], audit },
       { headers: { "Cache-Control": "private, no-store, max-age=0" } }
     );
   } catch (error) {

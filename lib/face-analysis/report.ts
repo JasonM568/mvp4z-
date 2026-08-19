@@ -212,16 +212,62 @@ export async function generateFaceReport(input: {
     });
     throw new Error("FACE_REPORT_SCHEMA_INVALID");
   }
+  const enforced = enforceTeachingCitations(report, input.rules);
+  if (enforced.violations.length > 0) {
+    console.warn("FACE_REPORT_CITATION_VIOLATION", { violations: JSON.stringify(enforced.violations).slice(0, 600) });
+  }
+
   return {
-    report,
+    report: enforced.report,
     trace: {
       provider: "openai",
       model,
       tokensInput: Number(response.usage?.input_tokens || 0),
       tokensOutput: Number(response.usage?.output_tokens || 0),
-      latencyMs: Date.now() - startedAt
+      latencyMs: Date.now() - startedAt,
+      // 教材引用把關結果；空陣列代表本次引用全部對得回規則層。
+      citationViolations: enforced.violations
     }
   };
+}
+
+export type TeachingCitationViolation = Readonly<{
+  area: string;
+  /** 模型填了但規則層根本沒命中的條文 id。 */
+  unknownIds: readonly string[];
+  /** 該面向有命中條文卻一條都沒引用。 */
+  missingCitation: boolean;
+}>;
+
+/**
+ * 強制驗證教材引用。
+ *
+ * outputContract 只能「要求」模型引用命中的條文；這裡才是真正的把關：
+ * 任何不存在於本次規則層命中結果的 id 一律剔除，並記錄違規供稽核。
+ *
+ * 不因單一違規整份退件——報告已扣點且模型已呼叫，退件對使用者是淨損失；
+ * 改為剔除假引用並把違規寫進 trace，讓老師在後台看得到哪一份報告的引用不乾淨。
+ */
+export function enforceTeachingCitations(report: FaceReport, rules: FaceRuleResult) {
+  const validIds = new Set(rules.teachings.map((item) => item.id));
+  const matchedThemes = groupTeachingsByTheme(rules.teachings);
+  const violations: TeachingCitationViolation[] = [];
+
+  const lifeAreas = Object.fromEntries(
+    Object.entries(report.lifeAreas).map(([area, reading]) => {
+      const cited = reading.citedTeachings || [];
+      const kept = cited.filter((id) => validIds.has(id));
+      const unknownIds = cited.filter((id) => !validIds.has(id));
+      const availableCount = (matchedThemes[AREA_THEMES[area as keyof typeof AREA_THEMES]] || []).length;
+      const missingCitation = availableCount > 0 && kept.length === 0;
+      if (unknownIds.length > 0 || missingCitation) {
+        violations.push({ area, unknownIds, missingCitation });
+      }
+      return [area, { ...reading, citedTeachings: kept }];
+    })
+  ) as FaceReport["lifeAreas"];
+
+  return { report: { ...report, lifeAreas } as FaceReport, violations };
 }
 
 function normalizeUnsafeOverclaims(value: unknown): unknown {
