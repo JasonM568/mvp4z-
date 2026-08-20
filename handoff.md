@@ -2069,3 +2069,100 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 
 - 收工前程式提交已推送，`main` 與 `origin/main` 同步；交接文件更新另以收工提交保存。
 - 無刻意保留的 Next、Vitest、build 或 Vercel deployment 長時間程序。
+
+---
+
+## 2026-08-19 收工（跨 08-20）｜面相系統大修：流年、斑痣對應、教材規則資料庫化、會員版用語
+
+### 目前狀態
+
+- 正式站：`https://www.xunfeng.tw/member-ai/face`
+- Production deployment：`mvp4z-nqqri6rxw`，READY，正式網址 200
+- `main` 與 `origin/main` 同步於 `a9210bb`，工作區乾淨
+- 判讀規則已改為資料庫驅動，67 條已匯入並全部發布，系統實際讀取的是 DB 版本
+  （規則版本字串形如 `db:2026-08-19T14:35:12+00:00:67`）
+
+### 本次完成
+
+1. **流年技法上線**：七十五部位流年法（1–99 歲逐歲表）、九值流年法、併看法（以當陽為準）、
+   三關四隘。舊版只有一句佔位字串，完全沒有年齡→部位對照。
+2. **斑痣疤痕接宮位**：14 個部位對應宮位、主題（六親／財運／健康）、教材點名的流年歲數與出處。
+   健康主題會員版只給「部位＋所屬宮位＋建議健檢核對」。
+3. **教材形態規則表 37 條**：解決報告攏統的核心。舊規則層只有 status 與四個粗枚舉，
+   沒有任何教材判讀進報告。
+4. **指紋接教材**：16 個 distinctiveFeatures 枚舉接部位、宮位、流年、正反向條件。
+   「鼻頭圓潤且略微突出」→ 準頭 → 財帛宮（人倉）→ 流年 48 → 相理合判讀。
+5. **引用強制驗證**：假的教材條文 id 由 server 剔除並記入 `trace.citationViolations`。
+6. **教材依據稽核鏈**：`/admin/face-analysis/[id]` 可看 Vision 觀測 → 命中條件 → 教材條文與頁碼
+   → 報告是否引用；含「未參與判讀的部位與原因」。
+7. **判讀規則資料庫化**：`face_teaching_rules`，老師可在 `/admin/face-teachings` 逐條增刪改與具名發布。
+8. **審核模式**：出處與教材原文並排、具名確認、進度 X/67；`reviewed_version` 讓內容一改核對自動失效。
+9. **待老師確認事項**：五題入庫，老師在後台具名回覆。
+10. **會員版用語**：移除「教材」與所有文獻出處，改「老師」語氣，並加確定性淨化器作最後保證。
+
+### 順帶修掉的既有缺陷
+
+- `renderFaceReportText` 原本**只在勾選合作評估時才輸出五大面向**，沒勾就整段消失。
+- **時間預算不足**：Vision 45s ＋ 報告 75s = 120s，剛好吃光 maxDuration。
+  契約擴大後報告實測 73s，本機已撞到一次逾時。→ maxDuration 120→300、abort 75s→110s。
+- 撰稿模型不再繼承聊天用的 `OPENAI_MODEL`（mini 會把有依據的判讀退回模板敘述），
+  改由 `FACE_REPORT_OPENAI_MODEL` 或預設 `gpt-4.1` 決定；production 已設為 gpt-4.1。
+- 清除殭屍變數 `FACE_REPORT_MODEL`；修正 `.env.local` 的 `FACE_REPORT_PROVIDER=deepseek`
+  （會讓本機產報告直接丟 UNSUPPORTED）。
+
+### 驗證結果
+
+- `npx tsc --noEmit` 通過
+- `npm run test:unit`：20 files / 169 passed、2 skipped（session 起始為 94）
+- `npm run build` 通過
+- 真實模型端對端：規則版本 `db:...:67`、gpt-4.1、67.7s，
+  全文比對「教材／頁筆記／講義／p.數字」洩漏 **0 筆**
+- 線上前端 bundle 比對：「教材」出現 **0 次**
+
+### Migration（皆已套用正式 Supabase）
+
+- `20260819101010_face_teaching_rules`
+- `20260819110000_face_teaching_rules_review_version`
+- `20260819120000_face_review_questions`
+
+> 注意：`face_teaching_rules` 由 MCP 套用，remote 版本號為 `20260819101010`，
+> 本地檔名已改名對齊。日後 `db push` 前請先核對 `supabase_migrations.schema_migrations`。
+
+### 未完成 / 待辦（優先順序）
+
+1. **使用者尚未用真人照片實測新版報告**。今日所有驗證都是合成 fixture ＋真實模型，
+   沒有跑過真實照片的完整流程（含 Vision 層）。這是下次第一件事。
+2. **67 條規則未回原始 PDF 對帳**。內容抄自整理稿（agent 產出），中間隔兩層。
+   審核模式已備好（出處＋教材原文並排＋具名確認＋進度），但對帳需老師執行。目前 0/67。
+3. **五題待老師回覆**，全部 `status=open`，在後台「面相判讀規則 → 待老師確認事項」。
+   其中 `Q-FLOWYEAR-NINE-VALUE` 是教材自身矛盾（p.11 圖示為印堂 2，例句說 47 歲走鼻），
+   系統目前照圖示實作，需老師裁示。
+4. 報告輸出 6,100 tokens 偏高。schema 內的 `sources` 與完整 `palaces` 前台不顯示，
+   稽核已改讀 `model_trace.teacherAudit`，可考慮從輸出契約移除以省 token 與延遲。
+5. 67 條的 `created_by` 為 null（由 Claude 以 service role 匯入）；
+   老師在審核模式按確認後 `reviewed_by`／`decided_by` 才會補上具名紀錄。
+6. 28 張知識卡維持原狀——它們是部位索引（`rule_condition` 全為 `{}`），不含判讀，
+   與判讀規則系統是兩回事，開通也不會讓報告變好。
+7. 既有 go-live gate 不變（Resend 網域、信用卡 E2E、EZPay 正式、ZDR 認證簽署）。
+
+### 下次起手式
+
+1. 讀本章節、`worklog.md` 最新紀錄、`SPEC-06`（v0.2，第七節為資料庫架構）。
+2. `git status --short --branch`、`git log --oneline -5` 核對（應為 `a9210bb`）。
+3. 請使用者用真人照片跑一份報告，重點看：
+   - 「這張照片實際辨識到的特徵」每項是否有對應部位／宮位／流年／本次判讀四層
+   - 「本年流年」是否出現（**必須填年齡**，否則 `resolveFlowYear` 回 null，整段不顯示）
+   - 斑痣段落是否帶宮位、主題與流年對照
+   - 全文不應出現「教材」或頁碼
+4. 跑完到 `/admin/face-analysis/[該份 id]` 看教材依據稽核鏈，確認引用乾淨。
+
+### Git 狀態
+
+- `main` = `origin/main` = `a9210bb`，工作區乾淨（本次收工文件另計）。
+- 本次功能分支皆已併入 main 並保留：`feat/face-flow-year-and-teachings`、
+  `feat/face-teaching-audit`、`feat/face-teaching-rules-db`、
+  `feat/face-teaching-review-mode`、`feat/face-review-questions`。可視情況清理。
+
+### 長時間程序
+
+無。所有 build、vitest、Vercel deployment 均已結束。

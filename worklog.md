@@ -264,3 +264,93 @@
 - 需以兩張不同真人照片產生全新 Vision v3 報告，驗收照片指紋與主要結論差異。
 - 需依新 runs 做匿名相似度稽核；必要時再調整 Vision provider/model 或加入第二模型覆核。
 - Safari／Chrome 桌機與手機相機仍需跨裝置人工驗收。
+
+## 2026-08-19（跨 08-20）｜面相系統大修：流年、斑痣對應、教材規則資料庫化、會員版用語
+
+### 起因
+
+使用者用相機拍現況照實測報告，回報三個問題：
+1. 報告內容攏統，像免費版 AI 回應
+2. 九執流年、七十五流年法完全沒派上用場
+3. 斑、痣、疤、痕沒有對應到部位提醒（自身健康、六親關係、財運）
+
+後續又追加兩項：指紋段落沒接教材、會員報告不該出現「教材」與文獻出處。
+
+### 重要判斷
+
+- **攏統的根因不是 LLM 文風，是規則層沒有相理內容**。舊 rules.ts 只輸出三種 status
+  ＋四個粗枚舉，沒有任何教材判讀進到報告，撰稿模型只能寫萬用話。
+  再加上 REPORT_INSTRUCTIONS 17 行有 12 行是禁令，模型被推向最安全＝最空泛的寫法。
+- **指紋是唯一沒有教材根據的一段**。distinctiveFeatures 原文直接穿透，而 teachings 比對的是
+  regions/details 的粗枚舉，兩條路不相交。關鍵發現：distinctiveFeatures.feature 是 16 個
+  結構化枚舉，粒度比八大區塊細得多（noseTip 就是準頭、就是流年 48），正好夠接流年。
+- **判讀分工**：部位、宮位、流年、正反向條件全部查表且產出後由 server 蓋回；
+  模型只負責「這次觀察接近相理合或相理不合」，且只能在教材提供的兩個條件之間選。
+- **28 張知識卡不是判讀規則**。它們是部位索引（rule_condition 全為 {}），
+  每張 editor_summary 都明寫「不直接輸出結論」。就算打開開關報告也不會變好。
+  先前把這條通路斷掉講得比實際嚴重，已於對話中更正。
+- **教材原文與會員說法分流**：會員看老師的說法，老師看教材的原文。
+  健康主題會員版只給「部位＋所屬宮位＋建議健檢核對」，教材原文（含望診 CRITICAL）只進老師版。
+
+### 產出
+
+新增 lib/face-analysis/：flow-year.ts、surface-map.ts、teachings.ts、fingerprint-map.ts、
+face-features.ts、teaching-rules.ts、audit.ts、review-state.ts、__fixtures__/vision.ts
+＋對應測試（flow-year 14、teachings 17、audit 9、fingerprint-map 9、teaching-rules 8、
+review-state 4、member-wording 6）。
+
+後台：/admin/face-teachings（審核模式／表格模式／待老師確認事項）、
+/admin/face-analysis/[id] 教材依據稽核鏈。
+
+Migration：20260819101010_face_teaching_rules、20260819110000（reviewed_version）、
+20260819120000_face_review_questions。三支皆已套用正式 Supabase。
+
+### 逐批內容
+
+1. **流年技法**（b8702ab）：七十五部位 1–99 歲逐歲表、九值流年法、併看法（以當陽為準）、
+   三關四隘。舊版只有一句佔位字串。
+2. **斑痣宮位對應**：14 部位 → 宮位／主題／教材流年歲數／出處。
+3. **教材形態規則表**：37 條「部位×形態條件→教材說法」，每條標出處；
+   部位不可判讀或信心度 <0.65 不套用。
+4. **指紋接教材**（0568356）：16 個特徵枚舉接部位、宮位、流年、正反向條件。
+5. **引用強制驗證＋稽核鏈**（8761138）：假引用剔除並記入 trace；
+   後台可看 Vision 觀測 → 命中條件 → 教材條文與頁碼 → 報告是否引用。
+6. **規則資料庫化**（4b8c555）：face_teaching_rules 一條一列，安全分級三階，
+   三層回退，rule_id/kind 發布後不可改、已發布只能封存。67 條已匯入並發布。
+7. **審核模式**（f78f405）：出處與教材原文並排、具名確認、進度 X/67；
+   reviewed_version 讓內容一改核對狀態自動失效。
+8. **待老師確認事項**（f622b87）：五題入庫，老師在後台具名回覆。
+9. **逾時修正＋環境清理**（b99b6ac）：見下。
+10. **會員版用語**（a9210bb）：移除教材與出處，加確定性淨化器。
+
+### 意外抓到的正式站風險
+
+清理殭屍變數時發現**時間預算不足**：Vision 45s ＋ 報告 75s = 120s，剛好吃光 maxDuration，
+沒留給照片下載與扣點寫入。契約擴大後報告實測 6,100 tokens／73s，貼著 75s 上限，
+本機驗證已撞到一次 FACE_REPORT_PROVIDER_TIMEOUT。正式站未爆是因最後一份完成報告在 8/17。
+→ maxDuration 120→300、報告 abort 75s→110s。
+
+環境：移除殭屍變數 FACE_REPORT_MODEL（deepseek-v4-pro，全 repo 無讀取）；
+.env.local 的 FACE_REPORT_PROVIDER=deepseek 會讓本機直接丟 UNSUPPORTED，改 openai；
+.env.example 的模型從 gpt-4.1-mini 更新為 gpt-4.1。
+撰稿模型改由 FACE_REPORT_OPENAI_MODEL 或預設 gpt-4.1 決定，不再繼承聊天用的 OPENAI_MODEL。
+
+### 驗證結果
+
+- tsc 通過；test:unit 20 files / 169 passed、2 skipped（session 起始為 94）
+- next build 通過
+- 真實模型端對端多次：最終版規則版本 db:...:67、gpt-4.1、67.7s，
+  教材／頁筆記／講義／p.數字 洩漏 0 筆
+- 線上前端 bundle 比對：教材 0 次
+- production 最終 deployment mvp4z-nqqri6rxw READY，www.xunfeng.tw 200
+
+### 遺留事項
+
+- 67 條規則的內容仍是從整理稿（agent 產出）抄的，中間隔兩層，未回原始 PDF 對帳。
+  審核模式就是為此而做，但實際對帳需老師執行。
+- 五題待老師回覆，全部 status=open。
+- 67 條的 created_by 為 null（由 Claude 以 service role 匯入），
+  decided_by 記為「系統匯入內建規則（由 Claude 代為執行，未經後台具名操作）」。
+- 報告輸出 6,100 tokens 偏高；schema 內的 sources 與完整 palaces 前台不顯示，
+  稽核已改讀 model_trace.teacherAudit，可考慮從輸出契約移除以省 token 與延遲。
+- 未實測真人照片跑完整流程（使用者今日未回報新報告）。
