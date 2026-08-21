@@ -327,9 +327,9 @@ export default function FaceAnalysisPage() {
               {selectedFile && <div className="face-file-meta"><span>{selectedFile.name}</span><span>{formatBytes(selectedFile.size)}</span><span>{selectedFile.type.replace("image/", "").toUpperCase()}</span><span>上傳後會移除影像附加資訊</span></div>}
 
               <div className="face-actions">
-                {cameraOpen ? <><button className="face-primary" onClick={captureFrame}>拍下照片</button><button className="face-secondary" onClick={stopCamera}>關閉相機</button></> : <><button className="face-secondary" onClick={openCamera}>開啟即時相機</button><label className="face-upload">拍照或選擇照片<input type="file" accept="image/jpeg,image/png,image/webp" capture={mode === "self" ? "user" : "environment"} onChange={handleFile} /></label></>}
+                {cameraOpen ? <><button className="face-primary" onClick={captureFrame}>拍下照片</button><button className="face-secondary" onClick={stopCamera}>關閉相機</button></> : <><button className="face-secondary" onClick={openCamera}>開啟即時相機</button><label className="face-upload">從相簿選擇照片<input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} /></label></>}
               </div>
-              <p className="face-camera-help">「開啟即時相機」會直接在上方預覽框顯示鏡頭；首次使用請允許瀏覽器相機權限。</p>
+              <p className="face-camera-help">「開啟即時相機」會直接在上方預覽框顯示鏡頭，首次使用請允許瀏覽器相機權限；也可以按「從相簿選擇照片」上傳既有的 JPEG、PNG 或 WebP 照片。</p>
 
               <div className="face-consents">
                 <label><input type="checkbox" checked={naturalPhotoConfirmed} onChange={(event) => setNaturalPhotoConfirmed(event.target.checked)} /><span>我確認已關閉美肌、濾鏡與磨皮，照片未經修圖。</span></label>
