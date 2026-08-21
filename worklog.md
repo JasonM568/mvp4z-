@@ -354,3 +354,55 @@ Migration：20260819101010_face_teaching_rules、20260819110000（reviewed_versi
 - 報告輸出 6,100 tokens 偏高；schema 內的 sources 與完整 palaces 前台不顯示，
   稽核已改讀 model_trace.teacherAudit，可考慮從輸出契約移除以省 token 與延遲。
 - 未實測真人照片跑完整流程（使用者今日未回報新報告）。
+
+## 2026-08-21（跨 08-22）｜面相「尚有未完成的分析任務」永久封鎖修正
+
+使用者回報面相頁一直跳「有沒執行完的分析任務」，追問是 API token 用完還是系統 bug。
+**是系統 bug**，與 token／點數／方案無關。
+
+### 根因
+
+`app/api/face-analysis/runs/route.ts` 的併發保護 count **沒有時間窗**（隔壁的
+`recentCount` 有 `hourAgo`，這支沒有），算的是該帳號有史以來所有沒收尾的 run；
+而 `created`／`uploaded`／`quality_rejected`／`analyzing` 四種狀態沒有任何收尾路徑
+（`cleanup-face-images` 只刪圖不改 status），計數只會單調累加，到 3 就終身封鎖。
+
+最常觸發的路徑是 `quality_rejected`：前端每換一張照片就重抽 `requestId`，
+**照片品質沒過三次＝帳號永久鎖死**。
+
+正式庫實證：會員 565e1b83 有 3 筆 quality_rejected 橫跨 08-14～08-21，
+completed 12 筆、failed 1 筆，帳號本身完全正常。
+
+### 修正（6f97e5d，已部署 production）
+
+1. 併發判斷移除 `quality_rejected`，其餘三種加 30 分鐘時間窗，
+   同一 `requestId` 的重送不擋自己；常數集中到 `lib/face-analysis/config.ts`。
+2. 新增 `expired` 終態（migration `20260821120000_face_run_expiry`，含一次性收尾）。
+3. `cleanup-face-images` 加 `sweepStaleRuns()`：created >30 分、uploaded／
+   quality_rejected >24 小時 → expired；analyzing >15 分 → failed（ANALYSIS_TIMEOUT）。
+   刻意不另開 cron——不確定 Vercel 方案的 cron 上限，加第三支有部署失敗風險。
+4. 錯誤訊息改成講得出還要等多久；analyze／upload 碰到 expired 任務有各自說明。
+
+錯誤碼分成 RUN_ABANDONED／RUN_ABANDONED_AFTER_QUALITY／保留 QUALITY_REJECTED，
+否則後台品質通過率會被 expired 洗掉；`summarizeMetrics` 同步改用錯誤碼還原品質結果。
+
+### 順帶修掉：supabase db push 完全罷工
+
+本地 migration 版號與遠端歷史對不上，`db push` 直接拒絕執行。原因是
+`face_teaching_rules_review_version`（遠端 20260819114645）與 `face_review_questions`
+（遠端 20260819123902）先前是透過 MCP `apply_migration` 直接套的，版號由 MCP 自己生。
+已將本地檔名改名對齊。**日後改 schema 固定走「寫 migration 檔 → supabase db push」，
+不要用 MCP 直接套。**
+
+### 驗證結果
+
+- tsc 通過；test:unit 19 files / 169 passed、2 skipped；next build 通過
+- migration 已套用正式庫；套用後該會員符合新併發條件的任務數為 0
+- production deployment dpl_Gazt42X… READY，www.xunfeng.tw 已指向本版
+
+### 遺留事項
+
+- **使用者尚未在正式站實測**（我沒有會員 token，無法代跑）。下次開工第一件事。
+- 排程收尾效果未實地驗證，需看 cron log 的 `stale_runs` 欄位。
+- 上一輪待辦全部原封不動：真人照片實測報告、67 條回 PDF 對帳、五題待老師回覆、
+  報告 tokens 偏高、既有 go-live gate。

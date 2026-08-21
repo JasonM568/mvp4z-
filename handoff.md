@@ -1,6 +1,6 @@
 # Handoff
 
-**最新進度請直接跳到檔案最末章節「2026-08-06 收工｜『天機四象 · 順轉人生』改版上線 + 無敵測試帳號」。**
+**最新進度請直接跳到檔案最末章節「2026-08-21 收工（跨 08-22）｜面相「尚有未完成的分析任務」永久封鎖修正」。**
 
 本檔為累積式紀錄，章節依日期由舊到新排列。下方「目前狀態」「已完成」「尚未完成」「電子發票串接 TODO」「下次建議先做」等未標日期的章節，皆是 **2026-05-19 專案骨架期**的內容，已大量過期，僅供追溯，勿據以開工。已知過期處已就地加上 ⚠️ 更正框。
 
@@ -2166,3 +2166,103 @@ Phase 0 只做到曆法底座與四柱。仍待實作：
 ### 長時間程序
 
 無。所有 build、vitest、Vercel deployment 均已結束。
+
+---
+
+## 2026-08-21 收工（跨 08-22）｜面相「尚有未完成的分析任務」永久封鎖修正
+
+### 使用者回報
+
+「面相一直跳出有沒執行完的分析任務？」並追問「是 API Token 用完了還是系統 bug？」
+
+**答案：系統 bug，與 token、點數、方案完全無關。**
+
+### 根因
+
+`app/api/face-analysis/runs/route.ts` 的併發保護：
+
+```ts
+.in("status", ["created", "uploaded", "quality_rejected", "analyzing"])
+if ((openCount || 0) >= 3) throw statusError("尚有未完成的分析任務…", 429);
+```
+
+這個 count **沒有時間窗**（隔壁的頻率限制 `recentCount` 有 `hourAgo`，這支沒有），
+算的是該帳號**有史以來**所有沒收尾的 run。而這四種狀態沒有任何收尾路徑
+——`cleanup-face-images` 只刪圖不改 status——所以計數只會單調累加，到 3 就終身封鎖。
+
+四條累積路徑：
+
+- `quality_rejected`：照片品質沒過就停在這。前端 `page.tsx:125` 每換一張照片就重抽
+  `requestId`，**換三張照片被打槍＝永久鎖死**。這正是本次發生的情況。
+- `created`：建了任務但上傳中斷（關分頁、斷線）。
+- `uploaded`：品質過了但沒按下去扣 20 點就離開。
+- `analyzing`：function 被 kill（`markRunFailed` 只在程式自己 catch 到才會跑）。
+
+正式庫實證：會員 `565e1b83` 有 3 筆 `quality_rejected`，橫跨 08-14 至 08-21，
+completed 12 筆、failed 1 筆——帳號完全正常，就是被自己的計數器鎖住。
+
+### 修正（commit `6f97e5d`，已部署 production）
+
+1. **併發判斷**（`runs/route.ts`）：`quality_rejected` 移出清單（那是死路，會員唯一出路
+   是換照片開新任務）；剩下 `created`/`uploaded`/`analyzing` 加 **30 分鐘時間窗**；
+   同一個 `requestId` 視為前端重送，不擋自己。常數集中到 `lib/face-analysis/config.ts`。
+2. **新增 `expired` 終態**（migration `20260821120000_face_run_expiry`）：不進會員歷史、
+   不佔併發額度。migration 內含一次性收尾（純 update，可重複執行）。
+3. **收尾排程**：塞進既有的 `cleanup-face-images`（每小時 :15），新增 `sweepStaleRuns()`：
+   `created` >30 分 → `expired`；`uploaded`/`quality_rejected` >24 小時 → `expired`；
+   `analyzing` >15 分 → `failed`（`ANALYSIS_TIMEOUT`）。回傳多一個 `stale_runs` 欄位。
+   **刻意不另開 cron**——不確定 Vercel 方案的 cron 數量上限，加第三支有部署失敗風險。
+4. **錯誤訊息**：改成講得出還要等多久（「約 N 分鐘後會自動釋放」，N 由最舊那筆算出）；
+   analyze／upload 碰到 `expired` 任務也有各自的說明，不再丟一句讓人摸不著頭緒的話。
+
+錯誤碼刻意分成 `RUN_ABANDONED`（連照片都沒傳）／`RUN_ABANDONED_AFTER_QUALITY`（檢查過且
+通過）／保留 `QUALITY_REJECTED`，否則後台品質通過率會被 expired 洗掉；
+`app/api/admin/face-analysis/route.ts` 的 `summarizeMetrics` 同步改用錯誤碼還原品質結果。
+
+### 順帶修掉：`supabase db push` 完全罷工
+
+本地 migration 版號與遠端歷史對不上，`db push` 直接拒絕執行：
+
+| 本地舊檔名 | 遠端實際版本 |
+|---|---|
+| `20260819110000_face_teaching_rules_review_version` | `20260819114645` |
+| `20260819120000_face_review_questions` | `20260819123902` |
+
+原因是這兩支先前透過 MCP `apply_migration` 直接套到遠端，版號由 MCP 自己生成。
+已將本地檔名改名對齊。**日後改 schema 請固定走「寫 migration 檔 → `supabase db push`」，
+不要用 MCP 直接套**，否則同樣的問題會再發生。
+
+### 驗證結果
+
+- `npx tsc --noEmit` 通過
+- `npm run test:unit`：19 files / 169 passed、2 skipped
+- `npm run build` 通過
+- migration 已套用正式庫；套用後該會員符合新併發條件的任務數為 **0**
+  （剩 `quality_rejected` × 2、`expired` × 1，三者皆不計入）
+- production deployment `dpl_Gazt42X…` READY，`www.xunfeng.tw` 已指向本版
+
+### 未完成 / 待辦（優先順序）
+
+1. **使用者尚未在正式站實測**。我沒有會員 token，無法代跑。下次開工第一件事：
+   請使用者在面相頁選張照片按下去，確認不再跳「尚有未完成的分析任務」。
+   新版訊息長得不一樣（含「約 N 分鐘後會自動釋放」），若仍看到舊句子就是瀏覽器快取。
+2. **排程收尾效果未實地驗證**。`cleanup-face-images` 每小時 :15 跑，第一次執行後
+   回傳會多出 `stale_runs` 欄位，可在 Vercel cron log 確認各類收了幾筆。
+3. 上一輪的待辦全部原封不動：真人照片實測新版報告、67 條規則回原始 PDF 對帳（0/67）、
+   五題待老師回覆、報告 6,100 tokens 偏高、既有 go-live gate（Resend 網域、信用卡 E2E、
+   EZPay 正式、ZDR 認證簽署）。詳見上一章節。
+
+### 下次起手式
+
+1. 讀本章節與 `worklog.md` 最新紀錄。
+2. `git status --short --branch`、`git log --oneline -5` 核對（應為 `6f97e5d`）。
+3. 請使用者實測面相流程（同時可一併完成上一輪待辦的真人照片報告驗證）。
+
+### Git 狀態
+
+- `main` = `origin/main` = `6f97e5d`，工作區乾淨（本次收工文件另計）。
+- 本次未開功能分支，直接在 main 修正並部署。
+
+### 長時間程序
+
+無。build、vitest、`supabase db push`、Vercel deployment 均已結束。
