@@ -4,7 +4,19 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { errorMessage, errorStatus } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-const STATUSES = new Set(["created", "uploaded", "quality_rejected", "analyzing", "completed", "failed", "deleted"]);
+const STATUSES = new Set([
+  "created",
+  "uploaded",
+  "quality_rejected",
+  "analyzing",
+  "completed",
+  "failed",
+  "expired",
+  "deleted"
+]);
+// 逾時收尾後仍保有品質判定的錯誤碼，用來還原 expired 之前是哪一種結果。
+const QUALITY_PASSED_CODE = "RUN_ABANDONED_AFTER_QUALITY";
+const QUALITY_REJECTED_CODE = "QUALITY_REJECTED";
 
 function validDate(value: string | null) {
   if (!value) return null;
@@ -85,10 +97,16 @@ type MetricRow = {
 function summarizeMetrics(rows: MetricRow[]) {
   const started = rows.length;
   const completed = rows.filter((row) => row.status === "completed");
-  const qualityKnown = rows.filter((row) =>
-    ["quality_rejected", "analyzing", "completed", "failed"].includes(row.status)
+  // expired 是逾時收尾，本身不代表品質結果；靠錯誤碼判斷它當初有沒有做過品質檢查。
+  const qualityKnown = rows.filter(
+    (row) =>
+      ["quality_rejected", "analyzing", "completed", "failed"].includes(row.status) ||
+      (row.status === "expired" &&
+        [QUALITY_PASSED_CODE, QUALITY_REJECTED_CODE].includes(row.error_code || ""))
   );
-  const qualityPassed = qualityKnown.filter((row) => row.status !== "quality_rejected").length;
+  const qualityPassed = qualityKnown.filter(
+    (row) => row.status !== "quality_rejected" && row.error_code !== QUALITY_REJECTED_CODE
+  ).length;
   const durations = completed
     .map((row) => new Date(row.completed_at || "").getTime() - new Date(row.created_at).getTime())
     .filter((value) => Number.isFinite(value) && value >= 0);

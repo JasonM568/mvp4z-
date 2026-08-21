@@ -51,7 +51,7 @@
 - `GET /api/face-analysis/runs/{id}`：本人報告詳情。
 - `DELETE /api/face-analysis/runs/{id}/image`：立即刪原圖並寫 event。
 - `DELETE /api/face-analysis/runs/{id}`：清除報告內容與圖片，保留最小稽核 stub。
-- `POST /api/cron/cleanup-face-images`：刪除 `image_expires_at <= now()` 且未刪的 object。
+- `POST /api/cron/cleanup-face-images`：每小時排程，兩件事——(1) 刪除 `image_expires_at <= now()` 且未刪的 object；(2) 收尾逾時 run：`created` > 30 分鐘與 `uploaded` / `quality_rejected` > 24 小時標為 `expired`，`analyzing` > 15 分鐘標為 `failed`（`ANALYSIS_TIMEOUT`）。沒有 (2)，中斷的任務會永遠算在併發額度裡，累積後該會員建立新任務會一直被 429 擋下。
 - `GET /api/admin/face-analysis`：admin filter status/date/model/error，server-side pagination。
 - `GET /api/admin/face-analysis/{id}`：成本、token、latency、quality、規則 trace 與 audit；預設不含圖片。
 

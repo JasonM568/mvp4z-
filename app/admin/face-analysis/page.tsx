@@ -92,7 +92,7 @@ export default function FaceAnalysisAdminPage() {
       <form className="admin-filter" onSubmit={submit} style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "18px 0" }}>
         <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
           <option value="">全部狀態</option>
-          {['created', 'uploaded', 'quality_rejected', 'analyzing', 'completed', 'failed', 'deleted'].map((status) => <option key={status}>{status}</option>)}
+          {['created', 'uploaded', 'quality_rejected', 'analyzing', 'completed', 'failed', 'expired', 'deleted'].map((status) => <option key={status}>{status}</option>)}
         </select>
         <input placeholder="錯誤代碼" value={filters.error} onChange={(e) => setFilters({ ...filters, error: e.target.value })} />
         <input placeholder="Model" value={filters.model} onChange={(e) => setFilters({ ...filters, model: e.target.value })} />

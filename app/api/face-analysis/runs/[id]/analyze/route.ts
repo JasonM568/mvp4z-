@@ -44,6 +44,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (run.status === "completed") {
       return apiJson({ ok: true, run: await getOwnedPublicRun(profile.id, id), member: await getPublicMember(profile.id) });
     }
+    if (run.status === "expired") {
+      throw statusError("這次的照片已超過保存時間，請重新拍攝並建立新任務", 409);
+    }
     if (run.status !== "uploaded" && run.status !== "failed") {
       throw statusError("照片尚未通過品質檢測，或分析正在執行", 409);
     }

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { FACE_ANALYSIS_BUCKET } from "@/lib/face-analysis/config";
+import {
+  FACE_ANALYSIS_BUCKET,
+  FACE_RUN_STALE_ANALYZING_MINUTES,
+  FACE_RUN_STALE_CREATED_MINUTES,
+  FACE_RUN_STALE_PENDING_HOURS
+} from "@/lib/face-analysis/config";
 
 const BATCH_SIZE = 100;
 
@@ -67,6 +72,8 @@ async function cleanup(request: NextRequest) {
     }
   }
 
+  const staleRuns = await sweepStaleRuns();
+
   return NextResponse.json({
     ok: true,
     cutoff,
@@ -74,8 +81,76 @@ async function cleanup(request: NextRequest) {
     deleted_count: results.filter((item) => item.status === "deleted").length,
     skipped_count: results.filter((item) => item.status === "skipped").length,
     failed_count: results.filter((item) => item.status === "failed").length,
-    results
+    results,
+    stale_runs: staleRuns
   });
+}
+
+// 把走不下去的 run 收尾。沒有這段，中斷的任務會永遠留在「進行中」，
+// 累積到上限後 POST /api/face-analysis/runs 會對該會員永久回 429。
+async function sweepStaleRuns() {
+  const admin = createSupabaseAdminClient();
+  const now = Date.now();
+  const minutesAgo = (minutes: number) => new Date(now - minutes * 60 * 1000).toISOString();
+
+  const sweeps = [
+    {
+      key: "created_abandoned",
+      // 建立了任務但照片從沒上傳成功（關分頁、斷線）。
+      apply: () =>
+        admin
+          .from("face_analysis_runs")
+          .update({ status: "expired", error_code: "RUN_ABANDONED" })
+          .eq("status", "created")
+          .lt("created_at", minutesAgo(FACE_RUN_STALE_CREATED_MINUTES))
+          .select("id")
+    },
+    {
+      key: "uploaded_expired",
+      // 品質過了但沒有按下去產報告；圖片本身也已由上面的保存期限清理。
+      // 錯誤碼跟 created 分開，後台品質通過率才算得出這筆「檢查過且通過」。
+      apply: () =>
+        admin
+          .from("face_analysis_runs")
+          .update({ status: "expired", error_code: "RUN_ABANDONED_AFTER_QUALITY" })
+          .eq("status", "uploaded")
+          .lt("updated_at", minutesAgo(FACE_RUN_STALE_PENDING_HOURS * 60))
+          .select("id")
+    },
+    {
+      key: "quality_rejected_expired",
+      // 保留 QUALITY_REJECTED 錯誤碼，這是後台品質統計唯一的依據。
+      apply: () =>
+        admin
+          .from("face_analysis_runs")
+          .update({ status: "expired" })
+          .eq("status", "quality_rejected")
+          .lt("updated_at", minutesAgo(FACE_RUN_STALE_PENDING_HOURS * 60))
+          .select("id")
+    },
+    {
+      key: "analyzing_timeout",
+      // analyze function 被 kill 時來不及自己標 failed，這裡照實補上。
+      apply: () =>
+        admin
+          .from("face_analysis_runs")
+          .update({ status: "failed", error_code: "ANALYSIS_TIMEOUT" })
+          .eq("status", "analyzing")
+          .lt("updated_at", minutesAgo(FACE_RUN_STALE_ANALYZING_MINUTES))
+          .select("id")
+    }
+  ];
+
+  const summary: Record<string, number | string> = {};
+  for (const sweep of sweeps) {
+    const { data: swept, error: sweepError } = await sweep.apply();
+    if (sweepError) {
+      summary[sweep.key] = `failed: ${sweepError.message.slice(0, 120)}`;
+      continue;
+    }
+    summary[sweep.key] = swept?.length || 0;
+  }
+  return summary;
 }
 
 export async function GET(request: NextRequest) {

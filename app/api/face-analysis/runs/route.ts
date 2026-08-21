@@ -11,7 +11,13 @@ import { createRun } from "@/lib/face-analysis/runs";
 import { createFaceRunSchema } from "@/lib/face-analysis/schema";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { canUseFaceAnalysis } from "@/lib/auth/face-tier";
-import { FACE_ANALYSIS_CONSENT_VERSION, isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
+import {
+  FACE_ANALYSIS_CONSENT_VERSION,
+  FACE_RUN_OPEN_LIMIT,
+  FACE_RUN_OPEN_WINDOW_MINUTES,
+  FACE_RUN_OPEN_WINDOW_MS,
+  isFaceAnalysisEnabled
+} from "@/lib/face-analysis/config";
 
 export const runtime = "nodejs";
 
@@ -82,7 +88,12 @@ export async function POST(request: NextRequest) {
     }
 
     const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const [{ count: recentCount, error: recentError }, { count: openCount, error: openError }] =
+    // 併發保護只看「現在真的在跑的任務」：
+    // - quality_rejected 不算，那是死路（照片沒過），會員唯一的出路就是換一張開新任務；
+    //   把它算進來等於品質檢查失敗三次就永久鎖住帳號。
+    // - 加時間窗，避免關掉分頁留下的 created / uploaded 永久累加。
+    const openWindowStart = new Date(Date.now() - FACE_RUN_OPEN_WINDOW_MS).toISOString();
+    const [{ count: recentCount, error: recentError }, { data: openRuns, error: openError }] =
       await Promise.all([
         admin
           .from("face_analysis_runs")
@@ -91,14 +102,21 @@ export async function POST(request: NextRequest) {
           .gte("created_at", hourAgo),
         admin
           .from("face_analysis_runs")
-          .select("id", { count: "exact", head: true })
+          .select("created_at, request_id")
           .eq("user_id", profile.id)
-          .in("status", ["created", "uploaded", "quality_rejected", "analyzing"])
+          .in("status", ["created", "uploaded", "analyzing"])
+          .gte("created_at", openWindowStart)
+          .order("created_at", { ascending: true })
+          .limit(FACE_RUN_OPEN_LIMIT)
       ]);
     if (recentError) throw recentError;
     if (openError) throw openError;
     if ((recentCount || 0) >= 10) throw statusError("操作過於頻繁，請稍後再試", 429);
-    if ((openCount || 0) >= 3) throw statusError("尚有未完成的分析任務，請先完成或稍後再試", 429);
+    // 同一個 requestId 是前端重送（createRun 本來就會回同一筆），不該被自己擋下。
+    const isRetry = (openRuns || []).some((row) => row.request_id === input.requestId);
+    if (!isRetry && (openRuns?.length || 0) >= FACE_RUN_OPEN_LIMIT) {
+      throw statusError(openRunsMessage(openRuns?.[0]?.created_at), 429);
+    }
 
     const run = await createRun({
       profileId: profile.id,
@@ -116,6 +134,20 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return apiJson({ error: errorMessage(error) }, errorStatus(error));
   }
+}
+
+// 被擋下時要講得出「還要等多久」，否則會員只看得到一句沒有出口的錯誤訊息。
+function openRunsMessage(oldestCreatedAt?: string | null) {
+  const base = `目前有 ${FACE_RUN_OPEN_LIMIT} 個分析任務正在進行`;
+  const startedAt = oldestCreatedAt ? Date.parse(oldestCreatedAt) : NaN;
+  if (Number.isNaN(startedAt)) {
+    return `${base}，請等最舊的一筆結束（最多 ${FACE_RUN_OPEN_WINDOW_MINUTES} 分鐘）後再建立新的。`;
+  }
+  const waitMinutes = Math.max(
+    1,
+    Math.ceil((startedAt + FACE_RUN_OPEN_WINDOW_MS - Date.now()) / 60000)
+  );
+  return `${base}，請完成後再建立新的；若前一次中途離開，約 ${waitMinutes} 分鐘後會自動釋放。`;
 }
 
 function encodeCursor(value: string) {

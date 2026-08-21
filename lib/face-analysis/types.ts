@@ -7,6 +7,7 @@ export type FaceAnalysisStatus =
   | "analyzing"
   | "completed"
   | "failed"
+  | "expired"
   | "deleted";
 
 export type FaceQualityReason =

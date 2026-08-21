@@ -6,6 +6,18 @@ export const FACE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const FACE_IMAGE_MAX_DIMENSION = 4096;
 export const FACE_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
+// 同一會員能同時掛著幾個「進行中」的任務，以及超過多久就不再算進行中。
+// 兩者必須成對使用：只有上限沒有時間窗，中斷的任務會累加到帳號被永久擋下。
+export const FACE_RUN_OPEN_LIMIT = 3;
+export const FACE_RUN_OPEN_WINDOW_MINUTES = 30;
+export const FACE_RUN_OPEN_WINDOW_MS = FACE_RUN_OPEN_WINDOW_MINUTES * 60 * 1000;
+
+// 排程收尾門檻：created 是連照片都沒傳成功；uploaded / quality_rejected 留一天讓
+// 會員接續；analyzing 超過 analyze function 的 maxDuration（300s）就視同被 kill。
+export const FACE_RUN_STALE_CREATED_MINUTES = 30;
+export const FACE_RUN_STALE_PENDING_HOURS = 24;
+export const FACE_RUN_STALE_ANALYZING_MINUTES = 15;
+
 export function isFaceAnalysisEnabled() {
   return process.env.FACE_ANALYSIS_ENABLED === "true";
 }

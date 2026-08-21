@@ -29,6 +29,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     const run = await getOwnedRun(profile.id, id);
     if (!run) throw statusError("分析任務不存在", 404);
+    if (run.status === "expired") {
+      throw statusError("這個分析任務已逾時關閉，請重新整理頁面後再試一次", 409);
+    }
     if (!(["created", "quality_rejected"] as string[]).includes(run.status)) {
       throw statusError("此分析任務目前不能重新上傳照片", 409);
     }
