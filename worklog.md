@@ -406,3 +406,47 @@ completed 12 筆、failed 1 筆，帳號本身完全正常。
 - 排程收尾效果未實地驗證，需看 cron log 的 `stale_runs` 欄位。
 - 上一輪待辦全部原封不動：真人照片實測報告、67 條回 PDF 對帳、五題待老師回覆、
   報告 tokens 偏高、既有 go-live gate。
+
+## 2026-08-22 收工｜面相相簿上傳被 capture 封死
+
+### 需求
+
+使用者回報「面相的上傳圖片功能被閹掉」。
+
+### 調查與判斷
+
+- 上傳鏈路程式碼完整存在：`app/api/face-analysis/runs/[id]/upload/route.ts`、
+  前端 `handleFile`／`useFile`／FormData POST 都在，功能沒有被刪。
+- 真因是 `app/member-ai/face/page.tsx` 的 file input 帶了
+  `capture={mode === "self" ? "user" : "environment"}`。手機瀏覽器只要看到
+  `capture` 就直接開相機、不顯示相簿入口，上傳既有照片這條路等於被封死。
+- 桌機忽略 `capture`，照樣開檔案選擇器，所以本機開發驗不出來——它因此一路存活。
+- `git log -S 'capture='` 顯示此屬性自最初的 `ef93f1a` 就存在，非近期改動造成。
+- 頁面本來就有「開啟即時相機」按鈕走 `getUserMedia`，拍照路徑已具備，
+  `capture` 既多餘又與之打架。
+
+### 產出（commit `2a51256`，已 push main）
+
+- 移除 file input 的 `capture` 屬性。
+- 按鈕文案「拍照或選擇照片」→「從相簿選擇照片」。
+- 說明文字補上相簿上傳與可接受格式。
+- 僅動 `app/member-ai/face/page.tsx`，未碰後端與 schema。
+
+### 關鍵決策
+
+- 只拿掉 `capture`，不改 `accept`。後端 `normalizeAndInspectFaceImage` 只支援
+  JPEG／PNG／WebP；`accept` 維持這三種時，iOS 選 HEIC 會由 Safari 自動轉 JPEG，
+  加 heic/heif 反而會讓 sharp 解不開的檔案上得去。
+- 拍照與選圖分成兩個明確入口（getUserMedia vs file input），不再讓單一按鈕兩用。
+
+### 驗證結果
+
+- tsc 通過；vitest 19 files / 169 passed、2 skipped。
+- push `5013916..2a51256`，Vercel 自動部署正式線。
+
+### 遺留事項
+
+- **手機實測相簿上傳尚未進行**（我無法代跑），下次開工第一件事。
+- 08-21 run 封鎖修正的實測同樣還欠，建議同一次手機操作一併確認。
+- 更早的待辦全部原封不動：真人照片實測報告、67 條回 PDF 對帳、五題待老師回覆、
+  報告 tokens 偏高、既有 go-live gate。

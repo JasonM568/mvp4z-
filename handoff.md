@@ -1,6 +1,6 @@
 # Handoff
 
-**最新進度請直接跳到檔案最末章節「2026-08-21 收工（跨 08-22）｜面相「尚有未完成的分析任務」永久封鎖修正」。**
+**最新進度請直接跳到檔案最末章節「2026-08-22 收工｜面相相簿上傳被 `capture` 封死的修正」。**
 
 本檔為累積式紀錄，章節依日期由舊到新排列。下方「目前狀態」「已完成」「尚未完成」「電子發票串接 TODO」「下次建議先做」等未標日期的章節，皆是 **2026-05-19 專案骨架期**的內容，已大量過期，僅供追溯，勿據以開工。已知過期處已就地加上 ⚠️ 更正框。
 
@@ -2266,3 +2266,72 @@ completed 12 筆、failed 1 筆——帳號完全正常，就是被自己的計�
 ### 長時間程序
 
 無。build、vitest、`supabase db push`、Vercel deployment 均已結束。
+
+## 2026-08-22 收工｜面相相簿上傳被 `capture` 封死的修正
+
+### 問題
+
+使用者回報「面相的上傳圖片功能被閹掉」。實際不是功能被刪，程式碼從頭到尾都在
+（`app/api/face-analysis/runs/[id]/upload/route.ts`、前端 `handleFile`／`useFile`
+／FormData 上傳全部完整）。
+
+真正的原因在 `app/member-ai/face/page.tsx` 的 file input：
+
+```tsx
+<input type="file" accept="image/jpeg,image/png,image/webp"
+       capture={mode === "self" ? "user" : "environment"} onChange={handleFile} />
+```
+
+`capture` 一旦存在，iOS Safari／Android Chrome 會**直接叫起相機、完全不顯示相簿入口**，
+所以手機使用者永遠無法上傳既有照片。桌機瀏覽器忽略 `capture`、照樣開檔案選擇器，
+所以本機開發看不出問題——這是它一路活到現在的原因。
+
+此屬性自最初的 `ef93f1a Implement face capture and analysis flow` 就存在，
+不是近期改動造成；而且頁面本來就有獨立的「開啟即時相機」按鈕走 `getUserMedia`，
+拍照路徑早已具備，`capture` 既多餘又與之打架。
+
+### 修正（`2a51256`，已 push main）
+
+- 移除 file input 的 `capture` 屬性 → 手機恢復跳出照片圖庫／檔案瀏覽。
+- 按鈕文案「拍照或選擇照片」→「從相簿選擇照片」，與旁邊的即時相機分工清楚。
+- 下方說明補上相簿上傳這條路與可接受格式。
+
+只動 `app/member-ai/face/page.tsx` 一個檔、三處文字/屬性，未碰後端與 schema。
+
+### 後端確認（無需改動）
+
+`normalizeAndInspectFaceImage` 接受 JPEG／PNG／WebP、10 MB 上限、最長邊 4096，
+套 EXIF orientation 後重編碼並去除 metadata。iPhone 相簿的 HEIC 因 `accept`
+只列這三種，Safari 於選取時會自動轉 JPEG，不必額外處理。
+
+### 驗證結果
+
+- `npx tsc --noEmit` 通過
+- `npx vitest run`：19 files / 169 passed、2 skipped
+- `main` → `origin/main`（`5013916..2a51256`），Vercel 自動部署正式線
+
+### 未完成 / 待辦（優先順序）
+
+1. **手機實測相簿上傳**（我無法代跑）。下次開工第一件事：手機開 `/member-ai/face`，
+   按「從相簿選擇照片」應跳出照片圖庫，選完能走到品質檢測通過。
+2. **上一輪的實測待辦仍未完成**：08-21 的 run 封鎖修正同樣尚未經使用者實測，
+   請一併在同一次操作中確認不再跳「尚有未完成的分析任務」。
+3. 排程收尾效果未實地驗證（`cleanup-face-images` cron log 的 `stale_runs` 欄位）。
+4. 更早的待辦全部原封不動：真人照片實測新版報告、67 條規則回原始 PDF 對帳（0/67）、
+   五題待老師回覆、報告 6,100 tokens 偏高、既有 go-live gate（Resend 網域驗證、
+   信用卡真實刷卡 E2E、EZPay 正式、ZDR 認證簽署）。詳見前兩個章節。
+
+### 下次起手式
+
+1. 讀本章節與 `worklog.md` 最新紀錄。
+2. `git status --short --branch`、`git log --oneline -5` 核對（應為 `2a51256`）。
+3. 請使用者用**手機**實測面相流程（相簿上傳 + run 不再封鎖 + 真人照片報告，一次跑完）。
+
+### Git 狀態
+
+- `main` = `origin/main` = `2a51256`，工作區乾淨（本次收工文件另計）。
+- 本次未開功能分支，依使用者指示直接在 main 修正並 push。
+
+### 長時間程序
+
+無。tsc、vitest、push 均已結束；Vercel 部署為平台端自動作業。
