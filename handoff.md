@@ -2335,3 +2335,72 @@ completed 12 筆、failed 1 筆——帳號完全正常，就是被自己的計�
 ### 長時間程序
 
 無。tsc、vitest、push 均已結束；Vercel 部署為平台端自動作業。
+
+---
+
+## 2026-08-26 收工｜正式站刷卡能力與綠界導回設定查核
+
+### 一、本次做了什麼
+
+純查核，**未改任何程式碼、未動 Git**。回答使用者兩個問題：
+
+1. 正式站能不能刷卡結帳？→ **能**
+2. 綠界結帳完成後會不會自動導回網站？→ **會，且已在正式站實測**
+
+### 二、查核結果
+
+**正式金流設定（Vercel production env 取值核對）**
+
+| 項目 | 值 |
+|---|---|
+| `ECPAY_ENV` | `production` |
+| `ECPAY_MERCHANT_ID` | `3325455`（正式商店，非沙箱） |
+| NOTIFY／RETURN／CLIENT_BACK | 全為 `https://www.xunfeng.tw/...`，同 origin |
+| `EZPAY_INVOICE_ENV` / MID | `production` / `337811304` |
+| `RESEND_API_KEY` | **prod 仍未設定**，寄信 gate 未關 |
+
+**綠界正式商店已開通信用卡**（以 production keys 建立一次收銀台 session、只讀 HTML，
+未付款未扣款未寫 DB）：HTTP 200、商店名「惠邦創意整合行銷有限公司」、開通
+**信用卡／Apple Pay／網路ATM／ATM虛擬帳號／超商條碼／超商代碼／綠界Pay**，
+無沙箱時期的 `10200141` 錯誤。程式端 `ChoosePayment: "ALL"`（`lib/payments/ecpay.ts:77`）。
+
+**自動導回已設定且實測通過**：`lib/payments/ecpay.ts:74-76` 每筆結帳帶
+`OrderResultURL = https://www.xunfeng.tw/api/payments/ecpay/return`。
+對正式站 return route POST 一筆錯誤簽章的假結果（該 handler 只 select 不寫入），
+回 `303 → /member?payment=pending&order=...`，且驗章失敗正確判 `pending` 不判 `paid`。
+會員方案導回 `/member`、課程導回 `/courses#courseCheckout`
+（`app/api/courses/checkout/route.ts:113`），前端有結果橫幅
+（`public/js/member-auth.js:75-92`、`public/js/course-checkout.js:122-126`）。
+
+**邊界**：自動導回由綠界 POST 觸發，使用者中途關分頁就不會導回，但 webhook 照常入帳、
+不漏單；ATM／超商取號當下也會導回一次並顯示「等待確認」，屬正確行為。
+
+### 三、未完成 / 待辦（優先順序）
+
+1. **信用卡真實刷卡 E2E**（唯一還開著的金流 gate，最高優先）：真人拿實體卡刷一筆
+   basic（NT$980）→ 驗 `/admin/orders` 轉 `paid`、`payments.check_mac_valid=true`、
+   `/member` 點數入帳、EZPay 是否開出正式發票。**正式站的 webhook 至今從未被真實扣款觸發過**
+   （2026-05-26 只刷到 ATM 取號就停）。風險是「錢刷了、點數沒進帳」，不是「刷不了」。
+2. **面相手機實測**（08-21／08-22 累積至今仍欠）：手機開 `/member-ai/face`，
+   相簿上傳 + run 不再跳「尚有未完成的分析任務」+ 真人照片報告，一次跑完。
+3. 其餘待辦原封不動：67 條規則回原始 PDF 對帳（0/67）、五題待老師回覆、
+   報告 6,100 tokens 偏高、Resend 網域驗證與 prod key、ZDR 認證簽署。
+
+### 四、下次起手式
+
+1. 讀本章節與 `worklog.md` 2026-08-26 紀錄。
+2. `git status --short --branch`、`git log --oneline -5` 核對（應仍為 `c919e88`）。
+3. 直接問使用者要先跑哪一個實測：**信用卡真刷** 或 **面相手機流程**。兩件都只有本人能跑。
+
+### 五、Git 狀態
+
+- `main` = `origin/main` = `c919e88`，工作區乾淨（本次收工文件另計）。
+- 本次無 commit、無 push、無部署。
+
+### 六、安全註記
+
+- `vercel env pull` 產生的 `prod.env` 含正式金鑰，核對完**已刪除**，未進 Git。
+
+### 七、長時間程序
+
+無。

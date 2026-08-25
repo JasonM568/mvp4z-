@@ -450,3 +450,81 @@ completed 12 筆、failed 1 筆，帳號本身完全正常。
 - 08-21 run 封鎖修正的實測同樣還欠，建議同一次手機操作一併確認。
 - 更早的待辦全部原封不動：真人照片實測報告、67 條回 PDF 對帳、五題待老師回覆、
   報告 tokens 偏高、既有 go-live gate。
+
+## 2026-08-26 收工｜正式站刷卡能力與綠界導回設定查核（無程式改動）
+
+### 需求
+
+使用者兩題：(1)「確認一下網站能不能刷卡結帳？」(2)「核對一下綠界金流完成結帳之後會不會自動導回網站？」
+兩題都是查核既有設定，不是開發任務。本次未改任何程式碼。
+
+### 查核方法與證據
+
+**A. 正式站活著**
+
+- `/` 200、`/member-pricing` 200
+- `/api/payments/ecpay/notify` 405（只收 POST）、`/api/payments/ecpay/return` GET 303
+- `/api/orders/create` 無 token → 401；`/api/courses/checkout` 無 body → 400
+
+**B. Vercel production env 確認為正式金流**（`vercel env pull` 取值核對）
+
+- `ECPAY_ENV=production`、`ECPAY_MERCHANT_ID=3325455`（正式商店，非沙箱號）
+- NOTIFY／RETURN／CLIENT_BACK 三個 URL 全為 `https://www.xunfeng.tw/...`，同 origin
+- `EZPAY_INVOICE_ENV=production`、`EZPAY_INVOICE_MERCHANT_ID=337811304`
+- 註：production env **沒有** `RESEND_API_KEY`，寄信 gate 仍未關
+
+**C. 綠界正式商店是否真的開通信用卡**（本次最有價值的一項）
+
+以 production keys 自行簽章、POST 到 `https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5`
+建立一次收銀台 session（**只讀回 HTML，未送出付款、未扣款、未寫我方 DB**）：
+
+- HTTP 200，商店名稱顯示「惠邦創意整合行銷有限公司」
+- 開通付款方式：**信用卡、Apple Pay、網路ATM、ATM虛擬帳號、超商條碼、超商代碼、綠界Pay**
+- 未出現沙箱時期的 `10200141`（未啟用付款方式）錯誤
+- 程式端 `ChoosePayment: "ALL"`（`lib/payments/ecpay.ts:77`），故上述方式會全部呈現
+
+**D. 完成付款後自動導回**
+
+- 參數面：`lib/payments/ecpay.ts:74-76` 每筆結帳都帶
+  `ReturnURL`（webhook）／`OrderResultURL`（自動導回，= `/api/payments/ecpay/return`）／
+  `ClientBackURL`（返回商店按鈕；課程訂單另指向 `/courses#courseCheckout`，
+  `app/api/courses/checkout/route.ts:113`）
+- 正式站實測：對 return route POST 一筆**故意帶錯 CheckMacValue** 的假結果表單
+  （該 handler 只做 select、不寫入），回
+
+```
+HTTP/2 303
+location: https://www.xunfeng.tw/member?payment=pending&order=XFPROBE_NOTREAL
+```
+
+  導回正常，且驗章沒過時正確判為 `pending` 而非 `paid`（`return/route.ts:8`）。
+- 分流與文案：會員方案 → `/member?payment=...`，橫幅「付款完成，方案已自動開通。」
+  （`public/js/member-auth.js:75-92`）；課程 → `/courses?course_payment=...#courseCheckout`
+  （`public/js/course-checkout.js:122-126`）。
+
+### 結論
+
+1. **正式站可以刷卡**：綠界正式商店已開通信用卡，設定與簽章皆正確。
+2. **付款完成會自動導回**：靠 `OrderResultURL`，正式站實測 303 導回會員頁並顯示結果橫幅。
+3. 邊界：自動導回由綠界 POST 觸發，使用者中途關分頁就不會導回，但 webhook 照常入帳不漏單；
+   ATM／超商取號當下也會導回一次，顯示「等待確認」文案，屬正確行為。
+
+### 關鍵決策
+
+- 驗「有沒有開通信用卡」不必真的刷卡：建立收銀台 session 讀回 HTML 即可分辨
+  「商店未開通付款方式」與「已開通」，零金流風險。此法可重複使用。
+- 驗「會不會導回」用錯誤簽章的假 POST：既觸發完整 redirect 路徑，又因驗章失敗
+  不會誤開通任何訂單，同時順帶驗到防偽邏輯。
+
+### 安全註記
+
+- `vercel env pull` 產生的 `prod.env` 含正式金鑰，核對完**已立即刪除**，`git status` 乾淨。
+
+### 遺留事項
+
+- **信用卡真實刷卡 E2E 仍未跑**（唯一還開著的金流 gate）：需真人小額刷一筆 basic，
+  驗 `/admin/orders` 轉 `paid`、`payments.check_mac_valid=true`、`/member` 點數入帳、
+  EZPay 是否開出正式發票。正式環境的 webhook 至今從未被真實扣款觸發過。
+- 面相手機實測（相簿上傳 + run 不再封鎖 + 真人照片報告）仍欠，自 08-21／08-22 累積至今。
+- 其餘待辦原封不動：67 條規則回 PDF 對帳、五題待老師回覆、報告 tokens 偏高、
+  Resend 網域驗證與 prod key、ZDR 認證簽署。
