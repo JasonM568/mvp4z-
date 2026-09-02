@@ -726,3 +726,45 @@ seed SQL 是用腳本從 `content/*.json` 產生的，不手打中文，避免�
 - 後台 React 介面沒有用真的 admin 帳號在瀏覽器點過（API 層是 curl 實測的）。
   部署後要實點：三個分頁、圖片上傳、主打課程「儲存並下架」後 `/courses` 那張大卡是否消失。
 - 部署後 `content/*.json` 只剩 fallback 用途；兩份 JSON 刻意保留不動當保命內容。
+
+---
+
+## 2026-09-02｜部署上線：8/31 與 9/01 兩批一起進正式站
+
+### 起因
+
+使用者說「我登入後台看不到老師可編輯服務跟上架課程的選項」，附網址與帳號 `306465@gmail.com`。
+
+先排除權限：SQL 查 `profiles` → 該帳號 `role=admin`，不是權限問題。
+再查正式站：`https://www.xunfeng.tw/api/site-content` 回 **404**，`git log` 最新仍是 8/26 的 `c694d0b`。
+結論是**程式碼從未部署**，9/01 做的東西全都只在本機。
+
+### 判斷
+
+工作樹同時堆著 8/31 那批（分潤、面相報告、`/api/plans` 過濾）與 9/01 的 CMS。
+兩批共用 `_shell.tsx` 與 `admin.css`，硬拆 hunk 的話容易拆出「nav 有連結但頁面不存在」的死連結。
+問過使用者後裁示兩批一起上；順帶也把 8/31 待辦裡 `/api/plans` 裸露 `e2e_card_test` 的問題關掉。
+
+### 執行
+
+- 重跑 `npm run build` 確認仍綠
+- 兩個 commit（共用的 UI 檔放在第二個 commit）：
+  - `e6590bc` feat(referrals,face)
+  - `0782bbd` feat(admin) 網站內容 CMS
+- `git push origin main` → Vercel 自動部署，約 75 秒後 `/api/site-content` 由 404 轉 200
+
+### 驗證（全部在正式站上做）
+
+- `/api/site-content` 200：服務 9／案例 4／課程 4／主打「掌中訣」active
+- `/admin/site-services`、`/admin/site-cases` 200；`/api/admin/site-content` 未登入 401
+- 用瀏覽器實跑三頁，DOM 直接數：
+  - `/courses`：`.course-promo-card` **只有 1 張**、`#zzjStaticFallback` 已消失、課程卡 4 張
+    —— 這是最擔心的點（後台下架後前台仍顯示寫死的舊卡），確認正常
+  - `/services`：9 張價格卡；`/cases`：4 張案例卡 + 7 張照片
+- `/api/plans` 只回 basic／pro／vip
+
+### 遺留
+
+- 後台介面仍未用真人帳號實際點過（本機是用 `X-Admin-Key` 驗 API 層）。
+  請實跑「新增→上傳圖片→上架→前台確認」與主打課程「儲存並下架」。
+- 分潤零實跑、信用卡真刷未做、`e2e_card_test` 仍 active 需驗後停用。
