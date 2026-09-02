@@ -147,7 +147,7 @@ export default function LoginPage() {
               <h2>建立新會員</h2>
               {referrer && (
                 <div className="status ok" style={{ display: "block", marginBottom: 14 }}>
-                  您是由 <strong>{referrer}</strong> 推薦加入，完成註冊後即綁定這位推廣夥伴。
+                  您是由 <strong>{referrer}</strong> 推薦加入，趕快來完成註冊吧。
                 </div>
               )}
               <p className="lead" style={{ marginTop: 0 }}>
