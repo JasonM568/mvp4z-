@@ -33,17 +33,19 @@ function nextPath(fallback){
 }
 
 async function registerMember(){
+  // 註冊表單已簡化成「手機 + Email + 密碼」，不再收姓名。
+  // referral_code 從網址帶：cookie 被瀏覽器擋掉時，這是綁定推廣人的備援。
   const payload = {
-    name: $("name").value.trim(),
     email: $("email").value.trim(),
     phone: $("phone").value.trim(),
-    password: $("password").value
+    password: $("password").value,
+    referral_code: new URLSearchParams(location.search).get("ref") || ""
   };
   try{
     const data = await api("/api/auth/register",{method:"POST",body:JSON.stringify(payload)});
     saveSession(data);
     $("status").className = "status ok";
-    $("status").textContent = "註冊成功，已贈送 30 點免費體驗，正在進入我的巽風…";
+    $("status").textContent = "註冊成功，已贈送 30 點免費體驗，正在為您導向…";
     location.href = nextPath("/member-ai");
   }catch(e){
     $("status").className = "status error";

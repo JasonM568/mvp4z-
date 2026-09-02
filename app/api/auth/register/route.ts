@@ -17,7 +17,12 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendRegistrationEmail } from "@/lib/notifications/member-emails";
 import { sendAdminAlert } from "@/lib/notifications/admin-alerts";
-import { readReferralCode } from "@/lib/referral/attribution";
+import { readReferralCode, REFERRAL_CODE_PATTERN } from "@/lib/referral/attribution";
+
+function normalizeReferralCode(value: string) {
+  const code = String(value || "").trim();
+  return REFERRAL_CODE_PATTERN.test(code) ? code : null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,9 +56,11 @@ export async function POST(request: NextRequest) {
       phone: input.phone
     });
 
-    // 業務推廣來源：記在 profile 上，之後即使這位會員還沒購買也看得出是誰帶進來的。
+    // 業務推廣來源：記在 profile 上。這一筆就是「終身歸戶」的依據 ——
+    // 之後這位會員的訂單一律算在這位推廣人身上，不再依賴 cookie 還在不在。
+    // 以 cookie 為主，cookie 被擋掉時用註冊頁從網址帶上來的 referral_code。
     // 失敗不阻斷註冊。
-    const referralCode = readReferralCode(request);
+    const referralCode = readReferralCode(request) || normalizeReferralCode(input.referral_code || "");
     if (referralCode) {
       const { error: referralError } = await admin
         .from("profiles")

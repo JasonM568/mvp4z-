@@ -3,11 +3,28 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+/**
+ * 台灣手機號碼正規化：把 +886 開頭、空白與連字號都吃掉，統一存成 09xxxxxxxx。
+ * 註冊表單簡化成「手機 + Email + 密碼」之後，手機是必填，格式要能對得起後續聯絡與比對。
+ */
+export function normalizeTaiwanMobile(input: string) {
+  const digits = String(input || "").replace(/[\s()-]/g, "");
+  const local = digits.replace(/^\+?886/, "0");
+  return /^09\d{8}$/.test(local) ? local : "";
+}
+
 export const registerSchema = z.object({
   name: z.string().trim().max(80).optional().default(""),
   email: z.string().trim().email("Email 格式錯誤").transform((value) => value.toLowerCase()),
-  phone: z.string().trim().max(40).optional().default(""),
-  password: z.string().min(8, "密碼至少需要 8 碼")
+  phone: z
+    .string()
+    .trim()
+    .min(1, "請填寫手機號碼")
+    .transform((value) => normalizeTaiwanMobile(value))
+    .refine((value) => value.length === 10, "手機號碼格式不正確，請填 09 開頭的 10 碼"),
+  password: z.string().min(8, "密碼至少需要 8 碼"),
+  // cookie 被瀏覽器擋掉時的備援：註冊頁把網址上的 ?ref= 一併送上來。
+  referral_code: z.string().trim().max(32).optional().default("")
 });
 
 export const loginSchema = z.object({

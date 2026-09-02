@@ -3,7 +3,7 @@ import { apiJson } from "../../_helpers";
 import { errorMessage, errorStatus, readJson, requireBearerProfile, statusError } from "@/lib/auth/member";
 import { createCheckoutParams, createMerchantTradeNo, ecpayActionUrl } from "@/lib/payments/ecpay";
 import { createOrderSchema, normalizeAmount, Plan } from "@/lib/payments/orders";
-import { referralFieldsForRequest } from "@/lib/referral/attribution";
+import { referralFieldsForOrder } from "@/lib/referral/attribution";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
@@ -28,8 +28,9 @@ export async function POST(request: NextRequest) {
     if (selectedPlan.currency !== "TWD") throw statusError("綠界付款目前僅支援 TWD", 400);
 
     const orderNo = createMerchantTradeNo();
-    // 業務推廣歸因：查不到或已停用的推廣碼會回空物件，不影響訂單成立。
-    const referral = await referralFieldsForRequest(admin, request);
+    // 業務推廣歸因：以「註冊時綁定的推廣人」為主，沒綁定才退回 ?ref= cookie。
+    // 查不到或已停用的推廣碼會回空物件，不影響訂單成立。
+    const referral = await referralFieldsForOrder(admin, request, profile.id);
     const { data: order, error: orderError } = await admin
       .from("orders")
       .insert({

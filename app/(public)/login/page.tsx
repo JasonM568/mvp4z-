@@ -22,6 +22,7 @@ const TABS: { key: Tab; label: string }[] = [
 export default function LoginPage() {
   const [tab, setTab] = useState<Tab>("login");
   const [resetBanner, setResetBanner] = useState(false);
+  const [referrer, setReferrer] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -30,6 +31,15 @@ export default function LoginPage() {
     if (requestedTab === "register" || requestedTab === "forgot" || requestedTab === "login") {
       setTab(requestedTab);
     }
+
+    // 從推廣連結被導過來時，把推廣人名字秀出來，讓訪客知道自己會綁在誰底下。
+    // 查不到就安靜略過，不影響註冊。
+    const ref = params.get("ref");
+    if (!ref) return;
+    fetch(`/api/referral/lookup?code=${encodeURIComponent(ref)}`)
+      .then((response) => response.json())
+      .then((data) => { if (data?.partner?.name) setReferrer(String(data.partner.name)); })
+      .catch(() => {});
   }, []);
 
   return (
@@ -135,18 +145,22 @@ export default function LoginPage() {
           {tab === "register" && (
             <article className="panel" style={{ maxWidth: 480 }}>
               <h2>建立新會員</h2>
+              {referrer && (
+                <div className="status ok" style={{ display: "block", marginBottom: 14 }}>
+                  您是由 <strong>{referrer}</strong> 推薦加入，完成註冊後即綁定這位推廣夥伴。
+                </div>
+              )}
+              <p className="lead" style={{ marginTop: 0 }}>
+                註冊即送 <strong>30 點</strong> 免費體驗，30 天內可用於四象問天機、面相與 AI 問答。
+              </p>
               <div className="form">
                 <label>
-                  姓名
-                  <input id="name" autoComplete="name" />
+                  手機號碼
+                  <input id="phone" type="tel" inputMode="numeric" autoComplete="tel" placeholder="0912345678" />
                 </label>
                 <label>
                   Email
                   <input id="email" type="email" autoComplete="email" />
-                </label>
-                <label>
-                  手機 / LINE
-                  <input id="phone" />
                 </label>
                 <label>
                   密碼（至少 8 碼）

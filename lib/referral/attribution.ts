@@ -53,7 +53,45 @@ export async function resolveReferral(
   }
 }
 
-/** 建立訂單時的一行式用法：讀 cookie → 查業務 → 回可直接 spread 進 insert 的欄位。 */
+/** 讀這位會員註冊當下綁定的推廣碼（profiles.referral_code）。 */
+async function readProfileReferralCode(admin: SupabaseClient, profileId: string) {
+  try {
+    const { data, error } = await admin
+      .from("profiles")
+      .select("referral_code")
+      .eq("id", profileId)
+      .maybeSingle();
+    if (error || !data?.referral_code) return null;
+    const code = String(data.referral_code).trim();
+    return REFERRAL_CODE_PATTERN.test(code) ? code : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 建立訂單時的歸因：回可直接 spread 進 insert 的欄位。
+ *
+ * 優先序刻意是「註冊綁定 > cookie」：
+ *   1. profiles.referral_code —— 這位會員是誰帶進來註冊的。一旦綁定就終身歸戶，
+ *      不會因為 cookie 被清掉、換一台裝置、或中間點到別人的連結就跑掉。
+ *      這是業務推廣的核心承諾：我帶進來的人，他之後的消費都算我的。
+ *   2. cookie（?ref= 90 天 last-touch）—— 給「註冊時還沒有綁定」的既有會員用的退路。
+ *
+ * 查不到、或該業務已停用 → 不歸戶，但訂單照常成立。絕不能因為推廣碼有問題就擋掉付款。
+ */
+export async function referralFieldsForOrder(
+  admin: SupabaseClient,
+  request: NextRequest,
+  profileId: string
+) {
+  const boundCode = await readProfileReferralCode(admin, profileId);
+  const attribution =
+    (await resolveReferral(admin, boundCode)) || (await resolveReferral(admin, readReferralCode(request)));
+  return attribution || {};
+}
+
+/** 只看 cookie 的舊版本；課程報名等沒有會員身分的情境仍然用得到。 */
 export async function referralFieldsForRequest(admin: SupabaseClient, request: NextRequest) {
   const attribution = await resolveReferral(admin, readReferralCode(request));
   return attribution || {};
