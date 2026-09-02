@@ -99,7 +99,7 @@ export default function FaceHistoryPage() {
       <SiteHeader showMobileDock={false} />
       <main className="face-history-page">
         <header className="face-history-head">
-          <div><span>我的巽風</span><h1>面相報告紀錄</h1><p>這裡只顯示報告資料，不會以人臉縮圖作為歷史封面。</p></div>
+          <div><span>我的巽風</span><h1>面相報告紀錄</h1><p>報告會永久保存在您的帳號下，登入後隨時可重新查看與下載 PDF。這裡只顯示報告資料，不會以人臉縮圖作為歷史封面。</p></div>
           <a href="/member-ai/face">新增面相分析</a>
         </header>
         {notice && <p className="face-history-notice" role="status">{notice}</p>}
@@ -114,14 +114,15 @@ export default function FaceHistoryPage() {
                 <p>{summary(run)}</p>
                 <dl><div><dt>扣點</dt><dd>{run.credits_charged}</dd></div><div><dt>原始照片</dt><dd>{run.image_deleted_at ? "已刪除" : "將自動刪除"}</dd></div></dl>
                 <div className="face-history-actions">
-                  <button onClick={() => showDetails(run.id)} disabled={busyId === run.id}>查看報告</button>
+                  <a className="face-history-open" href={`/member-ai/face/reports/${run.id}`}>查看報告／下載 PDF</a>
+                  <button onClick={() => showDetails(run.id)} disabled={busyId === run.id}>快速預覽</button>
                   {!run.image_deleted_at && <button onClick={() => removeImage(run)} disabled={busyId === run.id}>只刪照片</button>}
                   <button className="danger" onClick={() => removeRun(run)} disabled={busyId === run.id}>刪除報告</button>
                 </div>
               </article>)}
             </section>
             <aside className="face-history-detail" aria-live="polite">
-              {selected ? <><button className="face-history-close" onClick={() => setSelected(null)} aria-label="關閉報告">×</button><span>民俗文化觀察報告</span><h2>{formatDate(selected.completed_at || selected.created_at)}</h2><pre>{selected.report_text || "此筆記錄沒有可顯示的報告內容。"}</pre></> : <div className="face-history-placeholder">選擇一份記錄查看完整報告</div>}
+              {selected ? <><button className="face-history-close" onClick={() => setSelected(null)} aria-label="關閉報告">×</button><span>民俗文化觀察報告</span><h2>{formatDate(selected.completed_at || selected.created_at)}</h2><pre>{selected.report_text || "此筆記錄沒有可顯示的報告內容。"}</pre><a className="face-history-open" href={`/member-ai/face/reports/${selected.id}`}>開啟完整報告並下載 PDF</a></> : <div className="face-history-placeholder">選擇一份記錄查看完整報告</div>}
             </aside>
           </div>
         )}

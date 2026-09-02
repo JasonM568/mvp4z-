@@ -354,8 +354,14 @@ async function loadPlans() {
   if (!container) return;
   container.innerHTML = '<div class="status">讀取方案…</div>';
   try {
-    const data = await api("/api/plans");
-    const plans = (data.plans || []).filter((p) => PLAN_PRESETS[p.code]);
+    // 一般訪客只會看到 PLAN_PRESETS 裡列出的正式方案。
+    // 網址帶 ?plan=CODE 時才把該方案要出來並顯示，供內部做刷卡實測用（例如 1 元測試方案）；
+    // 沒帶這個參數時，內部方案連 /api/plans 的回傳裡都不會出現。
+    const forcedPlanCode = new URLSearchParams(location.search).get("plan");
+    const data = await api("/api/plans" + (forcedPlanCode ? "?include=" + encodeURIComponent(forcedPlanCode) : ""));
+    const plans = (data.plans || []).filter(
+      (p) => PLAN_PRESETS[p.code] || (forcedPlanCode && p.code === forcedPlanCode)
+    );
     if (!plans.length) {
       container.innerHTML = '<div class="status error">目前沒有可購買的方案，請稍後再試。</div>';
       return;

@@ -16,6 +16,7 @@ import {
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendRegistrationEmail } from "@/lib/notifications/member-emails";
 import { sendAdminAlert } from "@/lib/notifications/admin-alerts";
+import { readReferralCode } from "@/lib/referral/attribution";
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +42,19 @@ export async function POST(request: NextRequest) {
       name: input.name,
       phone: input.phone
     });
+
+    // 業務推廣來源：記在 profile 上，之後即使這位會員還沒購買也看得出是誰帶進來的。
+    // 失敗不阻斷註冊。
+    const referralCode = readReferralCode(request);
+    if (referralCode) {
+      const { error: referralError } = await admin
+        .from("profiles")
+        .update({ referral_code: referralCode })
+        .eq("id", profile.id);
+      if (referralError) {
+        console.warn("[register] stamp referral code failed", { profileId: profile.id, referralError });
+      }
+    }
 
     // 免費體驗：發 30 點 / 30 天 trial entitlement。失敗不阻斷註冊（使用者仍可改買方案）。
     try {

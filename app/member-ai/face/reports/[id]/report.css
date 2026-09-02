@@ -1,0 +1,49 @@
+.face-report-page { padding-top: 28px; }
+
+.face-report-back {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: var(--muted, #9fb3aa);
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.face-report-head { margin-bottom: 22px; }
+.face-report-head h1 { margin: 6px 0 12px; }
+.face-report-head-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  color: var(--muted, #9fb3aa);
+  font-size: 14px;
+}
+
+.face-report-plain pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  line-height: 1.9;
+  margin: 0;
+}
+
+/* 列印／存 PDF：深色底若被印出來會變成整片黑塊，這裡把底色全壓白，
+   並隱藏導覽與操作按鈕，只留報告本身。與易學報告頁的處理一致。 */
+@media print {
+  html,
+  body,
+  .face-page,
+  .face-report-page,
+  .face-panel {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  .face-report-back,
+  .face-report-actions,
+  .face-eyebrow { display: none !important; }
+  .face-report-page { padding: 0; }
+  .face-panel { border: 0; box-shadow: none; padding: 0; }
+  .face-report-summary article,
+  .face-report-summary section,
+  .face-focus-grid article { break-inside: avoid; }
+  details > summary { display: none; }
+}

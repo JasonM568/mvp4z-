@@ -5,6 +5,7 @@ import { errorMessage, errorStatus, readJson, statusError } from "@/lib/auth/mem
 import { createCheckoutParams, createMerchantTradeNo, ecpayActionUrl } from "@/lib/payments/ecpay";
 import { invoiceRequestSchema, normalizeAmount } from "@/lib/payments/orders";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { referralFieldsForRequest } from "@/lib/referral/attribution";
 
 const courseCheckoutSchema = z.object({
   course_code: z.string().trim().min(1).default("zhangzhongjue-115-01"),
@@ -66,6 +67,8 @@ export async function POST(request: NextRequest) {
     });
 
     const orderNo = createMerchantTradeNo();
+    // 業務推廣歸因；推廣碼無效不影響報名成立。
+    const referral = await referralFieldsForRequest(admin, request);
     const { data: order, error: orderError } = await admin
       .from("orders")
       .insert({
@@ -79,7 +82,8 @@ export async function POST(request: NextRequest) {
         currency: course.currency,
         status: "pending",
         provider: "ecpay",
-        invoice_request: input.invoice_request
+        invoice_request: input.invoice_request,
+        ...referral
       })
       .select("id, order_no, amount, currency, status, created_at")
       .single();
