@@ -20,7 +20,8 @@ const NAV_GROUPS = [
       { href: "/admin/members", label: "會員管理" },
       { href: "/admin/orders", label: "訂單管理" },
       { href: "/admin/invoices", label: "發票管理" },
-      { href: "/admin/token-usage", label: "Token 用量" }
+      { href: "/admin/token-usage", label: "Token 用量" },
+      { href: "/admin/referrals", label: "業務推廣分潤" }
     ]
   },
   {
@@ -46,6 +47,13 @@ const NAV_GROUPS = [
   {
     label: "顧問服務",
     items: [{ href: "/admin/bookings", label: "預約名單" }]
+  },
+  {
+    label: "網站內容",
+    items: [
+      { href: "/admin/site-services", label: "老師服務" },
+      { href: "/admin/site-cases", label: "案例課程" }
+    ]
   }
 ];
 

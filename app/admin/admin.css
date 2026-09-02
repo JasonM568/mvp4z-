@@ -421,3 +421,88 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 業務推廣分潤頁：區塊卡片與跨欄輸入 */
+.admin-card {
+  margin: 22px 0;
+  padding: 20px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-card h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.admin-card .admin-form-grid {
+  margin-bottom: 14px;
+}
+
+.admin-form-grid label.admin-form-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-form-grid label small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* ── 網站內容 CMS（老師服務 / 案例課程）─────────────────────────────── */
+.admin-form-grid textarea,
+.admin-modal textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.admin-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.admin-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.admin-content-form {
+  border-color: rgba(216, 177, 95, 0.35);
+  background: rgba(216, 177, 95, 0.05);
+}
+
+.admin-content-form h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.admin-thumb {
+  margin-top: 8px;
+  width: 96px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.admin-thumb.large {
+  width: 100%;
+  max-width: 260px;
+  height: 150px;
+}
+
+.admin-section-title .admin-pill {
+  align-self: center;
+}

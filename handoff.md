@@ -1,6 +1,6 @@
 # Handoff
 
-**最新進度請直接跳到檔案最末章節「2026-08-22 收工｜面相相簿上傳被 `capture` 封死的修正」。**
+**最新進度請直接跳到檔案最末章節「2026-09-01 收工｜後台「網站內容」CMS：老師服務／案例課程可自行編輯上架」。**
 
 本檔為累積式紀錄，章節依日期由舊到新排列。下方「目前狀態」「已完成」「尚未完成」「電子發票串接 TODO」「下次建議先做」等未標日期的章節，皆是 **2026-05-19 專案骨架期**的內容，已大量過期，僅供追溯，勿據以開工。已知過期處已就地加上 ⚠️ 更正框。
 
@@ -2404,3 +2404,199 @@ completed 12 筆、failed 1 筆——帳號完全正常，就是被自己的計�
 ### 七、長時間程序
 
 無。
+
+---
+
+## 2026-08-31 收工（跨 09-01）｜金流實刷準備 + 面相報告永久化 + 業務推廣分潤
+
+### 一、目前狀態
+
+**本次所有程式碼都還沒部署。正式站跑的仍是 `c694d0b`。**
+工作樹有大量未 commit 的改動（見下方 Git 狀態），DB 則已經先走在程式碼前面：
+referral migration 與 1 元測試方案都已進正式庫。**這個落差是下次開工第一個要處理的事。**
+
+### 二、已完成
+
+**金流查核（回答「金流正常收款嗎」）**
+
+管線通，但**綠界 webhook 至今從未被任何真實扣款觸發過**。
+orders 共 14 筆、最後一筆 2026-06-02；4 筆 paid 全在 5/19–5/25（正式金流 5/26 上線之前），
+其中 2 筆是 NT$1 測試腳本、2 筆是沙箱／模擬單。payments 表只有 2 筆沙箱紀錄。
+近 3 個月 0 訂單、近 30 天 0 註冊。**是沒有流量，不是金流壞掉。**
+真正未排除的風險仍是「錢刷了、點數沒進帳」。
+
+**面相報告永久化（已可登入後重看／下載 PDF）**
+
+資料層本來就齊（18 筆 completed，`report_structured`／`report_text` 全在，
+API 也早就回傳），缺的只是前端沒有可回訪的頁面。已補：
+
+- `app/member-ai/face/_report-view.tsx`（新）：抽出共用顯示層，當次分析與事後重看同一份
+- `app/member-ai/face/reports/[id]/page.tsx` + `report.css`（新）：獨立報告頁，
+  比照易學 `/member/reports/[id]`，`window.print()` 出 PDF；列印前展開所有 `<details>`；
+  列印時底色壓白（避免深色底印成黑塊，同 `decision.css:168` 的既有處理）
+- `face/history/page.tsx`、`face/page.tsx`、`history.css`：接上新頁面的入口
+
+**1 元刷卡測試方案**
+
+- 正式庫已建 `e2e_card_test`（NT$1／1 點／1 天，id `a7b9a5bd-9ae1-4ff2-8215-baa74e2fce9f`），
+  SQL 存 `supabase/manual/2026-08-31_card_test_plan.sql`
+- `member-pricing.js` 加 `?plan=CODE` 才顯示；`api/plans/route.ts` 過濾 `^e2e_` 內部方案，
+  需 `?include=` 指名才回傳
+
+**業務推廣分潤**
+
+migration 已套用正式庫並驗證通過（`referral_partners` 表、`orders` 三個歸因欄位、
+`profiles.referral_code`、RLS、trigger 全部確認存在）。程式端：
+root layout 掛 `ReferralCapture`（`?ref=` → 90 天 cookie）、
+`lib/referral/attribution.ts`、orders/create 與 courses/checkout 歸因、
+register 蓋 profile、`/api/admin/referrals`、`/admin/referrals` 後台頁與 nav。
+
+### 三、驗證結果與可驗收證據
+
+- `npx tsc --noEmit` exit 0
+- 正式庫 schema 以 SQL 核對：referral_partners 9 欄、orders 3 欄、profiles.referral_code、
+  RLS=true、`trg_referral_partners_updated_at` 皆存在
+- `curl https://www.xunfeng.tw/api/plans` → 目前仍看得到 `e2e_card_test`（修正未部署）
+
+### 四、尚未完成 / 風險
+
+1. **`npm run build` 沒跑過**（auto mode classifier 擋下）。tsc 綠不等於 Next build 綠，
+   route 型別與靜態產生都還沒驗。**部署前務必先 build。**
+2. **DB 已改、程式未部署**。目前這個中間狀態下 `/api/plans` 會裸露 `e2e_card_test`
+   （UI 濾掉所以看不到卡片，但 JSON 看得到）。部署後才會關上。
+3. 分潤功能零實跑：建立夥伴、cookie 歸因、後台明細，全都只有 typecheck。
+4. 信用卡真實刷卡 E2E 仍未做。刷下去會**開出一張真發票**（EZPay 正式 MID `337811304`），
+   可到 `/admin/invoices` 作廢；prod 沒有 `RESEND_API_KEY`，通知信不會寄（不是壞掉）。
+5. 面相手機實測（08-21／08-22 累積）仍欠。
+6. `e2e_card_test` 目前 is_active=true，**驗完必須停用**
+   （`update public.plans set is_active=false where code='e2e_card_test';`）。
+7. 其餘原封不動：67 條規則回 PDF 對帳（0/67）、五題待老師回覆、報告 tokens 偏高、
+   Resend 網域驗證與 prod key、ZDR 認證簽署。
+
+### 五、待辦優先順序
+
+1. `npm run build` → 修掉 build error（若有）→ commit → 部署。**這是所有事情的前置。**
+2. 部署後回頭 curl `/api/plans`，確認 `e2e_card_test` 已不再裸露。
+3. 信用卡真刷 NT$1：`https://www.xunfeng.tw/member-pricing?plan=e2e_card_test`
+   驗四件事：`/admin/orders` 轉 `paid`、`payments.check_mac_valid=true`、`/member` 進 1 點、
+   EZPay 是否開出正式發票。驗完停用測試方案。
+4. 分潤實跑：`/admin/referrals` 建一位夥伴 → 用 `?ref=CODE` 進站 → 下一筆單 → 看後台明細有沒有歸戶。
+5. 面相：手機實跑一次 `/member-ai/face`，並確認新的 `/member-ai/face/reports/[id]` 在手機上
+   列印／存 PDF 可用（`window.print()` 在行動瀏覽器體驗較差，可能需要再想辦法）。
+
+### 六、下次起手式
+
+1. 讀本章節與 `worklog.md` 2026-08-31 紀錄。
+2. `git status --short --branch`（應仍是 `main` = `c694d0b` + 一堆未 commit 改動）。
+3. 直接跑 `npm run build`，這是唯一擋住部署的關卡。
+
+### 七、Git 狀態
+
+`main` = `origin/main` = `c694d0b`，**本次無 commit、無 push、無部署**。
+
+未 commit 改動：
+- 修改：`app/admin/_shell.tsx`、`app/admin/admin.css`、`app/api/auth/register/route.ts`、
+  `app/api/courses/checkout/route.ts`、`app/api/orders/create/route.ts`、`app/api/plans/route.ts`、
+  `app/layout.tsx`、`app/member-ai/face/page.tsx`、`app/member-ai/face/history/page.tsx`、
+  `app/member-ai/face/history/history.css`、`public/js/member-pricing.js`
+- 新增：`app/admin/referrals/`、`app/api/admin/referrals/`、`app/member-ai/face/_report-view.tsx`、
+  `app/member-ai/face/reports/`、`components/ReferralCapture.tsx`、`lib/referral/`、
+  `supabase/manual/`、`supabase/migrations/20260831120000_referral_partners.sql`
+
+### 八、長時間程序
+
+無。
+
+---
+
+## 2026-09-01 收工｜後台「網站內容」CMS：老師服務／案例課程可自行編輯上架
+
+### 一、目前狀態
+
+**程式碼仍未部署**（承接 08-31 的落差，正式站依舊是 `c694d0b`）。
+本次 DB 又先走一步：`site_*` 四張表與 `site-media` bucket 已進正式庫並已灌入既有內容。
+但因為新舊程式都有 JSON fallback，這個中間狀態**對線上沒有任何影響**：
+正式站跑舊 code，照樣讀 `content/*.json`，新表只是先擺著。
+
+差別於 08-31 的是：**`npm run build` 這次跑過了（成功）**，
+也就是 08-31 待辦第 1 項「build 是所有事情的前置」已經解除，可以直接進 commit / 部署。
+
+### 二、已完成
+
+**需求：後台的「老師服務」與「案例課程」兩個類別，管理者要能自行編輯、修改與上架課程。**
+
+原本這三頁的內容寫死在 `content/*.json`，Vercel runtime 檔案系統唯讀，後台不可能寫回去，
+所以整批搬進 Supabase，JSON 降級為 fallback。
+
+- migration `supabase/migrations/20260901120000_site_content_cms.sql`（新）：
+  `site_services`、`site_cases`、`site_courses`、`site_course_promo`（單列，id 鎖死 `default`）
+  ＋ `site-media` public bucket（10MB，jpg/png/webp/gif）。
+  RLS 全開、`revoke from anon, authenticated`、只 grant service_role，
+  瀏覽器端沒有任何 storage policy，寫入只可能來自 service_role。
+  檔案內含 seed 區段（`where not exists`，重跑不覆蓋後台改過的內容）。
+- `lib/site/content.ts`（新）：唯一資料源。讀取順序 Supabase → `content/*.json`，
+  含欄位白名單、promo 的 snake_case ↔ camelCase 轉換。
+  `lib/site/services.ts` 改為轉呼叫它，避免兩份真相。
+- `app/api/site-content/route.ts`（新）：前台公開 GET，只吐已上架項目，
+  `s-maxage=30, stale-while-revalidate=300`。DB 出事回 `ok:false` 讓前端自己退回 JSON。
+- `app/api/admin/site-content/route.ts`（新）：GET／POST／PATCH／DELETE，
+  `?type=services|cases|courses`，另有 `type=promo` 走 upsert。
+  PATCH 支援 `move: up|down`（與相鄰項對調 sort_order，相同值時用索引重算）。
+  全部寫 `admin_audit_logs`。資料表不存在（42P01）時回 setup_required 提示而不是 500。
+- `app/api/admin/site-content/media/route.ts`（新）：圖片上傳到 `site-media`，回公開網址。
+- `app/admin/_content-editor.tsx`（新）：共用清單編輯器（新增／編輯／上架下架／上下移／刪除／
+  圖片上傳與縮圖預覽）。`app/admin/_promo-editor.tsx`（新）：主打課程推廣單頁表單。
+- `app/admin/site-services/page.tsx`（新）＝老師服務；
+  `app/admin/site-cases/page.tsx`（新）＝案例課程（三分頁：案例實績／課程講座／主打課程推廣）。
+  `_shell.tsx` 加 nav group「網站內容」，`admin.css` 補 textarea／tab／縮圖等樣式。
+- `public/js/cms-render.js`：改讀 `/api/site-content`，失敗才退回 `content/*.json`。
+  課程卡新增開課時間／地點／費用／報名連結（留空不顯示）。
+  **並在 API 有資料時移除 `courses/page.tsx` 寫死的 `#zzjStaticFallback` 掌中訣備援區** ——
+  否則管理者在後台按了「下架」，前台還是會看到那張舊卡。
+
+### 三、驗證結果與可驗收證據
+
+- `npm run build` ✅、`npx tsc --noEmit` exit 0 ✅、`npm run test:unit` 169 passed / 2 skipped ✅
+- 正式庫實測（SQL 核對）：site_services 9／site_cases 4／site_courses 4／site_course_promo 1，全部上架
+- 本機 dev + `X-Admin-Key` 打完整 CRUD：
+  建立→**前台看不到（預設未上架）**→上架→前台出現→上移順序正確→刪除→列表復原
+- 圖片上傳回傳公開網址 `curl` 200（驗證用的測試課程與測試圖檔皆已刪除，未留殘料）
+- 未套 migration 前也實測過 fallback：`/api/site-content` 正常吐出 JSON 內容
+
+### 四、尚未完成 / 風險
+
+1. **未 commit、未部署。** 部署前線上仍是舊行為（讀 JSON），無風險但新後台也還不能用。
+2. **後台頁面沒有用真的 admin 帳號在瀏覽器點過。** API 層是 curl 實測的，
+   React 介面（三個分頁、圖片上傳按鈕、上下移）只有 build 綠。部署後請實際點一輪。
+3. 部署後 `content/*.json` 就只剩 fallback 用途，改那些檔案不再影響前台 —— 內容一律改後台。
+   兩份 JSON（`content/` 與 `public/content/`）刻意保留不動，當作 DB 掛掉時的保命內容。
+4. 08-31 遺留事項原封不動：信用卡真刷 E2E、`e2e_card_test` 驗完要停用、分潤零實跑、
+   面相手機實測、67 條規則回 PDF 對帳、Resend 網域驗證、ZDR。
+
+### 五、待辦優先順序
+
+1. commit + 部署（build 已綠，沒有已知擋路的東西）。
+2. 部署後用 admin 帳號實點 `/admin/site-services` 與 `/admin/site-cases` 一輪，
+   特別確認：圖片上傳、主打課程「儲存並下架」後 `/courses` 那張掌中訣大卡確實消失。
+3. 回頭處理 08-31 的 `/api/plans` 裸露與 NT$1 實刷驗證。
+
+### 六、下次起手式
+
+1. 讀本章節與 `worklog.md` 2026-09-01 紀錄。
+2. `git status --short --branch`（`main` = `c694d0b` + 08-31 與 09-01 兩批未 commit 改動）。
+3. 直接 commit / 部署，不需要再 build 一次（除非又動了程式）。
+
+### 七、Git 狀態
+
+`main` = `origin/main` = `c694d0b`，**本次無 commit、無 push、無部署**。
+
+本次新增未 commit 的檔案（08-31 那批仍在，見上一章節）：
+- 修改：`app/admin/_shell.tsx`、`app/admin/admin.css`、`lib/site/services.ts`、`public/js/cms-render.js`
+- 新增：`app/admin/_content-editor.tsx`、`app/admin/_promo-editor.tsx`、
+  `app/admin/site-services/`、`app/admin/site-cases/`、`app/api/site-content/`、
+  `app/api/admin/site-content/`、`lib/site/content.ts`、
+  `supabase/migrations/20260901120000_site_content_cms.sql`
+
+### 八、長時間程序
+
+無（驗證用的 dev server 已關閉）。

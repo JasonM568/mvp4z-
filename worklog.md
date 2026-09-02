@@ -528,3 +528,201 @@ location: https://www.xunfeng.tw/member?payment=pending&order=XFPROBE_NOTREAL
 - 面相手機實測（相簿上傳 + run 不再封鎖 + 真人照片報告）仍欠，自 08-21／08-22 累積至今。
 - 其餘待辦原封不動：67 條規則回 PDF 對帳、五題待老師回覆、報告 tokens 偏高、
   Resend 網域驗證與 prod key、ZDR 認證簽署。
+
+## 2026-08-31（跨 09-01）收工｜金流實刷準備、面相報告永久化、業務推廣分潤
+
+### 需求
+
+使用者先問「金流正常收款嗎？」，查核後追加三件事：
+1. 確認金流能否正常刷卡，建立一張 1 元訂單供本人實刷。
+2. 面相模組要像易學報告一樣保存報告，會員登入後可查看／下載 PDF。
+3. 設計業務分潤推廣連結，後台要看得到該業務專屬連結導入的訂單明細。
+
+### 一、金流現況查核（先於三項需求）
+
+管線是通的：`/` 200、`/member-pricing` 200、`/api/payments/ecpay/notify` 405、
+`/api/orders/create` 405（只收 POST，符合預期）。8/26 查核的 production env 設定未變動。
+
+但 DB 實際收款紀錄推翻了「正常收款」的直覺：
+
+- orders 總共 14 筆，**最後一筆建立於 2026-06-02**，之後近 3 個月 0 筆
+- `status='paid'` 只有 4 筆，**全部落在 5/19–5/25**，即正式金流 5/26 上線之前
+  - 2 筆 NT$1 是測試腳本（`XFE2E…`／`XFINV…`），連 payments 紀錄都沒有
+  - 2 筆 NT$1,980：一筆 `provider_trade_no=SIM1779544326`（模擬付款）、一筆 5/19 沙箱
+- payments 表總共 2 筆，都是沙箱期；invoices 只有 1 張 `JU11019625`，金額 NT$1（5/25 測試）
+- 正式商店 5/26 上線後只產生 3 筆訂單，全部 cancelled
+- auth.users 共 10 人，最後註冊 2026-07-16，近 30 天 0 註冊
+
+**結論：綠界 webhook 至今從未被任何一筆真實扣款觸發過。** 不是金流壞掉，是沒有流量。
+真正未排除的風險是「錢刷了、點數沒進帳」這條路徑零實證。
+
+### 二、面相報告永久化（需求 2）
+
+查證後發現資料層本來就齊了：`face_analysis_runs` 有 18 筆 completed，
+`report_structured` 與 `report_text` **全部保留**（最新 2026-08-30），
+`getOwnedPublicRun` 的 `PUBLIC_RUN_FIELDS` 也早就回傳這兩個欄位。
+缺的純粹是前端沒有可回訪的報告頁 —— 當次分析的 `report` 只存在 React state，重整即失。
+
+- 新增 `app/member-ai/face/_report-view.tsx`：把 `StructuredReport` 型別、`ReportHighlights`
+  與 5 個 label helper 從 `face/page.tsx` 抽出，當次分析與事後重看共用同一份顯示層，
+  確保下載到的內容與當下所見一致。`face/page.tsx` 對應段落刪除改為 import。
+- 新增 `app/member-ai/face/reports/[id]/page.tsx`：獨立報告頁，比照易學
+  `/member/reports/[id]` 的作法（fetch 已保存的 run → `window.print()` 產 PDF）。
+  未登入導 `/login?next=...`；`deleted`／`expired`／無內容各有對應文案；另提供「下載文字」。
+- 新增同目錄 `report.css`：列印時把 `html/body/.face-panel` 底色壓白。
+  這是照 `decision.css:168` 的既有註解處理 —— 深色底若被印出來會變成整片黑塊。
+- 列印前以 JS 展開所有 `<details>`，否則「老師怎麼看這個部位」會整段從 PDF 消失。
+  （純 CSS 無法可靠地強制展開未 open 的 details。）
+- `face/history/page.tsx`：「查看報告」改為連往完整報告頁，原側欄改名「快速預覽」並加開啟連結。
+- `face/page.tsx` 當次報告區加「開啟報告永久連結」與「已保存在您的帳號」說明。
+
+### 三、1 元刷卡測試方案（需求 1）
+
+`app/api/orders/create` 的金額一律取自 `plans.price`，因此做法是**加一組隱藏方案**，
+而不是去改任何現有方案的價格（改價會讓真客人用 NT$1 買到 basic）。
+
+- DB 直接 insert（使用者明示授權）：`e2e_card_test` / 刷卡測試方案（內部）/ NT$1 / 1 點 / 1 天，
+  id `a7b9a5bd-9ae1-4ff2-8215-baa74e2fce9f`。SQL 留存在 `supabase/manual/2026-08-31_card_test_plan.sql`
+  （刻意不進 migrations：這是臨時測試資料，驗完就停用，不該跟 schema 一起重跑）。
+- `public/js/member-pricing.js`：原本就只渲染 `PLAN_PRESETS` 列出的 basic/pro/vip，
+  新增 `?plan=CODE` 時才額外要出並顯示該方案。
+- **建完後 curl 正式站發現破口**：`/api/plans` 的 JSON 會裸露這組內部方案（UI 有濾但 API 沒有）。
+  已改 `app/api/plans/route.ts` 過濾 `^e2e_` 開頭的 code，只有 `?include=<code>` 指名才回傳；
+  `member-pricing.js` 在有 `?plan=` 時自動帶上 `include`。
+
+刷卡網址（部署後生效）：`https://www.xunfeng.tw/member-pricing?plan=e2e_card_test`
+
+### 四、業務推廣分潤（需求 3）
+
+- migration `supabase/migrations/20260831120000_referral_partners.sql`，**已由使用者
+  `npx supabase db push` 套用到正式庫並驗證**：
+  - `referral_partners`（code 不分大小寫唯一、commission_rate 0–1、is_active、updated_at trigger、
+    RLS 啟用、只授權 service_role）
+  - `orders` 加 `referral_partner_id` / `referral_code` / `referral_rate`
+  - `profiles` 加 `referral_code`（看得出業務帶進多少註冊，即使還沒購買）
+- `components/ReferralCapture.tsx` 掛進 `app/layout.tsx`（root，任何頁面都生效）：
+  `?ref=CODE` → 90 天 cookie `xf_ref`，last-touch 覆蓋，格式不符直接忽略。
+- `lib/referral/attribution.ts`：`readReferralCode`（cookie + 格式驗證）、
+  `resolveReferral`（查 partner，停用或查無一律回 null）、`referralFieldsForRequest`。
+- `app/api/orders/create` 與 `app/api/courses/checkout` 在 insert 訂單時 spread 歸因欄位。
+- `app/api/auth/register` 註冊時把 referral code 蓋到 profile（失敗不阻斷註冊）。
+- `app/api/admin/referrals/route.ts`：GET 列表（含統計）／GET `?partner=` 訂單明細／POST 建立／PATCH 更新。
+- `app/admin/referrals/page.tsx` + `_shell.tsx` nav 加「業務推廣分潤」；
+  `admin.css` 補 `.admin-card`、`.admin-form-wide` 等樣式。
+
+### 重要判斷
+
+- **分潤比例存「成單當下的快照」**（`orders.referral_rate`），不是每次讀 partner 現值。
+  否則日後調整比例會回頭改寫已成立訂單的應付金額，帳會對不起來。
+- **推廣碼無效絕不擋付款**：`resolveReferral` 任何異常都回 null，訂單照常成立只是不歸戶。
+  金流路徑不該被行銷功能拖累。
+- **不改現有方案價格來做 1 元測試**，改用隱藏方案，避免真客人撿到 NT$1 的 basic。
+- 修掉自己寫出的 bug：推廣碼允許底線，而 `_` 在 SQL LIKE 是單字元萬用字元，
+  `AL_X` 會誤中 `ALEX`。已加 `escapeLikePattern`，`lib/referral/attribution.ts` 與
+  admin API 的兩處 `ilike` 都套用。
+
+### 驗證結果
+
+- `npx tsc --noEmit` exit 0（改動後共跑 4 次，全綠）。
+- migration 套用後以 SQL 核對正式庫：`referral_partners` 9 欄齊、`orders` 3 個歸因欄位齊、
+  `profiles.referral_code` 在、RLS = true、trigger `trg_referral_partners_updated_at` 存在。
+- `curl https://www.xunfeng.tw/api/plans` 確認過內部方案的裸露問題（修正尚未部署，見遺留事項）。
+- **`npm run build` 未執行**：auto mode classifier 擋下，本次無法驗證 Next build 與部署。
+
+### 遺留事項
+
+1. `npm run build` 未跑、**本次所有程式碼都尚未部署**，正式站跑的仍是 `c694d0b`。
+   `/api/plans` 的內部方案裸露修正也還沒上線（目前 JSON 仍看得到 `e2e_card_test`）。
+2. 信用卡真實刷卡 E2E 仍未做（本次只是把可刷的路鋪好）。
+3. 面相手機實測（08-21／08-22 累積至今）仍欠。
+4. 分潤功能全部只有 typecheck，未經任何實跑：建立夥伴、cookie 歸因、後台明細都沒實測過。
+5. 測試方案 `e2e_card_test` 目前 is_active=true，驗完必須停用。
+
+---
+
+## 2026-09-01｜後台「網站內容」CMS：老師服務／案例課程可自行編輯上架
+
+### 需求
+
+「後台的老師服務以及案例課程這兩個類別要有管理者自行編輯跟修改與上架課程的功能。」
+
+對應到前台就是 `/services`（老師服務）、`/cases` + `/courses`（案例課程）三頁。
+
+### 一、現況盤點與關鍵判斷
+
+三頁的內容原本寫死在 `content/*.json`，由 `public/js/cms-render.js` 在瀏覽器端 fetch
+`content/xxx.json` 填進 `#cmsPricing`／`#cmsCases`／`#cmsCourses`。
+`public/content/` 是給瀏覽器讀的那份，`content/` 是 server 端那份，兩份內容相同。
+
+**關鍵判斷：不能沿用 JSON 當可寫入的資料源。** Vercel runtime 的檔案系統唯讀，
+後台按下儲存不可能寫回 `content/*.json`。所以內容搬進 Supabase，
+JSON 降級成 fallback —— DB 掛掉、環境變數沒帶到、或資料表還沒建時，
+前台仍顯示搬遷當下的內容而不是一片空白。
+
+另一個判斷：`app/(public)/courses/page.tsx` 裡有一段寫死的掌中訣推廣區
+（`#zzjStaticFallback`），原本只在「動態 promo 有渲染出來」時才被 JS 移除。
+如果照舊，管理者在後台把主打課程「下架」之後，前台還是會看到那張寫死的舊卡。
+所以改成：只要 `/api/site-content` 有回內容，就無條件移除它，DB 成為唯一真相。
+
+`lib/site/services.ts` 的 `readServices()` 全站沒有人呼叫（死碼），
+改成轉呼叫新的 `lib/site/content.ts`，不留第二份真相。
+
+### 二、資料層
+
+migration `supabase/migrations/20260901120000_site_content_cms.sql`：
+
+- `site_services`（title／category／price／note／description／href）
+- `site_cases`（title／category／summary／body／image）
+- `site_courses`（title／audience／description／image ＋ **本次新增** schedule／location／
+  price_text／href —— 「上架課程」真正需要寫的資訊）
+- `site_course_promo`：單列表，`id text primary key default 'default' check (id = 'default')`，
+  刻意鎖死，避免後台不小心生出第二個主打課程
+- 四張表共用 `is_published` + `sort_order`，以及 `touch_site_content_updated_at()` trigger
+- RLS 全開、`revoke all from anon, authenticated`、只 grant service_role
+- `site-media` public bucket（10MB，jpg/png/webp/gif）。public 只影響「讀」；
+  沒有建立任何 `storage.objects` policy，所以寫入只可能來自 service_role
+- seed 區段用 `insert ... select ... where not exists`：只在表為空時寫入，
+  重跑 migration 不會覆蓋管理者後來在後台改過的內容
+
+seed SQL 是用腳本從 `content/*.json` 產生的，不手打中文，避免轉錄錯字。
+
+### 三、程式層
+
+- `lib/site/content.ts`（新）：唯一資料源。`readPublishedContent`（前台，只回已上架）、
+  `readAllContent`（後台，含未上架）、`readCoursePromo`、欄位白名單、
+  promo 的 snake_case ↔ camelCase 轉換。42P01 視為「還沒搬遷」而非壞掉。
+- `app/api/site-content/route.ts`（新）：前台公開 GET，`s-maxage=30, swr=300`。
+  出錯回 `ok:false` + 空陣列（HTTP 200），讓前端自己退回 JSON，不讓前台整頁空白。
+- `app/api/admin/site-content/route.ts`（新）：GET／POST／PATCH／DELETE。
+  `?type=services|cases|courses`，`type=promo` 走 upsert。
+  POST 一律排到最後（`max(sort_order) + 10`）且**預設 `is_published=false`**，
+  避免新建當下就見客。PATCH 支援 `move: up|down`，兩筆 sort_order 相同時用索引重算，
+  否則對調後順序不會變。全部寫 `admin_audit_logs`。
+- `app/api/admin/site-content/media/route.ts`（新）：圖片上傳，回公開網址。
+  bucket 不存在時回可讀的中文提示而不是原始錯誤。
+- `app/admin/_content-editor.tsx`／`_promo-editor.tsx`（新）：共用元件。
+  `app/admin/site-services/page.tsx`、`app/admin/site-cases/page.tsx`（新，三分頁）。
+  `_shell.tsx` 加 nav group「網站內容」。
+- `public/js/cms-render.js`：`loadManagedContent()` 先打 `/api/site-content`，
+  沒東西才退回四支 JSON；課程卡渲染新欄位（留空不顯示）；
+  `fromApi && coursePromo` 時移除 `#zzjStaticFallback`。
+
+### 四、驗證
+
+- `npm run build` ✅（順帶解除 08-31 待辦第 1 項：build 是部署的前置關卡）
+- `npx tsc --noEmit` exit 0 ✅ ／ `npm run test:unit` 169 passed、2 skipped ✅
+- 套 migration **之前**先驗 fallback：`/api/site-content` 正常吐 JSON 內容（services 9／cases 4／
+  courses 4／promo 掌中訣），確認搬遷失敗也不會開天窗
+- migration 套進正式庫 `pvasgmmjrodukudbzuhp`（結構走 MCP `apply_migration`；
+  seed 走一次性 node 腳本讀 `content/*.json` 寫入，語意與 migration 的 seed 相同，
+  避免把 15KB 中文重打一遍）。SQL 核對：9／4／4／1 筆，全部上架
+- 本機 dev + 臨時 `ADMIN_KEY` 打完整 CRUD：建立→**前台看不到**→上架→前台出現→
+  上移順序正確→刪除→列表復原；圖片上傳後公開網址 `curl` 200
+- 驗證用的測試課程與測試圖檔都已刪除，正式庫與 bucket 沒留殘料
+
+### 五、遺留
+
+- **未 commit、未部署。** 線上仍是舊行為（讀 JSON），無風險但新後台也還不能用。
+- 後台 React 介面沒有用真的 admin 帳號在瀏覽器點過（API 層是 curl 實測的）。
+  部署後要實點：三個分頁、圖片上傳、主打課程「儲存並下架」後 `/courses` 那張大卡是否消失。
+- 部署後 `content/*.json` 只剩 fallback 用途；兩份 JSON 刻意保留不動當保命內容。

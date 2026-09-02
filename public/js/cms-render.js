@@ -200,13 +200,18 @@ ${videos.length ? `
   function renderCourses(data) {
     const target = $("#cmsCourses");
     if (!target || !data || !Array.isArray(data.courses)) return;
+    // schedule / location / price_text / href 是後台「上架課程」時才會填的欄位，沒填就不顯示那一行。
     target.innerHTML = data.courses.map(c => `
       <article class="card">
         ${c.image ? `<img src="${escapeHTML(c.image)}" alt="${escapeHTML(c.title)}" style="height:220px;width:100%;object-fit:cover;border-radius:22px;margin-bottom:18px;">` : ""}
         <div class="icon">課</div>
         <h3>${escapeHTML(c.title)}</h3>
-        <p><strong>適合對象：</strong>${escapeHTML(c.audience)}</p>
+        ${c.audience ? `<p><strong>適合對象：</strong>${escapeHTML(c.audience)}</p>` : ""}
+        ${c.schedule ? `<p><strong>開課時間：</strong>${escapeHTML(c.schedule)}</p>` : ""}
+        ${c.location ? `<p><strong>上課地點：</strong>${escapeHTML(c.location)}</p>` : ""}
+        ${c.price_text ? `<div class="price-tag">${escapeHTML(c.price_text)}</div>` : ""}
         <p>${escapeHTML(c.description)}</p>
+        ${c.href ? `<div class="actions"><a class="btn btn-primary" href="${escapeHTML(c.href)}"${String(c.href).startsWith("#") || String(c.href).startsWith("/") ? "" : ` target="_blank" rel="noreferrer"`}>了解課程</a></div>` : ""}
       </article>
     `).join("");
   }
@@ -371,15 +376,41 @@ ${videos.length ? `
     });
   }
 
-  async function initCmsRender() {
-    const [site, services, cases, courses, photos, coursePromo] = await Promise.all([
-      getJSON("content/site.json"),
+  /**
+   * 老師服務／案例／課程／主打課程推廣改由後台維護，資料源是 /api/site-content。
+   * API 掛掉或還沒部署時退回 content/*.json（也就是搬進 DB 之前的那份內容），前台不會開天窗。
+   */
+  async function loadManagedContent() {
+    const api = await getJSON("/api/site-content");
+    const hasApiContent = api && api.ok &&
+      ((api.services && api.services.length) || (api.cases && api.cases.length) || (api.courses && api.courses.length));
+
+    if (hasApiContent) {
+      return {
+        fromApi: true,
+        services: { services: api.services || [] },
+        cases: { cases: api.cases || [] },
+        courses: { courses: api.courses || [] },
+        coursePromo: api.coursePromo || null
+      };
+    }
+
+    const [services, cases, courses, coursePromo] = await Promise.all([
       getJSON("content/services.json"),
       getJSON("content/cases.json"),
       getJSON("content/courses.json"),
-      getJSON("content/photos.json"),
       getJSON("content/course_promo.json")
     ]);
+    return { fromApi: false, services, cases, courses, coursePromo };
+  }
+
+  async function initCmsRender() {
+    const [site, photos, managed] = await Promise.all([
+      getJSON("content/site.json"),
+      getJSON("content/photos.json"),
+      loadManagedContent()
+    ]);
+    const { services, cases, courses, coursePromo } = managed;
 
     if (site) {
       // 頁面標題由各 Next.js route 的 metadata 管理，避免首頁與產品頁
@@ -395,6 +426,13 @@ ${videos.length ? `
       setHref("[data-link='email']", site.email ? "mailto:" + site.email : "");
       setSrc("[data-image='brandAnchor']", site.brandAnchorImage);
       setSrc("[data-image='fengyi']", site.fengyiImage);
+    }
+
+    // 後台接管之後，DB 就是唯一真相：把 courses/page.tsx 裡寫死的掌中訣備援區拿掉，
+    // 否則管理者在後台按了「下架」，前台還是會看到那張舊卡。
+    if (managed.fromApi && coursePromo) {
+      const staticFallback = document.getElementById("zzjStaticFallback");
+      if (staticFallback) staticFallback.remove();
     }
 
     renderCoursePromo(coursePromo, site);
