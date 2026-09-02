@@ -29,6 +29,7 @@ export default function MemberPricingPage() {
     (async () => {
       try {
         await loadScript("/js/member-config.js");
+        await loadScript("/js/member-session.js");
         await loadScript("/js/member-pricing.js");
         if (cancelled) return;
         window.loadPlans?.();

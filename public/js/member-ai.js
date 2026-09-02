@@ -1,10 +1,13 @@
 const CFG = window.XUNFENG_MEMBER_CONFIG || {};
 const API_BASE = CFG.API_BASE || "";
-function token(){ return localStorage.getItem("xunfeng_member_token") || ""; }
-function clearToken(){ localStorage.removeItem("xunfeng_member_token"); }
+function session(){ return window.XFSession || null; }
+function token(){ const s = session(); return s ? s.token() : (localStorage.getItem("xunfeng_member_token") || ""); }
+function clearToken(){ const s = session(); if(s) s.clear(); else localStorage.removeItem("xunfeng_member_token"); }
 function $(id){ return document.getElementById(id); }
 
 async function api(path, options={}){
+  const s = session();
+  if(s) return s.fetch(path, options);
   const headers = Object.assign({"Content-Type":"application/json"}, options.headers || {});
   if(token()) headers.Authorization = "Bearer " + token();
   const res = await fetch(API_BASE + path, Object.assign({}, options, {headers}));

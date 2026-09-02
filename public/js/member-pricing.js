@@ -1,11 +1,21 @@
 const CFG = window.XUNFENG_MEMBER_CONFIG || {};
 const API_BASE = CFG.API_BASE || "";
 
-function token() {
-  return localStorage.getItem("xunfeng_member_token") || "";
+function session() {
+  return window.XFSession || null;
 }
 
+function token() {
+  const s = session();
+  return s ? s.token() : localStorage.getItem("xunfeng_member_token") || "";
+}
+
+// 一律走 XFSession.fetch：access token 過期時會自動換發再重送，
+// 不會讓使用者填完發票資料才收到「登入已過期」。
 async function api(path, options = {}) {
+  const s = session();
+  if (s) return s.fetch(path, options);
+
   const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
   if (token()) headers.Authorization = "Bearer " + token();
   const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
@@ -314,16 +324,36 @@ async function openInvoiceModal() {
 // ───────────────────────────────── handlers ─────────────────────────────────
 
 async function handlePurchase(planCode, button) {
-  if (!token()) {
-    const next = encodeURIComponent("/member-pricing");
-    location.href = "/login?next=" + next;
-    return;
-  }
   const status = document.getElementById("pricingStatus");
   const originalText = button.textContent;
   if (status) {
     status.className = "status";
     status.textContent = "";
+  }
+
+  // 先確認 session 真的還有效（必要時自動換發），再讓使用者去填發票資料。
+  // 舊版只檢查 localStorage 有沒有 token，過期的 token 也算「已登入」，
+  // 結果是填完表單、按下結帳才 401，訂單直接死在那裡。
+  const s = session();
+  // 從沒登入過的訪客不該看到「登入已過期」，那只會讓人一頭霧水，所以兩種情況用不同網址。
+  const guestHref = "/login?next=" + encodeURIComponent("/member-pricing");
+  const loginHref = guestHref + "&reason=expired";
+
+  if (!token()) {
+    location.href = guestHref;
+    return;
+  }
+
+  if (s) {
+    button.disabled = true;
+    button.textContent = "確認登入狀態…";
+    const member = await s.ensure();
+    button.disabled = false;
+    button.textContent = originalText;
+    if (!member) {
+      location.href = loginHref;
+      return;
+    }
   }
 
   const buyer = await openInvoiceModal();
@@ -345,6 +375,11 @@ async function handlePurchase(planCode, button) {
     if (status) {
       status.className = "status error";
       status.textContent = e.message;
+    }
+    // 換發也救不回來（refresh token 也過期）才會走到這裡：直接帶去登入頁，
+    // 不要只丟一句錯誤訊息讓使用者卡住。
+    if (e && e.status === 401) {
+      setTimeout(() => { location.href = loginHref; }, 1200);
     }
   }
 }

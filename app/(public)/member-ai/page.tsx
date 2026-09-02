@@ -31,6 +31,7 @@ export default function MemberAiPage() {
     (async () => {
       try {
         await loadScript("/js/member-config.js");
+        await loadScript("/js/member-session.js");
         await loadScript("/js/member-ai.js");
         if (cancelled) return;
         // member-ai.js 載入時若 DOM 已 ready 會自動呼叫一次，

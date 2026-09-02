@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ReferralCapture } from "@/components/ReferralCapture";
+import { MemberSessionKeeper } from "@/components/MemberSessionKeeper";
 import { UxAnalytics } from "@/components/UxAnalytics";
 import "./globals.css";
 
@@ -32,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-Hant">
-      <body id="top">{children}<ReferralCapture /><UxAnalytics /></body>
+      <body id="top">{children}<ReferralCapture /><MemberSessionKeeper /><UxAnalytics /></body>
     </html>
   );
 }

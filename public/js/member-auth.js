@@ -1,11 +1,21 @@
 const CFG = window.XUNFENG_MEMBER_CONFIG || {};
 const API_BASE = CFG.API_BASE || "";
 
-function token(){ return localStorage.getItem("xunfeng_member_token") || ""; }
-function setToken(t){ localStorage.setItem("xunfeng_member_token", t); }
-function clearToken(){ localStorage.removeItem("xunfeng_member_token"); }
+function session(){ return window.XFSession || null; }
+function token(){ const s = session(); return s ? s.token() : (localStorage.getItem("xunfeng_member_token") || ""); }
+
+// 登入／註冊成功後把 access token 與 refresh token 一起存起來。
+// 舊版只存 access token，1 小時後就再也換不回來，使用者結帳時才發現登入已過期。
+function saveSession(data){
+  const s = session();
+  if(s) { s.save(data); return; }
+  localStorage.setItem("xunfeng_member_token", data.token);
+}
+function clearToken(){ const s = session(); if(s) s.clear(); else localStorage.removeItem("xunfeng_member_token"); }
 
 async function api(path, options={}){
+  const s = session();
+  if(s) return s.fetch(path, options);
   const headers = Object.assign({"Content-Type":"application/json"}, options.headers || {});
   if(token()) headers.Authorization = "Bearer " + token();
   const res = await fetch(API_BASE + path, Object.assign({}, options, {headers}));
@@ -31,7 +41,7 @@ async function registerMember(){
   };
   try{
     const data = await api("/api/auth/register",{method:"POST",body:JSON.stringify(payload)});
-    setToken(data.token);
+    saveSession(data);
     $("status").className = "status ok";
     $("status").textContent = "註冊成功，已贈送 30 點免費體驗，正在進入我的巽風…";
     location.href = nextPath("/member-ai");
@@ -47,7 +57,7 @@ async function loginMember(){
       email:$("loginEmail").value.trim(),
       password:$("loginPassword").value
     })});
-    setToken(data.token);
+    saveSession(data);
     location.href = nextPath("/member");
   }catch(e){
     $("loginStatus").className = "status error";
@@ -73,9 +83,18 @@ async function forgotPasswordMember(){
 }
 
 function showPaymentResult(){
-  const banner = $("paymentBanner");
-  if(!banner) return;
   const params = new URLSearchParams(location.search);
+  // 登入頁沒有 paymentBanner，退而用登入面板的 status 行；/member 之類的頁面才有 banner。
+  const banner = $("paymentBanner") || $("loginStatus");
+  if(!banner) return;
+
+  // 從結帳頁被彈回來時說明原因，不然使用者只會覺得「我明明登入了怎麼又叫我登入」。
+  if(params.get("reason") === "expired"){
+    banner.className = "status";
+    banner.textContent = "您的登入時效已過，請重新登入；登入後會自動回到剛才的頁面繼續購買。";
+    return;
+  }
+
   const payment = params.get("payment");
   if(!payment) return;
   if(payment === "paid"){
@@ -125,6 +144,8 @@ function toggleRedeem(){
 // 不會被誤觸發。
 function initMemberPage(){
   if(document.getElementById("memberName")) loadMember();
+  // /login 沒有 memberName，但仍要顯示「登入已過期」這類從別頁帶過來的提示。
+  else if(document.getElementById("loginStatus")) showPaymentResult();
 }
 // 暴露給 Next.js client component 在 useEffect 內手動觸發
 window.initMemberPage = initMemberPage;

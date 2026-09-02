@@ -210,6 +210,7 @@ export default function LoginPage() {
       </section>
 
       <Script src="/js/member-config.js" strategy="afterInteractive" />
+      <Script src="/js/member-session.js" strategy="afterInteractive" />
       <Script src="/js/member-auth.js" strategy="afterInteractive" />
     </>
   );
