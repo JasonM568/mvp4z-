@@ -11,6 +11,7 @@ import {
   readJson,
   registerSchema,
   TRIAL_CREDITS,
+  statusError,
   TRIAL_DURATION_DAYS
 } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -33,7 +34,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    if (createError) throw createError;
+    // Supabase 回的是英文原文（A user with this email address has already been registered），
+    // 對正在買方案的訪客來說看不懂也不知道下一步，這裡換成中文並指路去登入。
+    if (createError) {
+      if (/already been registered|already registered|User already exists/i.test(createError.message || "")) {
+        throw statusError("這個 Email 已經註冊過了，請直接用它登入；忘記密碼可以用登入面板的「忘記密碼」重設。", 409);
+      }
+      throw createError;
+    }
     if (!created.user?.id || !created.user.email) throw new Error("建立會員失敗");
 
     const profile = await ensureProfileForAuthUser({

@@ -354,6 +354,9 @@ async function handlePurchase(planCode, button) {
       location.href = loginHref;
       return;
     }
+    // ensure() 已經拿到最新的會員資料，直接餵進快取，發票抬頭與 Email 才會自動帶入；
+    // 否則剛換發完的這一刻 cachedMember 可能還是先前失敗留下的空物件。
+    cachedMember = member;
   }
 
   const buyer = await openInvoiceModal();
