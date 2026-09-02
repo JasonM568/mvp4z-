@@ -1,6 +1,6 @@
 # Handoff
 
-**最新進度請直接跳到檔案最末章節「2026-09-02（第二次）｜後台側邊欄改可折疊、區塊依使用頻率重排」。**
+**最新進度請直接跳到檔案最末章節「2026-09-02（第三次）｜修掉「結帳時登入已過期」——訪客／會員買不到方案的 bug」。**
 
 本檔為累積式紀錄，章節依日期由舊到新排列。下方「目前狀態」「已完成」「尚未完成」「電子發票串接 TODO」「下次建議先做」等未標日期的章節，皆是 **2026-05-19 專案骨架期**的內容，已大量過期，僅供追溯，勿據以開工。已知過期處已就地加上 ⚠️ 更正框。
 
@@ -2716,3 +2716,95 @@ register 蓋 profile、`/api/admin/referrals`、`/admin/referrals` 後台頁與 
 ### 八、長時間程序
 
 無（驗證用的本機 http.server 已關閉）。
+
+---
+
+## 2026-09-02（第三次）｜修掉「結帳時登入已過期」——訪客／會員買不到方案的 bug
+
+### 一、目前狀態
+
+**已部署。** `main` = `origin/main` = `37ec192`（＋本篇紀錄 commit），工作樹乾淨。
+
+### 二、問題與根因（有 log 佐證，不是推測）
+
+回報：訪客從推廣連結要買 980 方案，填完基本資料後跳「登入已過期，請重新登入」，結不了帳。
+
+正式站 runtime log：
+- `00:57:51 POST /api/auth/login 200`（買家登入）
+- `03:34–03:46 GET /api/member/me 401`（連續，期間**沒有任何** login/register）
+- `03:36:49、03:37:20 POST /api/orders/create 401`
+
+登入到結帳中間隔了 **2 小時 39 分**。
+
+**根因：Supabase access token 只有 1 小時，但前台只把 access token 存進 localStorage，
+API 一起回傳的 `refresh_token` 從來沒有任何程式碼存過**（`authResponse` 有給，沒人接）。
+前台又把「localStorage 有 token」當成「已登入」（`member-pricing.js` 的
+`handlePurchase` 只檢查 `token()` 非空），所以過期後畫面照常顯示登入中，
+使用者一路填完發票資料、按下結帳才收到 401，訂單死在最後一步。
+
+這不只影響結帳：面相、四象、會員中心在登入滿一小時後全都會 401。
+
+### 三、修正
+
+- `app/api/auth/refresh/route.ts`（新）：`POST`，用 refresh token 換新 session。
+  不需 Authorization header（refresh token 本身就是憑證）；換不到回 401。
+- `public/js/member-session.js`（新）：前台共用 session 層 `window.XFSession`。
+  存兩顆 token、401 自動換發並重送一次、同時只跑一個換發請求、換不到就清憑證。
+- `components/MemberSessionKeeper.tsx`（新，掛 `app/layout.tsx` root）：
+  背景每 5 分鐘（與分頁回前景時）檢查 JWT `exp`，剩不到 10 分鐘就先換。
+  **這樣十幾個直接讀 localStorage 的既有頁面一行都不用改**，是刻意避開大範圍重構的選擇。
+- `member-auth.js`：登入／註冊改存 access + refresh 兩顆（整包修正的關鍵）。
+  另外補上 `/login` 也會顯示 `?reason=expired` 提示（原本 `showPaymentResult` 只在
+  `/member` 被呼叫，而且找的 `paymentBanner` 元素全站不存在，等於死碼）。
+- `member-pricing.js`：**開發票表單之前**先 `ensure()` 確認 session，
+  過期就帶去 `/login?next=/member-pricing&reason=expired`；
+  訪客（完全沒憑證）走不帶 reason 的網址，不會看到莫名其妙的「登入已過期」。
+- `member-ai.js`：一併改走共用層。
+- 課程報名 `course-checkout.js` 不需登入，不受此 bug 影響（已確認無 token 使用）。
+
+### 四、驗證結果
+
+本機（dev）：
+- `/api/auth/refresh`：空 body → 400；亂填 token → 401
+- 用 stub 驗 `XFSession.fetch` 的重送邏輯，實際呼叫序列為
+  `orders/create(Bearer stale)` → `auth/refresh` → `orders/create(Bearer fresh)`，
+  結果成功，且兩顆 token 都換新
+- 登入流程（stub 回假 session）確認 access 與 refresh **兩顆都寫進 localStorage**
+- `MemberSessionKeeper`：塞一顆 5 分鐘後到期的 token，開頁後確實主動打 `/api/auth/refresh`；
+  refresh 也失效時把憑證清乾淨
+- 過期會員按「立即購買」→ **不再開發票表單**，直接導到 `/login?next=/member-pricing&reason=expired`
+- 訪客（無憑證）按「立即購買」→ 導到 `/login?next=/member-pricing`（不顯示過期提示）
+
+正式站（部署後）：
+- `/api/auth/refresh` 空 body → 400、壞 token → 401
+- `/js/member-session.js` 200
+- 瀏覽器實跑過期情境：導到 `/login?next=%2Fmember-pricing&reason=expired`，
+  頁面顯示「您的登入時效已過，請重新登入；登入後會自動回到剛才的頁面繼續購買。」，
+  壞掉的憑證已被清除，發票表單沒有被開啟
+- `npx tsc --noEmit` exit 0、`npm run build` ✅、`npm run test:unit` 169 passed
+
+### 五、尚未完成 / 風險
+
+1. **完整的「登入 → 換發 → 結帳成功」沒有用真帳號跑過**，因為我沒有、也不該拿使用者密碼。
+   換發與重送邏輯是用 stub 驗的，端點本身是真的打過。
+   **請本人用真帳號跑一次 NT$1 或 980 的完整結帳。**
+2. **既有已登入的使用者手上只有 access token、沒有 refresh token**，
+   下一個動作仍會被要求重新登入一次；之後才會一直保持有效。這是無法避免的一次性成本。
+3. 24 小時內 `POST /api/auth/register` 是 0 筆 —— 「訪客註冊後購買」這條路
+   到目前為止從來沒有真人跑過，值得一併實測。
+4. 其餘遺留不變：分潤零實跑、信用卡真刷未做、`e2e_card_test` 仍 active 待停用、
+   後台「網站內容」尚未真人實跑。
+
+### 六、待辦優先順序
+
+1. 真帳號跑完整結帳（登入 → 選方案 → 發票 → 綠界 → 回站看點數）。
+2. 訪客註冊後購買這條路實跑一次。
+3. 其餘同前。
+
+### 七、Git 狀態
+
+`main` = `origin/main` = `37ec192` + 本篇紀錄 commit，已 push、已部署，工作樹乾淨。
+
+### 八、長時間程序
+
+無（驗證用的 dev server 已關閉）。

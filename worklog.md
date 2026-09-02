@@ -804,3 +804,74 @@ seed SQL 是用腳本從 `content/*.json` 產生的，不手打中文，避免�
 
 仍未用真人 admin 帳號在正式站實際點過。請登入看一眼側邊欄，
 並實跑「網站內容」的新增→上傳圖片→上架流程。
+
+---
+
+## 2026-09-02（第三次）｜結帳時「登入已過期」——會員買不到方案的 bug
+
+### 回報
+
+「訪客從推廣連結要購買 980 的方案，在輸入基本資料之後會跳出『登入已過期，請重新登入』」、
+「訪客無法從推廣連結結帳」。
+
+### 先查證，不要猜
+
+先確認錯誤字串的唯一來源：`lib/auth/member.ts:83`，
+`requireBearerProfile` 裡 `admin.auth.getUser(token)` 失敗時丟的。所以是 token 被伺服器拒絕。
+
+再拉正式站 runtime log（Vercel MCP）：
+- `00:57:51 POST /api/auth/login 200`
+- `03:34–03:46 GET /api/member/me 401` 連續多筆，**期間沒有任何 login/register**
+- `03:36:49`、`03:37:20` `POST /api/orders/create 401`
+
+登入到結帳中間 2 小時 39 分。這不是推測了：token 早就過期。
+
+### 根因
+
+Supabase access token TTL 1 小時。`authResponse()` 明明有回 `refresh_token`，
+但 grep 全專案 —— **沒有任何一行程式碼存過它**。前台只存 access token，
+而且把「localStorage 有 token」直接當成「已登入」
+（`member-pricing.js` 的 `handlePurchase` 只檢查 `token()` 非空）。
+
+於是過期後畫面照常顯示登入中，使用者一路填完發票資料、按下結帳才 401。
+不只結帳：面相、四象、會員中心在登入滿一小時後全都會 401。
+
+### 修法上的取捨
+
+有十幾個地方直接 `fetch(..., {Authorization: Bearer token})`（面相 4 處、四象 2 處、
+會員頁、報告頁、admin shell…）。一個一個改成帶重送邏輯，風險與工作量都高。
+
+改採兩層：
+1. **`MemberSessionKeeper`（掛 root layout）**在背景把 localStorage 裡的 token
+   維持在有效狀態 —— 既有頁面一行都不用改就受惠。
+2. **`XFSession.fetch`（前台共用層）**在真的撞到 401 時換發並重送一次，當作第二道保險；
+   結帳這條關鍵路徑另外在「開發票表單之前」先 `ensure()`，
+   讓使用者在填表前就知道要重新登入，而不是填完才失敗。
+
+### 產出
+
+- `app/api/auth/refresh/route.ts`（新）
+- `public/js/member-session.js`（新）、`components/MemberSessionKeeper.tsx`（新）
+- `member-auth.js` 登入／註冊改存兩顆 token；`/login` 補上 `?reason=expired` 提示
+  （順手發現 `showPaymentResult` 找的 `paymentBanner` 元素**全站不存在**，
+  而且只在 `/member` 被呼叫，等於一直是死碼）
+- `member-pricing.js` 加開表單前的 session 守門，並區分訪客／過期兩種提示文案
+- `member-ai.js` 改走共用層
+
+### 驗證（沒有密碼時怎麼驗登入流程）
+
+不能也不該拿使用者的密碼，所以：
+- 端點本身用 curl 真的打（空 body 400、壞 token 401），本機與正式站都驗
+- 換發重送邏輯用 stub 驗：實際呼叫序列是
+  `orders/create(Bearer stale)` → `auth/refresh` → `orders/create(Bearer fresh)`，成功且兩顆 token 換新
+- 登入寫入用 stub 回假 session 驗：access 與 refresh **兩顆都進了 localStorage**
+- `MemberSessionKeeper`：塞一顆 5 分鐘後到期的 token，開頁確實主動換發；換不到就清憑證
+- 過期會員按「立即購買」→ 發票表單不再開啟，直接導登入頁並帶 `next`
+- 訪客按「立即購買」→ 導登入頁但不顯示「已過期」
+- 正式站部署後用瀏覽器再跑一次過期情境，提示文案與導向都正確
+
+### 遺留
+
+- **完整「登入 → 換發 → 結帳成功」沒有用真帳號跑過**，請本人實測一次。
+- 既有已登入使用者手上沒有 refresh token，下一個動作仍會被要求重新登入一次，之後才會穩定。
+- 24 小時內 register 是 0 筆 —— 訪客註冊後購買這條路從來沒有真人跑過。
