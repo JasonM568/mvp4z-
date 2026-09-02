@@ -12,6 +12,8 @@ type AdminMember = {
   role: string;
 };
 
+// 排列邏輯：日常最常開的（營運、網站內容、顧問服務）在上，
+// 四象與面相屬於系統維護模組，設定改動頻率低，收在最底下。
 const NAV_GROUPS = [
   {
     label: "營運總覽",
@@ -23,6 +25,17 @@ const NAV_GROUPS = [
       { href: "/admin/token-usage", label: "Token 用量" },
       { href: "/admin/referrals", label: "業務推廣分潤" }
     ]
+  },
+  {
+    label: "網站內容",
+    items: [
+      { href: "/admin/site-services", label: "老師服務" },
+      { href: "/admin/site-cases", label: "案例課程" }
+    ]
+  },
+  {
+    label: "顧問服務",
+    items: [{ href: "/admin/bookings", label: "預約名單" }]
   },
   {
     label: "四象問天機",
@@ -43,25 +56,50 @@ const NAV_GROUPS = [
       { href: "/admin/gemini-provider", label: "Gemini 影像認證" },
       { href: "/admin/face-provider", label: "OpenAI 備援認證" }
     ]
-  },
-  {
-    label: "顧問服務",
-    items: [{ href: "/admin/bookings", label: "預約名單" }]
-  },
-  {
-    label: "網站內容",
-    items: [
-      { href: "/admin/site-services", label: "老師服務" },
-      { href: "/admin/site-cases", label: "案例課程" }
-    ]
   }
 ];
+
+const NAV_OPEN_KEY = "xunfeng_admin_nav_open";
+
+function isActive(pathname: string | null, href: string) {
+  return pathname === href || (href !== "/admin" && Boolean(pathname?.startsWith(href)));
+}
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [me, setMe] = useState<AdminMember | null>(null);
   const [checking, setChecking] = useState(true);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // 側邊欄預設收合，只展開「目前所在的那一區」，其餘依使用者上次的選擇。
+  // 全部攤開會讓 20 幾個連結一次擠在畫面上，找東西反而更慢。
+  useEffect(() => {
+    let stored: Record<string, boolean> = {};
+    try {
+      stored = JSON.parse(window.localStorage.getItem(NAV_OPEN_KEY) || "{}") || {};
+    } catch {
+      stored = {};
+    }
+    const next: Record<string, boolean> = {};
+    for (const group of NAV_GROUPS) {
+      const hasActive = group.items.some((item) => isActive(pathname, item.href));
+      next[group.label] = hasActive || stored[group.label] === true;
+    }
+    setOpenGroups(next);
+  }, [pathname]);
+
+  function toggleGroup(label: string) {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      try {
+        window.localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(next));
+      } catch {
+        // 無痕模式等情況存不了就算了，只是少了記憶，不影響操作。
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     const token = window.localStorage.getItem("xunfeng_member_token") || "";
@@ -107,15 +145,39 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <nav>
-          {NAV_GROUPS.map((group) => (
-            <section className="admin-nav-group" key={group.label}>
-              <h2>{group.label}</h2>
-              {group.items.map((item) => {
-                const active = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href));
-                return <Link key={item.href} href={item.href} className={active ? "active" : ""}>{item.label}</Link>;
-              })}
-            </section>
-          ))}
+          {NAV_GROUPS.map((group) => {
+            const open = openGroups[group.label] ?? false;
+            const hasActive = group.items.some((item) => isActive(pathname, item.href));
+            return (
+              <section className={`admin-nav-group${open ? " open" : ""}`} key={group.label}>
+                <button
+                  type="button"
+                  className="admin-nav-toggle"
+                  aria-expanded={open}
+                  onClick={() => toggleGroup(group.label)}
+                >
+                  <span className="admin-nav-caret" aria-hidden="true" />
+                  <span className="admin-nav-label">{group.label}</span>
+                  {/* 收起來但目前正在這一區時給個標記，才不會找不到自己在哪 */}
+                  {!open && hasActive && <span className="admin-nav-dot" aria-hidden="true" />}
+                  <span className="admin-nav-count">{group.items.length}</span>
+                </button>
+                {open && (
+                  <div className="admin-nav-items">
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={isActive(pathname, item.href) ? "active" : ""}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </nav>
 
         <div className="admin-footer">

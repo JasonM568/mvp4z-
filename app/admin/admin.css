@@ -58,9 +58,70 @@
   flex-direction: column;
   gap: 4px;
 }
-.admin-nav-group { display: grid; gap: 4px; padding: 13px 0; border-top: 1px solid rgba(255,255,255,.055); }
+.admin-nav-group { display: grid; gap: 4px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.055); }
 .admin-nav-group:first-child { border-top: 0; padding-top: 0; }
-.admin-nav-group h2 { margin: 0 0 5px; padding: 0 12px; color: #8d7b54; font-size: 10px; font-weight: 900; letter-spacing: .18em; }
+
+/* 區塊標題本身就是折疊開關 */
+.admin-nav-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #8d7b54;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-nav-toggle:hover { background: rgba(255,255,255,.04); color: #c3ab74; }
+
+.admin-nav-label { flex: 1; }
+
+.admin-nav-caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform .15s ease;
+}
+
+.admin-nav-group.open .admin-nav-caret { transform: rotate(90deg); }
+
+/* 收合狀態下，目前所在的區塊給一個亮點 */
+.admin-nav-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.admin-nav-count {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.45);
+  font-size: 10px;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+/* 往內縮一點並加一條淡淡的導引線，看得出這些連結屬於上面那個區塊 */
+.admin-nav-items {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 4px 13px;
+  padding-left: 7px;
+  border-left: 1px solid rgba(255,255,255,.07);
+}
+.admin-nav-items a { padding: 10px 12px; font-size: 13.5px; }
 
 .admin-side nav a {
   display: flex;
