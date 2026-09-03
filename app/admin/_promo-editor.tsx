@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "./_shell";
-import { ImageField } from "./_content-editor";
+import { ImageField, mediaSrc } from "./_content-editor";
 
 type PromoRow = Record<string, string | boolean | null>;
 
@@ -27,6 +27,12 @@ const TEXT_FIELDS: { key: string; label: string; kind?: "textarea" | "image"; hi
   { key: "video_two", label: "宣傳影片 2 網址", placeholder: "mp4 檔網址" },
   { key: "video_two_title", label: "宣傳影片 2 標題" }
 ];
+
+const GROUPS = [
+  { title: "課程主訊息", step: "STEP 2", description: "設定訪客第一眼看到的課程名稱與招生訴求。", keys: ["label", "title", "title_suffix", "headline", "subheadline"] },
+  { title: "課程內容與行動按鈕", step: "STEP 3", description: "說清楚課程價值，再引導訪客報名或透過 LINE 詢問。", keys: ["body", "highlights", "limited_text", "cta_text", "register_url", "line_cta_text"] },
+  { title: "海報與影片", step: "STEP 4", description: "上傳課程視覺與宣傳影片；海報會在前台自動輪播。", keys: ["poster_main", "poster_second", "poster_third", "video_cover", "video_one", "video_one_title", "video_two", "video_two_title"] }
+] as const;
 
 export function CoursePromoEditor() {
   const [form, setForm] = useState<Record<string, string>>({});
@@ -84,63 +90,76 @@ export function CoursePromoEditor() {
 
   if (loading) return <section className="admin-card"><p className="lead">讀取中⋯</p></section>;
 
+  function renderField(key: string) {
+    const field = TEXT_FIELDS.find((item) => item.key === key);
+    if (!field) return null;
+    return (
+      <label key={field.key} className={field.kind ? "admin-form-wide" : ""}>
+        {field.label}
+        {field.kind === "textarea" ? (
+          <textarea rows={field.key === "body" ? 6 : 4} value={form[field.key] || ""} placeholder={field.placeholder}
+            onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />
+        ) : field.kind === "image" ? (
+          <ImageField value={form[field.key] || ""} folder="course-promo"
+            onChange={(value) => setForm({ ...form, [field.key]: value })} onError={setNotice} />
+        ) : (
+          <input value={form[field.key] || ""} placeholder={field.placeholder}
+            onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />
+        )}
+        {field.hint && <small>{field.hint}</small>}
+      </label>
+    );
+  }
+
   return (
-    <section className="admin-card">
-      <div className="admin-section-title">
-        <h2>主打課程推廣區</h2>
-        <span className={`admin-pill ${active ? "confirmed" : "pending"}`}>{active ? "已上架" : "未上架"}</span>
+    <section className="admin-promo-editor">
+      <div className="admin-promo-overview">
+        <div>
+          <div className="admin-eyebrow">COURSE CAMPAIGN</div>
+          <h2>主打課程推廣</h2>
+          <p>管理課程頁最上方的招生主視覺、文案、媒體與上架排程。</p>
+        </div>
+        <div className="admin-promo-status">
+          <span className={`admin-pill ${active ? "confirmed" : "pending"}`}>{active ? "正在上架" : "目前下架"}</span>
+          <strong>{form.title || "尚未填寫課程名稱"}</strong>
+          <small>{form.publish_start || "立即"} 至 {form.publish_end || "無期限"}</small>
+        </div>
       </div>
-      <p className="lead">
-        這是 <code>/courses</code> 最上方那張大卡（目前是「掌中訣」）。只會有一個主打課程；
-        要換課程就直接改這裡的欄位，換完按「儲存並上架」。
-      </p>
 
       {setupHint && <p className="admin-inline-message" role="status">⚠️ {setupHint}</p>}
       {notice && <p className="admin-inline-message" role="status">{notice}</p>}
 
-      <div className="admin-form-grid">
-        <label>
-          上架起日（選填）
-          <input type="date" value={form.publish_start || ""} onChange={(event) => setForm({ ...form, publish_start: event.target.value })} />
-          <small>留空＝立即生效</small>
-        </label>
-        <label>
-          下架迄日（選填）
-          <input type="date" value={form.publish_end || ""} onChange={(event) => setForm({ ...form, publish_end: event.target.value })} />
-          <small>留空＝不自動下架</small>
-        </label>
-
-        {TEXT_FIELDS.map((field) => (
-          <label key={field.key} className={field.kind ? "admin-form-wide" : ""}>
-            {field.label}
-            {field.kind === "textarea" ? (
-              <textarea
-                rows={field.key === "body" ? 6 : 4}
-                value={form[field.key] || ""}
-                placeholder={field.placeholder}
-                onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}
-              />
-            ) : field.kind === "image" ? (
-              <ImageField
-                value={form[field.key] || ""}
-                folder="course-promo"
-                onChange={(value) => setForm({ ...form, [field.key]: value })}
-                onError={setNotice}
-              />
-            ) : (
-              <input
-                value={form[field.key] || ""}
-                placeholder={field.placeholder}
-                onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}
-              />
-            )}
-            {field.hint && <small>{field.hint}</small>}
-          </label>
-        ))}
+      <div className="admin-promo-layout">
+        <div className="admin-promo-fields">
+          <section className="admin-promo-panel">
+            <div className="admin-promo-panel-head"><span>STEP 1</span><div><h3>上架排程</h3><p>決定主打課程何時出現與自動下架。</p></div></div>
+            <div className="admin-form-grid">
+              <label>上架起日（選填）<input type="date" value={form.publish_start || ""} onChange={(event) => setForm({ ...form, publish_start: event.target.value })} /><small>留空＝立即生效</small></label>
+              <label>下架迄日（選填）<input type="date" value={form.publish_end || ""} onChange={(event) => setForm({ ...form, publish_end: event.target.value })} /><small>留空＝不自動下架</small></label>
+            </div>
+          </section>
+          {GROUPS.map((group) => (
+            <section className="admin-promo-panel" key={group.title}>
+              <div className="admin-promo-panel-head"><span>{group.step}</span><div><h3>{group.title}</h3><p>{group.description}</p></div></div>
+              <div className="admin-form-grid">{group.keys.map(renderField)}</div>
+            </section>
+          ))}
+        </div>
+        <aside className="admin-promo-preview">
+          <div className="admin-eyebrow">即時摘要</div>
+          {form.poster_main ? <img src={mediaSrc(form.poster_main)} alt="課程海報預覽" /> : <div className="admin-promo-preview-empty">尚未設定主海報</div>}
+          <span className="admin-promo-preview-label">{form.label || "COURSE"}</span>
+          <h3>{form.title || "課程名稱"}<small>{form.title_suffix}</small></h3>
+          <h4>{form.headline || "這裡會顯示主標題"}</h4>
+          <p>{form.subheadline || "填寫副標題，讓訪客快速理解課程價值。"}</p>
+          <button type="button" disabled>{form.cta_text || "立即報名"}</button>
+          <small>這是內容摘要，實際前台排版仍以課程頁為準。</small>
+        </aside>
       </div>
 
-      <div className="admin-btn-row">
-        <button className="admin-action-btn" disabled={busy} onClick={() => save(true)}>儲存並上架</button>
+      <div className="admin-promo-actions">
+        <div><strong>儲存後最多 30 秒生效</strong><small>可以先儲存並下架，確認完內容再公開。</small></div>
+        <button className="admin-action-btn" disabled={busy} onClick={() => save(true)}>{busy ? "儲存中⋯" : "儲存並上架"}</button>
         <button className="admin-action-btn ghost" disabled={busy} onClick={() => save(false)}>儲存並下架</button>
         <button className="admin-action-btn ghost" disabled={busy} onClick={() => void load()}>放棄變更、重新讀取</button>
       </div>
