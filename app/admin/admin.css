@@ -610,6 +610,58 @@
 .admin-promo-actions > div { display: grid; gap: 2px; margin-right: auto; }
 .admin-promo-actions strong { color: var(--text); }
 .admin-promo-actions small { color: var(--muted); }
+
+/* 課程推廣工作區以長時間閱讀為基準，不沿用後台其他密集表格的小字設定。 */
+.admin-course-product-editor .lead,
+.admin-promo-editor .lead,
+.admin-promo-overview p {
+  font-size: 15px;
+}
+.admin-course-product-editor .admin-form-grid label,
+.admin-promo-panel .admin-form-grid label {
+  gap: 8px;
+  color: rgba(255,255,255,.82);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.admin-course-product-editor .admin-form-grid input,
+.admin-course-product-editor .admin-form-grid textarea,
+.admin-promo-panel .admin-form-grid input,
+.admin-promo-panel .admin-form-grid textarea {
+  min-height: 48px;
+  padding: 11px 13px;
+  font-size: 16px;
+  line-height: 1.55;
+}
+.admin-course-product-editor .admin-form-grid textarea,
+.admin-promo-panel .admin-form-grid textarea {
+  min-height: 116px;
+}
+.admin-course-product-editor .admin-form-grid label small,
+.admin-promo-panel .admin-form-grid label small {
+  color: rgba(255,255,255,.62);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.admin-promo-panel-head > span { font-size: 12px; }
+.admin-promo-panel-head h3 { font-size: 20px; }
+.admin-promo-panel-head p { font-size: 15px; }
+.admin-promo-status strong { font-size: 18px; }
+.admin-promo-status small { color: rgba(255,255,255,.68); font-size: 14px; }
+.admin-promo-preview-label { font-size: 12px; }
+.admin-promo-preview h3 { font-size: 27px; }
+.admin-promo-preview h3 small { font-size: 15px; }
+.admin-promo-preview h4 { font-size: 18px; }
+.admin-promo-preview p { font-size: 15px; }
+.admin-promo-preview button { min-height: 44px; font-size: 15px; }
+.admin-promo-preview > small { font-size: 13px; }
+.admin-promo-actions strong { font-size: 15px; }
+.admin-promo-actions small { font-size: 13px; }
+.admin-promo-actions .admin-action-btn,
+.admin-course-product-editor .admin-action-btn {
+  min-height: 44px;
+  font-size: 15px;
+}
 @media (max-width: 1100px) {
   .admin-promo-layout { grid-template-columns: 1fr; }
   .admin-promo-preview { position: static; grid-template-columns: 160px 1fr; }

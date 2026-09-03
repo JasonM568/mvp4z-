@@ -54,7 +54,7 @@ export function CourseProductEditor() {
   if (loading) return <section className="admin-card"><p className="lead">讀取報名課程中⋯</p></section>;
   const field = (key: keyof Form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   return (
-    <section className="admin-card">
+    <section className="admin-card admin-course-product-editor">
       <div className="admin-section-title"><h2>報名課程設定</h2></div>
       <p className="lead">這裡會同步控制 <code>/courses</code> 報名區的課程日期、時間、地點與結帳金額。</p>
       {notice && <p className="admin-inline-message" role="status">{notice}</p>}
