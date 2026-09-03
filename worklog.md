@@ -1061,3 +1061,51 @@ Supabase access token TTL 1 小時。`authResponse()` 明明有回 `refresh_toke
 **只差「真人按下建立帳號」。** 下次開工第一件事：用全新 Email 從
 `https://www.xunfeng.tw/?ref=ran81127` 註冊，走到綠界付款頁即可（不必真的刷），
 然後到 `/admin/referrals` 確認訂單歸到賴仁豪名下。
+
+---
+
+## 2026-09-04｜課程後台修復與主打課程頁改善
+
+### 本次工作
+
+1. 處理老師回報「後台課程上架無法編輯課程日期」：
+   - 查明後台課程卡的 `schedule` 只是顯示文案，實際結帳日期來自另一張 `course_products`，且原本沒有管理介面。
+   - 新增管理 API 與「報名課程設定」介面。
+   - 前台報名摘要改為從結帳 API 同步真正的日期、時間、地點與價格。
+2. 處理後台左側功能區塊名稱過小：
+   - 確認原設定只有 10px，調整為 15px，提高對比與點擊範圍。
+3. 重設主打課程推廣頁：
+   - 由單一長表單改為四步驟工作流程。
+   - 新增狀態摘要、即時內容／海報摘要與固定操作區。
+4. 處理老師反應頁面文字仍偏小：
+   - 區塊標題 20px、欄位名稱 15px、輸入文字 16px、說明 13px、按鈕 15px。
+   - 報名課程設定與主打推廣表單一併調整。
+
+### 重要判斷
+
+- 課程卡顯示資料與實際結帳商品資料原本分離，不能只修改 `schedule`；必須讓後台直接修改 `course_products`，前台也讀同一資料源。
+- 主打課程頁的主要問題是資訊架構，而非單純裝飾不足，因此優先建立操作層級與流程，再提高字級。
+- 報名系統目前只有一個固定商品代碼；本次維持低風險單課程模式，不擴張成多商品 CMS。
+
+### 產出與提交
+
+- `536d63d fix(courses): allow editing registration date`
+- `cc2fc24 fix(admin): enlarge sidebar section labels`
+- `c7ff948 feat(admin): redesign course promotion editor`
+- `185c294 fix(admin): improve course promotion readability`
+
+### 驗證
+
+- TypeScript：通過。
+- 單元測試：169 passed、2 skipped。
+- Production build：每批均通過。
+- 第一批 Vercel deployment：Ready。
+- 正式課程頁資料同步標記與正式側邊欄 15px CSS 曾完成線上比對。
+- 後兩批 UI 的 Vercel 狀態查詢因權限審查服務回 404，無法完成正式站二次核對；Git push 與本機 build 均成功。
+
+### 遺留事項
+
+- 真人登入後台驗收四步驟主打課程介面及放大後的字級。
+- 修改一次真實課程日期，確認前台與結帳同步。
+- 若未來要同時販售多門課，需另做多課程商品管理。
+- 既有推廣歸因真人驗收、信用卡真刷與正式服務設定仍待完成。
