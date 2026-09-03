@@ -60,6 +60,31 @@
     if (el) el.textContent = `${label}｜NT$ ${Number(price).toLocaleString("zh-TW")}`;
   }
 
+  function money(value) {
+    return `NT$ ${Number(value).toLocaleString("zh-TW")}`;
+  }
+
+  function formatCourseDate(course) {
+    const date = new Date(`${course.course_date}T00:00:00+08:00`);
+    const dateText = new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", year: "numeric", month: "long", day: "numeric", weekday: "short" }).format(date);
+    const time = (value) => new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
+    return `${dateText} ${time(course.starts_at)}-${time(course.ends_at)}`;
+  }
+
+  function syncCourseSummary(course) {
+    const values = {
+      courseSummaryTitle: course.title,
+      courseSummarySubtitle: course.subtitle || "",
+      courseSummaryDate: formatCourseDate(course),
+      courseSummaryLocation: course.location || "",
+      courseSummaryPriceNew: money(course.price_new),
+      courseSummaryPriceReturning: money(course.price_returning),
+      courseRadioPriceNew: `新生報名 ${money(course.price_new)}`,
+      courseRadioPriceReturning: `複訓學員 ${money(course.price_returning)}`
+    };
+    Object.entries(values).forEach(([id, value]) => { const el = $(id); if (el) el.textContent = value; });
+  }
+
   function invoiceRequest() {
     const buyerType = document.querySelector('input[name="courseInvoiceBuyerType"]:checked')?.value || "personal";
     const buyerName = $("courseInvoiceBuyerName").value.trim() || $("courseName").value.trim();
@@ -129,6 +154,7 @@
     try {
       const data = await api("/api/courses/checkout");
       course = data.course;
+      syncCourseSummary(course);
       syncPrice(course);
     } catch (error) {
       status(error.message, "error");

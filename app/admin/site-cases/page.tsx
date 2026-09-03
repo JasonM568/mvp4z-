@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ContentListEditor } from "../_content-editor";
 import { CoursePromoEditor } from "../_promo-editor";
+import { CourseProductEditor } from "../_course-product-editor";
 
 type Tab = "cases" | "courses" | "promo";
 
@@ -75,7 +76,7 @@ export default function SiteCasesPage() {
         />
       )}
 
-      {tab === "promo" && <CoursePromoEditor />}
+      {tab === "promo" && <><CourseProductEditor /><CoursePromoEditor /></>}
     </>
   );
 }
