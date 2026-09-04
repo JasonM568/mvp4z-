@@ -9,6 +9,7 @@ coverage
 supabase/.temp/
 .vercel
 .gstack/
+.playwright-cli/
 tsconfig.tsbuildinfo
 
 # 供應商規格文件（智財，不入 repo）

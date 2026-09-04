@@ -1170,3 +1170,26 @@ Commit：`1930692 fix(admin): upload posters and videos directly to storage`
 
 處置：標籤改為「影片預覽圖（只在有宣傳影片時顯示）」、加說明、欄位移到影片欄位之後，
 後台在「有預覽圖但沒有影片」時顯示警告。海報 1 標籤加註「前台輪播第一張」。
+
+## 2026-09-04（持續開發 Loop）｜課程資料安全同步與歸因回歸
+
+### 本次工作與重要判斷
+
+- 用 Playwright 重跑正式課程頁時發現：頁面先出現過期的 115 年第一期，API 回來後才變成第二期。因為這會在慢網路誤導學員，不再以過期假資料當 fallback。
+- 首屏改為讀取狀態，結帳按鈕在 API 成功前鎖定；失敗時維持鎖定並顯示清楚錯誤。
+- 新增推廣歸因測試後抓到破損 `%` cookie 會讓 `decodeURIComponent` 例外，改為安全視為無歸因，因為錯誤推廣碼絕不能阻斷下單。
+
+### 產出檔案
+
+- 課程首屏與結帳防護：`app/(public)/courses/page.tsx`、`public/js/course-checkout.js`。
+- 歸因防護與測試：`lib/referral/attribution.ts`、`lib/referral/attribution.test.ts`。
+- 課程回歸測試：`lib/site/course-checkout-regression.test.ts`。
+- HTML 報告：`docs/reports/2026-09-04-continuous-development-verification.html`。
+- 瀏覽器證據：`output/playwright/`。
+
+### 驗證與遺留
+
+- 176 tests passed、2 skipped；TypeScript、production build（101 頁）、`git diff --check` 全數通過。
+- 正式站課程、手機版、推廣導流、cookie 與後台保護皆實際以瀏覽器驗過。
+- 本機 production build 用 API 503 故障注入驗證鎖定路徑，再移除 mock 驗證正常解鎖路徑。
+- 仍有需管理員帳號／新 Email／真實金流的營運 E2E，本輪沒有擅自建帳號、更動正式資料或產生費用。

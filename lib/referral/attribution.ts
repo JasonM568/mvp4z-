@@ -22,8 +22,13 @@ export type ReferralAttribution = {
 export function readReferralCode(request: NextRequest): string | null {
   const raw = request.cookies.get(REFERRAL_COOKIE)?.value;
   if (!raw) return null;
-  const code = decodeURIComponent(raw).trim();
-  return REFERRAL_CODE_PATTERN.test(code) ? code : null;
+  try {
+    const code = decodeURIComponent(raw).trim();
+    return REFERRAL_CODE_PATTERN.test(code) ? code : null;
+  } catch {
+    // 損壞或惡意 cookie 不得影響下單；當作沒有推廣碼即可。
+    return null;
+  }
 }
 
 /**

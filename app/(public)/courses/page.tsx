@@ -222,17 +222,17 @@ export default function CoursesPage() {
 
           <div className="grid-2">
             <article className="panel course-checkout-summary">
-              <div id="courseSummaryTitle" className="tag">五術掌訣初階班</div>
-              <h3 id="courseSummarySubtitle">115年第一期</h3>
-              <p id="courseSummaryDate">2026年6月21日（日）10:00-17:00</p>
-              <p id="courseSummaryLocation">巽風堪輿研究中心（台中市南屯區黎明路二段530號）</p>
+              <div id="courseSummaryTitle" className="tag">讀取最新課程資訊中…</div>
+              <h3 id="courseSummarySubtitle">請稍候</h3>
+              <p id="courseSummaryDate">課程日期與時間讀取中</p>
+              <p id="courseSummaryLocation">上課地點讀取中</p>
               <div className="price-line">
                 <span>新生報名</span>
-                <strong id="courseSummaryPriceNew">NT$ 6,000</strong>
+                <strong id="courseSummaryPriceNew">讀取中</strong>
               </div>
               <div className="price-line">
                 <span>複訓學員</span>
-                <strong id="courseSummaryPriceReturning">NT$ 500</strong>
+                <strong id="courseSummaryPriceReturning">讀取中</strong>
               </div>
               <p className="course-checkout-note">
                 付款流程由綠界 ECPay 處理，巽風不接觸您的卡片資料。發票資訊會用於付款完成後開立電子發票。
@@ -244,14 +244,14 @@ export default function CoursesPage() {
                 <div className="course-radio-group" aria-label="報名身份">
                   <label>
                     <input type="radio" name="courseRegistrationType" value="new" defaultChecked />
-                    <span id="courseRadioPriceNew">新生報名 NT$ 6,000</span>
+                    <span id="courseRadioPriceNew">新生報名（價格讀取中）</span>
                   </label>
                   <label>
                     <input type="radio" name="courseRegistrationType" value="returning" />
-                    <span id="courseRadioPriceReturning">複訓學員 NT$ 500</span>
+                    <span id="courseRadioPriceReturning">複訓學員（價格讀取中）</span>
                   </label>
                 </div>
-                <div id="courseSelectedPrice" className="price-tag">新生報名｜NT$ 6,000</div>
+                <div id="courseSelectedPrice" className="price-tag">課程價格讀取中…</div>
 
                 <div className="form-grid">
                   <label>姓名<input id="courseName" autoComplete="name" required /></label>
@@ -314,8 +314,8 @@ export default function CoursesPage() {
                   <label id="courseInvoiceDonationRow" className="span-2">捐贈碼<input id="courseInvoiceDonationCode" inputMode="numeric" maxLength={7} /></label>
                 </div>
 
-                <button id="courseCheckoutSubmit" className="btn btn-primary" type="submit">
-                  前往綠界結帳
+                <button id="courseCheckoutSubmit" className="btn btn-primary" type="submit" disabled>
+                  讀取課程資訊中…
                 </button>
                 <div id="courseCheckoutStatus" className="booking-preview course-checkout-status" style={{ display: "none" }}></div>
               </form>

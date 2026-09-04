@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>巽風系統持續開發與驗收報告｜2026-09-04</title>
+  <style>
+    :root{--ink:#18221d;--muted:#617068;--paper:#f5f2e9;--card:#fff;--green:#174c36;--gold:#b28743;--ok:#16794b;--line:#dcd6c8}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",sans-serif;line-height:1.7}
+    header,main{width:min(1080px,calc(100% - 32px));margin:auto}header{padding:64px 0 30px;border-bottom:1px solid var(--line)}
+    .eyebrow{color:var(--gold);font-size:13px;font-weight:800;letter-spacing:.16em}h1{margin:8px 0 10px;font-size:clamp(30px,5vw,52px);line-height:1.15}h2{margin:0 0 14px;font-size:23px}p{margin:8px 0}.muted{color:var(--muted)}
+    main{padding:28px 0 60px}.score{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.metric,.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px #1f32230a}.metric{padding:18px}.metric strong{display:block;color:var(--green);font-size:26px}.metric span{color:var(--muted);font-size:13px}
+    .card{padding:24px;margin:16px 0}.ok{color:var(--ok);font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}ul{margin:8px 0;padding-left:22px}code{background:#edf0ea;padding:2px 6px;border-radius:5px}figure{margin:12px 0}img{width:100%;border:1px solid var(--line);border-radius:10px}figcaption{color:var(--muted);font-size:13px;margin-top:5px}
+    table{width:100%;border-collapse:collapse}th,td{padding:11px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:13px;color:var(--muted)}
+    @media(max-width:720px){header{padding-top:36px}.score,.grid{grid-template-columns:1fr 1fr}.card{padding:18px}}@media(max-width:440px){.score,.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">XUNFENG RELEASE VERIFICATION</div>
+    <h1>持續開發與功能驗收報告</h1>
+    <p class="muted">2026-09-04｜課程資料同步、下單防護、推廣歸因與正式站回歸驗收</p>
+  </header>
+  <main>
+    <section class="score">
+      <div class="metric"><strong>176</strong><span>單元／回歸測試通過</span></div>
+      <div class="metric"><strong>0</strong><span>測試失敗</span></div>
+      <div class="metric"><strong>101</strong><span>Next.js 頁面建置成功</span></div>
+      <div class="metric"><strong>2</strong><span>本輪額外修復缺陷</span></div>
+    </section>
+
+    <section class="card">
+      <h2>結論</h2>
+      <p class="ok">通過：本輪可自動驗收的功能均正常，且沒有改動付款金額、課程商品代碼、歸因優先序或正式資料。</p>
+      <p>除原有上傳與後台改善外，本輪再找出並修復兩個邊界問題：課程頁首屏短暫顯示過期資料，以及破損的推廣 cookie 可能讓下單 API 發生例外。</p>
+    </section>
+
+    <section class="card">
+      <h2>本輪修復</h2>
+      <table>
+        <thead><tr><th>問題</th><th>處置</th><th>防護效果</th></tr></thead>
+        <tbody>
+          <tr><td>課程 API 回應前顯示舊的 6/21 第一期</td><td>首屏改為中性讀取狀態，不再硬編日期與價格</td><td>慢網路時不會誤導學員</td></tr>
+          <tr><td>API 失敗時表單仍可點結帳</td><td>取得當期課程前鎖定按鈕；失敗後維持鎖定並顯示原因</td><td>避免資訊不完整時下單</td></tr>
+          <tr><td>含非法 <code>%</code> 的破損 <code>xf_ref</code> cookie</td><td>解碼失敗時安全回傳無歸因</td><td>無效推廣碼不會擋住付款</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>驗收證據</h2>
+      <div class="grid">
+        <div><h3>自動測試</h3><ul><li><code>npm run test:unit</code>：176 passed、2 skipped</li><li><code>npx tsc --noEmit</code>：通過</li><li><code>npm run build</code>：通過，101 頁完成生成</li><li><code>git diff --check</code>：通過</li></ul></div>
+        <div><h3>正式站瀏覽器</h3><ul><li><code>/courses</code>：API 200、三張海報、當期日期與價格正常</li><li>桌機／390px 手機寬度皆可操作</li><li><code>?ref=ran81127</code>：導到三欄註冊並寫入 cookie</li><li>未登入 <code>/admin/site-cases</code>：正確導回後台登入</li></ul></div>
+      </div>
+      <div class="grid">
+        <figure><img src="../../output/playwright/course-api-failure.png" alt="API 失敗時結帳按鈕鎖定"><figcaption>故障注入：API 503 時不顯示假資料，且結帳按鈕不可用。</figcaption></figure>
+        <figure><img src="../../output/playwright/course-api-success.png" alt="API 正常時課程資訊與按鈕"><figcaption>正常路徑：當期資訊同步後，結帳按鈕才解鎖。</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>界線與建議</h2>
+      <p>沒有管理員密碼與全新信箱，因此本輪沒有替使用者寫入正式課程、建立會員或真實刷卡。這是避免影響正式資料與產生費用的刻意邊界，不是程式缺口。</p>
+      <p><strong>建議：</strong>後續仍可由真人做一次「管理員上傳 MP4」與「全新 Email 註冊後下單」的營運驗收；這兩項不影響本輪程式修復與自動化驗收結論。</p>
+    </section>
+  </main>
+</body>
+</html>

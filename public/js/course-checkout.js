@@ -142,6 +142,7 @@
   async function init() {
     const form = $("courseCheckoutForm");
     if (!form) return;
+    const button = $("courseCheckoutSubmit");
 
     const params = new URLSearchParams(location.search);
     if (params.get("course_payment") === "paid") {
@@ -156,8 +157,12 @@
       course = data.course;
       syncCourseSummary(course);
       syncPrice(course);
+      button.disabled = false;
+      button.textContent = "前往綠界結帳";
     } catch (error) {
-      status(error.message, "error");
+      status(`無法讀取最新課程資訊：${error.message}`, "error");
+      button.disabled = true;
+      button.textContent = "課程資訊暫時無法讀取";
     }
 
     document.querySelectorAll('input[name="courseRegistrationType"]').forEach((el) => {
@@ -171,7 +176,6 @@
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const button = $("courseCheckoutSubmit");
       const original = button.textContent;
       button.disabled = true;
       button.textContent = "建立訂單中...";

@@ -1,5 +1,48 @@
 # Handoff
 
+## 2026-09-04 持續開發 Loop｜課程首屏與推廣歸因防護
+
+### 目前狀態
+
+- 正式專案：`xunfeng-official-v2`，分支 `main`。
+- 本輪找出並修復兩個額外邊界缺陷：課程頁 API 回應前顯示過期假資料；破損 `xf_ref` cookie 可能讓下單異常。
+- 課程結帳現在必須先取得當期 API 資料才會解鎖；API 失敗時維持鎖定並顯示原因。
+- HTML 驗收報告：`docs/reports/2026-09-04-continuous-development-verification.html`。
+
+### 已完成與修改檔案
+
+- `app/(public)/courses/page.tsx`：過期硬編課程改為中性讀取狀態，結帳按鈕預設鎖定。
+- `public/js/course-checkout.js`：成功同步資料後解鎖；失敗時鎖定並告知。
+- `lib/referral/attribution.ts`：損壞 URI cookie 安全降級為無歸因，不擋下單。
+- 新增推廣歸因與課程首屏回歸測試，並保存 Playwright 驗收截圖。
+
+### 驗證結果
+
+- `npm run test:unit`：176 passed、2 skipped。
+- `npx tsc --noEmit`：通過。
+- `npm run build`：通過，101 頁成功生成。
+- `git diff --check`：通過。
+- Playwright 正式站：`/courses` API 200、三張海報、桌機與手機可操作；推廣導流與後台未登入保護正常。
+- Playwright 本機 production build：API 正常時解鎖、503 時鎖定的兩條路徑均通過。
+- HTML 報告已以 HTTP 實際開啟，兩張內嵌證據圖均載入 200；僅 favicon 未設定產生無影響 404。
+
+### 未完成、風險與待辦
+
+- 程式範圍內無未完成項目。
+- 營運層仍可由真人做一次「管理員實際上傳 MP4」、「全新 Email 註冊→下單→後台歸戶」與 NT$1 真刷；這些需帳號／費用，本輪沒有擅自執行。
+- 正式上線後應再比對新的首屏讀取狀態，確認 Vercel 別名已指向新 deployment。
+
+### 下次起手式
+
+1. 確認本輪 commit 與 Vercel Production Ready。
+2. 在正式 `/courses` 以慢速網路重載，確認不再出現 6/21 第一期。
+3. 若使用者提供營運驗收帳號，再執行 MP4 與新會員歸戶的最後真人 E2E。
+
+### Git 與長時間程序
+
+- 長時間程序：無。
+- Git 狀態與 commit 將在本輪收尾後更新。
+
 ## 2026-09-04 收工｜課程後台修復、介面改善與媒體上傳修正
 
 ### 目前狀態
