@@ -104,6 +104,10 @@
    （最多 12 張）依序堆疊；痛點區後移精簡；`body` 長文不再顯示。migration `20260904170000` 已 push。
    老師要補圖：後台 → 課程上架 → STEP 6 → 課程介紹圖 1、2 或「更多課程介紹圖」→ 上傳 → 儲存並上架。
 
+9. **STEP 6 圖片可拖曳排序**：主視覺與介紹圖合併成一個清單，拖曳「⋮⋮」換位（手機用 ▲▼）；
+   第 1 張＝Hero，其餘依序堆疊；整串存 `gallery`，前三張同步 poster_*。Vercel 部署 READY。
+   註：本次以 curl／headless 反覆檢查正式站觸發了 Vercel Security Checkpoint（403 挑戰頁），之後驗證要放慢頻率。
+
 ### 修改檔案
 
 - `app/api/admin/course-product/route.ts`
