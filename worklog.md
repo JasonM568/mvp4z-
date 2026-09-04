@@ -1267,3 +1267,10 @@ Commit：`1930692 fix(admin): upload posters and videos directly to storage`
 手機隱藏信任清單與 LINE 連結。Codex 第一次因 `codex exec` 在非 TTY 下等 stdin 而卡住，改加 `< /dev/null` 重跑成功。
 
 驗證：tsc、build 通過；本機截圖桌機／手機：按鈕 computed 為金色漸層＋深色字、文字「前往綠界結帳｜NT$ 6,000」。
+
+### 真人驗收回報（海報未出現）
+
+使用者：上傳的課程圖片沒有出現在報名頁。查證：Storage 只有兩張上傳（9/3 PNG「為什麼古代軍師掐指一算」、
+9/4 JPG「五術掌訣實修班」），兩張都被存進 `video_cover`；新版「課程上架」上線後沒有任何 media_sign 或
+promo_update 紀錄，代表使用者還沒在新後台重新上傳。直接以 SQL 把兩張改為 poster_main／poster_second，
+原「掌中訣開班授課」QR 海報退到 poster_third，清空 video_cover。ISR 約 10 秒後正式站 Hero 已顯示三張輪播。
