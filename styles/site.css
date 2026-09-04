@@ -2325,3 +2325,17 @@ iframe {
 .cl-lightbox[hidden] { display: none; }
 .cl-lightbox img { max-width: min(96vw, 900px); max-height: 92vh; border-radius: 16px; box-shadow: 0 30px 90px rgba(0,0,0,.6); cursor: default; }
 .cl-lightbox-close { position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.5); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; }
+
+
+/* Hero 主視覺：單張、完整顯示 */
+.cl-hero-key-visual { max-width: 440px; margin: 0 auto; border-radius: 26px; overflow: hidden; border: 1px solid rgba(255,255,255,.16); background: rgba(0,0,0,.35); box-shadow: 0 26px 78px rgba(0,0,0,.52); }
+.cl-hero-key-visual img { display: block; width: 100%; height: auto; }
+@media (min-width: 900px) { .cl-hero-key-visual { max-width: none; } }
+
+/* 課程介紹圖：一張接一張往下堆疊、滿版、不裁切、不輪播（覆蓋前一版圖片牆） */
+.cl-intro-images { padding: 28px 0 40px; }
+.cl-intro-wrap { max-width: 960px; display: grid; gap: 14px; }
+.cl-intro-figure { margin: 0; }
+.cl-intro-figure img { display: block; width: 100%; height: auto; border-radius: 18px; border: 1px solid rgba(255,255,255,.1); }
+.cl-intro-figure figcaption { margin-top: 6px; color: var(--muted); font-size: 13px; text-align: center; }
+@media (min-width: 900px) { .cl-intro-images { padding: 40px 0 56px; } .cl-intro-wrap { gap: 20px; } .cl-intro-figure img { border-radius: 24px; } }

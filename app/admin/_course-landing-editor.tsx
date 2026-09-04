@@ -19,7 +19,7 @@ const STEPS: { key: Step; label: string; short: string; description: string }[] 
   { key: "content", label: "課程內容", short: "STEP 3", description: "痛點共鳴、學完你能、課程大綱。" },
   { key: "instructor", label: "講師與信任", short: "STEP 4", description: "講師簡介、經歷與學員見證。" },
   { key: "faq", label: "FAQ 與注意事項", short: "STEP 5", description: "常見問題、報名注意事項與課程補充。" },
-  { key: "media", label: "海報、圖片與影片", short: "STEP 6", description: "海報輪播、課程圖片牆、宣傳影片與影片預覽圖。" },
+  { key: "media", label: "主視覺、介紹圖與影片", short: "STEP 6", description: "Hero 主視覺、往下堆疊的課程介紹圖、宣傳影片。" },
   { key: "publish", label: "上架排程", short: "STEP 7", description: "決定何時公開、何時自動下架。" }
 ];
 
@@ -153,8 +153,8 @@ export function CourseLandingEditor() {
   // 右側「前台會顯示哪些區段」檢查表：讓老師知道哪一區還是空的。
   const checklist = useMemo(() => [
     { label: "主視覺", ok: Boolean(form.title && form.headline) },
-    { label: "海報", ok: Boolean(form.poster_main) },
-    { label: "課程圖片牆", ok: Boolean(form.poster_main) || lists.gallery.length > 0 },
+    { label: "主視覺", ok: Boolean(form.poster_main) },
+    { label: "課程介紹圖", ok: Boolean(form.poster_second || form.poster_third) || lists.gallery.length > 0 },
     { label: "痛點共鳴", ok: lineCount(form.pain_points) > 0 },
     { label: "學完你能", ok: lineCount(form.outcomes) > 0 },
     { label: "課程大綱", ok: lists.curriculum.length > 0 },
@@ -278,12 +278,12 @@ export function CourseLandingEditor() {
 
             {step === "media" && (
               <div className="admin-form-grid">
-                {media("poster_main", "海報 1（Hero 主圖、輪播第一張）", "image", "直式 3:4 最合適，JPG / PNG / WebP，最大 10MB。")}
-                {media("poster_second", "海報 2", "image")}
-                {media("poster_third", "海報 3", "image")}
+                {media("poster_main", "主視覺（Hero 右側那一張）", "image", "直式海報最合適，JPG / PNG / WebP，最大 10MB。")}
+                {media("poster_second", "課程介紹圖 1（Hero 下方第一張）", "image", "介紹圖會一張接一張往下滿版堆疊，不裁切、不輪播；長圖也可以。")}
+                {media("poster_third", "課程介紹圖 2", "image")}
                 <div className="admin-form-wide">
-                  <div className="admin-subhead">課程圖片牆（Hero 下方第二區塊，最多 12 張）</div>
-                  <p className="admin-list-empty">海報 1～3 會自動排在最前面；這裡再加上課實況、教材、場地等照片，圖片越多越好，文字越少越好。</p>
+                  <div className="admin-subhead">更多課程介紹圖（接在介紹圖 2 之後，最多 12 張）</div>
+                  <p className="admin-list-empty">照順序往下堆疊；長圖、拼圖、上課實況都可以。文字越少越好。</p>
                   <ListEditor listKey="gallery" rows={lists.gallery} onChange={(rows) => setList("gallery", rows)} onNotice={setNotice} />
                 </div>
                 {media("video_one", "宣傳影片 1", "video", "可上傳 MP4（最大 200MB）或貼 YouTube / Vimeo 網址。")}

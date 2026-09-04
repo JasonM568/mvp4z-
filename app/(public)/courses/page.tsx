@@ -73,45 +73,6 @@ function VideoPlayer({ src, cover, title }: { src: string; cover: string; title:
   );
 }
 
-const CAROUSEL_JS = `
-(function(){
-  function run(){
-    document.querySelectorAll('[data-course-promo-carousel]').forEach(function(carousel){
-      if(carousel.dataset.ready === '1') return;
-      carousel.dataset.ready = '1';
-      var imgs = Array.prototype.slice.call(carousel.querySelectorAll('.promo-carousel-img'));
-      var dots = Array.prototype.slice.call(carousel.querySelectorAll('.promo-carousel-dots button'));
-      if(imgs.length <= 1) return;
-      var index = 0;
-      function show(next){
-        index = (next + imgs.length) % imgs.length;
-        imgs.forEach(function(img, i){ img.classList.toggle('active', i === index); });
-        dots.forEach(function(dot, i){ dot.classList.toggle('active', i === index); });
-      }
-      dots.forEach(function(dot, i){ dot.addEventListener('click', function(){ show(i); }); });
-      setInterval(function(){ show(index + 1); }, 5000);
-    });
-  }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
-})();
-`;
-
-// 圖片牆：點圖放大，點背景或 × 或 Esc 關閉。
-const LIGHTBOX_JS = `
-(function(){
-  var box = document.getElementById('clLightbox');
-  if(!box) return;
-  var img = box.querySelector('img');
-  function close(){ box.hidden = true; img.src = ''; document.body.style.overflow = ''; }
-  document.addEventListener('click', function(e){
-    var t = e.target.closest('[data-lightbox]');
-    if(t){ img.src = t.getAttribute('data-lightbox'); box.hidden = false; document.body.style.overflow = 'hidden'; return; }
-    if(!box.hidden && (e.target === box || e.target.closest('.cl-lightbox-close'))) close();
-  });
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !box.hidden) close(); });
-})();
-`;
-
 // 固定 CTA：捲過 Hero 才出現，進到報名表後自動收起，避免遮住綠界付款按鈕。
 const STICKY_JS = `
 (function(){
@@ -151,9 +112,9 @@ export default async function CoursesPage() {
     p.videoTwo ? { src: p.videoTwo, title: p.videoTwoTitle || "課程宣傳影片 2" } : null
   ].filter((v): v is { src: string; title: string } => Boolean(v)) : [];
   const heroStats = p ? lines(p.heroStats) : [];
-  // 圖片牆：海報在前，再接老師上傳的課程圖片；同一張只出現一次。
-  const galleryItems = p
-    ? [...posters.map((src) => ({ image: src, caption: "" })), ...p.gallery.map((g) => ({ image: mediaSrc(g.image), caption: g.caption }))]
+  // 課程介紹圖：海報 1 當 Hero 主視覺；海報 2、3 與老師上傳的介紹圖依序往下堆疊，同一張只出現一次。
+  const introImages = p
+    ? [...posters.slice(1).map((src) => ({ image: src, caption: "" })), ...p.gallery.map((g) => ({ image: mediaSrc(g.image), caption: g.caption }))]
         .filter((g, i, arr) => g.image && arr.findIndex((x) => x.image === g.image) === i)
     : [];
   const painPoints = p ? lines(p.painPoints).map(splitTitled) : [];
@@ -212,22 +173,8 @@ export default async function CoursesPage() {
             </div>
             <div className="cl-hero-media">
               {posters.length > 0 ? (
-                <div className="promo-poster-carousel cl-carousel" data-course-promo-carousel>
-                  {/* 海報依原始比例完整顯示，不裁切；多張時下方放縮圖，一眼看到全部，點縮圖切換。 */}
-                  <div className="cl-carousel-stage">
-                    {posters.map((src, i) => (
-                      <img key={src} className={`promo-carousel-img ${i === 0 ? "active" : ""}`} src={src} alt={`${p.title} 課程海報 ${i + 1}`} />
-                    ))}
-                  </div>
-                  {posters.length > 1 && (
-                    <div className="promo-carousel-dots cl-thumbs" aria-label="切換海報">
-                      {posters.map((src, i) => (
-                        <button key={src} type="button" className={i === 0 ? "active" : ""} aria-label={`切換到第 ${i + 1} 張海報`}>
-                          <img src={src} alt="" loading="lazy" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="cl-hero-key-visual">
+                  <img src={posters[0]} alt={`${p.title} 主視覺`} />
                 </div>
               ) : (
                 <div className="cl-hero-placeholder"><span>{p.title}</span></div>
@@ -237,23 +184,15 @@ export default async function CoursesPage() {
         </section>
       )}
 
-      {p && galleryItems.length > 0 && (
-        <section className="cl-section cl-gallery">
-          <div className="wrap">
-            <div className="cl-section-head cl-gallery-head">
-              <div className="tag">COURSE GALLERY</div>
-              <h2>{p.title}{p.titleSuffix ? ` ${p.titleSuffix}` : ""}</h2>
-            </div>
-            <div className={`cl-gallery-grid count-${Math.min(galleryItems.length, 6)}`}>
-              {galleryItems.map((g, i) => (
-                <figure key={g.image} className="cl-gallery-item">
-                  <button type="button" data-lightbox={g.image} aria-label={`放大第 ${i + 1} 張圖片`}>
-                    <img src={g.image} alt={g.caption || `${p.title} 課程圖片 ${i + 1}`} loading={i < 3 ? "eager" : "lazy"} />
-                  </button>
-                  {g.caption && <figcaption>{g.caption}</figcaption>}
-                </figure>
-              ))}
-            </div>
+      {p && introImages.length > 0 && (
+        <section className="cl-section cl-intro-images">
+          <div className="wrap cl-intro-wrap">
+            {introImages.map((g, i) => (
+              <figure key={g.image} className="cl-intro-figure">
+                <img src={g.image} alt={g.caption || `${p.title} 課程介紹 ${i + 1}`} loading={i < 2 ? "eager" : "lazy"} />
+                {g.caption && <figcaption>{g.caption}</figcaption>}
+              </figure>
+            ))}
           </div>
         </section>
       )}
@@ -589,13 +528,7 @@ export default async function CoursesPage() {
         </section>
       )}
 
-      <div id="clLightbox" className="cl-lightbox" hidden role="dialog" aria-modal="true" aria-label="圖片放大">
-        <button type="button" className="cl-lightbox-close" aria-label="關閉">×</button>
-        <img alt="" />
-      </div>
 
-      <Script id="courses-lightbox" strategy="afterInteractive">{LIGHTBOX_JS}</Script>
-      <Script id="courses-carousel" strategy="afterInteractive">{CAROUSEL_JS}</Script>
       <Script id="courses-sticky" strategy="afterInteractive">{STICKY_JS}</Script>
       <Script src="/js/course-checkout.js" strategy="afterInteractive" />
     </>
