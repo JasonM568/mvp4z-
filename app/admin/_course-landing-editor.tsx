@@ -19,7 +19,7 @@ const STEPS: { key: Step; label: string; short: string; description: string }[] 
   { key: "content", label: "課程內容", short: "STEP 3", description: "痛點共鳴、學完你能、課程大綱。" },
   { key: "instructor", label: "講師與信任", short: "STEP 4", description: "講師簡介、經歷與學員見證。" },
   { key: "faq", label: "FAQ 與注意事項", short: "STEP 5", description: "常見問題、報名注意事項與課程補充。" },
-  { key: "media", label: "海報與影片", short: "STEP 6", description: "海報輪播、宣傳影片與影片預覽圖。" },
+  { key: "media", label: "海報、圖片與影片", short: "STEP 6", description: "海報輪播、課程圖片牆、宣傳影片與影片預覽圖。" },
   { key: "publish", label: "上架排程", short: "STEP 7", description: "決定何時公開、何時自動下架。" }
 ];
 
@@ -34,6 +34,7 @@ const TEXT_KEYS = [
 type TextKey = (typeof TEXT_KEYS)[number];
 
 const LIST_SPECS = {
+  gallery: { label: "課程圖片", fields: [{ key: "image", label: "圖片", placeholder: "", image: true, wide: true }, { key: "caption", label: "一句說明（選填）", placeholder: "現場實作情形", wide: true }] },
   curriculum: { label: "課程大綱", fields: [{ key: "title", label: "單元標題", placeholder: "干支解析基礎" }, { key: "duration", label: "時長／時段", placeholder: "2 小時 或 10:00–12:00" }, { key: "description", label: "一句說明", placeholder: "天干地支排列口訣與掌訣記憶法", wide: true }] },
   faqs: { label: "常見問題", fields: [{ key: "q", label: "問題", placeholder: "我完全沒有基礎，能聽得懂嗎？", wide: true }, { key: "a", label: "回答", placeholder: "課程專為零基礎設計⋯", wide: true, textarea: true }] },
   testimonials: { label: "學員見證", fields: [{ key: "name", label: "學員稱呼", placeholder: "王先生" }, { key: "role", label: "身份（選填）", placeholder: "餐飲業老闆" }, { key: "quote", label: "見證內容", placeholder: "只寫學員本人同意公開的內容", wide: true, textarea: true }] }
@@ -42,7 +43,7 @@ type ListKey = keyof typeof LIST_SPECS;
 
 const lineCount = (value: string) => String(value || "").split(/\r?\n/).filter((s) => s.trim()).length;
 
-function ListEditor({ listKey, rows, onChange }: { listKey: ListKey; rows: ListRow[]; onChange: (rows: ListRow[]) => void }) {
+function ListEditor({ listKey, rows, onChange, onNotice }: { listKey: ListKey; rows: ListRow[]; onChange: (rows: ListRow[]) => void; onNotice?: (message: string) => void }) {
   const spec = LIST_SPECS[listKey];
   const update = (index: number, key: string, value: string) => onChange(rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
   const move = (index: number, delta: number) => {
@@ -70,7 +71,9 @@ function ListEditor({ listKey, rows, onChange }: { listKey: ListKey; rows: ListR
             {spec.fields.map((f) => (
               <label key={f.key} className={"wide" in f && f.wide ? "admin-form-wide" : ""}>
                 {f.label}
-                {"textarea" in f && f.textarea ? (
+                {"image" in f && f.image ? (
+                  <MediaField value={row[f.key] || ""} folder="course-gallery" kind="image" onChange={(v) => update(index, f.key, v)} onError={onNotice || (() => undefined)} />
+                ) : "textarea" in f && f.textarea ? (
                   <textarea rows={3} value={row[f.key] || ""} placeholder={f.placeholder} onChange={(e) => update(index, f.key, e.target.value)} />
                 ) : (
                   <input value={row[f.key] || ""} placeholder={f.placeholder} onChange={(e) => update(index, f.key, e.target.value)} />
@@ -88,7 +91,7 @@ function ListEditor({ listKey, rows, onChange }: { listKey: ListKey; rows: ListR
 export function CourseLandingEditor() {
   const [step, setStep] = useState<Step>("product");
   const [form, setForm] = useState<Record<TextKey, string>>(() => Object.fromEntries(TEXT_KEYS.map((k) => [k, ""])) as Record<TextKey, string>);
-  const [lists, setLists] = useState<Record<ListKey, ListRow[]>>({ curriculum: [], faqs: [], testimonials: [] });
+  const [lists, setLists] = useState<Record<ListKey, ListRow[]>>({ gallery: [], curriculum: [], faqs: [], testimonials: [] });
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -109,6 +112,7 @@ export function CourseLandingEditor() {
       for (const key of TEXT_KEYS) next[key] = raw[key] == null ? "" : String(raw[key]);
       setForm(next);
       setLists({
+        gallery: Array.isArray(raw.gallery) ? (raw.gallery as ListRow[]) : [],
         curriculum: Array.isArray(raw.curriculum) ? (raw.curriculum as ListRow[]) : [],
         faqs: Array.isArray(raw.faqs) ? (raw.faqs as ListRow[]) : [],
         testimonials: Array.isArray(raw.testimonials) ? (raw.testimonials as ListRow[]) : []
@@ -150,6 +154,7 @@ export function CourseLandingEditor() {
   const checklist = useMemo(() => [
     { label: "主視覺", ok: Boolean(form.title && form.headline) },
     { label: "海報", ok: Boolean(form.poster_main) },
+    { label: "課程圖片牆", ok: Boolean(form.poster_main) || lists.gallery.length > 0 },
     { label: "痛點共鳴", ok: lineCount(form.pain_points) > 0 },
     { label: "學完你能", ok: lineCount(form.outcomes) > 0 },
     { label: "課程大綱", ok: lists.curriculum.length > 0 },
@@ -235,7 +240,7 @@ export function CourseLandingEditor() {
               <div className="admin-form-grid">
                 {text("pain_title", "痛點區標題", { placeholder: "這些困擾，你也遇過嗎？", wide: true })}
                 {text("pain_points", "痛點共鳴（一行一項，格式「標題｜說明」）", { textarea: true, rows: 5, placeholder: "記不住干支五行｜看了很多命理書，一離開書本就忘光", hint: "沒有「｜」也可以，整行會當成說明。" })}
-                {text("body", "課程介紹段落（選填，空一行分段）", { textarea: true, rows: 5, hint: "顯示在痛點卡片下方，適合放老師想說的話。" })}
+                {text("body", "課程介紹段落（目前前台不顯示）", { textarea: true, rows: 4, hint: "招生頁走「多圖少字」，這段文字暫不顯示；保留給日後的課程介紹頁或文宣使用。" })}
                 {text("outcome_title", "學完你能：標題", { placeholder: "一天學會，帶走一輩子的工具", wide: true })}
                 {text("outcomes", "學完你能（一行一項，可用「標題｜說明」）", { textarea: true, rows: 6, placeholder: "掌握干支排列口訣，隨時可在掌中推算" })}
                 {text("curriculum_title", "課程大綱標題", { placeholder: "一日 7 小時，這樣安排", wide: true })}
@@ -276,6 +281,11 @@ export function CourseLandingEditor() {
                 {media("poster_main", "海報 1（Hero 主圖、輪播第一張）", "image", "直式 3:4 最合適，JPG / PNG / WebP，最大 10MB。")}
                 {media("poster_second", "海報 2", "image")}
                 {media("poster_third", "海報 3", "image")}
+                <div className="admin-form-wide">
+                  <div className="admin-subhead">課程圖片牆（Hero 下方第二區塊，最多 12 張）</div>
+                  <p className="admin-list-empty">海報 1～3 會自動排在最前面；這裡再加上課實況、教材、場地等照片，圖片越多越好，文字越少越好。</p>
+                  <ListEditor listKey="gallery" rows={lists.gallery} onChange={(rows) => setList("gallery", rows)} onNotice={setNotice} />
+                </div>
                 {media("video_one", "宣傳影片 1", "video", "可上傳 MP4（最大 200MB）或貼 YouTube / Vimeo 網址。")}
                 {text("video_one_title", "宣傳影片 1 標題", { placeholder: "課程介紹" })}
                 {media("video_two", "宣傳影片 2", "video")}

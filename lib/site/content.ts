@@ -82,8 +82,10 @@ export type CoursePromo = {
   guaranteeText: string;
   seatsText: string;
   stickyCtaHint: string;
+  gallery: GalleryItem[];
 };
 
+export type GalleryItem = { image: string; caption: string };
 export type CurriculumItem = { title: string; description: string; duration: string };
 export type FaqItem = { q: string; a: string };
 export type TestimonialItem = { name: string; role: string; quote: string };
@@ -113,11 +115,12 @@ export const PROMO_FIELDS = [
   "video_cover", "video_one", "video_one_title", "video_two", "video_two_title", "notice",
   "hero_stats", "pain_title", "pain_points", "outcome_title", "outcomes", "curriculum_title", "curriculum",
   "instructor_name", "instructor_title", "instructor_bio", "instructor_image", "instructor_credentials",
-  "info_note", "faqs", "testimonials", "guarantee_text", "seats_text", "sticky_cta_hint"
+  "info_note", "faqs", "testimonials", "guarantee_text", "seats_text", "sticky_cta_hint", "gallery"
 ] as const;
 
 /** jsonb 清單欄位：後台送陣列，API 會先過 sanitizePromoList 再存。 */
-export const PROMO_LIST_FIELDS: Record<"curriculum" | "faqs" | "testimonials", { keys: string[]; max: number }> = {
+export const PROMO_LIST_FIELDS: Record<"curriculum" | "faqs" | "testimonials" | "gallery", { keys: string[]; max: number }> = {
+  gallery: { keys: ["image", "caption"], max: 12 },
   curriculum: { keys: ["title", "description", "duration"], max: 12 },
   faqs: { keys: ["q", "a"], max: 12 },
   testimonials: { keys: ["name", "role", "quote"], max: 12 }
@@ -250,7 +253,8 @@ export function toPromoPayload(row: Record<string, unknown> | null): CoursePromo
     testimonials: sanitizePromoList("testimonials", row.testimonials) as TestimonialItem[],
     guaranteeText: text("guarantee_text"),
     seatsText: text("seats_text"),
-    stickyCtaHint: text("sticky_cta_hint")
+    stickyCtaHint: text("sticky_cta_hint"),
+    gallery: sanitizePromoList("gallery", row.gallery) as GalleryItem[]
   };
 }
 

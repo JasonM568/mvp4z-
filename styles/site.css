@@ -2291,3 +2291,37 @@ iframe {
 .cl-hero-media .cl-thumbs button img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cl-hero-media .cl-thumbs button.active { width: 58px; border-color: var(--gold); opacity: 1; transform: translateY(-2px); }
 .cl-hero-media .cl-thumbs button:hover { opacity: 1; }
+
+
+/* 第二區塊：課程圖片牆（多圖少字） */
+.cl-gallery { padding-top: 40px; }
+.cl-gallery-head { margin-bottom: 18px; }
+.cl-gallery-head h2 { font-size: clamp(22px, 3vw, 30px); }
+.cl-gallery-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cl-gallery-item { margin: 0; display: grid; gap: 6px; }
+.cl-gallery-item button { display: block; width: 100%; padding: 0; border: 1px solid rgba(255,255,255,.12); border-radius: 18px; overflow: hidden; background: rgba(0,0,0,.35); cursor: zoom-in; }
+.cl-gallery-item img { display: block; width: 100%; height: 100%; object-fit: cover; aspect-ratio: 3 / 4; transition: transform .35s ease; }
+.cl-gallery-item button:hover img { transform: scale(1.03); }
+.cl-gallery-item figcaption { color: var(--muted); font-size: 13px; text-align: center; }
+.cl-gallery-grid .cl-gallery-item:first-child { grid-column: 1 / -1; }
+.cl-gallery-grid .cl-gallery-item:first-child img { aspect-ratio: 4 / 5; object-fit: contain; background: rgba(0,0,0,.35); }
+@media (min-width: 720px) {
+  /* 1～4 張：等寬並排、整張完整顯示；5 張以上：第一張放大成主圖，其餘拼貼。 */
+  .cl-gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .cl-gallery-grid .cl-gallery-item:first-child { grid-column: auto; }
+  .cl-gallery-grid .cl-gallery-item:first-child img { aspect-ratio: 3 / 4; object-fit: contain; }
+  .cl-gallery-grid.count-1, .cl-gallery-grid.count-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-gallery-grid.count-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cl-gallery-grid.count-1 img, .cl-gallery-grid.count-2 img, .cl-gallery-grid.count-3 img, .cl-gallery-grid.count-4 img { aspect-ratio: 3 / 4; object-fit: contain; background: rgba(0,0,0,.35); }
+  .cl-gallery-grid.count-5 .cl-gallery-item:first-child, .cl-gallery-grid.count-6 .cl-gallery-item:first-child { grid-column: span 2; grid-row: span 2; }
+  .cl-gallery-grid.count-5 .cl-gallery-item:first-child img, .cl-gallery-grid.count-6 .cl-gallery-item:first-child img { aspect-ratio: auto; height: 100%; object-fit: cover; }
+}
+@media (min-width: 1100px) {
+  .cl-gallery-grid.count-5, .cl-gallery-grid.count-6 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* 圖片放大 */
+.cl-lightbox { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 24px; background: rgba(3,8,6,.92); backdrop-filter: blur(6px); cursor: zoom-out; }
+.cl-lightbox[hidden] { display: none; }
+.cl-lightbox img { max-width: min(96vw, 900px); max-height: 92vh; border-radius: 16px; box-shadow: 0 30px 90px rgba(0,0,0,.6); cursor: default; }
+.cl-lightbox-close { position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.5); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; }

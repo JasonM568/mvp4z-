@@ -238,7 +238,7 @@ async function patchPromo(body: Record<string, unknown>, adminId?: string) {
     } else if (field === "publish_start" || field === "publish_end") {
       const value = String(body[field] ?? "").trim();
       patch[field] = value || null;
-    } else if (field === "curriculum" || field === "faqs" || field === "testimonials") {
+    } else if (field === "curriculum" || field === "faqs" || field === "testimonials" || field === "gallery") {
       patch[field] = sanitizePromoList(field, body[field]);
     } else {
       patch[field] = String(body[field] ?? "").trim();

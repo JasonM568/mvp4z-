@@ -33,7 +33,6 @@ function isPromoLive(promo: CoursePromo | null) {
 }
 
 const lines = (value: string) => String(value || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-const paragraphs = (value: string) => String(value || "").split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
 /** 「標題｜說明」一行一項；沒有分隔符就整行當說明。 */
 const splitTitled = (line: string) => {
   const idx = line.search(/[｜|]/);
@@ -97,6 +96,22 @@ const CAROUSEL_JS = `
 })();
 `;
 
+// 圖片牆：點圖放大，點背景或 × 或 Esc 關閉。
+const LIGHTBOX_JS = `
+(function(){
+  var box = document.getElementById('clLightbox');
+  if(!box) return;
+  var img = box.querySelector('img');
+  function close(){ box.hidden = true; img.src = ''; document.body.style.overflow = ''; }
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('[data-lightbox]');
+    if(t){ img.src = t.getAttribute('data-lightbox'); box.hidden = false; document.body.style.overflow = 'hidden'; return; }
+    if(!box.hidden && (e.target === box || e.target.closest('.cl-lightbox-close'))) close();
+  });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !box.hidden) close(); });
+})();
+`;
+
 // 固定 CTA：捲過 Hero 才出現，進到報名表後自動收起，避免遮住綠界付款按鈕。
 const STICKY_JS = `
 (function(){
@@ -136,6 +151,11 @@ export default async function CoursesPage() {
     p.videoTwo ? { src: p.videoTwo, title: p.videoTwoTitle || "課程宣傳影片 2" } : null
   ].filter((v): v is { src: string; title: string } => Boolean(v)) : [];
   const heroStats = p ? lines(p.heroStats) : [];
+  // 圖片牆：海報在前，再接老師上傳的課程圖片；同一張只出現一次。
+  const galleryItems = p
+    ? [...posters.map((src) => ({ image: src, caption: "" })), ...p.gallery.map((g) => ({ image: mediaSrc(g.image), caption: g.caption }))]
+        .filter((g, i, arr) => g.image && arr.findIndex((x) => x.image === g.image) === i)
+    : [];
   const painPoints = p ? lines(p.painPoints).map(splitTitled) : [];
   const outcomes = p ? lines(p.outcomes).map(splitTitled) : [];
   const curriculum = p?.curriculum || [];
@@ -217,26 +237,42 @@ export default async function CoursesPage() {
         </section>
       )}
 
-      {p && (painPoints.length > 0 || paragraphs(p.body).length > 0) && (
+      {p && galleryItems.length > 0 && (
+        <section className="cl-section cl-gallery">
+          <div className="wrap">
+            <div className="cl-section-head cl-gallery-head">
+              <div className="tag">COURSE GALLERY</div>
+              <h2>{p.title}{p.titleSuffix ? ` ${p.titleSuffix}` : ""}</h2>
+            </div>
+            <div className={`cl-gallery-grid count-${Math.min(galleryItems.length, 6)}`}>
+              {galleryItems.map((g, i) => (
+                <figure key={g.image} className="cl-gallery-item">
+                  <button type="button" data-lightbox={g.image} aria-label={`放大第 ${i + 1} 張圖片`}>
+                    <img src={g.image} alt={g.caption || `${p.title} 課程圖片 ${i + 1}`} loading={i < 3 ? "eager" : "lazy"} />
+                  </button>
+                  {g.caption && <figcaption>{g.caption}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {p && painPoints.length > 0 && (
         <section className="cl-section cl-pain">
           <div className="wrap">
             <div className="cl-section-head">
               <div className="tag">WHY THIS COURSE</div>
               <h2>{p.painTitle || "這些困擾，你也遇過嗎？"}</h2>
             </div>
-            {painPoints.length > 0 && (
-              <div className="cl-pain-grid">
-                {painPoints.map((item, i) => (
-                  <article key={i} className="cl-pain-card">
-                    {item.title && <h3>{item.title}</h3>}
-                    <p>{item.desc}</p>
-                  </article>
-                ))}
-              </div>
-            )}
-            {paragraphs(p.body).length > 0 && (
-              <div className="cl-body">{paragraphs(p.body).map((para, i) => <p key={i}>{para}</p>)}</div>
-            )}
+            <div className="cl-pain-grid">
+              {painPoints.map((item, i) => (
+                <article key={i} className="cl-pain-card">
+                  {item.title && <h3>{item.title}</h3>}
+                  <p>{item.desc}</p>
+                </article>
+              ))}
+            </div>
           </div>
         </section>
       )}
@@ -553,6 +589,12 @@ export default async function CoursesPage() {
         </section>
       )}
 
+      <div id="clLightbox" className="cl-lightbox" hidden role="dialog" aria-modal="true" aria-label="圖片放大">
+        <button type="button" className="cl-lightbox-close" aria-label="關閉">×</button>
+        <img alt="" />
+      </div>
+
+      <Script id="courses-lightbox" strategy="afterInteractive">{LIGHTBOX_JS}</Script>
       <Script id="courses-carousel" strategy="afterInteractive">{CAROUSEL_JS}</Script>
       <Script id="courses-sticky" strategy="afterInteractive">{STICKY_JS}</Script>
       <Script src="/js/course-checkout.js" strategy="afterInteractive" />
