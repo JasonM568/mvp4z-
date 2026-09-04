@@ -2091,7 +2091,8 @@ iframe {
 .cl-sticky-info { display: grid; gap: 2px; min-width: 0; }
 .cl-sticky-info strong { font-size: 15px; color: #fffdf2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cl-sticky-info span { font-size: 12px; color: #f4deae; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cl-sticky .btn { flex: 0 0 auto; padding: 12px 18px; }
+.cl-sticky .btn { flex: 0 0 auto; width: auto !important; padding: 12px 18px; white-space: nowrap; }
+.cl-sticky-info { flex: 1 1 auto; }
 
 /* Hero */
 .cl-hero {
