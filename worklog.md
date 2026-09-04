@@ -1153,8 +1153,10 @@ Supabase access token TTL 1 小時。`authResponse()` 明明有回 `refresh_toke
 
 - 尚未以真人 admin 帳號在正式後台實際點「上傳影片」跑一次；storage 端與 route 端各自驗過，
   但瀏覽器端整條 XHR 流程還沒真機驗收。
-- Supabase 專案層級的全域上傳上限若仍是預設 50MB，超過 50MB 的影片會被 Storage 擋下並顯示
-  「檔案超過 Storage 上限」；需要時到 Supabase Dashboard → Storage → Settings 調高。
+- ~~Supabase 全域上傳上限~~ 已處理：實測 55MB PUT 回 413 `EntityTooLarge`（全域預設 50MB）；
+  以 Management API `PATCH /v1/projects/{ref}/config/storage` 把 `fileSizeLimit` 調到 209715200（200MB），
+  之後 55MB、150MB 直傳皆 200。此設定不在 migration 內，重建專案時要記得再調。
+- 真人後台驗收：Chrome 自動化被權限分類器擋下，無法代操；需使用者本人登入後台實際上傳一次。
 - iPhone 直出的 .mov（HEVC）在 Chrome 不一定能播，建議老師上傳 MP4（H.264）。
 
 Commit：`1930692 fix(admin): upload posters and videos directly to storage`
