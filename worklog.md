@@ -1234,8 +1234,12 @@ Commit：`1930692 fix(admin): upload posters and videos directly to storage`
   中段顯示；手機不再出現「開始問天機」列。
 - 正式庫 seed 確認：curriculum 5 單元、faqs 6 題、instructor 已填、register_url=#register。
 
+### 正式站核對
+
+- 部署 READY 後以 headless Chromium 截圖核對：桌機 Hero／大綱／講師與手機版皆正常；`/admin/course-launch` 回 200。
+- 手機固定報名列的文字被全站 `.btn { width:100% }` 擠成 0 寬，補 `.cl-sticky .btn { width:auto !important }` 後正式站量測 info 219px／btn 105px。
+
 ### 遺留
 
-- 正式站部署後需再截圖核對（本機已驗）。
 - 學員見證目前空白（不杜撰），老師取得同意後可在「講師與信任」步驟自行新增。
 - 仍是單一商品 `zhangzhongjue-115-01`；多課程需另做商品管理。
