@@ -1193,3 +1193,4 @@ Commit：`1930692 fix(admin): upload posters and videos directly to storage`
 - 正式站課程、手機版、推廣導流、cookie 與後台保護皆實際以瀏覽器驗過。
 - 本機 production build 用 API 503 故障注入驗證鎖定路徑，再移除 mock 驗證正常解鎖路徑。
 - 仍有需管理員帳號／新 Email／真實金流的營運 E2E，本輪沒有擅自建帳號、更動正式資料或產生費用。
+- Commit `063d18a` 已 push；Vercel `dpl_Au7hG5XjbtbxUDfEJfJDDi3e39Jb` Ready 且別名含 `www.xunfeng.tw`。正式 HTML 已無過期 6/21 內容，當期 API 仍正確回傳 2026-10-17。

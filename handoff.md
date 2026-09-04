@@ -8,6 +8,7 @@
 - 本輪找出並修復兩個額外邊界缺陷：課程頁 API 回應前顯示過期假資料；破損 `xf_ref` cookie 可能讓下單異常。
 - 課程結帳現在必須先取得當期 API 資料才會解鎖；API 失敗時維持鎖定並顯示原因。
 - HTML 驗收報告：`docs/reports/2026-09-04-continuous-development-verification.html`。
+- Commit `063d18a` 已 push；Vercel Production `dpl_Au7hG5XjbtbxUDfEJfJDDi3e39Jb` Ready 並已掛上 `www.xunfeng.tw`。
 
 ### 已完成與修改檔案
 
@@ -30,18 +31,17 @@
 
 - 程式範圍內無未完成項目。
 - 營運層仍可由真人做一次「管理員實際上傳 MP4」、「全新 Email 註冊→下單→後台歸戶」與 NT$1 真刷；這些需帳號／費用，本輪沒有擅自執行。
-- 正式上線後應再比對新的首屏讀取狀態，確認 Vercel 別名已指向新 deployment。
+- 正式 HTML 已比對：新讀取標記 2 處、過期 `2026年6月21日` 0 處；API 回當期 2026-10-17 資料。
 
 ### 下次起手式
 
-1. 確認本輪 commit 與 Vercel Production Ready。
-2. 在正式 `/courses` 以慢速網路重載，確認不再出現 6/21 第一期。
-3. 若使用者提供營運驗收帳號，再執行 MP4 與新會員歸戶的最後真人 E2E。
+1. 若使用者提供營運驗收帳號，執行 MP4 與新會員歸戶的最後真人 E2E。
+2. 其餘開發可直接依新需求開始，本輪程式項目已閉環。
 
 ### Git 與長時間程序
 
 - 長時間程序：無。
-- Git 狀態與 commit 將在本輪收尾後更新。
+- Git：`main` 已與 `origin/main` 同步；最新功能 commit `063d18a`（本次交接更新將另一筆 docs commit）。
 
 ## 2026-09-04 收工｜課程後台修復、介面改善與媒體上傳修正
 
