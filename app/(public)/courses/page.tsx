@@ -113,10 +113,15 @@ export default async function CoursesPage() {
   ].filter((v): v is { src: string; title: string } => Boolean(v)) : [];
   const heroStats = p ? lines(p.heroStats) : [];
   // 課程介紹圖：海報 1 當 Hero 主視覺；海報 2、3 與老師上傳的介紹圖依序往下堆疊，同一張只出現一次。
-  const introImages = p
-    ? [...posters.slice(1).map((src) => ({ image: src, caption: "" })), ...p.gallery.map((g) => ({ image: mediaSrc(g.image), caption: g.caption }))]
+  // 後台 STEP 6 的「圖片順序」整串存在 gallery；gallery 為空的舊資料才退回海報 1～3。
+  const orderedImages = p
+    ? (p.gallery.length > 0
+        ? p.gallery.map((g) => ({ image: mediaSrc(g.image), caption: g.caption }))
+        : posters.map((src) => ({ image: src, caption: "" })))
         .filter((g, i, arr) => g.image && arr.findIndex((x) => x.image === g.image) === i)
     : [];
+  const heroImage = orderedImages[0]?.image || "";
+  const introImages = orderedImages.slice(1);
   const painPoints = p ? lines(p.painPoints).map(splitTitled) : [];
   const outcomes = p ? lines(p.outcomes).map(splitTitled) : [];
   const curriculum = p?.curriculum || [];
@@ -172,9 +177,9 @@ export default async function CoursesPage() {
               )}
             </div>
             <div className="cl-hero-media">
-              {posters.length > 0 ? (
+              {heroImage ? (
                 <div className="cl-hero-key-visual">
-                  <img src={posters[0]} alt={`${p.title} 主視覺`} />
+                  <img src={heroImage} alt={`${p.title} 主視覺`} />
                 </div>
               ) : (
                 <div className="cl-hero-placeholder"><span>{p.title}</span></div>

@@ -88,10 +88,70 @@ function ListEditor({ listKey, rows, onChange, onNotice }: { listKey: ListKey; r
   );
 }
 
+
+/**
+ * STEP 6 圖片順序：第 1 張＝Hero 主視覺，其餘依序往下當課程介紹圖。
+ * 桌機可拖曳換位；手機用上移／下移。儲存時第 1～3 張同步寫回 poster_main/second/third，整串存進 gallery。
+ */
+function ImageOrderEditor({ rows, onChange, onNotice }: { rows: ListRow[]; onChange: (rows: ListRow[]) => void; onNotice: (message: string) => void }) {
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
+  const move = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= rows.length) return;
+    const next = [...rows];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onChange(next);
+  };
+  const update = (index: number, key: string, value: string) => onChange(rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
+
+  return (
+    <div className="admin-image-order">
+      {rows.length === 0 && <p className="admin-list-empty">還沒有圖片。第 1 張會是 Hero 主視覺，之後的會依序往下滿版堆疊。</p>}
+      <ol className="admin-image-order-list">
+        {rows.map((row, index) => (
+          <li
+            key={index}
+            className={`admin-image-order-item ${dragIndex === index ? "dragging" : ""} ${overIndex === index && dragIndex !== null && dragIndex !== index ? "over" : ""}`}
+            draggable
+            onDragStart={(event) => { setDragIndex(index); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", String(index)); }}
+            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; if (overIndex !== index) setOverIndex(index); }}
+            onDragLeave={() => { if (overIndex === index) setOverIndex(null); }}
+            onDrop={(event) => { event.preventDefault(); if (dragIndex !== null) move(dragIndex, index); setDragIndex(null); setOverIndex(null); }}
+            onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
+          >
+            <div className="admin-image-order-handle" aria-hidden="true" title="拖曳調整順序">⋮⋮</div>
+            <div className="admin-image-order-thumb">
+              {row.image ? <img src={mediaSrc(row.image)} alt="" /> : <span>尚未上傳</span>}
+            </div>
+            <div className="admin-image-order-body">
+              <div className="admin-image-order-role">{index === 0 ? "第 1 張｜Hero 主視覺" : `第 ${index + 1} 張｜課程介紹圖 ${index}`}</div>
+              <MediaField value={row.image || ""} folder="course-gallery" kind="image" onChange={(v) => update(index, "image", v)} onError={onNotice} />
+              {index > 0 && (
+                <label className="admin-image-order-caption">一句說明（選填）
+                  <input value={row.caption || ""} placeholder="例如：上課實況" onChange={(e) => update(index, "caption", e.target.value)} />
+                </label>
+              )}
+            </div>
+            <div className="admin-image-order-actions">
+              <button type="button" className="admin-action-btn ghost small" disabled={index === 0} onClick={() => move(index, index - 1)} aria-label="上移">▲</button>
+              <button type="button" className="admin-action-btn ghost small" disabled={index === rows.length - 1} onClick={() => move(index, index + 1)} aria-label="下移">▼</button>
+              <button type="button" className="admin-action-btn ghost small danger" onClick={() => onChange(rows.filter((_, i) => i !== index))}>刪除</button>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <button type="button" className="admin-action-btn ghost" disabled={rows.length >= 15} onClick={() => onChange([...rows, { image: "", caption: "" }])}>＋ 新增圖片</button>
+    </div>
+  );
+}
+
 export function CourseLandingEditor() {
   const [step, setStep] = useState<Step>("product");
   const [form, setForm] = useState<Record<TextKey, string>>(() => Object.fromEntries(TEXT_KEYS.map((k) => [k, ""])) as Record<TextKey, string>);
   const [lists, setLists] = useState<Record<ListKey, ListRow[]>>({ gallery: [], curriculum: [], faqs: [], testimonials: [] });
+  const [images, setImages] = useState<ListRow[]>([]);
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -111,8 +171,15 @@ export function CourseLandingEditor() {
       const next = {} as Record<TextKey, string>;
       for (const key of TEXT_KEYS) next[key] = raw[key] == null ? "" : String(raw[key]);
       setForm(next);
+      const gallery = Array.isArray(raw.gallery) ? (raw.gallery as ListRow[]) : [];
+      const posters = ["poster_main", "poster_second", "poster_third"].map((k) => String(raw[k] || "")).filter(Boolean);
+      // gallery 已含完整順序就以它為準；舊資料（gallery 空）則由海報 1～3 組成。
+      const ordered = gallery.length > 0
+        ? gallery
+        : posters.map((image) => ({ image, caption: "" }));
+      setImages(ordered.filter((row) => row.image));
       setLists({
-        gallery: Array.isArray(raw.gallery) ? (raw.gallery as ListRow[]) : [],
+        gallery,
         curriculum: Array.isArray(raw.curriculum) ? (raw.curriculum as ListRow[]) : [],
         faqs: Array.isArray(raw.faqs) ? (raw.faqs as ListRow[]) : [],
         testimonials: Array.isArray(raw.testimonials) ? (raw.testimonials as ListRow[]) : []
@@ -129,14 +196,22 @@ export function CourseLandingEditor() {
 
   const set = (key: TextKey, value: string) => { setForm((c) => ({ ...c, [key]: value })); setDirty(true); };
   const setList = (key: ListKey, rows: ListRow[]) => { setLists((c) => ({ ...c, [key]: rows })); setDirty(true); };
+  const setImageRows = (rows: ListRow[]) => { setImages(rows); setDirty(true); };
 
   async function save(nextActive = active) {
     setBusy(true);
     setNotice("");
     try {
+      const ordered = images.filter((row) => String(row.image || "").trim());
       const response = await adminFetch("/api/admin/site-content", {
         method: "PATCH",
-        body: JSON.stringify({ type: "promo", ...form, ...lists, active: nextActive })
+        body: JSON.stringify({
+          type: "promo", ...form, ...lists, active: nextActive,
+          poster_main: ordered[0]?.image || "",
+          poster_second: ordered[1]?.image || "",
+          poster_third: ordered[2]?.image || "",
+          gallery: ordered
+        })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "儲存失敗");
@@ -153,8 +228,8 @@ export function CourseLandingEditor() {
   // 右側「前台會顯示哪些區段」檢查表：讓老師知道哪一區還是空的。
   const checklist = useMemo(() => [
     { label: "主視覺", ok: Boolean(form.title && form.headline) },
-    { label: "主視覺", ok: Boolean(form.poster_main) },
-    { label: "課程介紹圖", ok: Boolean(form.poster_second || form.poster_third) || lists.gallery.length > 0 },
+    { label: "主視覺", ok: Boolean(images[0]?.image) },
+    { label: "課程介紹圖", ok: images.filter((r) => r.image).length > 1 },
     { label: "痛點共鳴", ok: lineCount(form.pain_points) > 0 },
     { label: "學完你能", ok: lineCount(form.outcomes) > 0 },
     { label: "課程大綱", ok: lists.curriculum.length > 0 },
@@ -162,7 +237,7 @@ export function CourseLandingEditor() {
     { label: "講師介紹", ok: Boolean(form.instructor_name && form.instructor_bio) },
     { label: "學員見證", ok: lists.testimonials.length > 0 },
     { label: "常見問題", ok: lists.faqs.length > 0 }
-  ], [form, lists]);
+  ], [form, lists, images]);
 
   if (loading) return <section className="admin-card"><p className="lead">讀取課程上架資料中⋯</p></section>;
 
@@ -278,13 +353,9 @@ export function CourseLandingEditor() {
 
             {step === "media" && (
               <div className="admin-form-grid">
-                {media("poster_main", "主視覺（Hero 右側那一張）", "image", "直式海報最合適，JPG / PNG / WebP，最大 10MB。")}
-                {media("poster_second", "課程介紹圖 1（Hero 下方第一張）", "image", "介紹圖會一張接一張往下滿版堆疊，不裁切、不輪播；長圖也可以。")}
-                {media("poster_third", "課程介紹圖 2", "image")}
                 <div className="admin-form-wide">
-                  <div className="admin-subhead">更多課程介紹圖（接在介紹圖 2 之後，最多 12 張）</div>
-                  <p className="admin-list-empty">照順序往下堆疊；長圖、拼圖、上課實況都可以。文字越少越好。</p>
-                  <ListEditor listKey="gallery" rows={lists.gallery} onChange={(rows) => setList("gallery", rows)} onNotice={setNotice} />
+                  <div className="admin-subhead">圖片順序（拖曳「⋮⋮」換位置；第 1 張＝Hero 主視覺，之後依序往下滿版堆疊）</div>
+                  <ImageOrderEditor rows={images} onChange={setImageRows} onNotice={setNotice} />
                 </div>
                 {media("video_one", "宣傳影片 1", "video", "可上傳 MP4（最大 200MB）或貼 YouTube / Vimeo 網址。")}
                 {text("video_one_title", "宣傳影片 1 標題", { placeholder: "課程介紹" })}
@@ -309,7 +380,7 @@ export function CourseLandingEditor() {
 
         <aside className="admin-promo-preview admin-launch-aside">
           <div className="admin-eyebrow">前台區段檢查</div>
-          {form.poster_main ? <img src={mediaSrc(form.poster_main)} alt="海報預覽" /> : <div className="admin-promo-preview-empty">尚未設定海報 1</div>}
+          {images[0]?.image ? <img src={mediaSrc(images[0].image)} alt="主視覺預覽" /> : <div className="admin-promo-preview-empty">尚未設定主視覺</div>}
           <ul className="admin-launch-checklist">
             {checklist.map((item) => (
               <li key={item.label} className={item.ok ? "ok" : ""}><span>{item.ok ? "●" : "○"}</span>{item.label}<small>{item.ok ? "會顯示" : "空白，隱藏"}</small></li>

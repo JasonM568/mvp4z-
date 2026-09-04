@@ -735,3 +735,25 @@ video.admin-thumb.large {
 .admin-launch-checklist small { font-size: 12px; color: var(--muted); }
 .admin-launch-publish-note p { margin: 0 0 6px; color: var(--muted); font-size: 14px; line-height: 1.7; }
 .admin-promo-status .admin-action-btn { margin-top: 8px; justify-self: start; }
+
+
+/* 課程上架 STEP 6：可拖曳的圖片順序清單 */
+.admin-image-order { display: grid; gap: 12px; }
+.admin-image-order-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.admin-image-order-item { display: grid; grid-template-columns: 28px 96px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.18); transition: border-color .15s, background .15s, opacity .15s; }
+.admin-image-order-item.dragging { opacity: .45; }
+.admin-image-order-item.over { border-color: #d8b95f; background: rgba(216,177,95,.1); }
+.admin-image-order-handle { display: grid; place-items: center; height: 100%; min-height: 72px; color: rgba(255,255,255,.45); font-size: 18px; letter-spacing: -2px; cursor: grab; user-select: none; }
+.admin-image-order-item:active .admin-image-order-handle { cursor: grabbing; }
+.admin-image-order-thumb { width: 96px; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); display: grid; place-items: center; color: var(--muted); font-size: 12px; }
+.admin-image-order-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.admin-image-order-body { display: grid; gap: 8px; min-width: 0; }
+.admin-image-order-body .admin-thumb.large { display: none; }
+.admin-image-order-role { color: #d8b95f; font-size: 12px; font-weight: 900; letter-spacing: .06em; }
+.admin-image-order-caption { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 800; }
+.admin-image-order-caption input { min-height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.24); color: var(--text); padding: 8px 12px; font: inherit; }
+.admin-image-order-actions { display: grid; gap: 6px; }
+@media (max-width: 640px) {
+  .admin-image-order-item { grid-template-columns: 24px 72px minmax(0, 1fr); }
+  .admin-image-order-actions { grid-column: 1 / -1; grid-auto-flow: column; justify-content: start; }
+}
