@@ -1194,3 +1194,48 @@ Commit：`1930692 fix(admin): upload posters and videos directly to storage`
 - 本機 production build 用 API 503 故障注入驗證鎖定路徑，再移除 mock 驗證正常解鎖路徑。
 - 仍有需管理員帳號／新 Email／真實金流的營運 E2E，本輪沒有擅自建帳號、更動正式資料或產生費用。
 - Commit `063d18a` 已 push；Vercel `dpl_Au7hG5XjbtbxUDfEJfJDDi3e39Jb` Ready 且別名含 `www.xunfeng.tw`。正式 HTML 已無過期 6/21 內容，當期 API 仍正確回傳 2026-10-17。
+
+## 2026-09-04（深夜）｜/courses 改為 Landing Page、後台新增「課程上架」
+
+### 需求
+
+使用者：「課程上架的介面很奇怪，不是一般課程的上架介面；前端課程報名頁也沒有 Landing Page 的視覺效果，
+比較像專欄文章。」要求呼叫帳號內的 agent 解決。
+
+### 分工
+
+- `course-planner` agent：產出 Landing Page 十區段資訊架構與後台七分頁欄位規格（`scratchpad/landing/ia-spec.md`）。
+- `copywriter` agent：產出各區段預設文案（只用已知事實，無杜撰數字或見證）（`scratchpad/landing/copy.md`）。
+- 主線：資料模型、前後台實作、樣式、本機截圖驗收。
+
+### 實作
+
+- **DB**：`20260904150000_course_landing_fields.sql` 在 `site_course_promo` 新增 hero_stats、pain_title/points、
+  outcome_title/outcomes、curriculum_title、curriculum(jsonb)、instructor_*、info_note、faqs(jsonb)、
+  testimonials(jsonb)、guarantee_text、seats_text、sticky_cta_hint；jsonb 加 array 型別約束；
+  seed 只填空白欄位，`register_url` 由 `#courseCheckout` 改 `#register`。已 `supabase db push`。
+- **lib**：`lib/site/content.ts` 擴充 CoursePromo 型別、PROMO_FIELDS、`sanitizePromoList`（jsonb 清單白名單與長度上限）；
+  新增 `lib/site/course-product.ts`（讀報名商品＋日期／時間／價格／倒數格式化）。
+- **API**：`PATCH /api/admin/site-content` promo 支援三個 jsonb 清單欄位。
+- **前台** `app/(public)/courses/page.tsx`：改為 server component（`revalidate = 30`）直接讀 DB 渲染，
+  不再依賴 cms-render.js 注入；移除三段 force-hide／remove-fallback hack。區段：固定報名列（捲過 Hero 出現、
+  進報名表隱藏）、Hero、痛點、學完你能、大綱時間軸、影片、講師（含兩張演講照）、見證、課程資訊四格（地點可開地圖）、
+  FAQ（details）、注意事項、既有報名表（欄位 id 原封不動）、其他課程講座頁尾清單。
+  本頁隱藏全站 `.xf-mobile-cta` / `.floating-ai`，避免與報名列打架。
+- **後台**：新增 `/admin/course-launch`（`_course-landing-editor.tsx`）七步驟編輯器，含清單編輯器
+  （上移／下移／刪除）、右側「前台區段檢查」、預覽前台連結；`CourseProductEditor` 支援 embedded 內嵌為 STEP 1。
+  側欄「網站內容」新增「課程上架」；`/admin/site-cases` 移除主打課程分頁。刪除 `_promo-editor.tsx`。
+- **CSS**：`styles/site.css` 追加 `.cl-*` 區塊（mobile first）；`admin.css` 追加步驟導覽與清單編輯器樣式。
+
+### 驗證
+
+- tsc、`npm run build`（/courses 為 ISR 30s）、`test:unit` 176 passed / 2 skipped、`git diff --check` 通過。
+- 本機 `next start` 對正式 DB 截圖：桌機 1280 與手機 390 全頁各區段正常；固定報名列在 Hero 與報名表區自動隱藏、
+  中段顯示；手機不再出現「開始問天機」列。
+- 正式庫 seed 確認：curriculum 5 單元、faqs 6 題、instructor 已填、register_url=#register。
+
+### 遺留
+
+- 正式站部署後需再截圖核對（本機已驗）。
+- 學員見證目前空白（不杜撰），老師取得同意後可在「講師與信任」步驟自行新增。
+- 仍是單一商品 `zhangzhongjue-115-01`；多課程需另做商品管理。

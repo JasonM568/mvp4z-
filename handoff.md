@@ -43,13 +43,13 @@
 - 長時間程序：無。
 - Git：`main` 已與 `origin/main` 同步；最新功能 commit `063d18a`（本次交接更新將另一筆 docs commit）。
 
-## 2026-09-04 收工｜課程後台修復、介面改善與媒體上傳修正
+## 2026-09-04 收工｜/courses Landing Page 改版、課程上架後台、媒體上傳修正
 
 ### 目前狀態
 
 - 正式專案：`xunfeng-official-v2`
 - 分支：`main`
-- 最新功能 commit：`1930692 fix(admin): upload posters and videos directly to storage`
+- 最新功能 commit：`feat(courses): rebuild /courses as a landing page with a course launch admin`（見 git log）
 - `main` 與 `origin/main` 同步；更新交接文件前工作樹乾淨。
 - 今日五批變更均已 push；最後一批（媒體上傳）Vercel `dpl_2uE9tEFywTAf4jpmfTjjgRSaa9Xw` 已 READY 並掛在 `www.xunfeng.tw`。
 - 第一批課程日期修復曾確認 Production Ready，正式站也驗到新的前台同步標記。
@@ -91,6 +91,12 @@
    - 本地 `site_content_cms` migration 改名為 `20260901154318` 對齊遠端。
    - Commit：`1930692`。
 
+6. **/courses 改為完整 Landing Page，後台新增「課程上架」**
+   - 前台 server 端渲染（ISR 30s）：固定報名列、Hero、痛點、學完你能、大綱、影片、講師、課程資訊、FAQ、注意事項、報名表、其他課程講座。
+   - 後台 `/admin/course-launch` 七步驟編輯器；`/admin/site-cases` 只剩案例與其他課程講座。
+   - migration `20260904150000` 補 18 個欄位並灌預設文案（已 push）。
+   - 由 course-planner 與 copywriter 兩個 agent 產出規格與文案，詳見 worklog。
+
 ### 修改檔案
 
 - `app/api/admin/course-product/route.ts`
@@ -106,6 +112,13 @@
 - `styles/site.css`
 - `supabase/migrations/20260904120000_site_media_video.sql`（新）
 - `supabase/migrations/20260901154318_site_content_cms.sql`（改名）
+- `supabase/migrations/20260904150000_course_landing_fields.sql`（新）
+- `app/(public)/courses/page.tsx`（重寫）
+- `app/admin/_course-landing-editor.tsx`（新）、`app/admin/course-launch/page.tsx`（新）
+- `app/admin/_course-product-editor.tsx`、`app/admin/site-cases/page.tsx`、`app/admin/_shell.tsx`、`app/admin/admin.css`
+- `app/admin/_promo-editor.tsx`（刪除）
+- `lib/site/content.ts`、`lib/site/course-product.ts`（新）、`app/api/admin/site-content/route.ts`
+- `styles/site.css`
 
 ### 驗證結果
 
@@ -135,6 +148,7 @@
 
 ### 待辦優先順序
 
+-1. 正式站部署 READY 後開 `/courses` 桌機與手機各看一次；後台 → 網站內容 → 課程上架 走一遍七步驟並儲存。
 0. 真人驗收已做一次：上傳成功但圖放到「影片預覽圖」欄位（前台不顯示）。請改上傳到「海報 1～3」再看 `/courses`；影片上傳仍待驗。
 1. 真人登入後台驗收新版主打課程頁與放大字級。
 2. 修改一次真實課程日期，確認前台報名摘要與結帳資料同步。
@@ -146,7 +160,7 @@
 1. 讀本檔、`worklog.md` 最新紀錄與 `memory.md`。
 2. 執行 `git status --short --branch`、`git log --oneline -5`。
 3. 查 Vercel 最新 Production deployment 是否 Ready。
-4. 直接登入正式後台驗收「主打課程推廣」，優先確認字級與課程日期儲存。
+4. 直接登入正式後台驗收「課程上架」七步驟與前台 /courses Landing Page。
 
 ### Git 狀態
 
