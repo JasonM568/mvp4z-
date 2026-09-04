@@ -1243,3 +1243,10 @@ Commit：`1930692 fix(admin): upload posters and videos directly to storage`
 
 - 學員見證目前空白（不杜撰），老師取得同意後可在「講師與信任」步驟自行新增。
 - 仍是單一商品 `zhangzhongjue-115-01`；多課程需另做商品管理。
+
+### 真人驗收回報（後台）
+
+使用者：課程大綱單元與 STEP 5 FAQ 的輸入欄位被擠到變形。
+原因：`.admin-form-grid` 只讓 `label.admin-form-wide` 橫跨整列，清單編輯器包在 `div.admin-form-wide`，
+整個編輯器被塞進一格 180px 欄位。已改為任何直屬 `.admin-form-wide` 子項都橫跨，格線子項補 `min-width:0`，
+清單列內的格線改 220px 起跳。Commit `4995af0`，正式站 CSS bundle 已確認含修正。
