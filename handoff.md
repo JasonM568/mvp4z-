@@ -1,5 +1,70 @@
 # Handoff
 
+## 2026-09-04 收工｜/courses Landing Page 改版、課程上架後台、媒體上傳修正
+
+### 目前狀態
+
+- 正式專案：`xunfeng-official-v2`，分支 `main`，與 `origin/main` 同步，工作樹乾淨。
+- 最新功能 commit：`1065b61 feat(admin): drag-and-drop image order in course launch step 6`；Vercel Production READY。
+- 今天同一時段另有一個「持續開發 Loop」session 在本 repo 提交 `063d18a`（課程結帳先鎖定、推廣 cookie 降級），
+  其回歸測試已更新以配合新按鈕文字（見下）。收工時該 session 可能仍在執行，接手前先 `git pull`。
+
+### 今日完成（依時間）
+
+1. **媒體上傳修復**：圖片改走 Supabase signed upload URL 直傳（繞過 Vercel 4.5MB）；新增影片上傳（MP4/WebM/MOV ≤200MB）
+   與 YouTube/Vimeo 嵌入；Supabase 全域上傳上限 50MB→200MB（Management API，非 migration）。
+2. **/courses 改為完整 Landing Page**（server 端渲染，ISR 30s）：固定報名列、Hero（單張主視覺）、課程介紹圖往下滿版堆疊、
+   痛點、學完你能、大綱時間軸、影片、講師、課程資訊、FAQ、注意事項、報名表（四個編號區塊＋金色結帳按鈕寫金額）、其他課程講座。
+3. **後台「課程上架」**（`/admin/course-launch`）七步驟：報名商品／主視覺文案／課程內容／講師與信任／FAQ 與注意事項／
+   主視覺、介紹圖與影片（可拖曳排序）／上架排程；右側「前台區段檢查」。`/admin/site-cases` 只剩案例與其他課程講座。
+4. **資料**：`site_course_promo` 新增 18 個 Landing 欄位＋`gallery`（migration `20260904150000`、`20260904170000`，皆 `supabase db push`）。
+   STEP 6 圖片順序整串存 `gallery`，前三張同步 `poster_*`；前台以 `gallery` 為準，空的舊資料退回海報 1～3。
+5. **正式站內容**：老師上傳的兩張海報已排為第 1、2 張，舊「掌中訣開班授課」QR 海報第 3 張。
+6. 由 `course-planner`／`copywriter` agent 產出架構與預設文案；Codex 協助三個報名區 CSS 細節。
+
+### 修改檔案（主要）
+
+- `app/(public)/courses/page.tsx`（重寫）、`public/js/course-checkout.js`、`public/js/cms-render.js`、`styles/site.css`
+- `app/admin/_course-landing-editor.tsx`（新）、`app/admin/course-launch/page.tsx`（新）、`app/admin/_content-editor.tsx`（MediaField）、
+  `app/admin/_course-product-editor.tsx`、`app/admin/site-cases/page.tsx`、`app/admin/_shell.tsx`、`app/admin/admin.css`；刪除 `_promo-editor.tsx`
+- `app/api/admin/site-content/media/sign/route.ts`（新）、`app/api/admin/site-content/route.ts`、`lib/site/content.ts`、`lib/site/course-product.ts`（新）
+- `supabase/migrations/20260901154318_site_content_cms.sql`（改名對齊遠端）、`20260904120000_site_media_video.sql`、
+  `20260904150000_course_landing_fields.sql`、`20260904170000_course_gallery.sql`
+- `lib/site/course-checkout-regression.test.ts`（斷言改為含金額的按鈕文字）
+
+### 驗證結果（收工時）
+
+- `npx tsc --noEmit` 通過；`npm run test:unit` 178 tests：176 passed、2 skipped；`git diff --check` 通過。
+- 最後一次 `npm run build` 通過（1065b61）。
+- 正式站以 headless Chromium 核對：Hero 單張主視覺、介紹圖 2 張堆疊、報名區金色按鈕文字含金額、手機固定報名列正常。
+- 注意：收工前對正式站的高頻檢查觸發了 Vercel Security Checkpoint（403 挑戰頁）；之後驗證請放慢頻率。
+
+### 未完成、風險與待辦
+
+1. **真人驗收後台 STEP 6 拖曳排序**與整個七步驟：改幾個字、拖一次順序、儲存並上架，30 秒後看 `/courses`。
+2. 學員見證、更多課程介紹圖仍空白，由老師自行補。
+3. 仍是單一課程商品 `zhangzhongjue-115-01`；多課程需另做商品管理。
+4. 前次遺留：推廣連結新會員註冊→下單→後台歸戶真人驗收；NT$1 信用卡真刷後停用 `e2e_card_test`；EZPay 正式環境、Resend 網域驗證、AI provider keys。
+5. Supabase 全域上傳上限是專案設定，重建專案要再調。
+
+### 下次起手式
+
+1. `git pull`，讀本檔、`worklog.md` 最新兩節與 `memory.md`；`git status --short --branch`、`git log --oneline -5`。
+2. 查 Vercel 最新 Production 是否 READY。
+3. 登入正式後台 → 網站內容 → 課程上架，走一遍七步驟做真人驗收。
+
+### Git 狀態
+
+- `main...origin/main`，收工文件提交後工作樹乾淨。
+
+### 長時間程序
+
+- 本 session：無。另一個「持續開發 Loop」Claude session（navide pane）可能仍在本 repo 執行。
+
+---
+
+## 附錄：另一個 session 的交接（原文保留）
+
 ## 2026-09-04 持續開發 Loop｜課程首屏與推廣歸因防護
 
 ### 目前狀態
@@ -42,143 +107,3 @@
 
 - 長時間程序：無。
 - Git：`main` 已與 `origin/main` 同步；最新功能 commit `063d18a`（本次交接更新將另一筆 docs commit）。
-
-## 2026-09-04 收工｜/courses Landing Page 改版、課程上架後台、媒體上傳修正
-
-### 目前狀態
-
-- 正式專案：`xunfeng-official-v2`
-- 分支：`main`
-- 最新功能 commit：`feat(courses): rebuild /courses as a landing page with a course launch admin`（見 git log）
-- `main` 與 `origin/main` 同步；更新交接文件前工作樹乾淨。
-- 今日五批變更均已 push；最後一批（媒體上傳）Vercel `dpl_2uE9tEFywTAf4jpmfTjjgRSaa9Xw` 已 READY 並掛在 `www.xunfeng.tw`。
-- 第一批課程日期修復曾確認 Production Ready，正式站也驗到新的前台同步標記。
-- 後兩批 UI 改善已成功 build 與 push，但 Vercel 狀態查詢因權限審查服務回 404 而無法完成正式站二次核對。
-
-### 已完成
-
-1. **修復後台無法編輯真正課程日期**
-   - 新增 `GET/PATCH /api/admin/course-product`。
-   - 後台主打課程頁新增「報名課程設定」，可修改課程名稱、期別、日期、開始／結束時間、地點、新生價與複訓價。
-   - API 驗證不存在日期、時間格式、結束時間必須晚於開始時間及價格範圍。
-   - 前台 `/courses` 報名摘要改由 `course_products` 的同一筆資料同步，不再只顯示硬編碼日期與價格。
-   - Commit：`536d63d`。
-
-2. **放大後台左側功能區塊名稱**
-   - 原本區塊標題只有 10px，且比子項目更小。
-   - 改為 15px、提高對比、減少字距，點擊高度至少 44px，補鍵盤焦點樣式。
-   - Commit：`cc2fc24`。
-
-3. **重新設計主打課程推廣頁**
-   - 頂部新增課程名稱、上下架狀態與排程摘要。
-   - 表單分為上架排程、課程主訊息、內容與行動按鈕、海報與影片四個步驟。
-   - 右側新增即時內容／主海報摘要。
-   - 儲存、上架、下架操作區固定於頁面底部。
-   - 補平板與手機響應式排版。
-   - Commit：`c7ff948`。
-
-4. **提高主打課程頁整體可讀性**
-   - 報名課程設定與推廣編輯區一起調整。
-   - 區塊標題 20px、欄位名稱 15px、輸入文字 16px、輔助說明 13px、按鈕 15px。
-   - 輸入框最小高度 48px，並提高說明文字對比與行高。
-   - Commit：`185c294`。
-
-5. **修復海報上傳失敗、新增宣傳影片上傳**
-   - 根因：舊上傳把檔案送進 Vercel function，撞 4.5MB request body 上限；影片欄位根本沒有上傳功能。
-   - 新增 `POST /api/admin/site-content/media/sign`，瀏覽器改直接 PUT 到 Supabase Storage（圖 10MB／影片 200MB）。
-   - `MediaField` 支援圖片與影片、上傳進度、影片預覽；前台支援 YouTube / Vimeo 嵌入與 mp4 / webm / mov。
-   - migration `20260904120000_site_media_video.sql` 已用 `supabase db push` 套用正式庫。
-   - 本地 `site_content_cms` migration 改名為 `20260901154318` 對齊遠端。
-   - Commit：`1930692`。
-
-6. **/courses 改為完整 Landing Page，後台新增「課程上架」**
-   - 前台 server 端渲染（ISR 30s）：固定報名列、Hero、痛點、學完你能、大綱、影片、講師、課程資訊、FAQ、注意事項、報名表、其他課程講座。
-   - 後台 `/admin/course-launch` 七步驟編輯器；`/admin/site-cases` 只剩案例與其他課程講座。
-   - migration `20260904150000` 補 18 個欄位並灌預設文案（已 push）。
-   - 由 course-planner 與 copywriter 兩個 agent 產出規格與文案，詳見 worklog。
-
-7. **報名區重排**：單欄標題＋三步驟、表單四個編號區塊、摘要卡 sticky（手機移前）、金色大按鈕寫出金額。
-   Codex 協助修三個 CSS 細節（member.css .btn 覆蓋、手機金額直排、摘要順序）。正式站已核對：按鈕金色、文字含金額。
-
-8. **Hero 單張主視覺＋課程介紹圖往下滿版堆疊**（不輪播、不裁切）：海報 1＝主視覺，海報 2、3 與後台「更多課程介紹圖」
-   （最多 12 張）依序堆疊；痛點區後移精簡；`body` 長文不再顯示。migration `20260904170000` 已 push。
-   老師要補圖：後台 → 課程上架 → STEP 6 → 課程介紹圖 1、2 或「更多課程介紹圖」→ 上傳 → 儲存並上架。
-
-9. **STEP 6 圖片可拖曳排序**：主視覺與介紹圖合併成一個清單，拖曳「⋮⋮」換位（手機用 ▲▼）；
-   第 1 張＝Hero，其餘依序堆疊；整串存 `gallery`，前三張同步 poster_*。Vercel 部署 READY。
-   註：本次以 curl／headless 反覆檢查正式站觸發了 Vercel Security Checkpoint（403 挑戰頁），之後驗證要放慢頻率。
-
-### 修改檔案
-
-- `app/api/admin/course-product/route.ts`
-- `app/admin/_course-product-editor.tsx`
-- `app/admin/_promo-editor.tsx`
-- `app/admin/site-cases/page.tsx`
-- `app/admin/admin.css`
-- `app/(public)/courses/page.tsx`
-- `public/js/course-checkout.js`
-- `app/api/admin/site-content/media/sign/route.ts`（新）
-- `app/admin/_content-editor.tsx`
-- `public/js/cms-render.js`
-- `styles/site.css`
-- `supabase/migrations/20260904120000_site_media_video.sql`（新）
-- `supabase/migrations/20260901154318_site_content_cms.sql`（改名）
-- `supabase/migrations/20260904150000_course_landing_fields.sql`（新）
-- `app/(public)/courses/page.tsx`（重寫）
-- `app/admin/_course-landing-editor.tsx`（新）、`app/admin/course-launch/page.tsx`（新）
-- `app/admin/_course-product-editor.tsx`、`app/admin/site-cases/page.tsx`、`app/admin/_shell.tsx`、`app/admin/admin.css`
-- `app/admin/_promo-editor.tsx`（刪除）
-- `lib/site/content.ts`、`lib/site/course-product.ts`（新）、`app/api/admin/site-content/route.ts`
-- `styles/site.css`
-
-### 驗證結果
-
-- `npx tsc --noEmit`：通過。
-- `npm run test:unit`：169 passed、2 skipped（課程日期修復批次）。
-- `npm run build`：四批變更皆通過；最後一次為字級改善後的完整 Production build。
-- `git diff --check`：通過。
-- 第一批 Vercel deployment：Ready，別名含 `www.xunfeng.tw`。
-- 正式 `/courses` 曾確認包含課程日期、標題與價格同步標記。
-- 正式 CSS 曾確認側邊欄 `.admin-nav-toggle` 已為 15px。
-
-### 未完成事項與風險
-
-0. **需真人登入後台實際上傳一張大於 5MB 的海報與一支 MP4**，確認瀏覽器端 XHR 直傳流程與進度條。
-   Supabase 全域上傳上限已由 50MB 調到 200MB（Management API，非 migration；重建專案要再調一次），
-   150MB 直傳實測成功。
-1. **需真人登入後台驗收主打課程頁**
-   - 路徑：後台 → 網站內容 → 案例課程 → 主打課程推廣。
-   - 確認新四步驟版面、字級與手機顯示。
-   - 實際修改課程日期並儲存，再重新整理 `/courses`，確認日期、時間、地點與價格同步。
-2. 後兩批 UI deployment 的 Production Ready 狀態未被工具二次核對；原因是批准服務回 404，不是 build 或 push 失敗。
-3. 報名商品仍是單一固定代碼 `zhangzhongjue-115-01`；若未來要同時販售多門課，需要改成多課程商品管理。
-4. 前次遺留仍在：
-   - 用全新 Email 從 `?ref=ran81127` 註冊 → 下單 → 到後台確認終身推廣歸因。
-   - NT$1 信用卡真刷後停用 `e2e_card_test`。
-   - EZPay 正式環境、Resend 網域驗證、AI provider keys、面相規則 PDF 對帳與 ZDR。
-
-### 待辦優先順序
-
--1. 正式站 /courses 桌機與手機已由工具核對正常；請使用者本人再看一次，並到後台 → 網站內容 → 課程上架 走一遍七步驟並儲存。
-0. 真人驗收已做一次：上傳成功但圖放到「影片預覽圖」欄位（前台不顯示）。請改上傳到「海報 1～3」再看 `/courses`；影片上傳仍待驗。
-1. 真人登入後台驗收新版主打課程頁與放大字級。
-2. 修改一次真實課程日期，確認前台報名摘要與結帳資料同步。
-3. 完成推廣連結新會員註冊與訂單歸因真人驗收。
-4. 完成 NT$1 信用卡 E2E 並停用測試方案。
-
-### 下次起手式
-
-1. 讀本檔、`worklog.md` 最新紀錄與 `memory.md`。
-2. 執行 `git status --short --branch`、`git log --oneline -5`。
-3. 查 Vercel 最新 Production deployment 是否 Ready。
-4. 直接登入正式後台驗收「課程上架」七步驟與前台 /courses Landing Page。
-
-### Git 狀態
-
-- 收工文件提交前：`main...origin/main`，工作樹乾淨。
-- 最新功能 commit：`1930692`。
-- 收工文件更新後需 commit 並 push。
-
-### 長時間程序
-
-- 無。

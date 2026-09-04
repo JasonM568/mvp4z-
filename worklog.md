@@ -1303,3 +1303,11 @@ Hero 下方「課程介紹圖」一張接一張往下滿版堆疊（海報 2、3
   桌機拖曳「⋮⋮」換位（原生 HTML5 DnD），手機用 ▲▼；每列可直接上傳、加一句說明、刪除。
 - 儲存時整串寫進 `gallery`，並同步前三張到 poster_main/second/third（向下相容、固定報名列預覽）。
 - 前台 `gallery` 有內容即以它為完整順序（第 1 張 Hero、其餘介紹圖）；gallery 空的舊資料才退回海報 1～3。
+
+### 收工（23:5x）
+
+- 收工驗證：tsc 通過；test:unit 一個失敗——`course-checkout-regression.test.ts`（另一個開發迴圈 `063d18a` 加的）
+  斷言舊字串 `button.textContent = "前往綠界結帳"`，本 session 已改為解鎖後由 `syncPrice` 寫入含金額文字；
+  行為不變，更新斷言後 176 passed／2 skipped。
+- `handoff.md` 覆寫為單一最新摘要，另一 session 的交接原文移到附錄。
+- 發現同一 repo 有另一個 Claude session（navide pane）並行提交；接手前先 `git pull`。

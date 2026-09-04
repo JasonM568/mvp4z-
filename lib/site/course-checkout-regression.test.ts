@@ -17,7 +17,9 @@ describe("course checkout initial state", () => {
   it("keeps checkout disabled until current course data is available", () => {
     expect(page).toMatch(/id="courseCheckoutSubmit"[^>]+disabled/);
     expect(script).toContain('button.disabled = false');
-    expect(script).toContain('button.textContent = "前往綠界結帳"');
+    // 解鎖後由 syncPrice 寫入含金額的按鈕文字（前往綠界結帳｜NT$ …），而不是固定字串。
+    expect(script).toMatch(/button\.disabled = false;\s*syncPrice\(course\);/);
+    expect(script).toContain("前往綠界結帳｜NT$");
     expect(script).toContain('button.disabled = true');
   });
 });
