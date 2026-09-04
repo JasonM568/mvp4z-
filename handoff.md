@@ -1,14 +1,14 @@
 # Handoff
 
-## 2026-09-04 收工｜課程後台修復與介面改善
+## 2026-09-04 收工｜課程後台修復、介面改善與媒體上傳修正
 
 ### 目前狀態
 
 - 正式專案：`xunfeng-official-v2`
 - 分支：`main`
-- 最新功能 commit：`185c294 fix(admin): improve course promotion readability`
+- 最新功能 commit：`1930692 fix(admin): upload posters and videos directly to storage`
 - `main` 與 `origin/main` 同步；更新交接文件前工作樹乾淨。
-- 今日四批變更均已 push，Vercel 會由 GitHub 自動部署。
+- 今日五批變更均已 push；最後一批（媒體上傳）Vercel `dpl_2uE9tEFywTAf4jpmfTjjgRSaa9Xw` 已 READY 並掛在 `www.xunfeng.tw`。
 - 第一批課程日期修復曾確認 Production Ready，正式站也驗到新的前台同步標記。
 - 後兩批 UI 改善已成功 build 與 push，但 Vercel 狀態查詢因權限審查服務回 404 而無法完成正式站二次核對。
 
@@ -40,6 +40,14 @@
    - 輸入框最小高度 48px，並提高說明文字對比與行高。
    - Commit：`185c294`。
 
+5. **修復海報上傳失敗、新增宣傳影片上傳**
+   - 根因：舊上傳把檔案送進 Vercel function，撞 4.5MB request body 上限；影片欄位根本沒有上傳功能。
+   - 新增 `POST /api/admin/site-content/media/sign`，瀏覽器改直接 PUT 到 Supabase Storage（圖 10MB／影片 200MB）。
+   - `MediaField` 支援圖片與影片、上傳進度、影片預覽；前台支援 YouTube / Vimeo 嵌入與 mp4 / webm / mov。
+   - migration `20260904120000_site_media_video.sql` 已用 `supabase db push` 套用正式庫。
+   - 本地 `site_content_cms` migration 改名為 `20260901154318` 對齊遠端。
+   - Commit：`1930692`。
+
 ### 修改檔案
 
 - `app/api/admin/course-product/route.ts`
@@ -49,6 +57,12 @@
 - `app/admin/admin.css`
 - `app/(public)/courses/page.tsx`
 - `public/js/course-checkout.js`
+- `app/api/admin/site-content/media/sign/route.ts`（新）
+- `app/admin/_content-editor.tsx`
+- `public/js/cms-render.js`
+- `styles/site.css`
+- `supabase/migrations/20260904120000_site_media_video.sql`（新）
+- `supabase/migrations/20260901154318_site_content_cms.sql`（改名）
 
 ### 驗證結果
 
@@ -62,6 +76,8 @@
 
 ### 未完成事項與風險
 
+0. **需真人登入後台實際上傳一張大於 5MB 的海報與一支 MP4**，確認瀏覽器端 XHR 直傳流程與進度條；
+   若 Supabase 專案全域上傳上限仍是 50MB，超過的影片會顯示「檔案超過 Storage 上限」，需到 Dashboard 調高。
 1. **需真人登入後台驗收主打課程頁**
    - 路徑：後台 → 網站內容 → 案例課程 → 主打課程推廣。
    - 確認新四步驟版面、字級與手機顯示。
@@ -75,6 +91,7 @@
 
 ### 待辦優先順序
 
+0. 真人登入後台上傳大海報與 MP4 影片，儲存後到 `/courses` 確認海報輪播與影片播放。
 1. 真人登入後台驗收新版主打課程頁與放大字級。
 2. 修改一次真實課程日期，確認前台報名摘要與結帳資料同步。
 3. 完成推廣連結新會員註冊與訂單歸因真人驗收。
@@ -90,7 +107,7 @@
 ### Git 狀態
 
 - 收工文件提交前：`main...origin/main`，工作樹乾淨。
-- 最新功能 commit：`185c294`。
+- 最新功能 commit：`1930692`。
 - 收工文件更新後需 commit 並 push。
 
 ### 長時間程序

@@ -1109,3 +1109,52 @@ Supabase access token TTL 1 小時。`authResponse()` 明明有回 `refresh_toke
 - 修改一次真實課程日期，確認前台與結帳同步。
 - 若未來要同時販售多門課，需另做多課程商品管理。
 - 既有推廣歸因真人驗收、信用卡真刷與正式服務設定仍待完成。
+
+## 2026-09-04（晚）｜課程上架：海報上傳失敗與影片無法更新
+
+### 問題
+
+使用者回報後台「主打課程推廣」不能上傳圖片、也沒辦法更新影片。
+
+### 調查
+
+- 正式庫 `admin_audit_logs`：9/3 11:03 一張 2.9MB PNG 有成功，之後沒有任何成功上傳紀錄。
+- 舊上傳路徑 `POST /api/admin/site-content/media` 把整個檔案送進 Vercel function；
+  Vercel serverless request body 上限 4.5MB，UI 卻寫 10MB。超過 4.5MB 的海報在進 function 之前
+  就被 Vercel 擋掉（回 HTML 的 413），前端只看到「上傳失敗」，也不會留下任何 runtime log。
+- 影片欄位原本只有「mp4 檔網址」文字框，根本沒有上傳功能；前台 `cms-render.js`
+  也只用 `<video type="video/mp4">`，貼 YouTube 連結不會播。
+- 順帶發現本地 `20260901120000_site_content_cms.sql` 與遠端版號 `20260901154318` 不一致
+  （又是 MCP `apply_migration` 直接套的），`supabase db push` 會拒絕；已把本地檔名改名對齊。
+
+### 修正
+
+- 新增 `POST /api/admin/site-content/media/sign`：後台換一個 Supabase signed upload URL，
+  瀏覽器用 XHR 直接 PUT 到 Storage，不再經過 Vercel。圖片限 10MB、影片限 200MB。
+- `_content-editor.tsx` 的 `ImageField` 改為通用 `MediaField(kind: image | video)`，含上傳進度條、
+  影片預覽；`ImageField` 保留為 wrapper，案例／服務／課程列表不用改。
+- 主打課程推廣「宣傳影片 1／2」改為可直接上傳 MP4 / WebM / MOV，或貼 YouTube / Vimeo / mp4 網址。
+- 前台 `cms-render.js` 新增 `renderPromoVideo`：YouTube / Vimeo 用 iframe 嵌入，檔案依副檔名給正確 MIME。
+- migration `20260904120000_site_media_video.sql`：`site-media` bucket 放寬到 200MB 並允許
+  video/mp4、video/webm、video/quicktime。以 `supabase db push` 套用正式庫（沒有用 MCP）。
+- 舊的 `/media` route 保留，只更新 migration 檔名提示。
+
+### 驗證
+
+- `npx tsc --noEmit`、`npm run test:unit`（169 passed、2 skipped）、`npm run build`、`git diff --check` 全通過。
+- 正式 Storage 直傳 E2E（service_role 簽 URL → 純 PUT）：1KB PNG、64KB MP4、6MB MP4 皆 200，
+  公開網址 HEAD 200 且 content-type 正確；不帶 apikey 也能上傳。測試物件已刪除。
+- 正式庫 bucket 查詢：`file_size_limit=209715200`、mime 含三種影片格式。
+- Vercel `dpl_2uE9tEFywTAf4jpmfTjjgRSaa9Xw` READY，alias 含 `www.xunfeng.tw`。
+- 正式站：`POST /media/sign` 未登入回 401 JSON（route 已上線）；`cms-render.js` 含新 renderer；
+  正式 CSS 含 `.promo-video-embed`。
+
+### 遺留
+
+- 尚未以真人 admin 帳號在正式後台實際點「上傳影片」跑一次；storage 端與 route 端各自驗過，
+  但瀏覽器端整條 XHR 流程還沒真機驗收。
+- Supabase 專案層級的全域上傳上限若仍是預設 50MB，超過 50MB 的影片會被 Storage 擋下並顯示
+  「檔案超過 Storage 上限」；需要時到 Supabase Dashboard → Storage → Settings 調高。
+- iPhone 直出的 .mov（HEVC）在 Chrome 不一定能播，建議老師上傳 MP4（H.264）。
+
+Commit：`1930692 fix(admin): upload posters and videos directly to storage`
