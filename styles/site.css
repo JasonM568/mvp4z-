@@ -2066,3 +2066,156 @@ iframe {
     letter-spacing: .02em;
   }
 }
+
+/* ============================================================
+   Course Landing Page（/courses）— 2026-09-04 課程上架改版
+   前綴 cl-；mobile first，桌機在 900px 以上展開。
+   ============================================================ */
+.cl-section { padding: 64px 0; }
+.cl-section-head { max-width: 760px; margin-bottom: 30px; }
+.cl-section-head h2 { margin: 12px 0 10px; font-size: clamp(26px, 3.6vw, 40px); line-height: 1.2; letter-spacing: -.02em; color: #fffdf2; }
+.cl-section-desc { margin: 0; color: var(--muted); line-height: 1.8; }
+.cl-anchor { position: relative; top: -84px; height: 0; }
+
+/* 固定報名列 */
+.cl-sticky {
+  position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 46;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px 10px 16px; border-radius: 18px;
+  border: 1px solid rgba(216,177,95,.4);
+  background: rgba(7,17,15,.94); backdrop-filter: blur(14px);
+  box-shadow: 0 18px 50px rgba(0,0,0,.45);
+  transform: translateY(120%); opacity: 0; transition: transform .28s ease, opacity .28s ease;
+}
+.cl-sticky.show { transform: none; opacity: 1; }
+.cl-sticky-info { display: grid; gap: 2px; min-width: 0; }
+.cl-sticky-info strong { font-size: 15px; color: #fffdf2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-sticky-info span { font-size: 12px; color: #f4deae; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-sticky .btn { flex: 0 0 auto; padding: 12px 18px; }
+
+/* Hero */
+.cl-hero {
+  padding: 40px 0 48px;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(216,177,95,.2), transparent 34%),
+    radial-gradient(circle at 88% 80%, rgba(110,231,183,.1), transparent 36%),
+    linear-gradient(180deg, rgba(7,17,15,.9), rgba(10,28,22,.96));
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.cl-hero-grid { display: grid; gap: 28px; align-items: center; }
+.cl-hero-media { order: -1; }
+.cl-hero-media .promo-poster-carousel { max-height: 46vh; aspect-ratio: 3 / 4; margin: 0 auto; max-width: 420px; }
+.cl-hero-placeholder { display: grid; place-items: center; aspect-ratio: 3/4; max-width: 420px; margin: 0 auto; border-radius: 30px; border: 1px dashed rgba(216,177,95,.4); color: #f4deae; font-size: 40px; font-weight: 900; }
+.cl-hero-copy .tag { margin-bottom: 14px; }
+.cl-title { display: flex; align-items: baseline; gap: .2em; flex-wrap: wrap; margin: 0 0 12px; font-size: clamp(44px, 9vw, 92px); line-height: .98; letter-spacing: -.06em; color: #fffdf2; }
+.cl-title small { font-size: clamp(22px, 3.4vw, 40px); letter-spacing: .12em; color: #f6dfaa; font-weight: 900; }
+.cl-headline { margin: 0 0 12px; font-size: clamp(22px, 3.6vw, 38px); line-height: 1.25; letter-spacing: -.02em; color: var(--green); }
+.cl-subheadline { margin: 0 0 18px; color: #f4deae; font-weight: 900; font-size: 17px; }
+.cl-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; }
+.cl-stats li { padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(110,231,183,.35); background: rgba(110,231,183,.08); color: var(--green); font-size: 13px; font-weight: 900; }
+.cl-facts { display: grid; gap: 10px; margin: 0 0 22px; }
+.cl-facts > div { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: start; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); }
+.cl-facts dt { margin: 0; color: var(--muted); font-size: 12px; letter-spacing: .08em; padding-top: 3px; }
+.cl-facts dd { margin: 0; color: #fffdf2; font-weight: 900; font-size: 16px; line-height: 1.45; }
+.cl-facts dd small { display: block; color: #f4deae; font-weight: 700; font-size: 13px; }
+.cl-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.cl-btn-lg { padding: 16px 30px; font-size: 17px; }
+.cl-urgency { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 16px 0 0; color: #ffd79a; font-weight: 900; font-size: 14px; }
+
+/* 痛點 */
+.cl-pain-grid { display: grid; gap: 14px; }
+.cl-pain-card { padding: 20px; border-radius: 18px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.035); }
+.cl-pain-card h3 { margin: 0 0 8px; font-size: 18px; color: #fffdf2; }
+.cl-pain-card p { margin: 0; color: var(--muted); line-height: 1.8; }
+.cl-body { max-width: 760px; margin-top: 26px; display: grid; gap: 12px; color: #e9e4d6; line-height: 1.95; }
+.cl-body p { margin: 0; }
+
+/* 學完你能 */
+.cl-outcomes { background: linear-gradient(180deg, rgba(110,231,183,.05), transparent); }
+.cl-outcome-grid { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.cl-outcome-grid li { display: grid; grid-template-columns: 46px 1fr; gap: 14px; align-items: start; padding: 18px; border-radius: 18px; border: 1px solid rgba(216,177,95,.28); background: linear-gradient(135deg, rgba(216,177,95,.1), rgba(255,255,255,.03)); }
+.cl-num { font-family: "Noto Serif TC", "Songti TC", serif; font-size: 28px; font-weight: 900; color: var(--gold); line-height: 1; }
+.cl-outcome-grid strong { display: block; margin-bottom: 4px; color: #fffdf2; font-size: 17px; }
+.cl-outcome-grid p { margin: 0; color: #e9e4d6; line-height: 1.75; }
+
+/* 大綱時間軸 */
+.cl-timeline { position: relative; margin: 0; padding: 0 0 0 26px; list-style: none; display: grid; gap: 16px; }
+.cl-timeline::before { content: ""; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(180deg, var(--gold), rgba(216,177,95,.15)); }
+.cl-timeline li { position: relative; }
+.cl-timeline-dot { position: absolute; left: -24px; top: 18px; width: 14px; height: 14px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 5px rgba(216,177,95,.18); }
+.cl-timeline-card { padding: 18px 20px; border-radius: 18px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.035); }
+.cl-timeline-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; }
+.cl-timeline-head h3 { margin: 0; font-size: 18px; color: #fffdf2; }
+.cl-duration { padding: 4px 10px; border-radius: 999px; background: rgba(216,177,95,.14); color: #f4deae; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.cl-timeline-card p { margin: 8px 0 0; color: var(--muted); line-height: 1.75; }
+
+/* 講師 */
+.cl-instructor { background: linear-gradient(180deg, transparent, rgba(216,177,95,.05)); }
+.cl-instructor-grid { display: grid; gap: 24px; align-items: start; }
+.cl-instructor-photo img { width: 100%; max-width: 360px; margin: 0 auto; display: block; aspect-ratio: 1; object-fit: cover; border-radius: 28px; border: 1px solid rgba(216,177,95,.35); box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+.cl-instructor h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 12px 0 14px; font-size: clamp(28px, 4vw, 40px); color: #fffdf2; }
+.cl-instructor h2 small { font-size: 15px; color: #f4deae; letter-spacing: .06em; }
+.cl-instructor-bio { margin: 0 0 12px; color: #e9e4d6; line-height: 1.9; }
+.cl-credentials { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.cl-credentials li { padding: 10px 14px 10px 36px; position: relative; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); color: #fffdf2; font-weight: 700; }
+.cl-credentials li::before { content: "✓"; position: absolute; left: 14px; color: var(--green); font-weight: 900; }
+.cl-proof { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+.cl-proof img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); }
+
+/* 見證 */
+.cl-testimonial-grid { display: grid; gap: 14px; }
+.cl-testimonial-grid blockquote { margin: 0; padding: 20px; border-radius: 18px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.035); }
+.cl-testimonial-grid p { margin: 0 0 12px; color: #e9e4d6; line-height: 1.85; }
+.cl-testimonial-grid footer { color: #f4deae; font-weight: 900; font-size: 14px; }
+.cl-testimonial-grid footer span { color: var(--muted); font-weight: 700; }
+
+/* 課程資訊 */
+.cl-info-grid { display: grid; gap: 12px; }
+.cl-info-grid article { display: grid; gap: 6px; padding: 20px; border-radius: 18px; border: 1px solid rgba(216,177,95,.3); background: linear-gradient(135deg, rgba(216,177,95,.1), rgba(255,255,255,.03)); }
+.cl-info-grid span { color: var(--muted); font-size: 12px; letter-spacing: .1em; }
+.cl-info-grid strong { color: #fffdf2; font-size: 20px; line-height: 1.3; }
+.cl-info-grid small { color: #f4deae; }
+.cl-info-grid a { color: var(--green); font-weight: 900; font-size: 14px; }
+.cl-info-note { margin: 18px 0 0; color: #e9e4d6; line-height: 1.8; }
+.cl-info-note strong { color: #ffd79a; }
+
+/* FAQ */
+.cl-faq-list { display: grid; gap: 10px; max-width: 860px; }
+.cl-faq-item { border: 1px solid rgba(255,255,255,.1); border-radius: 16px; background: rgba(255,255,255,.035); overflow: hidden; }
+.cl-faq-item summary { cursor: pointer; list-style: none; padding: 18px 48px 18px 20px; position: relative; font-weight: 900; color: #fffdf2; font-size: 16px; }
+.cl-faq-item summary::-webkit-details-marker { display: none; }
+.cl-faq-item summary::after { content: "+"; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: var(--gold); font-size: 24px; font-weight: 900; }
+.cl-faq-item[open] summary::after { content: "−"; }
+.cl-faq-item p { margin: 0; padding: 0 20px 18px; color: var(--muted); line-height: 1.85; }
+
+/* 報名 */
+.cl-register { position: relative; }
+.cl-notices { margin: 0 0 22px; padding: 16px 20px 16px 38px; border-radius: 14px; border: 1px solid rgba(255,215,154,.3); background: rgba(255,215,154,.06); color: #f4deae; line-height: 1.8; }
+
+/* 其他課程講座（頁尾降級） */
+.cl-others { padding-bottom: 110px; border-top: 1px solid rgba(255,255,255,.06); }
+.cl-others-grid { display: grid; gap: 14px; }
+.cl-other-card { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
+.cl-other-card img { width: 96px; height: 72px; object-fit: cover; border-radius: 10px; }
+.cl-other-card h3 { margin: 0 0 4px; font-size: 16px; color: #fffdf2; }
+.cl-other-card p { margin: 0 0 4px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.cl-other-audience { color: #f4deae !important; }
+.cl-other-meta { color: var(--green) !important; font-weight: 700; }
+.cl-other-card .btn { margin-top: 8px; padding: 8px 14px; font-size: 13px; }
+
+@media (min-width: 720px) {
+  .cl-pain-grid, .cl-outcome-grid, .cl-info-grid, .cl-testimonial-grid, .cl-others-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-sticky { left: auto; right: 24px; bottom: 24px; max-width: 520px; }
+}
+@media (min-width: 900px) {
+  .cl-section { padding: 84px 0; }
+  .cl-hero { padding: 64px 0 72px; }
+  .cl-hero-grid { grid-template-columns: minmax(0, 1.05fr) minmax(340px, .8fr); gap: clamp(28px, 5vw, 60px); }
+  .cl-hero-media { order: 0; }
+  .cl-hero-media .promo-poster-carousel { max-height: none; max-width: none; }
+  .cl-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cl-facts > div { grid-template-columns: 1fr; gap: 4px; }
+  .cl-info-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cl-instructor-grid { grid-template-columns: 340px 1fr; gap: 44px; }
+  .cl-outcome-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

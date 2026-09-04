@@ -1,5 +1,14 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { readCoursePromo, readPublishedContent, type CourseItem, type CoursePromo } from "@/lib/site/content";
+import {
+  daysUntilCourse,
+  formatCourseDate,
+  formatPrice,
+  formatTaipeiTime,
+  readActiveCourseProduct,
+  type CourseProduct
+} from "@/lib/site/course-product";
 
 export const metadata: Metadata = {
   title: "課程講座｜巽風堪輿研究中心",
@@ -7,34 +16,66 @@ export const metadata: Metadata = {
     "巽風堪輿研究中心提供風水、命理、場域管理與傳統智慧現代應用之課程講座。"
 };
 
-const FORCE_HIDE_GALLERY_CSS = `
-  /* V4 強制清除：課程新推廣區只保留主輪播，不顯示下方排開海報 */
-  .course-promo-section .promo-gallery,
-  #zzjStaticFallback .promo-gallery,
-  #cmsCoursePromo + .promo-gallery,
-  .promo-gallery[aria-label*="課程"],
-  .promo-gallery[aria-label*="掌中訣"] {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    margin: 0 !important;
+// Landing Page 直接在 server 端讀 DB 渲染，後台儲存後最多 30 秒生效；
+// 不再靠 cms-render.js 在瀏覽器端補內容，首屏就有完整版面。
+export const revalidate = 30;
+
+function taipeiToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+function isPromoLive(promo: CoursePromo | null) {
+  if (!promo || !promo.active) return false;
+  const today = taipeiToday();
+  if (promo.publishStart && today < promo.publishStart) return false;
+  if (promo.publishEnd && today > promo.publishEnd) return false;
+  return true;
+}
+
+const lines = (value: string) => String(value || "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+const paragraphs = (value: string) => String(value || "").split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
+/** 「標題｜說明」一行一項；沒有分隔符就整行當說明。 */
+const splitTitled = (line: string) => {
+  const idx = line.search(/[｜|]/);
+  if (idx < 0) return { title: "", desc: line };
+  return { title: line.slice(0, idx).trim(), desc: line.slice(idx + 1).trim() };
+};
+const mediaSrc = (value: string) => {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  return /^https?:\/\//i.test(url) || url.startsWith("/") ? url : `/${url}`;
+};
+
+function videoEmbedUrl(src: string) {
+  const url = String(src || "").trim();
+  let m = url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{6,})/i);
+  if (m) return `https://www.youtube-nocookie.com/embed/${m[1]}?rel=0`;
+  m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+  if (m) return `https://player.vimeo.com/video/${m[1]}`;
+  return "";
+}
+
+function VideoPlayer({ src, cover, title }: { src: string; cover: string; title: string }) {
+  const embed = videoEmbedUrl(src);
+  if (embed) {
+    return (
+      <div className="promo-video-embed">
+        <iframe src={embed} title={title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+      </div>
+    );
   }
-`;
+  const clean = src.split(/[?#]/)[0].toLowerCase();
+  const type = clean.endsWith(".webm") ? "video/webm" : clean.endsWith(".mov") ? "video/quicktime" : "video/mp4";
+  return (
+    <video controls playsInline preload="metadata" poster={cover ? mediaSrc(cover) : undefined}>
+      <source src={mediaSrc(src)} type={type} />
+      你的瀏覽器不支援影片播放。
+    </video>
+  );
+}
 
-const REMOVE_FALLBACK_JS = `
-(function removeFallbackWhenPromoLoaded(){
-  setTimeout(function(){
-    var dynamic = document.querySelector('#cmsCoursePromo .course-promo-card');
-    var fallback = document.getElementById('zzjStaticFallback');
-    if(dynamic && fallback) fallback.remove();
-  }, 800);
-})();
-`;
-
-const STATIC_CAROUSEL_JS = `
-(function initStaticCoursePosterCarousel(){
+const CAROUSEL_JS = `
+(function(){
   function run(){
     document.querySelectorAll('[data-course-promo-carousel]').forEach(function(carousel){
       if(carousel.dataset.ready === '1') return;
@@ -52,173 +93,307 @@ const STATIC_CAROUSEL_JS = `
       setInterval(function(){ show(index + 1); }, 5000);
     });
   }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
-  else run();
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
 })();
 `;
 
-const FORCE_REMOVE_GALLERY_JS = `
+// 固定 CTA：捲過 Hero 才出現，進到報名表後自動收起，避免遮住綠界付款按鈕。
+const STICKY_JS = `
 (function(){
-  function removePromoGallery(){
-    document.querySelectorAll('.course-promo-section .promo-gallery, .promo-gallery[aria-label*="課程"], .promo-gallery[aria-label*="掌中訣"]').forEach(function(el){
-      el.remove();
-    });
-  }
-  removePromoGallery();
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', removePromoGallery);
-  } else {
-    setTimeout(removePromoGallery, 100);
-  }
-  setTimeout(removePromoGallery, 600);
-  setTimeout(removePromoGallery, 1500);
+  var bar = document.getElementById('clSticky');
+  var hero = document.getElementById('clHero');
+  var register = document.getElementById('courseCheckout');
+  if(!bar || !hero || !register || !('IntersectionObserver' in window)) return;
+  var heroVisible = true, registerVisible = false;
+  function sync(){ bar.classList.toggle('show', !heroVisible && !registerVisible); }
+  new IntersectionObserver(function(entries){ heroVisible = entries[0].isIntersecting; sync(); }, { threshold: 0.15 }).observe(hero);
+  new IntersectionObserver(function(entries){ registerVisible = entries[0].isIntersecting; sync(); }, { threshold: 0.05 }).observe(register);
 })();
 `;
 
-export default function CoursesPage() {
+export default async function CoursesPage() {
+  const [promo, product, courses] = await Promise.all([
+    readCoursePromo(),
+    readActiveCourseProduct(),
+    readPublishedContent<CourseItem>("courses")
+  ]);
+  const live = isPromoLive(promo);
+  const p = live ? (promo as CoursePromo) : null;
+
+  const dateText = product ? formatCourseDate(product.course_date) : "";
+  const dateFull = product ? formatCourseDate(product.course_date, true) : "";
+  const timeText = product ? `${formatTaipeiTime(product.starts_at)}–${formatTaipeiTime(product.ends_at)}` : "";
+  const priceNew = product ? formatPrice(product.price_new) : "";
+  const priceReturning = product ? formatPrice(product.price_returning) : "";
+  const daysLeft = product ? daysUntilCourse(product.course_date) : null;
+  const ctaText = (p?.ctaText || "立即報名").trim();
+  const registerHref = p?.registerUrl && !p.registerUrl.startsWith("#") ? p.registerUrl : "#register";
+  const lineUrl = "https://lin.ee/W88wwDB";
+
+  const posters = p ? [p.posterMain, p.posterSecond, p.posterThird].map(mediaSrc).filter(Boolean) : [];
+  const videos = p ? [
+    p.videoOne ? { src: p.videoOne, title: p.videoOneTitle || "課程宣傳影片 1" } : null,
+    p.videoTwo ? { src: p.videoTwo, title: p.videoTwoTitle || "課程宣傳影片 2" } : null
+  ].filter((v): v is { src: string; title: string } => Boolean(v)) : [];
+  const heroStats = p ? lines(p.heroStats) : [];
+  const painPoints = p ? lines(p.painPoints).map(splitTitled) : [];
+  const outcomes = p ? lines(p.outcomes).map(splitTitled) : [];
+  const curriculum = p?.curriculum || [];
+  const credentials = p ? lines(p.instructorCredentials) : [];
+  const faqs = p?.faqs || [];
+  const testimonials = p?.testimonials || [];
+  const notices = p ? lines(p.guaranteeText) : [];
+  const mapHref = product?.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(product.location)}` : "";
+
   return (
     <>
-      <style
-        id="force-hide-course-promo-gallery"
-        dangerouslySetInnerHTML={{ __html: FORCE_HIDE_GALLERY_CSS }}
-      />
+      {/* 這一頁的主要行動是報名，隱藏全站的問天機浮動按鈕，避免與固定報名列打架。 */}
+      <style dangerouslySetInnerHTML={{ __html: ".floating-ai,.mobile-dock,.xf-mobile-cta{display:none!important}" }} />
 
-      {/* V3: front-end only shows the controlled carousel; poster images are managed in admin/course_promo.json. */}
-      <section id="zzjStaticFallback" className="course-promo-section">
-        <div className="wrap">
-          <article className="course-promo-card">
-            <div className="course-promo-copy">
-              <div className="tag">NEW COURSE｜掌訣班招生</div>
-              <h2 className="promo-title">
-                <span>掌中訣</span>
-                <small>開班授課</small>
-              </h2>
-              <h3>別讓命運成為盲盒，風羿老師帶你親手改寫人生劇本！</h3>
-              <p className="promo-subtitle">解開命運密碼・掌握人生方向</p>
-              <div className="promo-body">
-                <p>您是否總覺得人生像在迷霧中行走？努力了很久，卻總在關鍵時刻與機會擦身而過？</p>
-                <p>
-                  其實，您的成功路徑、財富密碼、甚至避坑指南，早已刻在你的掌心之中。玄學名師風羿老師傾囊相授，將千年不外傳的「掌中訣」化繁為簡。
-                </p>
-                <p>這不只是一門命理課，更是一套讓你「看透局勢、精準決策」的人生導航系統。</p>
-              </div>
-              <ul className="promo-highlights">
-                <li>干支解析｜洞悉先天與後天趨勢</li>
-                <li>五行陰陽｜結合五行生剋原理</li>
-                <li>運程趨勢｜掌握人生關鍵時機</li>
-                <li>實戰運用｜學以致用，快速上手</li>
-              </ul>
-              <div className="promo-limited">⏳ 招生名額有限，立即卡位</div>
-              <div className="actions">
-                <a
-                  className="btn btn-primary"
-                  href="#courseCheckout"
-                >
-                  立即報名
-                </a>
-                <a
-                  className="btn btn-ghost"
-                  href="https://lin.ee/W88wwDB"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  LINE 詢問課程
-                </a>
-              </div>
-            </div>
-            <div className="course-promo-media">
-              <div
-                className="promo-poster-carousel"
-                data-course-promo-carousel
-              >
-                <img
-                  className="promo-carousel-img active"
-                  src="/assets/courses/zhangzhongjue-poster-qr.png"
-                  alt="掌中訣課程海報 1"
-                />
-                <img
-                  className="promo-carousel-img"
-                  src="/assets/courses/zhangzhongjue-poster-dark.png"
-                  alt="掌中訣課程海報 2"
-                />
-                <img
-                  className="promo-carousel-img"
-                  src="/assets/courses/zhangzhongjue-video-cover.png"
-                  alt="掌中訣課程海報 3"
-                />
-                <div className="promo-carousel-dots">
-                  <button
-                    type="button"
-                    className="active"
-                    aria-label="切換到第 1 張海報"
-                  ></button>
-                  <button type="button" aria-label="切換到第 2 張海報"></button>
-                  <button type="button" aria-label="切換到第 3 張海報"></button>
-                </div>
-              </div>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section
-        id="coursePromoSection"
-        className="course-promo-section"
-        hidden
-      >
-        <div className="wrap">
-          <div id="cmsCoursePromo"></div>
-        </div>
-      </section>
-
-      <section className="hero">
-        <div className="wrap">
-          <div className="section-head">
-            <div>
-              <div className="tag">COURSES & TALKS</div>
-              <h1 className="hero-title">
-                <span className="title-line title-main">課程講座</span>
-                <span className="title-line accent">讓傳統智慧</span>
-                <span className="title-line accent">走進現代現場</span>
-              </h1>
-            </div>
-            <p className="section-desc">
-              課程可依扶輪社、企業、協會、校園與專業社群需求調整深度，從入門觀念到專業風水與場域管理皆可規劃。
-            </p>
+      {p && product && (
+        <div id="clSticky" className="cl-sticky" aria-label="快速報名">
+          <div className="cl-sticky-info">
+            <strong>{p.title}{p.titleSuffix ? ` ${p.titleSuffix}` : ""}</strong>
+            <span>{dateText}{timeText ? ` ${timeText}` : ""}｜新生 {priceNew}</span>
           </div>
-          <div className="grid-4" id="cmsCourses"></div>
+          <a className="btn btn-primary" href={registerHref}>{ctaText}</a>
         </div>
-      </section>
+      )}
 
-      <section>
-        <div className="wrap grid-2">
-          <article className="panel">
-            <img src="/assets/proof-speaker.jpg" alt="風羿老師主講" />
-            <h3>演講實景</h3>
-            <p>以真實講座與協會合作照片作為信任背書，適合企業與社團邀約。</p>
-          </article>
-          <article className="panel">
-            <img src="/assets/proof-group.jpg" alt="協會交流合影" />
-            <h3>國際交流</h3>
-            <p>台灣省地理師協會國際交流活動，展現專業社群與跨域合作。</p>
-          </article>
-        </div>
-      </section>
+      {p && (
+        <section id="clHero" className="cl-hero">
+          <div className="wrap cl-hero-grid">
+            <div className="cl-hero-copy">
+              {p.label && <div className="tag">{p.label}</div>}
+              <h1 className="cl-title"><span>{p.title}</span>{p.titleSuffix && <small>{p.titleSuffix}</small>}</h1>
+              {p.headline && <h2 className="cl-headline">{p.headline}</h2>}
+              {p.subheadline && <p className="cl-subheadline">{p.subheadline}</p>}
+              {heroStats.length > 0 && (
+                <ul className="cl-stats">{heroStats.map((s) => <li key={s}>{s}</li>)}</ul>
+              )}
+              {product && (
+                <dl className="cl-facts">
+                  <div><dt>開課日期</dt><dd>{dateFull}<small>{timeText}</small></dd></div>
+                  <div><dt>上課地點</dt><dd>{product.location || "巽風堪輿研究中心"}</dd></div>
+                  <div><dt>課程費用</dt><dd>新生 {priceNew}<small>複訓 {priceReturning}</small></dd></div>
+                </dl>
+              )}
+              <div className="cl-actions">
+                <a className="btn btn-primary cl-btn-lg" href={registerHref}>{ctaText}</a>
+                <a className="btn btn-ghost" href={lineUrl} target="_blank" rel="noreferrer">{p.lineCtaText || "LINE 詢問課程"}</a>
+              </div>
+              {(p.limitedText || (daysLeft !== null && daysLeft >= 0)) && (
+                <p className="cl-urgency">
+                  {p.limitedText && <span>⏳ {p.limitedText}</span>}
+                  {daysLeft !== null && daysLeft > 0 && <span>距開課還有 {daysLeft} 天</span>}
+                  {daysLeft === 0 && <span>今天開課</span>}
+                </p>
+              )}
+            </div>
+            <div className="cl-hero-media">
+              {posters.length > 0 ? (
+                <div className="promo-poster-carousel" data-course-promo-carousel>
+                  {posters.map((src, i) => (
+                    <img key={src} className={`promo-carousel-img ${i === 0 ? "active" : ""}`} src={src} alt={`${p.title} 課程海報 ${i + 1}`} />
+                  ))}
+                  {posters.length > 1 && (
+                    <div className="promo-carousel-dots">
+                      {posters.map((src, i) => <button key={src} type="button" className={i === 0 ? "active" : ""} aria-label={`切換到第 ${i + 1} 張海報`} />)}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="cl-hero-placeholder"><span>{p.title}</span></div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
-      <section id="courseCheckout" className="course-checkout-section">
+      {p && (painPoints.length > 0 || paragraphs(p.body).length > 0) && (
+        <section className="cl-section cl-pain">
+          <div className="wrap">
+            <div className="cl-section-head">
+              <div className="tag">WHY THIS COURSE</div>
+              <h2>{p.painTitle || "這些困擾，你也遇過嗎？"}</h2>
+            </div>
+            {painPoints.length > 0 && (
+              <div className="cl-pain-grid">
+                {painPoints.map((item, i) => (
+                  <article key={i} className="cl-pain-card">
+                    {item.title && <h3>{item.title}</h3>}
+                    <p>{item.desc}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+            {paragraphs(p.body).length > 0 && (
+              <div className="cl-body">{paragraphs(p.body).map((para, i) => <p key={i}>{para}</p>)}</div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {p && outcomes.length > 0 && (
+        <section className="cl-section cl-outcomes">
+          <div className="wrap">
+            <div className="cl-section-head">
+              <div className="tag">WHAT YOU WILL GET</div>
+              <h2>{p.outcomeTitle || "上完課，你能做到"}</h2>
+            </div>
+            <ol className="cl-outcome-grid">
+              {outcomes.map((item, i) => (
+                <li key={i}>
+                  <span className="cl-num">{String(i + 1).padStart(2, "0")}</span>
+                  <div>{item.title && <strong>{item.title}</strong>}<p>{item.desc}</p></div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      )}
+
+      {p && curriculum.length > 0 && (
+        <section className="cl-section cl-curriculum">
+          <div className="wrap">
+            <div className="cl-section-head">
+              <div className="tag">CURRICULUM</div>
+              <h2>{p.curriculumTitle || "課程大綱"}</h2>
+              {product && <p className="cl-section-desc">{dateFull} {timeText}，實際進度依現場調整。</p>}
+            </div>
+            <ol className="cl-timeline">
+              {curriculum.map((unit, i) => (
+                <li key={i}>
+                  <span className="cl-timeline-dot" aria-hidden="true" />
+                  <div className="cl-timeline-card">
+                    <div className="cl-timeline-head">
+                      <h3>{unit.title}</h3>
+                      {unit.duration && <span className="cl-duration">{unit.duration}</span>}
+                    </div>
+                    {unit.description && <p>{unit.description}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      )}
+
+      {p && videos.length > 0 && (
+        <section className="cl-section cl-videos">
+          <div className="wrap">
+            <div className="cl-section-head">
+              <div className="tag">PREVIEW</div>
+              <h2>先看一段課程介紹</h2>
+            </div>
+            <div className="promo-video-grid">
+              {videos.map((v) => (
+                <article className="promo-video-card" key={v.src}>
+                  <h3>{v.title}</h3>
+                  <VideoPlayer src={v.src} cover={p.videoCover} title={v.title} />
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {p && (p.instructorName || p.instructorBio) && (
+        <section className="cl-section cl-instructor">
+          <div className="wrap cl-instructor-grid">
+            <div className="cl-instructor-photo">
+              <img src={mediaSrc(p.instructorImage) || "/assets/fengyi-hero.jpg"} alt={p.instructorName || "授課講師"} />
+            </div>
+            <div>
+              <div className="tag">INSTRUCTOR</div>
+              <h2>{p.instructorName}{p.instructorTitle && <small>{p.instructorTitle}</small>}</h2>
+              {lines(p.instructorBio).map((para, i) => <p key={i} className="cl-instructor-bio">{para}</p>)}
+              {credentials.length > 0 && (
+                <ul className="cl-credentials">{credentials.map((c) => <li key={c}>{c}</li>)}</ul>
+              )}
+              <div className="cl-proof">
+                <img src="/assets/proof-speaker.jpg" alt="風羿老師主講" />
+                <img src="/assets/proof-group.jpg" alt="協會交流合影" />
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {p && testimonials.length > 0 && (
+        <section className="cl-section cl-testimonials">
+          <div className="wrap">
+            <div className="cl-section-head">
+              <div className="tag">STUDENTS</div>
+              <h2>學員怎麼說</h2>
+            </div>
+            <div className="cl-testimonial-grid">
+              {testimonials.map((t, i) => (
+                <blockquote key={i}><p>{t.quote}</p><footer>{t.name}{t.role && <span>｜{t.role}</span>}</footer></blockquote>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {p && product && (
+        <section className="cl-section cl-info">
+          <div className="wrap">
+            <div className="cl-section-head">
+              <div className="tag">COURSE INFO</div>
+              <h2>課程資訊</h2>
+            </div>
+            <div className="cl-info-grid">
+              <article><span>日期時間</span><strong>{dateFull}</strong><small>{timeText}</small></article>
+              <article><span>上課地點</span><strong>{product.location || "巽風堪輿研究中心"}</strong>{mapHref && <a href={mapHref} target="_blank" rel="noreferrer">在 Google 地圖開啟</a>}</article>
+              <article><span>新生報名</span><strong>{priceNew}</strong><small>含講義，綠界付款保留名額</small></article>
+              <article><span>複訓學員</span><strong>{priceReturning}</strong><small>曾上過本課程任一期次</small></article>
+            </div>
+            {(p.infoNote || p.limitedText) && (
+              <p className="cl-info-note">{p.limitedText && <strong>⏳ {p.limitedText}　</strong>}{p.infoNote}</p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {p && faqs.length > 0 && (
+        <section className="cl-section cl-faq">
+          <div className="wrap">
+            <div className="cl-section-head">
+              <div className="tag">FAQ</div>
+              <h2>常見問題</h2>
+            </div>
+            <div className="cl-faq-list">
+              {faqs.map((f, i) => (
+                <details key={i} className="cl-faq-item">
+                  <summary>{f.q}</summary>
+                  <p>{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section id="courseCheckout" className="course-checkout-section cl-register">
+        <div id="register" className="cl-anchor" aria-hidden="true" />
         <div className="wrap">
           <div className="section-head">
             <div>
-              <div className="tag">COURSE CHECKOUT</div>
+              <div className="tag">REGISTER</div>
               <h2 className="section-title">
                 <span className="title-line title-main">課程報名</span>
-                <span className="title-line accent">綠界付款保留名額</span>
+                <span className="title-line accent">{product?.subtitle ? `${product.subtitle}｜` : ""}綠界付款保留名額</span>
               </h2>
             </div>
             <p className="section-desc">
-              填寫報名與發票資訊後，系統會建立課程訂單並前往綠界結帳。付款完成後後台會同步看到報名資料。
+              填寫報名與發票資訊後，系統會建立課程訂單並前往綠界結帳。付款完成後即保留名額，後台會同步看到報名資料。
             </p>
           </div>
+
+          {notices.length > 0 && (
+            <ul className="cl-notices">{notices.map((n) => <li key={n}>{n}</li>)}</ul>
+          )}
 
           <div className="grid-2">
             <article className="panel course-checkout-summary">
@@ -324,18 +499,36 @@ export default function CoursesPage() {
         </div>
       </section>
 
-      <Script id="courses-remove-fallback" strategy="afterInteractive">
-        {REMOVE_FALLBACK_JS}
-      </Script>
-      <Script id="courses-static-carousel" strategy="afterInteractive">
-        {STATIC_CAROUSEL_JS}
-      </Script>
-      <Script
-        id="force-remove-course-promo-gallery"
-        strategy="afterInteractive"
-      >
-        {FORCE_REMOVE_GALLERY_JS}
-      </Script>
+      {courses.length > 0 && (
+        <section className="cl-section cl-others">
+          <div className="wrap">
+            <div className="cl-section-head">
+              <div className="tag">MORE COURSES &amp; TALKS</div>
+              <h2>其他課程與講座</h2>
+              <p className="cl-section-desc">可依扶輪社、企業、協會、校園與專業社群需求調整深度，歡迎邀約。</p>
+            </div>
+            <div className="cl-others-grid">
+              {courses.map((c) => (
+                <article key={c.id || c.title} className="cl-other-card">
+                  {c.image && <img src={mediaSrc(c.image)} alt={c.title} loading="lazy" />}
+                  <div>
+                    <h3>{c.title}</h3>
+                    {c.audience && <p className="cl-other-audience">適合對象：{c.audience}</p>}
+                    {c.description && <p>{c.description}</p>}
+                    {(c.schedule || c.location || c.price_text) && (
+                      <p className="cl-other-meta">{[c.schedule, c.location, c.price_text].filter(Boolean).join("｜")}</p>
+                    )}
+                    {c.href && <a className="btn btn-ghost" href={c.href}>了解更多</a>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <Script id="courses-carousel" strategy="afterInteractive">{CAROUSEL_JS}</Script>
+      <Script id="courses-sticky" strategy="afterInteractive">{STICKY_JS}</Script>
       <Script src="/js/course-checkout.js" strategy="afterInteractive" />
     </>
   );

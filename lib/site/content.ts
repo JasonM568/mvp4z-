@@ -63,7 +63,30 @@ export type CoursePromo = {
   videoTwo: string;
   videoTwoTitle: string;
   notice: string;
+  // Landing Page 說服區段（2026-09-04 課程上架改版）
+  heroStats: string;
+  painTitle: string;
+  painPoints: string;
+  outcomeTitle: string;
+  outcomes: string;
+  curriculumTitle: string;
+  curriculum: CurriculumItem[];
+  instructorName: string;
+  instructorTitle: string;
+  instructorBio: string;
+  instructorImage: string;
+  instructorCredentials: string;
+  infoNote: string;
+  faqs: FaqItem[];
+  testimonials: TestimonialItem[];
+  guaranteeText: string;
+  seatsText: string;
+  stickyCtaHint: string;
 };
+
+export type CurriculumItem = { title: string; description: string; duration: string };
+export type FaqItem = { q: string; a: string };
+export type TestimonialItem = { name: string; role: string; quote: string };
 
 export type SiteContentType = "services" | "cases" | "courses";
 
@@ -87,8 +110,32 @@ export const PROMO_FIELDS = [
   "active", "publish_start", "publish_end", "label", "title", "title_suffix",
   "headline", "subheadline", "body", "highlights", "limited_text", "cta_text",
   "register_url", "line_cta_text", "poster_main", "poster_second", "poster_third",
-  "video_cover", "video_one", "video_one_title", "video_two", "video_two_title", "notice"
+  "video_cover", "video_one", "video_one_title", "video_two", "video_two_title", "notice",
+  "hero_stats", "pain_title", "pain_points", "outcome_title", "outcomes", "curriculum_title", "curriculum",
+  "instructor_name", "instructor_title", "instructor_bio", "instructor_image", "instructor_credentials",
+  "info_note", "faqs", "testimonials", "guarantee_text", "seats_text", "sticky_cta_hint"
 ] as const;
+
+/** jsonb 清單欄位：後台送陣列，API 會先過 sanitizePromoList 再存。 */
+export const PROMO_LIST_FIELDS: Record<"curriculum" | "faqs" | "testimonials", { keys: string[]; max: number }> = {
+  curriculum: { keys: ["title", "description", "duration"], max: 12 },
+  faqs: { keys: ["q", "a"], max: 12 },
+  testimonials: { keys: ["name", "role", "quote"], max: 12 }
+};
+
+export function sanitizePromoList(field: keyof typeof PROMO_LIST_FIELDS, value: unknown): Record<string, string>[] {
+  const spec = PROMO_LIST_FIELDS[field];
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, spec.max)
+    .map((item) => {
+      const row: Record<string, string> = {};
+      const source = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+      for (const key of spec.keys) row[key] = String(source[key] ?? "").trim().slice(0, 600);
+      return row;
+    })
+    .filter((row) => Object.values(row).some(Boolean));
+}
 
 const SELECT: Record<SiteContentType, string> = {
   services: "id, title, category, price, note, description, href, is_published, sort_order, updated_at",
@@ -185,7 +232,25 @@ export function toPromoPayload(row: Record<string, unknown> | null): CoursePromo
     videoOneTitle: text("video_one_title"),
     videoTwo: text("video_two"),
     videoTwoTitle: text("video_two_title"),
-    notice: text("notice")
+    notice: text("notice"),
+    heroStats: text("hero_stats"),
+    painTitle: text("pain_title"),
+    painPoints: text("pain_points"),
+    outcomeTitle: text("outcome_title"),
+    outcomes: text("outcomes"),
+    curriculumTitle: text("curriculum_title"),
+    curriculum: sanitizePromoList("curriculum", row.curriculum) as CurriculumItem[],
+    instructorName: text("instructor_name"),
+    instructorTitle: text("instructor_title"),
+    instructorBio: text("instructor_bio"),
+    instructorImage: text("instructor_image"),
+    instructorCredentials: text("instructor_credentials"),
+    infoNote: text("info_note"),
+    faqs: sanitizePromoList("faqs", row.faqs) as FaqItem[],
+    testimonials: sanitizePromoList("testimonials", row.testimonials) as TestimonialItem[],
+    guaranteeText: text("guarantee_text"),
+    seatsText: text("seats_text"),
+    stickyCtaHint: text("sticky_cta_hint")
   };
 }
 

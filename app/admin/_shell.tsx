@@ -30,6 +30,7 @@ const NAV_GROUPS = [
     label: "網站內容",
     items: [
       { href: "/admin/site-services", label: "老師服務" },
+      { href: "/admin/course-launch", label: "課程上架" },
       { href: "/admin/site-cases", label: "案例課程" }
     ]
   },

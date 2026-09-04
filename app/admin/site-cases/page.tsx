@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import { ContentListEditor } from "../_content-editor";
-import { CoursePromoEditor } from "../_promo-editor";
-import { CourseProductEditor } from "../_course-product-editor";
 
-type Tab = "cases" | "courses" | "promo";
+type Tab = "cases" | "courses";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "cases", label: "案例實績" },
-  { key: "courses", label: "課程講座" },
-  { key: "promo", label: "主打課程推廣" }
+  { key: "courses", label: "課程講座" }
 ];
 
 export default function SiteCasesPage() {
@@ -20,8 +17,8 @@ export default function SiteCasesPage() {
     <>
       <h1>案例課程</h1>
       <p className="lead">
-        這裡維護前台「案例實績」（<code>/cases</code>）與「課程講座」（<code>/courses</code>）兩頁的內容。
-        改完按上架，前台最多 30 秒內生效，不需要重新部署。
+        這裡維護前台「案例實績」（<code>/cases</code>）與「其他課程講座」（<code>/courses</code> 頁尾清單）。
+        主打課程的招生頁與報名商品請到 <a href="/admin/course-launch">課程上架</a>。改完按上架，前台最多 30 秒內生效。
       </p>
 
       <div className="admin-tab-row">
@@ -57,7 +54,7 @@ export default function SiteCasesPage() {
         <ContentListEditor
           type="courses"
           heading="課程講座"
-          intro="每一筆就是 /courses 頁下方課程列表的一張卡。開課時間、地點、費用、報名連結留空就不顯示。"
+          intro="每一筆就是 /courses 頁尾「其他課程與講座」的一張卡。開課時間、地點、費用、報名連結留空就不顯示。"
           uploadFolder="courses"
           columns={[
             { key: "audience", label: "適合對象" },
@@ -76,7 +73,6 @@ export default function SiteCasesPage() {
         />
       )}
 
-      {tab === "promo" && <><CourseProductEditor /><CoursePromoEditor /></>}
     </>
   );
 }

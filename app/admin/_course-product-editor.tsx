@@ -15,7 +15,7 @@ function timeInTaipei(value: unknown) {
   return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(String(value)));
 }
 
-export function CourseProductEditor() {
+export function CourseProductEditor({ embedded = false }: { embedded?: boolean } = {}) {
   const [form, setForm] = useState<Form>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -54,9 +54,9 @@ export function CourseProductEditor() {
   if (loading) return <section className="admin-card"><p className="lead">讀取報名課程中⋯</p></section>;
   const field = (key: keyof Form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   return (
-    <section className="admin-card admin-course-product-editor">
-      <div className="admin-section-title"><h2>報名課程設定</h2></div>
-      <p className="lead">這裡會同步控制 <code>/courses</code> 報名區的課程日期、時間、地點與結帳金額。</p>
+    <section className={embedded ? "admin-course-product-editor" : "admin-card admin-course-product-editor"}>
+      {!embedded && <div className="admin-section-title"><h2>報名課程設定</h2></div>}
+      {!embedded && <p className="lead">這裡會同步控制 <code>/courses</code> 報名區的課程日期、時間、地點與結帳金額。</p>}
       {notice && <p className="admin-inline-message" role="status">{notice}</p>}
       <div className="admin-form-grid">
         <label>課程名稱<input required value={form.title} onChange={(e) => field("title", e.target.value)} /></label>

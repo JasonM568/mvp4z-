@@ -701,3 +701,28 @@ video.admin-thumb.large {
   .admin-promo-actions { position: static; }
   .admin-promo-actions button { flex: 1 1 100%; }
 }
+
+
+/* 課程上架：步驟導覽、清單編輯器、區段檢查表 */
+.admin-launch-steps { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-launch-step { display: grid; gap: 2px; padding: 10px 14px; min-width: 120px; text-align: left; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.03); color: inherit; cursor: pointer; }
+.admin-launch-step span { color: #d8b95f; font-size: 10px; font-weight: 900; letter-spacing: .1em; }
+.admin-launch-step strong { font-size: 14px; }
+.admin-launch-step.active { border-color: #d8b95f; background: rgba(216,177,95,.14); }
+.admin-launch-step:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 2px; }
+.admin-subhead { margin: 6px 0 10px; font-size: 15px; font-weight: 900; }
+.admin-list-editor { display: grid; gap: 12px; }
+.admin-list-empty { margin: 0; color: var(--muted); font-size: 13px; }
+.admin-list-row { padding: 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.18); }
+.admin-list-row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.admin-list-row-head > span { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: rgba(216,177,95,.16); color: #d8b95f; font-weight: 900; font-size: 13px; }
+.admin-action-btn.danger { border-color: rgba(255,120,120,.4); color: #ff9d9d; }
+.admin-launch-aside img { width: 100%; border-radius: 12px; }
+.admin-launch-checklist { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 6px; }
+.admin-launch-checklist li { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); }
+.admin-launch-checklist li.ok { color: inherit; }
+.admin-launch-checklist li span { color: #6ee7b7; }
+.admin-launch-checklist li:not(.ok) span { color: rgba(255,255,255,.3); }
+.admin-launch-checklist small { font-size: 12px; color: var(--muted); }
+.admin-launch-publish-note p { margin: 0 0 6px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.admin-promo-status .admin-action-btn { margin-top: 8px; justify-self: start; }
