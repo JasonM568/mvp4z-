@@ -192,13 +192,20 @@ export default async function CoursesPage() {
             </div>
             <div className="cl-hero-media">
               {posters.length > 0 ? (
-                <div className="promo-poster-carousel" data-course-promo-carousel>
-                  {posters.map((src, i) => (
-                    <img key={src} className={`promo-carousel-img ${i === 0 ? "active" : ""}`} src={src} alt={`${p.title} 課程海報 ${i + 1}`} />
-                  ))}
+                <div className="promo-poster-carousel cl-carousel" data-course-promo-carousel>
+                  {/* 海報依原始比例完整顯示，不裁切；多張時下方放縮圖，一眼看到全部，點縮圖切換。 */}
+                  <div className="cl-carousel-stage">
+                    {posters.map((src, i) => (
+                      <img key={src} className={`promo-carousel-img ${i === 0 ? "active" : ""}`} src={src} alt={`${p.title} 課程海報 ${i + 1}`} />
+                    ))}
+                  </div>
                   {posters.length > 1 && (
-                    <div className="promo-carousel-dots">
-                      {posters.map((src, i) => <button key={src} type="button" className={i === 0 ? "active" : ""} aria-label={`切換到第 ${i + 1} 張海報`} />)}
+                    <div className="promo-carousel-dots cl-thumbs" aria-label="切換海報">
+                      {posters.map((src, i) => (
+                        <button key={src} type="button" className={i === 0 ? "active" : ""} aria-label={`切換到第 ${i + 1} 張海報`}>
+                          <img src={src} alt="" loading="lazy" />
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>

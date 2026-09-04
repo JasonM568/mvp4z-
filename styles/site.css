@@ -2105,7 +2105,7 @@ iframe {
 }
 .cl-hero-grid { display: grid; gap: 28px; align-items: center; }
 .cl-hero-media { order: -1; }
-.cl-hero-media .promo-poster-carousel { max-height: 46vh; aspect-ratio: 3 / 4; margin: 0 auto; max-width: 420px; }
+.cl-hero-media .promo-poster-carousel { margin: 0 auto; max-width: 440px; }
 .cl-hero-placeholder { display: grid; place-items: center; aspect-ratio: 3/4; max-width: 420px; margin: 0 auto; border-radius: 30px; border: 1px dashed rgba(216,177,95,.4); color: #f4deae; font-size: 40px; font-weight: 900; }
 .cl-hero-copy .tag { margin-bottom: 14px; }
 .cl-title { display: flex; align-items: baseline; gap: .2em; flex-wrap: wrap; margin: 0 0 12px; font-size: clamp(44px, 9vw, 92px); line-height: .98; letter-spacing: -.06em; color: #fffdf2; }
@@ -2213,7 +2213,7 @@ iframe {
   .cl-hero { padding: 64px 0 72px; }
   .cl-hero-grid { grid-template-columns: minmax(0, 1.05fr) minmax(340px, .8fr); gap: clamp(28px, 5vw, 60px); }
   .cl-hero-media { order: 0; }
-  .cl-hero-media .promo-poster-carousel { max-height: none; max-width: none; }
+  .cl-hero-media .promo-poster-carousel { max-width: none; }
   .cl-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cl-facts > div { grid-template-columns: 1fr; gap: 4px; }
   .cl-info-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -2278,3 +2278,16 @@ iframe {
   .cl-register-grid { grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); gap: 24px; }
   .cl-summary { position: sticky; top: 96px; }
 }
+
+
+/* Hero 海報：完整顯示、不裁切；縮圖列取代圓點，三張一眼看到 */
+.cl-hero-media .cl-carousel { aspect-ratio: auto; height: auto; max-height: none; min-height: 0; overflow: visible; background: none; border: 0; box-shadow: none; display: grid; gap: 12px; }
+.cl-hero-media .cl-carousel-stage { position: relative; display: block; border-radius: 26px; overflow: hidden; border: 1px solid rgba(255,255,255,.16); background: rgba(0,0,0,.35); box-shadow: 0 26px 78px rgba(0,0,0,.52); }
+/* 只有目前顯示的那張決定舞台高度；其他張絕對定位疊在底下，換張時不會留黑邊。 */
+.cl-hero-media .cl-carousel-stage .promo-carousel-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: none; }
+.cl-hero-media .cl-carousel-stage .promo-carousel-img.active { position: relative; height: auto; max-height: 82vh; display: block; }
+.cl-hero-media .cl-thumbs { position: static; left: auto; bottom: auto; transform: none; justify-content: center; gap: 10px; padding: 0; background: none; backdrop-filter: none; }
+.cl-hero-media .cl-thumbs button { width: 58px; height: 78px; border-radius: 10px; overflow: hidden; border: 2px solid rgba(255,255,255,.18); background: rgba(0,0,0,.3); opacity: .65; transition: opacity .2s, border-color .2s, transform .2s; }
+.cl-hero-media .cl-thumbs button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cl-hero-media .cl-thumbs button.active { width: 58px; border-color: var(--gold); opacity: 1; transform: translateY(-2px); }
+.cl-hero-media .cl-thumbs button:hover { opacity: 1; }

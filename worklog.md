@@ -1274,3 +1274,11 @@ Commit：`1930692 fix(admin): upload posters and videos directly to storage`
 9/4 JPG「五術掌訣實修班」），兩張都被存進 `video_cover`；新版「課程上架」上線後沒有任何 media_sign 或
 promo_update 紀錄，代表使用者還沒在新後台重新上傳。直接以 SQL 把兩張改為 poster_main／poster_second，
 原「掌中訣開班授課」QR 海報退到 poster_third，清空 video_cover。ISR 約 10 秒後正式站 Hero 已顯示三張輪播。
+
+### 真人驗收回報（海報沒有完整呈現）
+
+- 現況：Hero 海報框固定 3:4，手機再套 46vh 上限，海報縮成一小張且底部被切換圓點蓋住；一次只看到一張。
+- 改法：舞台高度改由「目前顯示那張」決定（其他張絕對定位疊底），不裁切、不留黑邊；圓點改成三張縮圖放海報下方，
+  一眼看到全部、點縮圖切換；拿掉手機高度上限與舊 `.promo-poster-carousel` 的 max-height。
+- 本機驗證時發現 `next build` 會沿用 `.next/cache/fetch-cache` 的舊資料，看到舊海報；清掉再 build 即正常。
+  正式站 ISR 沒有此問題（改 DB 後 10 秒內更新）。
