@@ -97,6 +97,9 @@
    - migration `20260904150000` 補 18 個欄位並灌預設文案（已 push）。
    - 由 course-planner 與 copywriter 兩個 agent 產出規格與文案，詳見 worklog。
 
+7. **報名區重排**：單欄標題＋三步驟、表單四個編號區塊、摘要卡 sticky（手機移前）、金色大按鈕寫出金額。
+   Codex 協助修三個 CSS 細節（member.css .btn 覆蓋、手機金額直排、摘要順序）。正式站已核對：按鈕金色、文字含金額。
+
 ### 修改檔案
 
 - `app/api/admin/course-product/route.ts`
