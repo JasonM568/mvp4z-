@@ -18,10 +18,10 @@ const TEXT_FIELDS: { key: string; label: string; kind?: "textarea" | "image" | "
   { key: "cta_text", label: "報名按鈕文字", placeholder: "立即報名" },
   { key: "register_url", label: "報名連結", placeholder: "#courseCheckout 或完整網址" },
   { key: "line_cta_text", label: "LINE 按鈕文字", placeholder: "LINE 詢問課程" },
-  { key: "poster_main", label: "海報 1", kind: "image", hint: "JPG / PNG / WebP，最大 10MB" },
+  { key: "poster_main", label: "海報 1（前台輪播第一張）", kind: "image", hint: "JPG / PNG / WebP，最大 10MB。前台課程頁右側輪播的就是海報 1～3。" },
   { key: "poster_second", label: "海報 2", kind: "image" },
   { key: "poster_third", label: "海報 3", kind: "image" },
-  { key: "video_cover", label: "影片封面", kind: "image" },
+  { key: "video_cover", label: "影片預覽圖（只在有宣傳影片時顯示）", kind: "image", hint: "這不是海報。它只會當作宣傳影片播放前的靜態畫面；沒有設定影片時前台不會出現這張圖。" },
   { key: "video_one", label: "宣傳影片 1", kind: "video", hint: "可直接上傳 MP4（最大 200MB），或貼 YouTube / Vimeo / mp4 網址" },
   { key: "video_one_title", label: "宣傳影片 1 標題" },
   { key: "video_two", label: "宣傳影片 2", kind: "video", hint: "可直接上傳 MP4（最大 200MB），或貼 YouTube / Vimeo / mp4 網址" },
@@ -31,7 +31,7 @@ const TEXT_FIELDS: { key: string; label: string; kind?: "textarea" | "image" | "
 const GROUPS = [
   { title: "課程主訊息", step: "STEP 2", description: "設定訪客第一眼看到的課程名稱與招生訴求。", keys: ["label", "title", "title_suffix", "headline", "subheadline"] },
   { title: "課程內容與行動按鈕", step: "STEP 3", description: "說清楚課程價值，再引導訪客報名或透過 LINE 詢問。", keys: ["body", "highlights", "limited_text", "cta_text", "register_url", "line_cta_text"] },
-  { title: "海報與影片", step: "STEP 4", description: "上傳課程海報與宣傳影片（或貼 YouTube 連結）；海報會在前台自動輪播。", keys: ["poster_main", "poster_second", "poster_third", "video_cover", "video_one", "video_one_title", "video_two", "video_two_title"] }
+  { title: "海報與影片", step: "STEP 4", description: "上傳課程海報與宣傳影片（或貼 YouTube 連結）；海報會在前台自動輪播。", keys: ["poster_main", "poster_second", "poster_third", "video_one", "video_one_title", "video_two", "video_two_title", "video_cover"] }
 ] as const;
 
 export function CoursePromoEditor() {
@@ -127,6 +127,11 @@ export function CoursePromoEditor() {
       </div>
 
       {setupHint && <p className="admin-inline-message" role="status">⚠️ {setupHint}</p>}
+      {form.video_cover && !form.video_one && !form.video_two && (
+        <p className="admin-inline-message" role="status">
+          ⚠️ 你設定了「影片預覽圖」，但宣傳影片 1、2 都是空的，前台不會顯示這張圖。想讓它出現在課程頁，請改上傳到「海報 1～3」。
+        </p>
+      )}
       {notice && <p className="admin-inline-message" role="status">{notice}</p>}
 
       <div className="admin-promo-layout">
