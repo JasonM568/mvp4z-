@@ -107,6 +107,30 @@
     return String(text || "").split(/\n+/).map(x => x.trim()).filter(Boolean);
   }
 
+
+  // 宣傳影片：YouTube / Vimeo 連結用嵌入播放器；mp4 / webm / mov 檔案用 <video>。
+  function promoVideoEmbedUrl(src) {
+    const url = String(src || "").trim();
+    let m = url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/))([A-Za-z0-9_-]{6,})/i);
+    if (m) return `https://www.youtube-nocookie.com/embed/${m[1]}?rel=0`;
+    m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+    if (m) return `https://player.vimeo.com/video/${m[1]}`;
+    return "";
+  }
+
+  function renderPromoVideo(src, cover) {
+    const embed = promoVideoEmbedUrl(src);
+    if (embed) {
+      return `<div class="promo-video-embed"><iframe src="${escapeHTML(embed)}" title="課程宣傳影片" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+    }
+    const clean = String(src || "").split(/[?#]/)[0].toLowerCase();
+    const type = clean.endsWith(".webm") ? "video/webm" : clean.endsWith(".mov") ? "video/quicktime" : "video/mp4";
+    return `<video controls playsinline preload="metadata" ${cover ? `poster="${escapeHTML(cover)}"` : ""}>
+                <source src="${escapeHTML(src)}" type="${type}">
+                你的瀏覽器不支援影片播放。
+              </video>`;
+  }
+
   function renderCoursePromo(data, site) {
     const section = $("#coursePromoSection");
     const target = $("#cmsCoursePromo");
@@ -162,10 +186,7 @@ ${videos.length ? `
           ${videos.map(v => `
             <article class="promo-video-card">
               <h3>${escapeHTML(v.title)}</h3>
-              <video controls playsinline preload="metadata" ${data.videoCover ? `poster="${escapeHTML(data.videoCover)}"` : ""}>
-                <source src="${escapeHTML(v.src)}" type="video/mp4">
-                你的瀏覽器不支援影片播放。
-              </video>
+              ${renderPromoVideo(v.src, data.videoCover)}
             </article>
           `).join("")}
         </div>

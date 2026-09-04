@@ -572,6 +572,30 @@
   height: 150px;
 }
 
+video.admin-thumb.large {
+  height: auto;
+  max-width: 320px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.admin-upload-progress {
+  margin-top: 8px;
+  height: 6px;
+  width: 100%;
+  max-width: 320px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.admin-upload-progress span {
+  display: block;
+  height: 100%;
+  background: #d9b56c;
+  transition: width 0.2s ease;
+}
+
 .admin-section-title .admin-pill {
   align-self: center;
 }

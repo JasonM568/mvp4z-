@@ -21,7 +21,7 @@ const TYPE_LABELS: Record<SiteContentType, string> = {
 };
 
 const SETUP_HINT =
-  "資料表尚未建立，請先執行 supabase/migrations/20260901120000_site_content_cms.sql。";
+  "資料表尚未建立，請先執行 supabase/migrations/20260901154318_site_content_cms.sql。";
 
 function parseType(request: NextRequest): SiteContentType {
   const value = new URL(request.url).searchParams.get("type") || "";

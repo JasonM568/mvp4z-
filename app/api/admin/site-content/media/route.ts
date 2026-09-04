@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     if (uploadError) {
       if (/bucket not found/i.test(uploadError.message)) {
         throw statusError(
-          "Storage bucket site-media 尚未建立，請先執行 supabase/migrations/20260901120000_site_content_cms.sql。",
+          "Storage bucket site-media 尚未建立，請先執行 supabase/migrations/20260901154318_site_content_cms.sql。",
           503
         );
       }

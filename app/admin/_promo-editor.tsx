@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "./_shell";
-import { ImageField, mediaSrc } from "./_content-editor";
+import { MediaField, mediaSrc } from "./_content-editor";
 
 type PromoRow = Record<string, string | boolean | null>;
 
-const TEXT_FIELDS: { key: string; label: string; kind?: "textarea" | "image"; hint?: string; placeholder?: string }[] = [
+const TEXT_FIELDS: { key: string; label: string; kind?: "textarea" | "image" | "video"; hint?: string; placeholder?: string }[] = [
   { key: "label", label: "小標籤", placeholder: "NEW COURSE｜掌訣班招生" },
   { key: "title", label: "課程名稱", placeholder: "掌中訣" },
   { key: "title_suffix", label: "名稱後綴", placeholder: "開班授課" },
@@ -18,20 +18,20 @@ const TEXT_FIELDS: { key: string; label: string; kind?: "textarea" | "image"; hi
   { key: "cta_text", label: "報名按鈕文字", placeholder: "立即報名" },
   { key: "register_url", label: "報名連結", placeholder: "#courseCheckout 或完整網址" },
   { key: "line_cta_text", label: "LINE 按鈕文字", placeholder: "LINE 詢問課程" },
-  { key: "poster_main", label: "海報 1", kind: "image" },
+  { key: "poster_main", label: "海報 1", kind: "image", hint: "JPG / PNG / WebP，最大 10MB" },
   { key: "poster_second", label: "海報 2", kind: "image" },
   { key: "poster_third", label: "海報 3", kind: "image" },
   { key: "video_cover", label: "影片封面", kind: "image" },
-  { key: "video_one", label: "宣傳影片 1 網址", placeholder: "mp4 檔網址" },
+  { key: "video_one", label: "宣傳影片 1", kind: "video", hint: "可直接上傳 MP4（最大 200MB），或貼 YouTube / Vimeo / mp4 網址" },
   { key: "video_one_title", label: "宣傳影片 1 標題" },
-  { key: "video_two", label: "宣傳影片 2 網址", placeholder: "mp4 檔網址" },
+  { key: "video_two", label: "宣傳影片 2", kind: "video", hint: "可直接上傳 MP4（最大 200MB），或貼 YouTube / Vimeo / mp4 網址" },
   { key: "video_two_title", label: "宣傳影片 2 標題" }
 ];
 
 const GROUPS = [
   { title: "課程主訊息", step: "STEP 2", description: "設定訪客第一眼看到的課程名稱與招生訴求。", keys: ["label", "title", "title_suffix", "headline", "subheadline"] },
   { title: "課程內容與行動按鈕", step: "STEP 3", description: "說清楚課程價值，再引導訪客報名或透過 LINE 詢問。", keys: ["body", "highlights", "limited_text", "cta_text", "register_url", "line_cta_text"] },
-  { title: "海報與影片", step: "STEP 4", description: "上傳課程視覺與宣傳影片；海報會在前台自動輪播。", keys: ["poster_main", "poster_second", "poster_third", "video_cover", "video_one", "video_one_title", "video_two", "video_two_title"] }
+  { title: "海報與影片", step: "STEP 4", description: "上傳課程海報與宣傳影片（或貼 YouTube 連結）；海報會在前台自動輪播。", keys: ["poster_main", "poster_second", "poster_third", "video_cover", "video_one", "video_one_title", "video_two", "video_two_title"] }
 ] as const;
 
 export function CoursePromoEditor() {
@@ -99,8 +99,8 @@ export function CoursePromoEditor() {
         {field.kind === "textarea" ? (
           <textarea rows={field.key === "body" ? 6 : 4} value={form[field.key] || ""} placeholder={field.placeholder}
             onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />
-        ) : field.kind === "image" ? (
-          <ImageField value={form[field.key] || ""} folder="course-promo"
+        ) : field.kind === "image" || field.kind === "video" ? (
+          <MediaField value={form[field.key] || ""} folder="course-promo" kind={field.kind}
             onChange={(value) => setForm({ ...form, [field.key]: value })} onError={setNotice} />
         ) : (
           <input value={form[field.key] || ""} placeholder={field.placeholder}

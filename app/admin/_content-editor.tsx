@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { adminFetch } from "./_shell";
 
-export type FieldKind = "text" | "textarea" | "image";
+export type FieldKind = "text" | "textarea" | "image" | "video";
 
 export type FieldSpec = {
   key: string;
@@ -252,62 +252,162 @@ export function ContentListEditor({ type, heading, intro, fields, columns, uploa
   );
 }
 
-export function ImageField({
+export type MediaKind = "image" | "video";
+
+const MEDIA_ACCEPT: Record<MediaKind, string> = {
+  image: "image/jpeg,image/png,image/webp,image/gif",
+  video: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+};
+
+const MEDIA_LIMIT: Record<MediaKind, { bytes: number; label: string }> = {
+  image: { bytes: 10 * 1024 * 1024, label: "10MB" },
+  video: { bytes: 200 * 1024 * 1024, label: "200MB" }
+};
+
+/** 副檔名推 MIME：部分瀏覽器（尤其 Windows 的 .mov）會給空的 file.type。 */
+function guessMimeType(file: File, kind: MediaKind) {
+  if (file.type) return file.type.toLowerCase();
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const map: Record<string, string> = kind === "video"
+    ? { mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mov: "video/quicktime" }
+    : { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif" };
+  return map[ext] || "";
+}
+
+/**
+ * 上傳流程：先向後台 API 換 signed upload URL，再由瀏覽器直接 PUT 到 Supabase Storage。
+ * 不把檔案送進 Vercel function，避免 4.5MB request body 上限；影片與大海報都靠這條路。
+ */
+export async function uploadMedia(
+  file: File,
+  folder: string,
+  kind: MediaKind,
+  onProgress?: (percent: number) => void
+): Promise<string> {
+  const limit = MEDIA_LIMIT[kind];
+  if (!file.size) throw new Error("檔案不可為空");
+  if (file.size > limit.bytes) throw new Error(`${kind === "video" ? "單支影片" : "單張圖片"}不可超過 ${limit.label}`);
+  const mimeType = guessMimeType(file, kind);
+
+  const signResponse = await adminFetch("/api/admin/site-content/media/sign", {
+    method: "POST",
+    body: JSON.stringify({ kind, folder, mime_type: mimeType, size_bytes: file.size, filename: file.name })
+  });
+  const signed = await signResponse.json().catch(() => ({}));
+  if (!signResponse.ok) throw new Error(signed.error || "無法建立上傳網址");
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", String(signed.upload_url));
+    xhr.setRequestHeader("Content-Type", mimeType);
+    xhr.setRequestHeader("cache-control", "max-age=3600");
+    xhr.setRequestHeader("x-upsert", "false");
+    if (signed.apikey) xhr.setRequestHeader("apikey", String(signed.apikey));
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onerror = () => reject(new Error("上傳中斷，請確認網路後重試"));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let message = `上傳失敗（${xhr.status}）`;
+      try {
+        const parsed = JSON.parse(xhr.responseText || "{}");
+        if (parsed.message || parsed.error) message = String(parsed.message || parsed.error);
+      } catch {
+        /* 非 JSON 回應就用預設訊息 */
+      }
+      if (/exceeded the maximum allowed size|payload too large/i.test(message)) {
+        message = `檔案超過 Storage 上限（${limit.label}），請壓縮後再上傳`;
+      } else if (/mime type .* is not supported/i.test(message)) {
+        message = "Storage 尚未允許這種檔案格式，請先套用 20260904120000_site_media_video migration";
+      }
+      reject(new Error(message));
+    };
+    xhr.send(file);
+  });
+
+  return String(signed.url);
+}
+
+export function MediaField({
   value,
   folder,
+  kind = "image",
   placeholder,
   onChange,
   onError
 }: {
   value: string;
   folder: string;
+  kind?: MediaKind;
   placeholder?: string;
   onChange: (value: string) => void;
   onError: (message: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const isVideo = kind === "video";
 
   async function upload(file: File) {
     setUploading(true);
+    setProgress(0);
     try {
-      const body = new FormData();
-      body.append("file", file);
-      body.append("folder", folder);
-      const response = await adminFetch("/api/admin/site-content/media", { method: "POST", body });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "上傳失敗");
-      onChange(data.url);
-      onError("圖片已上傳，記得按下方的儲存才會生效。");
+      const url = await uploadMedia(file, folder, kind, setProgress);
+      onChange(url);
+      onError(`${isVideo ? "影片" : "圖片"}已上傳，記得按下方的儲存才會生效。`);
     } catch (error) {
       onError(error instanceof Error ? error.message : "上傳失敗");
     } finally {
       setUploading(false);
+      setProgress(0);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
 
+  const preview = mediaSrc(value);
+  const looksLikeFile = /\.(mp4|webm|mov|m4v)(\?|$)/i.test(preview) || /supabase\.co\/storage/i.test(preview);
+
   return (
     <>
-      <input value={value} placeholder={placeholder || "圖片網址，或按右邊上傳"} onChange={(event) => onChange(event.target.value)} />
+      <input value={value} placeholder={placeholder || (isVideo ? "影片網址（mp4 / YouTube），或按右邊上傳" : "圖片網址，或按右邊上傳")}
+        onChange={(event) => onChange(event.target.value)} />
       <div className="admin-btn-row">
         <button className="admin-action-btn ghost small" type="button" disabled={uploading}
           onClick={() => inputRef.current?.click()}>
-          {uploading ? "上傳中⋯" : "上傳圖片"}
+          {uploading ? `上傳中 ${progress}%` : isVideo ? "上傳影片" : "上傳圖片"}
         </button>
-        {value && <button className="admin-action-btn ghost small" type="button" onClick={() => onChange("")}>清除</button>}
+        {value && <button className="admin-action-btn ghost small" type="button" disabled={uploading} onClick={() => onChange("")}>清除</button>}
       </div>
+      {uploading && (
+        <div className="admin-upload-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
+      )}
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept={MEDIA_ACCEPT[kind]}
         style={{ display: "none" }}
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) void upload(file);
         }}
       />
-      {value && <img className="admin-thumb large" src={mediaSrc(value)} alt="" />}
+      {value && !isVideo && <img className="admin-thumb large" src={preview} alt="" />}
+      {value && isVideo && looksLikeFile && (
+        <video className="admin-thumb large" src={preview} controls preload="metadata" />
+      )}
+      {value && isVideo && !looksLikeFile && <small>外部影片連結（YouTube / Vimeo）會在前台以嵌入播放器顯示。</small>}
     </>
   );
+}
+
+/** 舊名稱保留給案例／服務／課程列表編輯器。 */
+export function ImageField(props: {
+  value: string;
+  folder: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  onError: (message: string) => void;
+}) {
+  return <MediaField {...props} kind="image" />;
 }

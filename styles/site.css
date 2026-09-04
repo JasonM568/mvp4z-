@@ -1231,6 +1231,23 @@ h3 { font-size: 24px; }
   display: block;
 }
 
+.promo-video-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #000;
+}
+
+.promo-video-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 @media (max-width: 900px) {
   .course-promo-card {
     grid-template-columns: 1fr;
