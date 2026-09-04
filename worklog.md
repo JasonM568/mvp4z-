@@ -1160,3 +1160,13 @@ Supabase access token TTL 1 小時。`authResponse()` 明明有回 `refresh_toke
 - iPhone 直出的 .mov（HEVC）在 Chrome 不一定能播，建議老師上傳 MP4（H.264）。
 
 Commit：`1930692 fix(admin): upload posters and videos directly to storage`
+
+### 真人驗收回報（21:56）
+
+使用者上傳一張圖並儲存，30 秒後前台沒出現。查證：13:56:03 `media_sign` 210KB JPG 成功、
+13:56:11 `promo_update` 成功，圖片存在 `video_cover`（影片封面）欄位，不是海報欄位。
+`video_cover` 只當 `<video poster>` 用，宣傳影片 1、2 皆空，所以前台沒有任何地方會顯示。
+9/3 那張 2.9MB PNG 也是同樣狀況。上傳鏈路本身沒有問題。
+
+處置：標籤改為「影片預覽圖（只在有宣傳影片時顯示）」、加說明、欄位移到影片欄位之後，
+後台在「有預覽圖但沒有影片」時顯示警告。海報 1 標籤加註「前台輪播第一張」。
