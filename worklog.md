@@ -1250,3 +1250,20 @@ Commit：`1930692 fix(admin): upload posters and videos directly to storage`
 原因：`.admin-form-grid` 只讓 `label.admin-form-wide` 橫跨整列，清單編輯器包在 `div.admin-form-wide`，
 整個編輯器被塞進一格 180px 欄位。已改為任何直屬 `.admin-form-wide` 子項都橫跨，格線子項補 `min-width:0`，
 清單列內的格線改 220px 起跳。Commit `4995af0`，正式站 CSS bundle 已確認含修正。
+
+### 真人驗收回報（報名區）
+
+使用者：報名區「課程報名／115年第二期｜綠界付款保留名額／說明文字」互相壓字，整區難讀，報名按鈕不明顯。
+原因：沿用全站 `.section-head` 左右並排＋`.section-title .title-line { white-space: nowrap }`，長副標直接壓到右側說明。
+
+重排（page.tsx + site.css）：
+- 標題改單欄：課程報名／期別＋日期／三步驟（填資料→綠界付款→名額保留）。
+- 表單為主欄（1.3fr）、摘要卡側欄 sticky；表單分四個編號區塊：報名身份、基本資料、學習背景（選填）、發票資訊。
+- 結帳區塊：「本次應付」＋金色大按鈕，按鈕文字直接寫金額（course-checkout.js `syncPrice` 同步）。
+- 所有表單 id、name、欄位順序不變，綠界流程未動。
+
+交給 Codex（`codex exec`，附書面計畫）處理三個細節：金色按鈕被後載入的 member.css `.btn` 蓋掉→提高特異度
+`.cl-register .cl-form .cl-submit`；640px 以下應付金額直排 22px 不折行；959px 以下摘要卡 `order:-1` 移到表單前，
+手機隱藏信任清單與 LINE 連結。Codex 第一次因 `codex exec` 在非 TTY 下等 stdin 而卡住，改加 `< /dev/null` 重跑成功。
+
+驗證：tsc、build 通過；本機截圖桌機／手機：按鈕 computed 為金色漸層＋深色字、文字「前往綠界結帳｜NT$ 6,000」。

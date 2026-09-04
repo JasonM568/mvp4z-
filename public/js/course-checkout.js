@@ -58,6 +58,9 @@
     const label = selectedRegistrationType() === "returning" ? "複訓學員" : "新生報名";
     const el = $("courseSelectedPrice");
     if (el) el.textContent = `${label}｜NT$ ${Number(price).toLocaleString("zh-TW")}`;
+    // 主按鈕直接寫出金額，使用者不用回頭找價格。
+    const button = $("courseCheckoutSubmit");
+    if (button && !button.disabled) button.textContent = `前往綠界結帳｜NT$ ${Number(price).toLocaleString("zh-TW")}`;
   }
 
   function money(value) {
@@ -156,9 +159,8 @@
       const data = await api("/api/courses/checkout");
       course = data.course;
       syncCourseSummary(course);
-      syncPrice(course);
       button.disabled = false;
-      button.textContent = "前往綠界結帳";
+      syncPrice(course);
     } catch (error) {
       status(`無法讀取最新課程資訊：${error.message}`, "error");
       button.disabled = true;

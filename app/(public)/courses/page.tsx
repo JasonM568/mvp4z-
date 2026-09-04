@@ -378,29 +378,127 @@ export default async function CoursesPage() {
       <section id="courseCheckout" className="course-checkout-section cl-register">
         <div id="register" className="cl-anchor" aria-hidden="true" />
         <div className="wrap">
-          <div className="section-head">
-            <div>
-              <div className="tag">REGISTER</div>
-              <h2 className="section-title">
-                <span className="title-line title-main">課程報名</span>
-                <span className="title-line accent">{product?.subtitle ? `${product.subtitle}｜` : ""}綠界付款保留名額</span>
-              </h2>
-            </div>
-            <p className="section-desc">
-              填寫報名與發票資訊後，系統會建立課程訂單並前往綠界結帳。付款完成後即保留名額，後台會同步看到報名資料。
-            </p>
+          <div className="cl-register-head">
+            <div className="tag">REGISTER</div>
+            <h2>課程報名</h2>
+            <p className="cl-register-sub">{product?.subtitle ? `${product.subtitle}｜` : ""}{dateText}{timeText ? ` ${timeText}` : ""}</p>
+            <ol className="cl-steps">
+              <li><span>1</span>填寫報名資料</li>
+              <li><span>2</span>前往綠界付款</li>
+              <li><span>3</span>付款完成，名額保留</li>
+            </ol>
           </div>
 
           {notices.length > 0 && (
             <ul className="cl-notices">{notices.map((n) => <li key={n}>{n}</li>)}</ul>
           )}
 
-          <div className="grid-2">
-            <article className="panel course-checkout-summary">
-              <div id="courseSummaryTitle" className="tag">讀取最新課程資訊中…</div>
-              <h3 id="courseSummarySubtitle">請稍候</h3>
-              <p id="courseSummaryDate">課程日期與時間讀取中</p>
-              <p id="courseSummaryLocation">上課地點讀取中</p>
+          <div className="cl-register-grid">
+            <article className="form-panel cl-form-panel">
+              <form id="courseCheckoutForm" className="booking-form cl-form">
+                <fieldset className="cl-fieldset">
+                  <legend><span>1</span>報名身份</legend>
+                  <div className="course-radio-group" aria-label="報名身份">
+                    <label>
+                      <input type="radio" name="courseRegistrationType" value="new" defaultChecked />
+                      <span id="courseRadioPriceNew">新生報名（價格讀取中）</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="courseRegistrationType" value="returning" />
+                      <span id="courseRadioPriceReturning">複訓學員（價格讀取中）</span>
+                    </label>
+                  </div>
+                  <small className="cl-field-hint">複訓學員：曾上過本課程任一期次。</small>
+                </fieldset>
+
+                <fieldset className="cl-fieldset">
+                  <legend><span>2</span>基本資料</legend>
+                  <div className="form-grid">
+                    <label>姓名<input id="courseName" autoComplete="name" required /></label>
+                    <label>性別<select id="courseGender" defaultValue="">
+                      <option value="">不填寫</option>
+                      <option value="男">男</option>
+                      <option value="女">女</option>
+                      <option value="不便透露">不便透露</option>
+                    </select></label>
+                    <label>聯絡電話<input id="coursePhone" autoComplete="tel" required /></label>
+                    <label>LINE ID<input id="courseLineId" /></label>
+                    <label className="span-2">電子信箱<input id="courseEmail" type="email" autoComplete="email" required /></label>
+                  </div>
+                </fieldset>
+
+                <fieldset className="cl-fieldset">
+                  <legend><span>3</span>學習背景<em>選填，幫老師了解你</em></legend>
+                  <label>學習背景<select id="courseLearningBackground" defaultValue="">
+                    <option value="">請選擇</option>
+                    <option value="完全沒有，第一次接觸">完全沒有，第一次接觸</option>
+                    <option value="有初步了解">有初步了解</option>
+                    <option value="曾上過相關課程">曾上過相關課程</option>
+                    <option value="已有實務經驗">已有實務經驗</option>
+                  </select></label>
+                  <div>
+                    <div className="form-label">想加強的內容</div>
+                    <div className="course-checkbox-grid">
+                      {["五行基礎判斷", "掌訣快速記憶", "命理應用", "風水應用", "擇日應用", "卜卦應用", "個人運勢判讀", "實務案例解析"].map((item) => (
+                        <label key={item}>
+                          <input type="checkbox" name="courseInterests" value={item} />
+                          <span>{item}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="form-grid">
+                    <label>報名動機或學習期待<textarea id="courseMotivation" /></label>
+                    <label>備註<textarea id="courseNote" /></label>
+                  </div>
+                </fieldset>
+
+                <fieldset className="cl-fieldset">
+                  <legend><span>4</span>發票資訊</legend>
+                  <div className="course-radio-group" aria-label="發票類型">
+                    <label>
+                      <input type="radio" name="courseInvoiceBuyerType" value="personal" defaultChecked />
+                      <span>個人雲端發票</span>
+                    </label>
+                    <label>
+                      <input type="radio" name="courseInvoiceBuyerType" value="company" />
+                      <span>公司三聯式</span>
+                    </label>
+                  </div>
+                  <div className="form-grid">
+                    <label>發票抬頭<input id="courseInvoiceBuyerName" placeholder="個人填姓名 / 公司填公司名" /></label>
+                    <label>Email<input id="courseInvoiceBuyerEmail" type="email" placeholder="用於接收綠界發票通知" /></label>
+                    <label id="courseInvoiceCompanyRow" className="span-2">統一編號<input id="courseInvoiceBuyerId" inputMode="numeric" maxLength={8} /></label>
+                    <label id="courseInvoiceDeliveryRow" className="span-2">個人發票方式<select id="courseInvoiceDelivery" defaultValue="email">
+                      <option value="email">雲端發票寄 Email</option>
+                      <option value="cellphone">手機條碼載具</option>
+                      <option value="donation">捐贈碼</option>
+                    </select></label>
+                    <label id="courseInvoiceCarrierRow" className="span-2">手機條碼載具<input id="courseInvoiceCarrierNum" placeholder="/ABC1234" maxLength={8} /></label>
+                    <label id="courseInvoiceDonationRow" className="span-2">捐贈碼<input id="courseInvoiceDonationCode" inputMode="numeric" maxLength={7} /></label>
+                  </div>
+                </fieldset>
+
+                <div className="cl-pay">
+                  <div className="cl-pay-total"><span>本次應付</span><strong id="courseSelectedPrice">課程價格讀取中…</strong></div>
+                  <button id="courseCheckoutSubmit" className="btn btn-primary cl-submit" type="submit" disabled>
+                    讀取課程資訊中…
+                  </button>
+                  <small>付款流程由綠界 ECPay 處理，巽風不接觸您的卡片資料；電子發票依上方資訊開立。</small>
+                </div>
+                <div id="courseCheckoutStatus" className="booking-preview course-checkout-status" style={{ display: "none" }}></div>
+              </form>
+            </article>
+
+            <aside className="panel course-checkout-summary cl-summary">
+              <div className="cl-summary-head">
+                <div id="courseSummaryTitle" className="tag">讀取最新課程資訊中…</div>
+                <h3 id="courseSummarySubtitle">請稍候</h3>
+              </div>
+              <dl className="cl-summary-list">
+                <div><dt>日期時間</dt><dd id="courseSummaryDate">讀取中</dd></div>
+                <div><dt>上課地點</dt><dd id="courseSummaryLocation">讀取中</dd></div>
+              </dl>
               <div className="price-line">
                 <span>新生報名</span>
                 <strong id="courseSummaryPriceNew">讀取中</strong>
@@ -409,92 +507,13 @@ export default async function CoursesPage() {
                 <span>複訓學員</span>
                 <strong id="courseSummaryPriceReturning">讀取中</strong>
               </div>
-              <p className="course-checkout-note">
-                付款流程由綠界 ECPay 處理，巽風不接觸您的卡片資料。發票資訊會用於付款完成後開立電子發票。
-              </p>
-            </article>
-
-            <article className="form-panel">
-              <form id="courseCheckoutForm" className="booking-form">
-                <div className="course-radio-group" aria-label="報名身份">
-                  <label>
-                    <input type="radio" name="courseRegistrationType" value="new" defaultChecked />
-                    <span id="courseRadioPriceNew">新生報名（價格讀取中）</span>
-                  </label>
-                  <label>
-                    <input type="radio" name="courseRegistrationType" value="returning" />
-                    <span id="courseRadioPriceReturning">複訓學員（價格讀取中）</span>
-                  </label>
-                </div>
-                <div id="courseSelectedPrice" className="price-tag">課程價格讀取中…</div>
-
-                <div className="form-grid">
-                  <label>姓名<input id="courseName" autoComplete="name" required /></label>
-                  <label>性別<select id="courseGender" defaultValue="">
-                    <option value="">不填寫</option>
-                    <option value="男">男</option>
-                    <option value="女">女</option>
-                    <option value="不便透露">不便透露</option>
-                  </select></label>
-                  <label>聯絡電話<input id="coursePhone" autoComplete="tel" required /></label>
-                  <label>LINE ID<input id="courseLineId" /></label>
-                  <label className="span-2">電子信箱<input id="courseEmail" type="email" autoComplete="email" required /></label>
-                </div>
-
-                <label>學習背景<select id="courseLearningBackground" defaultValue="">
-                  <option value="">請選擇</option>
-                  <option value="完全沒有，第一次接觸">完全沒有，第一次接觸</option>
-                  <option value="有初步了解">有初步了解</option>
-                  <option value="曾上過相關課程">曾上過相關課程</option>
-                  <option value="已有實務經驗">已有實務經驗</option>
-                </select></label>
-
-                <div>
-                  <div className="form-label">想加強的內容</div>
-                  <div className="course-checkbox-grid">
-                    {["五行基礎判斷", "掌訣快速記憶", "命理應用", "風水應用", "擇日應用", "卜卦應用", "個人運勢判讀", "實務案例解析"].map((item) => (
-                      <label key={item}>
-                        <input type="checkbox" name="courseInterests" value={item} />
-                        <span>{item}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <label>報名動機或學習期待<textarea id="courseMotivation" /></label>
-                <label>備註<textarea id="courseNote" /></label>
-
-                <div className="course-form-divider">發票資訊</div>
-                <div className="course-radio-group" aria-label="發票類型">
-                  <label>
-                    <input type="radio" name="courseInvoiceBuyerType" value="personal" defaultChecked />
-                    <span>個人雲端發票</span>
-                  </label>
-                  <label>
-                    <input type="radio" name="courseInvoiceBuyerType" value="company" />
-                    <span>公司三聯式</span>
-                  </label>
-                </div>
-
-                <div className="form-grid">
-                  <label>發票抬頭<input id="courseInvoiceBuyerName" placeholder="個人填姓名 / 公司填公司名" /></label>
-                  <label>Email<input id="courseInvoiceBuyerEmail" type="email" placeholder="用於接收綠界發票通知" /></label>
-                  <label id="courseInvoiceCompanyRow" className="span-2">統一編號<input id="courseInvoiceBuyerId" inputMode="numeric" maxLength={8} /></label>
-                  <label id="courseInvoiceDeliveryRow" className="span-2">個人發票方式<select id="courseInvoiceDelivery" defaultValue="email">
-                    <option value="email">雲端發票寄 Email</option>
-                    <option value="cellphone">手機條碼載具</option>
-                    <option value="donation">捐贈碼</option>
-                  </select></label>
-                  <label id="courseInvoiceCarrierRow" className="span-2">手機條碼載具<input id="courseInvoiceCarrierNum" placeholder="/ABC1234" maxLength={8} /></label>
-                  <label id="courseInvoiceDonationRow" className="span-2">捐贈碼<input id="courseInvoiceDonationCode" inputMode="numeric" maxLength={7} /></label>
-                </div>
-
-                <button id="courseCheckoutSubmit" className="btn btn-primary" type="submit" disabled>
-                  讀取課程資訊中…
-                </button>
-                <div id="courseCheckoutStatus" className="booking-preview course-checkout-status" style={{ display: "none" }}></div>
-              </form>
-            </article>
+              <ul className="cl-summary-trust">
+                <li>綠界 ECPay 安全付款</li>
+                <li>付款完成即保留名額</li>
+                <li>電子發票自動開立</li>
+              </ul>
+              <a className="cl-summary-line" href={lineUrl} target="_blank" rel="noreferrer">報名前有問題？LINE 詢問</a>
+            </aside>
           </div>
         </div>
       </section>
