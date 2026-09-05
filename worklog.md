@@ -1732,3 +1732,18 @@ critical 只給老師版。教材原文與望診健康只存在 `model_trace.tea
 - **發票作廢／折讓**：EZPay 只實作了 `issueInvoice()`。UI 會提示要人工處理，但系統不碰
 - **效期回溯**：續訂會延長到期日，退款沒有把它縮回去。牽涉結轉後的效期歸屬，
   目前讓管理員自行判斷，UI 有顯示到期日
+
+### 收工：已上線
+
+`46991ad`（程式與 migration，28 檔）＋ `c004595`（交接文件）一次 push 到 `main`。
+推之前確認 `.env*.local` 有被 gitignore、密鑰掃描無命中、`git fetch` 無分歧。
+
+Vercel `dpl_AcGkRj1EP8dG4wPMrQZ8Lfdtchvf` → READY（production）。
+兩個 commit 一次 push，Vercel 只建 head commit，但已包含全部變更。
+
+正式站煙霧測試通過：`/api/plans` 回傳 `is_addon` 與 `single_report`（199 元 / 20 點），
+排序正確（加購最後）、`e2e_card_test` 未外露；`member-pricing.js` 確認「偽 GPT」已移除、
+加購 preset 在、價格單位為 `/ 單次` 與 `/ N 天`。
+
+**真人驗收尚未進行**（註冊防刷、購買、續訂疊加、加購不延期、面相引用、退款試算），
+這幾件需要實際操作，是下次的第一優先。

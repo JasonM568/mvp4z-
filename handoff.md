@@ -6,8 +6,13 @@
 
 - **兩個 migration 已用 Supabase MCP `apply_migration` 套到正式庫**（非 `supabase db push`）：
   `20260905100000_trial_phone_claims`、`20260905120000_paid_entitlement_atomic`。
-- 程式改完，`tsc` / `vitest`（184 passed）/ `next build` 全過。**未 commit、未部署。**
-- DB 先就緒不會有空窗風險：舊程式不認識這兩個 RPC，行為與先前相同。
+- **已 commit、已 push、已部署，正式站驗證過功能是活的。**
+  - `46991ad` 程式與 migration（28 檔）、`c004595` 交接文件
+  - Vercel `dpl_AcGkRj1EP8dG4wPMrQZ8Lfdtchvf` → READY（production，commit `c004595`）
+  - 兩個 commit 一次 push，Vercel 只建 head commit，但已包含全部變更
+- 正式站煙霧測試：`/api/plans` 回傳 `is_addon` 欄位與 `single_report`（199/20 點），
+  加購排最後、`e2e_card_test` 未外露；前台 JS 確認「偽 GPT」已移除、價格單位為 `/ 單次`、`/ N 天`。
+- `tsc` / `vitest`（184 passed）/ `next build` 全過。
 
 ### 這次做了什麼
 
@@ -139,15 +144,15 @@
    - 用沒領過的手機註冊 → 拿到 30 點；同手機換 email 再註冊 → 註冊成功但不發點、導向方案頁
    - 買一次方案 → 回站看到「付款完成，方案已開通」與訂單編號；有剩餘點數時再買一次 → 點數疊加、效期延長
    - 面相跑一次 → 確認報告有引用老師條文
-4. 加購真人驗收：有方案時買 199 → 點數 +20、到期日不變；沒方案時買 → 20 點 / 30 天。
-5. 退款真人驗收：找一張已付款訂單開 `/admin/orders/[id]`，確認「退款」區塊的試算數字正確
+3. 加購：有方案時買 199 → 點數 +20、到期日不變；沒方案時買 → 20 點 / 30 天。
+4. 退款：找一張已付款訂單開 `/admin/orders/[id]`，確認「退款」區塊的試算數字正確
    （本單發出點數／目前可收回／發票號碼）。**先不要真的按下去**，除非真的要退那筆錢。
-6. 之後若要做第二階段（接 `Credit/DoAction`），見上節技術細節；
+5. 之後若要做第二階段（接 `Credit/DoAction`），見上節技術細節；
    要先補 EZPay `voidInvoice()`，並決定「已用掉點數時現金退多少」的政策。
 
 ### Git 狀態
 
-- `main...origin/main`，有未 commit 變更（見上）。
+- `main...origin/main` 同步，工作樹乾淨。最新：`c004595`。
 
 ### 長時間程序
 
@@ -217,8 +222,7 @@
 
 ### 未完成、風險與待辦
 
-1. 未 commit、未部署（DB 已就緒，等程式上線即生效）。
-   注意 migration 是用 MCP 套的，遠端 migration 歷史已有這筆；
+1. 已上線。注意四個 migration 都是用 MCP `apply_migration` 套的，遠端 migration 歷史已有這些；
    之後跑 `supabase db push` 應該顯示無待套用項目，若提示要重跑請先確認不會重複執行回填
    （回填有 `on conflict do nothing`、建表有 `if not exists`、function 是 `create or replace`，
    本身可重複執行）。
@@ -236,8 +240,7 @@
 ### 下次起手式
 
 1. `git pull`、讀本檔與 `worklog.md`；`git status --short --branch`。
-2. commit + 部署。
-3. 部署後真人驗收：用一支沒領過的手機註冊，確認拿到 30 點；
+2. **真人驗收（尚未做，這是最優先的事）**：用一支沒領過的手機註冊，確認拿到 30 點；
    再用同一支手機換 email 註冊一次，確認註冊成功、但沒發點、文案是
    「此手機號碼先前已使用過免費體驗…」且導向 `/member-pricing`。
 4. 接著做 P1（使用者 2026-09-05 已拍板三項：單次報告加購、10 點死點的出口、trial 到期前後的信）。
