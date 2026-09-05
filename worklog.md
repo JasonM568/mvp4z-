@@ -1311,3 +1311,424 @@ Hero 下方「課程介紹圖」一張接一張往下滿版堆疊（海報 2、3
   行為不變，更新斷言後 176 passed／2 skipped。
 - `handoff.md` 覆寫為單一最新摘要，另一 session 的交接原文移到附錄。
 - 發現同一 repo 有另一個 Claude session（navide pane）並行提交；接手前先 `git pull`。
+
+## 2026-09-05｜註冊贈點防刷：同一支手機只發一次
+
+### 起因
+
+使用者提出：會員方案是完成註冊就送點數，發現有人用同樣手機號碼、不同 email 重複註冊賺點。
+
+### 先查資料再談對策
+
+正式庫 16 個 profile，重複手機 3 組，但拆開看只有 1 組是真的：
+
+| 手機尾碼 | 狀況 |
+|---|---|
+| `...916` | 自己的 admin（306465）＋ 一個 member 測試帳號 |
+| `e2e...` | e2e 測試帳號 ×2 |
+| `...098` | 真實案例：6/16 註冊用掉 20 點，**7/16（trial 到期當天）**換 email 再領 30 點 |
+
+關鍵不是「有人在囤點」，而是**他想再看一次報告**。而制度上第二次只有兩條路：付 980，或換 email。
+
+### 制度在逼人刷
+
+- 贈點 30 點；單次消費 20 點（`lib/auth/tier.ts:18`、`lib/auth/face-tier.ts:1`）
+- 所以免費額度＝**1 次報告 ＋ 10 點死點**，那 10 點做不了任何事
+- basic 980 元／106 點 → 1 點約 9.25 元，30 點約值 **277 元**，只換一個 email
+- `profiles.phone` 是裸 `text`（`0001_init.sql:8`），無 unique、且**從未驗證**。
+  抓到的這位其實沒在躲——他老實填了同一支號碼
+
+分成 P0 防刷、P1 產品面（真解）、P2 SMS OTP 三層，今天只做 P0 ＋ 提出 P1。
+
+### 協作工具確認
+
+使用者要求先確認能不能調用 Codex 與 agy：
+
+- **Codex 可用**：`codex-cli 0.153.2`，model `gpt-5.6-sol`，實跑通過。
+  兩個非致命警告：Cloudflare MCP 的 OAuth token 過期；skill 太多導致描述被截斷。
+- **agy 起不來**：`~/.local/bin/agy`，登入是活的（`agy models` 抓得到清單），
+  但送 prompt 就死在 `calling model: invalid project ID: "G-Anti"`。
+  換 model、`--new-project` 都一樣；`~/.navide`、shell profiles、gcloud config 都找不到這個字串，
+  代表綁在帳號／伺服器端，本機改不到。使用者裁示「agy 之後再處理」。
+- 背景跑 codex 時要 `< /dev/null`，否則它會卡在 `Reading additional input from stdin...`。
+
+### 第一版（SELECT 檢查）與 Codex 的打臉
+
+第一版寫 `hasPhoneClaimedTrial()`，查同手機的其他 profile 有沒有 `trial_signup` 交易。
+派 Codex 做獨立繞道審查，回報兩個**真缺陷**：
+
+1. **併發雙領**：先查後寫、無鎖無唯一約束。同手機不同 email 同時送兩個註冊，兩邊都通過檢查。
+2. **半完成寫入**：entitlement 先建、交易後寫。第二步失敗 → 人有 30 點但系統沒有領過的證據，下次還能再領。
+
+也就是第一版**沒有真正達成「同手機只發一次」**。這是交付缺陷不是理論風險，所以重寫。
+
+Codex 同時確認的好消息：
+
+- 全專案只有 `/api/auth/register` 會寫出 `source = trial_signup`（`/api/register` 只是 re-export）。
+  登入、refresh、`requireBearerProfile` 補建 profile、課程結帳、啟用碼、付款、後台調點都不會拿到註冊 trial。
+- Supabase 端沒有自動建 profile 或自動發點的 trigger。
+- `normalizeTaiwanMobile` 的 unicode 變形（全形數字、零寬空白、`+886(0)`、中點…）全部會被
+  registerSchema 拒絕，無法製造出第二個有效的正規化字串。
+
+### 第二版：把不變條件放進 DB
+
+`supabase/migrations/20260905100000_trial_phone_claims.sql`
+
+- `trial_phone_claims`：以正規化手機為 primary key，**PK 本身就是併發鎖**。
+  `profile_id` 用 `on delete set null` 而非 cascade——刪帳號不該能重領。
+  RLS 開啟且不給任何 policy，只有 service_role 碰得到。
+- 回填既有 `trial_signup` 紀錄，否則新規則上線後舊帳號的手機還能再領一次。
+- `grant_signup_trial(profile, phone, credits, days)` RPC：認領＋建 entitlement＋寫交易
+  在同一個 transaction，要嘛全成要嘛全退。手機正規化不過回 `invalid_phone`，**不是照發**
+  （對 277 元的贈品，無法確認資格時的正確行為是不發）。
+
+TS 端 `grantTrialIfEligible()` 退化成薄包裝，只負責正規化手機與翻譯回傳值。
+
+### 驗證（本機 Postgres，無 Docker 所以沒用 supabase start）
+
+開暫時庫 `xf_trial_test` 建最小 schema，真的把 migration 跑起來：
+
+- 循序：全新手機 granted／同手機換 email `phone_already_claimed`／同 profile 重複 `already_granted`／
+  空字串與 null 都回 `invalid_phone`
+- **併發**：A 開 transaction 領點但不 commit，B 中途插入 →
+  B 被鎖 **2192ms** 後回 `phone_already_claimed`，該手機總共只發 1 份。
+  這正是第一版會雙發的情境
+- **原子性**：用 trigger 強制最後一步失敗 → 認領表／entitlement／交易**三張表零殘留**，
+  且該手機沒被誤鎖，移除 trigger 後仍能正常領
+- 測試庫已 drop
+
+正式庫 dry-run：回填會鎖 10 支手機。新規則若早就上線，16 個 profile 中
+**只會擋掉 1 個，就是那個真實濫用案例，零誤傷**。
+
+`npx tsc --noEmit` 通過；`npx vitest run` 22 files / 184 passed、2 skipped。
+
+### 一併修掉的謊話
+
+`public/js/member-auth.js` 原本寫死「註冊成功，已贈送 30 點免費體驗」。
+不發點的情況下這句話是騙人的，改成用後端回的 `notice`，
+而且沒拿到點時導向 `/member-pricing` 而不是 `/member-ai`（進去也沒點可用）。
+歡迎信同理：`sendRegistrationEmail` 收到 `undefined` 會整段略過贈點區塊。
+Admin 通知信會標示「疑似換 Email 重複註冊，請留意」。
+
+### 遺留
+
+- **`supabase db push` 尚未執行**，功能還沒生效；未 commit、未部署。
+- Codex 另指出 `app/api/courses/checkout/route.ts:15,166` 建 profile 時電話沒正規化，
+  會在 `profiles.phone` 留非正規化字串。不影響本控制（課程 profile 不會有 `trial_signup`，
+  且日後同 email 註冊時 upsert 會覆蓋），屬資料衛生，建議之後統一。
+- P1 產品面沒動：中間價位單次加購、10 點死點的出口、trial 到期前後的信。
+  這三件才是真解——6/16 那位是想再買的人，被當成資安事件處理了。
+
+### 收尾：migration 已上正式庫
+
+使用者裁示用 MCP 直接套（非 `supabase db push`）。`apply_migration` 成功後查核：
+
+- 回填 10 列，全部對得到 profile，無格式異常
+- RLS 啟用、0 個 policy（前端完全讀不到）
+- `grant_signup_trial` 為 security definer；`anon`／`authenticated` 不可執行，`service_role` 可執行
+- 正式庫實測拒絕路徑：已認領手機 → `phone_already_claimed`；`0912·345·678` 與 null → `invalid_phone`；
+  0 點 → `invalid_grant_params`。探測後認領筆數仍為 10，無副作用
+
+程式尚未 commit／部署。DB 先就緒不會有空窗風險——舊程式不認識這個 RPC，行為與先前相同。
+
+使用者同時拍板 P1 三項都要做：單次報告加購（199～299）、10 點死點的出口、trial 到期前後的信。
+
+## 2026-09-05（下午）｜結帳流程與面相模組稽核
+
+使用者裁示：單次加購訂 **199 元**；**保留 30 點的死點**（刻意的沉沒成本設計，
+讓會員覺得「還有點沒用完很可惜」而轉付費）。並要求檢查兩件事。
+
+### 檢查一：會員方案結帳流程
+
+Codex 走查全鏈，我自己複驗最嚴重的兩條。
+
+**阻斷級（已用正式資料佐證）**
+
+1. **付款成功可能永久不開通，綠界重送也救不回**（`app/api/payments/ecpay/notify/route.ts:59`）
+   - 早退 `if (currentOrder.status === "paid") return ecpayText("1|OK")` 擋在補開通邏輯
+     （113–121 行的 `source_order_id` 冪等檢查）**之前**
+   - 訂單先在 63 行標 `paid`，entitlement 才在 121 行建立。中間掛掉 → 500 → 綠界重送 → 早退 → 永遠不開通
+   - **正式資料：5 筆已付款訂單有 2 筆沒開通**。所幸兩筆都是 1 元 e2e／invoice 測試單
+     （`XFINV9683892823`、`XFE2E9682771251`，無 provider_trade_no），真實付費的 980／1980 都正常開通。
+     尚未傷到真客戶，但程式路徑已複驗為真
+2. **重複購買不是續訂**：每次付款新增獨立 entitlement，點數不疊加、效期從付款當下重算
+   （`notify/route.ts:121-131`）。而讀取端一律只取「到期日最晚」那一筆
+   （`lib/auth/member.ts:240`、`ai/chat/route.ts:37`、`ai/council/route.ts:68`）→ 舊點數實質消失。
+   方案頁卻寫「NT$980 / 月」（`public/js/member-pricing.js:58`），但綠界參數是單次 AIO、沒有定期定額
+3. **付款回站完全不顯示結果**：`/api/payments/ecpay/return` 導向 `/member?payment=paid&order=...`，
+   但 `app/(public)/member/page.tsx` **完全沒有讀 `payment` 或 `order`**（grep 零命中）。
+   舊版 `member-auth.js:94` 有那三段文案，新版 React 頁沒載入
+4. notify 只核對金額，未核對 `MerchantID`、currency、TradeNo 一致性
+5. 內部測試方案可公開購買：`/api/plans?include=` 放行 `e2e_` 開頭方案，
+   而 `orders/create` 只檢查 `is_active=true`（`app/api/orders/create/route.ts:15-24`），沒擋內部方案。
+   `e2e_card_test`（1 元）目前在正式庫仍 is_active=true
+
+**摩擦級**：未登入按購買不保留選定方案（`member-pricing.js:337` 的 next 沒帶 planCode）；
+ATM／超商沒有繳費資訊與期限；關掉綠界後站內查不到 pending 訂單（正式庫現有 1 筆 980 的
+`as9122***` 掛單，2026-09-04 建立未完成）；同方案可無限重複建單；
+點數不足的錯誤訊息沒有購買按鈕；新版會員中心 token 過期不自動 refresh。
+
+**小瑕疵**：方案頁出現「偽 GPT 聊天用」字樣（`member-pricing.js:84`）；
+點數被寫成「可用次數」（`member-auth.js:173`、`member-ai.js:27`）與實際計價不符；
+底層英文錯誤會直接顯示給使用者。
+
+### 檢查二：面相模組是否真的用面相學理
+
+**結論：架構是對的，AI 沒有自由發揮的空間。** 三層拆開：
+
+1. **視覺層**（`lib/face-analysis/vision.ts`）：`faceVisionResultSchema` 是 `.strict()`，
+   只准回傳可見幾何（contour／relativeWidth／relativeHeight／symmetry／visibility／illumination）。
+   健康、人格、年齡欄位在 schema 層就被拒絕，模型無法夾帶推論。
+   `vision-http.ts:60` 沒有合成／假資料 fallback，未設定 provider 直接 throw
+2. **規則層**（`applyFaceRules`）：確定性比對。教材規則來自 DB `face_teaching_rules`
+   （正式庫 **67 條 published**），老師可在後台增刪改。DB 空了才回退程式碼內建約 40 條
+   （`teaching-rules.ts:155`）
+3. **撰稿層**（`report.ts`）：**LLM 拿不到照片**，只拿 `rules` 結構化結果。
+   instructions 明寫「不得重新分析照片，也不得加入輸入沒有的事實」，
+   命中的條文必須寫進對應宮位並記 `citedTeachings`
+
+安全分級（`teaching-rules.ts:15-19`）：standard 進會員報告／high 用改寫過的 member_text／
+critical 只給老師版。教材原文與望診健康只存在 `model_trace.teacherAudit`，
+不在 `PUBLIC_RUN_FIELDS`，會員 API 讀不到也不會送進撰稿模型。
+
+**實跑佐證**（18 份 completed）：
+
+| 期間 | 命中教材條文 | 說明 |
+|---|---|---|
+| 2026-08-19～08-30（5 份） | 7～10 條 | 規則上線後，都有流年與斑痣對應 |
+| 2026-08-13～08-17（13 份） | 0 條 | `face_teaching_rules_version` 為 null，規則功能上線前的舊報告 |
+
+**兩個要修的缺口**
+
+1. **知識卡通道 100% 休眠**：`knowledge.ts:7` 過濾
+   `status='published' AND auto_report=true AND safety_level='standard'`，
+   但正式庫 28 張全部 `auto_report=false`，safety_level 是 high(15)／critical(13)，
+   **沒有一張 standard** → 查詢永遠回空。18 份報告的 `knowledge_sources_used` 全是 0。
+   （分級本身合理——含望診健康——但等於這條通道從未啟用）
+2. **沒有硬性閘門**：教材命中 0 條時報告仍會產出，只靠 prompt 指示
+   （`report.ts:25`、`report.ts:418`）要模型自己說「沒有命中老師條文」。
+   `analyze/route.ts` 從頭到尾沒有 `teachings.length` 的檢查。
+   歷史那 13 份 0 命中的報告就是這條路的產物
+
+### 修復實作（1～5 全做）
+
+使用者裁示「做 1~5」。
+
+**1. 付款開通原子化 + 可補救**（migration `20260905120000_paid_entitlement_atomic.sql`）
+
+新增 `commit_paid_entitlement` RPC，把「建 entitlement ＋ 寫點數交易 ＋ 續訂結轉」收進單一 transaction，
+以 `source_order_id` 冪等。route 端拿掉 `notify/route.ts:59` 的早退，改成 `alreadyPaid` 旗標
+——訂單已是 paid 時仍會往下走，讓綠界重送能把缺的開通補上。
+
+**2. 續訂規則**：剩餘點數疊加、效期從 `max(現有到期日, now)` 往後延，舊 entitlement 歸零並標記 expired，
+點數轉移在 `credit_transactions` 留 `plan_renewal_carryover` 紀錄。
+併發用 `pg_advisory_xact_lock(user_id)`——新會員在 member_entitlements 沒有列可鎖，
+用 `select for update` 會讓兩張並行訂單各自算錯結轉。
+
+本機 Postgres 實測（暫時庫 `xf_pay_test`，測完 drop）：
+
+| 情境 | 結果 |
+|---|---|
+| 首購 basic | provisioned=t，106 點／30 天 |
+| 綠界重送同一張單 | provisioned=f，entitlement 仍為 1 張 |
+| 剩 26 點時再買 basic | 132 點（106+26），到期日 10-05 → 11-04（不是從今天重算），舊的歸零 expired，合計無重複計算 |
+| 同會員兩張訂單並行 | 序列化，第二張結轉第一張的 106 → 212，只剩 1 張 active |
+
+正式庫已 `apply_migration`，並用真實已開通訂單 `XF20260902053337F066` 驗證冪等分支：
+`provisioned=false`、entitlement 與 credit_transactions 筆數皆未變。
+
+**3. 付款結果頁 + 訂單追蹤**
+
+- 新增 `app/api/member/orders/route.ts`：會員查自己的訂單，`activated` 以 entitlement 是否存在為準
+  （不能只看 `orders.status`，「已付款但沒開通」正是要讓人看見的狀態）
+- `app/(public)/member/page.tsx`：讀 `?payment=` 與 `?order=`，輪詢 10 次 × 2 秒直到開通；
+  讀完就 `replaceState` 清掉網址參數。逾時不說失敗，改說 ATM／超商要等繳費、信用卡稍後重整
+- 同頁列出未完成訂單（pending，或 paid 但未開通），解掉「關掉綠界後站內查不到那張單」
+- `styles/member.css` 補 `.my-payment-banner`、`.my-open-orders`
+
+**4. 面相硬性閘門**（`analyze/route.ts:109`）
+
+`rules.teachings.length === 0 && rules.photoFingerprint.length === 0` 時直接擋下，
+不出報告也不扣點，寫 `analysis_blocked_no_doctrine` 事件。
+原本只有 prompt 指示（`report.ts:25`、`report.ts:418`）是軟約束，擋不住純 AI 推理的報告。
+順手擴充 `safeErrorCode`：支援帶 `code` 屬性的錯誤，使用者看中文、稽核記英文代碼
+（原本 `FACE_REPORT_PROVIDER_TIMEOUT` 這類字串會直接顯示給使用者）。
+
+**知識卡沒有動。** 28 張全是 `auto_report=false`／safety_level high 或 critical，
+裡面含望診健康。把安全旗標翻成 standard 等於把健康敘述推進會員報告，
+這要老師自己審過才能決定，不是我該代勞的。
+
+**5. 文案與內部方案**
+
+- `member-pricing.js:86`「偽 GPT 聊天用」→「AI 即時問答用」
+- `member-auth.js:177`「可用次數」→「可用點數」；`member-ai.js` 兩處「剩餘 N 次」→「剩餘 N 點」
+  （報告 20 點、聊天按字數，寫「次」會讓人誤判可用量）
+- `orders/create/route.ts` 擋掉 `e2e_` 內部方案。但 handoff 有「NT$1 真刷測試」待辦，
+  所以留 `ALLOW_INTERNAL_PLAN_CHECKOUT=true` 環境變數當明確開關（預設 false，已寫進 `.env.example`），
+  放行時會 `console.warn`
+- CLAUDE.md 點數表標註「偽 GPT」是內部代號、不得出現在前台
+
+### 驗證
+
+`npx tsc --noEmit` 通過；`npx vitest run` 22 files / 184 passed、2 skipped；`npx next build` 通過。
+
+### 遺留
+
+- 正式庫仍有 2 筆「已付款未開通」的 1 元 e2e／invoice 測試單（2026-05-25）。
+  程式已修好，但綠界不會再重送這麼舊的單。是測試資料，未處理
+- `as9122***` 2026-09-04 建立的 980 pending 訂單仍在，現在會出現在該會員的「未完成訂單」清單裡
+- 未 commit、未部署
+
+## 2026-09-05（傍晚）｜199 單次加購上線、後台刷退可行性評估
+
+### 199 元單次報告加購
+
+`supabase/migrations/20260905140000_single_report_addon.sql`
+
+- `plans` 加 `is_addon` 欄位；新增 `single_report`（NT$199 / 20 點 / 30 天 / is_addon=true）
+- **關鍵設計：加購不延長效期。** 直接沿用上午做的續訂結轉邏輯的話，
+  199 元會變成「多送 30 天訂閱效期」，那不是加購該有的行為。
+  `commit_paid_entitlement` 加 `p_is_addon`：有有效方案 → 點數併進去、到期日不動；
+  沒有方案 → 才用 duration_days 給自己 30 天
+- **踩到的坑**：加帶預設值的參數會產生「另一個」函式而不是取代，
+  6 參數與 7 參數並存會讓呼叫變成 `function is not unique`。
+  migration 裡先 `drop function ...(uuid,uuid,uuid,integer,integer,text)` 再建，
+  正式庫已確認 `pg_proc` 只有 1 個 `commit_paid_entitlement`
+- **定價檢查**：199/20 ≈ 9.95 元/點，比 basic 的 980/106 ≈ 9.25 元/點還貴一點，
+  所以不會侵蝕月方案，只是給輕度使用者的入口
+
+程式端：
+
+- `lib/auth/tier.ts` 與 `lib/auth/face-tier.ts` 都是**寫死的允許清單**，
+  沒把 `single_report` 加進去會變成「買了不能用」。兩處都補了
+- `lib/payments/orders.ts` 的 `Plan` 型別加 `is_addon`；notify 查詢帶 `is_addon` 並傳進 RPC
+- `/api/plans` 回傳 `is_addon`，排序改成 `is_addon asc, price asc`
+  （加購排在月方案後面，不該搶在主要方案前面當錨點）
+- `member-pricing.js` 加 preset（`points: null` 讓報告／聊天拆解的防呆守衛自動跳過）、
+  按鈕文字「單次加購」、點數列說明「已有方案時沿用原到期日」
+- **順手修了「/ 月」**：綠界走單次 AIO 沒有定期定額，寫「/ 月」會讓人以為每月自動扣款。
+  改成 `/ 30 天`，加購則是 `/ 單次`。這原本在 Codex 稽核的「未處理」清單裡，
+  但加購一定不能寫「/月」，順手一起改掉
+
+本機實測（暫時庫 `xf_addon_test`，測完 drop）：
+
+| 情境 | 結果 |
+|---|---|
+| 有 basic（106 點，到期 10-05）加購 | 126 點，到期仍 10-05 ✓ |
+| 沒有方案直接買加購 | 20 點，到期 = 今天 +30 天 ✓ |
+| 對照：再買一次 basic | 232 點，到期 10-05 → 11-04（照常延長）✓ |
+
+正式庫已 `apply_migration`，`tsc` / `vitest` 184 passed / `next build` 全過。
+
+### 後台刷退可行性評估（研究，未實作）
+
+**結論：技術上做得到，但有一個很硬的風險 —— 綠界這支 API 沒有測試環境。**
+
+綠界信用卡請退款 API（`https://ecpayment.ecpay.com.tw/1.0.0/Credit/DoAction`）：
+
+- Action：`C` 關帳（已授權）／`R` 退刷（要關帳、已關帳）／`E` 取消關帳（要關帳）／`N` 放棄（已授權）
+- **加密機制與現有程式完全不同**：不是 CheckMacValue(SHA-256)，而是
+  JSON POST + `RqHeader.Timestamp`（10 分鐘內有效）+ `Data` 欄位做
+  **AES-128-CBC / PKCS7，key=HashKey、iv=HashIV，先 URLEncode 再加密再 Base64**。
+  現有 `lib/payments/ecpay.ts:8` 的 `createCheckMacValue()` **不能重用**，要另寫 adapter
+- **測試環境不可用**（綠界明載「因無法提供實際授權，故無法使用此 API」）→ 第一次驗證只能拿正式環境的真實交易做
+- 21 天內要完成關帳，超過就不能用 API 關帳；90 天後系統自動放棄
+- 綠界帳戶餘額不足無法退刷
+- 分期與紅利折抵交易必須全額退刷，只有一般交易可部分退款
+- 這支是信用卡專用，ATM／超商退款不走這裡
+
+現有程式面（Codex 盤點）：
+
+- `app/admin/orders/` 與 `[id]/` 是**純查詢介面**，沒有任何寫入動作。
+  列表的「已退款」只是顯示與篩選條件（`app/admin/orders/page.tsx:25`），不代表有退款能力
+- `app/api/admin/orders/route.ts` 只有 GET，沒有 POST/PATCH/PUT/DELETE
+- `orders.status` 的 check constraint **已允許 `refunded`**（`0001_init.sql:27`），
+  但沒有 `refunded_at`、`refund_amount`、`refund_reason`、操作者、綠界回應碼
+- `payments` 表是 upsert 在 `(provider, merchant_trade_no)` 唯一鍵上，
+  **同一張訂單只有一列**，存不了多次退款嘗試 → 需要另建不可覆寫的 `refunds` / `payment_operations`
+- 權限：`lib/auth/admin.ts:5` 的 `X-Admin-Key` 是共用密鑰且 audit log 的 `admin_user_id` 會是 null。
+  刷退屬高風險財務動作，應限具名 admin
+- 發票：`issue-invoice-from-order.ts:12` 已經是 **EZPay**（CLAUDE.md 說「adapter 尚未改寫」是過期資訊，
+  但 `.env.example:55` 仍列 `ECPAY_INVOICE_*`，實際讀的是 `EZPAY_INVOICE_*` → 環境設定缺口）。
+  EZPay config 已組出作廢與查詢 URL（`ezpay-config.ts:38`）、DB 有 `voided/voided_at/void_reason`
+  （`0008_invoices.sql:44`）與 `provider_trans_no`，但**程式只實作 `issueInvoice()`，沒有 `voidInvoice()`**
+
+**點數回收是最麻煩的一段，而且是我今天改壞的：**
+
+上午做的續訂結轉會把舊點數併進新 entitlement 並把舊的歸零
+（`20260905120000_paid_entitlement_atomic.sql`）。所以「取消這張訂單的 entitlement」
+會連同結轉進來的舊點數一起收回，是錯的。加上 `credits_remaining >= 0` 的 constraint，
+已用掉點數的訂單無法直接扣回。這需要先定商業政策（只收未使用部分／按已用折價／轉人工），
+不是純技術問題。
+
+另外 `app/api/admin/credits/route.ts:68` 現有的人工扣點用 `Math.max(0, current + amount)`，
+餘額 20 卻扣 100 時實際只歸零，但 ledger 仍記 `-100` → 帳實不符。**不可以拿它來做退款回收。**
+
+## 2026-09-05（夜）｜後台半自動退款
+
+使用者裁示「按照建議先做半自動」。綠界 `Credit/DoAction` 沒有測試環境，
+第一次驗證只能拿正式交易做，所以這一版**不呼叫綠界**：
+實際退款由管理員到綠界廠商後台操作，系統負責事前試算與事後原子化登錄。
+未來接 API 時 `refunds.method` 從 `manual_ecpay` 換成 `api_ecpay` 即可，資料模型不用動。
+
+### 資料模型（`20260905160000_manual_refunds.sql`，已上正式庫）
+
+- `orders.status` constraint 加 `partially_refunded`（原本只有 `refunded`，表達不了部分退款）。
+  套用前確認正式庫現有狀態只有 cancelled(12)/paid(5)/pending(1)，都在新允許清單內
+- **`refunds` 表：只新增不修改**，每次退款動作一列。
+  `payments` 是 upsert 在 `(provider, merchant_trade_no)` 上、一張訂單只有一列，
+  存不了多次退款嘗試，所以退款不能寄生在那裡
+- 點數三欄 `credits_expected / credits_reclaimed / credits_shortfall` 都留著，
+  才看得出「錢退了但點數已經被用掉」
+- `admin_profile_id` 與 `admin_email` 都 **not null** —— 退款是財務動作，不接受匿名
+- RLS 開啟、0 policy，只有 service_role 碰得到
+
+### 兩個 function
+
+- `preview_order_refund(order_id)`：唯讀試算。回傳訂單金額／已退／可退／本單發出點數／
+  目前可收回點數／有效方案到期日／發票號碼與狀態。給 UI 在按下確認前顯示
+- `commit_manual_refund(order_id, admin_profile_id, admin_email, amount, reason, provider_reference)`：
+  一個 transaction 內完成「寫退款紀錄 ＋ 回收點數 ＋ 更新訂單狀態 ＋ 同步課程報名狀態」
+
+**點數回收政策**：收回「本訂單發出的點數」與「目前實際還剩的點數」之中較小者，
+部分退款按金額比例折算應收點數。已被用掉的部分記在 `credits_shortfall`，
+**由管理員決定現金要退多少 —— 系統只負責算清楚，不替生意做決定**。
+與開通、扣點共用同一把 advisory lock，避免退款收點數時使用者正在跑報告扣點。
+
+### 本機實測（暫時庫 `xf_refund_test`，測完 drop）
+
+| 情境 | 結果 |
+|---|---|
+| 980 元 /106 點，已用 80 點剩 26，全額退 | 應收 106、實收 26、短少 80；訂單 refunded、點數歸 0、ledger 記 `refund -26` |
+| 重複退已全額退款的訂單 | 擋下：「只有已付款的訂單可以退款（目前狀態：refunded）」 |
+| 980 元退 490（一半） | 應收/實收各 53、狀態 `partially_refunded` |
+| 已退 490 再退 600 | 擋下：「退款總額 1090 超過訂單金額 980」 |
+| 再退剩下的 490 | 狀態轉 `refunded` |
+| 原因留空白 / admin_profile_id 為 null | 各自擋下 |
+| 課程訂單全額退款 | `course_registrations` 同步變 `refunded`（否則簽到表還看得到人） |
+
+正式庫已 `apply_migration`，並用真實訂單 `XF20260902053337F066` 跑過唯讀試算：
+可退 980、本單發出 106 點、目前可收回 136 點（106 本單 + 30 結轉），
+所以收回上限是 `min(106,136)=106`，不會超收；發票 `FU30473350 / issued` 也正確抓到。
+權限確認：refunds RLS 開啟 0 policy、anon 與 authenticated 都不可執行 RPC。
+
+### 程式
+
+- `lib/auth/admin.ts` 新增 `requireNamedAdmin()`。這個函式原本**重複實作在
+  face-provider-approval 與 gemini-provider-approval 兩個 route 裡**，一併收斂到共用位置
+- `app/api/admin/orders/[id]/refund/route.ts`（新）：
+  GET 試算 + 退款歷程；POST 登錄退款，寫 `admin_audit_logs`（action `order_refund_manual`）。
+  只允許具名管理員
+- `app/admin/orders/[id]/page.tsx`：新增「退款」區塊 —— 試算數字、退款表單
+  （金額／原因必填／綠界備註）、**必須勾選「我已經在綠界後台完成這筆退款」才能送出**、
+  已開立發票時明確提示要另外到 EZPay 後台作廢、下方列出退款歷程表
+- 列表與詳情頁的 `statusLabel`、列表篩選、`admin-pill` 樣式都補了 `partially_refunded`
+
+`tsc` / `vitest` 184 passed / `next build` 全過。
+
+### 刻意沒做
+
+- **不呼叫綠界 API**（沒有測試環境，這是本階段的核心決定）
+- **發票作廢／折讓**：EZPay 只實作了 `issueInvoice()`。UI 會提示要人工處理，但系統不碰
+- **效期回溯**：續訂會延長到期日，退款沒有把它縮回去。牽涉結轉後的效期歸屬，
+  目前讓管理員自行判斷，UI 有顯示到期日

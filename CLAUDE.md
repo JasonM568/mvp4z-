@@ -25,14 +25,15 @@
 | 項目 | 規則 | 來源 |
 |------|------|------|
 | 易學決策報告（council） | **固定 20 點/次**（舊 env 的 10 已廢棄） | `lib/auth/tier.ts:18` |
-| AI 對話（偽 GPT 聊天） | AI 回覆**中文字**每 1000 字 1 點，最少 1 點 | `lib/ai/member-chat.ts:21` |
-| 註冊免費體驗 | **30 點 / 30 天**（寫死常數，與 plans 表解耦） | `lib/auth/member.ts:155` |
+| AI 對話（AI 即時問答，內部代號「偽 GPT」，**不得出現在前台**） | AI 回覆**中文字**每 1000 字 1 點，最少 1 點 | `lib/ai/member-chat.ts:21` |
+| 註冊免費體驗 | **30 點 / 30 天**（寫死常數，與 plans 表解耦） | `lib/auth/member.ts:172` |
+| 註冊贈點防刷 | **同一支手機只發一次**。認領表 `trial_phone_claims` 以正規化手機為 PK，發放走 `grant_signup_trial` RPC（認領＋建 entitlement＋寫交易同一 transaction）。註冊**不擋**、只是不發點；要重新放行就刪認領表那一列 | `supabase/migrations/20260905100000_trial_phone_claims.sql` |
 | 扣點機制 | charge-on-success 原子扣點（council RPC `0007` / chat RPC `0010`）；**LLM 成功才扣**，function 被 kill 不會扣到錢 | — |
 | **啟動前同意** | council 報告 / AI 聊天**啟動前必須秀出扣點說明**，使用者勾選「已閱讀並同意」才能執行 | commit `2f92f1e` |
 
 ## 會員方案（migration `0013_point_economy_2026.sql`，2026-06-01 版）
 
-點數 = **報告點**（可生報告數 × 20）**＋ 額外聊天點**（給偽 GPT 聊天用）：
+點數 = **報告點**（可生報告數 × 20）**＋ 額外聊天點**（給 AI 即時問答用）：
 
 | code | 名稱 | 價格 | 報告點(約N份報告) | + 額外聊天點 | = 總點數 | 效期 |
 |------|------|------|------|------|------|------|
@@ -59,6 +60,8 @@
 
 - council 多 provider 待補 **OpenAI / Gemini / DeepSeek key**。
 - **信用卡真實刷卡 E2E 尚未補測**（ECPay 已切正式 MID `3325455`）。
-- **發票走 EZPay 不是 ECPay**，`ezpay-invoice.ts` adapter 尚未改寫，目前仍沙箱。
+- **發票走 EZPay 不是 ECPay**。adapter 其實已改寫完成（`issue-invoice-from-order.ts:12` 已 import `./ezpay-invoice`），
+  但 `.env.example:55` 仍列舊的 `ECPAY_INVOICE_*`，實際讀的是 `EZPAY_INVOICE_*` —— 環境設定要對齊。
+  另：只有 `issueInvoice()`，**沒有作廢／折讓**，做退款前要先補。
 - Supabase Auth custom SMTP（Resend）未接；忘記密碼受預設 3 封/小時限制。
 - 詳見 `handoff.md` 最新「待辦 / 下次起手式」。
