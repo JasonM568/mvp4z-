@@ -21,7 +21,9 @@ const TIER_DEFAULTS: Record<string, Partial<TierResolution>> = {
   trial: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 },
   basic: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 },
   pro: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 },
-  vip: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 }
+  vip: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 },
+  // 單次報告加購（199 元 / 20 點）。權限與 basic 相同，差別只在點數與效期。
+  single_report: { canUseCouncil: true, councilCost: DEFAULT_COUNCIL_COST, monthlyFreeQuota: 0 }
 };
 
 export function resolveTierFeatures(input: {

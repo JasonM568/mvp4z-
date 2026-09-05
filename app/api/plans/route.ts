@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
     const include = new URL(request.url).searchParams.get("include") || "";
     const { data, error } = await admin
       .from("plans")
-      .select("code, name, price, currency, credits, duration_days")
+      .select("code, name, price, currency, credits, duration_days, is_addon")
       .eq("is_active", true)
       .neq("code", "trial")
+      // 加購排在月方案後面：它是補充品，不該搶在主要方案前面當錨點。
+      .order("is_addon", { ascending: true })
       .order("price", { ascending: true });
 
     if (error) throw error;

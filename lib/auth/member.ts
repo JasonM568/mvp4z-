@@ -172,60 +172,59 @@ export async function ensureProfileForAuthUser(input: {
 export const TRIAL_CREDITS = 30;
 export const TRIAL_DURATION_DAYS = 30;
 
+export type TrialGrantReason =
+  | "already_granted"
+  | "phone_already_claimed"
+  | "invalid_phone"
+  | "invalid_grant_params";
+
+export type TrialGrantResult =
+  | { granted: true; entitlementId: string }
+  | { granted: false; reason: TrialGrantReason };
+
 /**
  * 為新會員發放一次免費體驗 entitlement（trial 方案 30 點 / 30 天）。
- * 防刷：該 profile 已有任何 entitlement 就不重複發。
+ *
+ * 實際的判斷與寫入都在 DB function grant_signup_trial 裡，因為這件事必須是原子的：
+ *  - 「認領手機」「建 entitlement」「寫 trial_signup 交易」三步要在同一個 transaction，
+ *    否則 entitlement 建好、交易寫失敗時，人拿了 30 點但系統查不到領過的證據，下次還能再領。
+ *  - 手機認領靠 trial_phone_claims 的 primary key 擋併發。純用 SELECT 檢查的話，
+ *    同手機不同 email 同時送兩個註冊會兩邊都通過。
+ *
+ * 規則是「同一支手機只發一次點」，不是「同一支手機只能有一個帳號」——
+ * 註冊照樣成功，只是不發點，才不會誤傷想直接購買方案或家人共用門號的人。
+ * 要為特定號碼重新放行，刪掉 trial_phone_claims 裡那一列即可。
+ *
  * 失敗時 throw，由呼叫端決定要不要吞掉（註冊流程吞掉、不阻斷註冊）。
  */
-export async function grantTrialEntitlementIfNew(profileId: string) {
+export async function grantTrialIfEligible(
+  profileId: string,
+  phone?: string | null
+): Promise<TrialGrantResult> {
   const admin = createSupabaseAdminClient();
 
-  const { data: existing, error: existingError } = await admin
-    .from("member_entitlements")
-    .select("id")
-    .eq("user_id", profileId)
-    .limit(1)
-    .maybeSingle();
-  if (existingError) throw existingError;
-  if (existing) return null; // 已發過或已有方案，不重複發
+  // 這裡再正規化一次，是為了讓未來其他入口（OAuth、後台建帳號）就算傳進原始字串也不會失準。
+  // 正規化不過的一律當作沒有手機，DB function 會回 invalid_phone 而不是照發。
+  const normalizedPhone = normalizeTaiwanMobile(phone || "");
 
-  const { data: trialPlan, error: planError } = await admin
-    .from("plans")
-    .select("id")
-    .eq("code", "trial")
-    .maybeSingle();
-  if (planError) throw planError;
-
-  const now = new Date();
-  const expiresAt = new Date(now);
-  expiresAt.setDate(expiresAt.getDate() + TRIAL_DURATION_DAYS);
-
-  const { data: entitlement, error: entitlementError } = await admin
-    .from("member_entitlements")
-    .insert({
-      user_id: profileId,
-      plan_id: trialPlan?.id || null,
-      status: "active",
-      credits_remaining: TRIAL_CREDITS,
-      starts_at: now.toISOString(),
-      expires_at: expiresAt.toISOString()
-    })
-    .select("id")
-    .single();
-  if (entitlementError) throw entitlementError;
-
-  const { error: txError } = await admin.from("credit_transactions").insert({
-    user_id: profileId,
-    entitlement_id: entitlement.id,
-    type: "grant",
-    amount: TRIAL_CREDITS,
-    balance_after: TRIAL_CREDITS,
-    source: "trial_signup",
-    ref_id: null
+  const { data, error } = await admin.rpc("grant_signup_trial", {
+    p_profile_id: profileId,
+    p_phone: normalizedPhone,
+    p_credits: TRIAL_CREDITS,
+    p_duration_days: TRIAL_DURATION_DAYS
   });
-  if (txError) throw txError;
+  if (error) throw error;
 
-  return entitlement.id as string;
+  // returns table (...) 在 PostgREST 會回陣列，取第一列。
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { granted: boolean; reason: string | null; entitlement_id: string | null }
+    | undefined;
+  if (!row) throw new Error("grant_signup_trial 沒有回傳結果");
+
+  if (row.granted && row.entitlement_id) {
+    return { granted: true, entitlementId: row.entitlement_id };
+  }
+  return { granted: false, reason: (row.reason || "invalid_grant_params") as TrialGrantReason };
 }
 
 export async function getPublicMember(profileId: string) {
@@ -278,12 +277,18 @@ export function toPublicMember(profile: Profile, entitlement?: Entitlement | nul
   };
 }
 
-export function authResponse(session: { access_token: string; refresh_token?: string }, member: PublicMember) {
+export function authResponse(
+  session: { access_token: string; refresh_token?: string },
+  member: PublicMember,
+  // 註冊流程用：讓前端顯示「實際發生了什麼」，而不是寫死「已贈送 30 點」。
+  extra?: { notice?: string; trial_granted?: boolean }
+) {
   return {
     ok: true,
     token: session.access_token,
     refresh_token: session.refresh_token,
-    member
+    member,
+    ...(extra || {})
   };
 }
 

@@ -28,7 +28,8 @@ const FILTERS = [
   { key: "pending", label: "待付款" },
   { key: "failed", label: "失敗" },
   { key: "cancelled", label: "已取消" },
-  { key: "refunded", label: "已退款" }
+  { key: "refunded", label: "已退款" },
+  { key: "partially_refunded", label: "部分退款" }
 ];
 
 export default function OrdersPage() {
@@ -127,7 +128,8 @@ function statusLabel(s: string) {
     pending: "待付款",
     failed: "失敗",
     cancelled: "已取消",
-    refunded: "已退款"
+    refunded: "已退款",
+    partially_refunded: "部分退款"
   } as Record<string, string>)[s] || s;
 }
 

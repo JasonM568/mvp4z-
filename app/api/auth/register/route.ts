@@ -7,7 +7,7 @@ import {
   errorMessage,
   errorStatus,
   getPublicMember,
-  grantTrialEntitlementIfNew,
+  grantTrialIfEligible,
   readJson,
   registerSchema,
   TRIAL_CREDITS,
@@ -72,11 +72,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 免費體驗：發 30 點 / 30 天 trial entitlement。失敗不阻斷註冊（使用者仍可改買方案）。
+    // 同一支手機只發一次：擋掉「trial 到期就換 email 重註冊」的重複領點。
+    // 注意這裡不擋註冊、只是不發點，避免誤傷想直接購買方案或家人共用門號的人。
+    let trialGranted = false;
+    let trialSkipReason = "grant_error";
     try {
-      await grantTrialEntitlementIfNew(profile.id);
+      const trial = await grantTrialIfEligible(profile.id, input.phone);
+      trialGranted = trial.granted;
+      if (!trial.granted) trialSkipReason = trial.reason;
     } catch (grantError) {
       console.warn("[register] grant trial entitlement failed", { profileId: profile.id, grantError });
     }
+    const trialBlockedByPhone = !trialGranted && trialSkipReason === "phone_already_claimed";
 
     const passwordClient = createSupabasePasswordClient();
     const { data: sessionData, error: signInError } = await passwordClient.auth.signInWithPassword({
@@ -91,11 +98,12 @@ export async function POST(request: NextRequest) {
     // 失敗只記 log、不影響註冊。需 production 設 RESEND_API_KEY，否則 helper 直接回 skipped。
     // 兩封各自獨立寄送：給新會員的歡迎信、給管理員（ADMIN_ALERT_EMAILS）的新會員通知。
     after(async () => {
+      // 沒發到點就不要在歡迎信裡講「已為您預存 30 點」——helper 收到 undefined 會整段略過。
       await sendRegistrationEmail({
         email: created.user!.email!,
         name: input.name,
-        trialCredits: TRIAL_CREDITS,
-        trialDays: TRIAL_DURATION_DAYS
+        trialCredits: trialGranted ? TRIAL_CREDITS : undefined,
+        trialDays: trialGranted ? TRIAL_DURATION_DAYS : undefined
       });
 
       await sendAdminAlert({
@@ -107,13 +115,26 @@ export async function POST(request: NextRequest) {
           `Email：${created.user!.email!}`,
           `電話：${input.phone || ""}`,
           `註冊時間：${new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}`,
-          `免費體驗：${TRIAL_CREDITS} 點 / ${TRIAL_DURATION_DAYS} 天`
+          trialGranted
+            ? `免費體驗：${TRIAL_CREDITS} 點 / ${TRIAL_DURATION_DAYS} 天`
+            : trialBlockedByPhone
+              ? `免費體驗：未發放（手機 ${input.phone} 已領過，疑似換 Email 重複註冊，請留意）`
+              : `免費體驗：未發放（原因：${trialSkipReason}）`
         ].join("\n")
       });
     });
 
     const member = await getPublicMember(profile.id);
-    return apiJson(authResponse(sessionData.session, member));
+    return apiJson(
+      authResponse(sessionData.session, member, {
+        trial_granted: trialGranted,
+        notice: trialGranted
+          ? `註冊成功，已贈送 ${TRIAL_CREDITS} 點免費體驗（效期 ${TRIAL_DURATION_DAYS} 天）。`
+          : trialBlockedByPhone
+            ? "註冊成功。此手機號碼先前已使用過免費體驗，本次不再贈送點數，您可以選購方案繼續使用。"
+            : "註冊成功。"
+      })
+    );
   } catch (error) {
     return apiJson({ error: errorMessage(error) }, errorStatus(error));
   }

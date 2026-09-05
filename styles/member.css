@@ -89,6 +89,8 @@ textarea{min-height:120px;resize:vertical;line-height:1.7}
 .status{margin-top:14px;color:var(--muted);line-height:1.7}
 .status.error{color:var(--danger)}
 .status.ok{color:var(--green)}
+/* 註冊成功但沒發到贈點（同手機已領過）：不是錯誤，但要看得見 */
+.status.warn{color:var(--gold)}
 .member-shell{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start}
 .member-side{position:sticky;top:104px}
 .member-meta{display:grid;gap:10px;color:var(--muted)}
@@ -124,3 +126,26 @@ textarea{min-height:120px;resize:vertical;line-height:1.7}
   .msg.user,.msg.bot{max-width:100%}
   .mobile-dock{display:grid}
 }
+
+/* 綠界付款回站的結果橫幅。原本 /member 完全不讀 ?payment= 參數，
+   使用者付完款回來看不到任何結果，還可能因為 notify 比導回慢而看到舊點數。 */
+.my-payment-banner{margin-top:26px;padding:18px 20px;border:1px solid rgba(216,177,95,.28);background:rgba(216,177,95,.06);border-radius:4px}
+.my-payment-banner strong{display:block;color:#e8cc83;font-size:16px}
+.my-payment-banner p{margin:7px 0 0;color:#cfc7b8;line-height:1.75}
+.my-payment-banner span{display:block;margin-top:8px;color:#847e73;font-size:12px;letter-spacing:.04em}
+.my-payment-banner a{display:inline-block;margin-top:12px;color:#e8cc83;text-decoration:underline}
+.my-payment-banner.activated{border-color:rgba(111,240,180,.4);background:rgba(111,240,180,.07)}
+.my-payment-banner.activated strong{color:#6ff0b4}
+.my-payment-banner.failed{border-color:rgba(255,143,143,.4);background:rgba(255,143,143,.07)}
+.my-payment-banner.failed strong{color:#ff8f8f}
+
+/* 未完成訂單清單：關掉綠界頁面後，站內原本完全找不到那張單。 */
+.my-open-orders{margin-top:18px;padding:16px 20px;border:1px solid rgba(216,177,95,.18);border-radius:4px}
+.my-open-orders>strong{display:block;color:#e8cc83;font-size:14px;margin-bottom:10px}
+.my-open-orders ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.my-open-orders li{display:grid;gap:3px;padding-top:10px;border-top:1px solid rgba(216,177,95,.1)}
+.my-open-orders li:first-child{border-top:0;padding-top:0}
+.my-open-orders li span{color:#cfc7b8;font-size:13px}
+.my-open-orders li span:last-of-type{color:#847e73;font-size:12px}
+.my-open-orders li b{color:#d8b15f;font-size:12px;font-weight:600}
+.my-open-orders li a{color:#e8cc83;text-decoration:underline;font-size:13px;justify-self:start}

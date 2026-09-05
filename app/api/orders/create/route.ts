@@ -6,6 +6,9 @@ import { createOrderSchema, normalizeAmount, Plan } from "@/lib/payments/orders"
 import { referralFieldsForOrder } from "@/lib/referral/attribution";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+/** 內部方案（刷卡實測等）一律不得建立訂單。與 /api/plans 的同名樣式保持一致。 */
+const INTERNAL_PLAN_PATTERN = /^e2e_/;
+
 export async function POST(request: NextRequest) {
   try {
     const { profile } = await requireBearerProfile(request);
@@ -24,6 +27,23 @@ export async function POST(request: NextRequest) {
     if (!plan) throw statusError("找不到可購買的方案", 404);
 
     const selectedPlan = plan as Plan;
+
+    // 內部方案（e2e 刷卡實測等）預設不得對外銷售。
+    // /api/plans 只是「前台不列出」，那是顯示控制不是購買權限控制：
+    // 使用者只要知道 code，用 /member-pricing?plan=e2e_xxx 就能走完整個結帳流程。
+    //
+    // 要跑 NT$1 信用卡真刷測試時，暫時把 ALLOW_INTERNAL_PLAN_CHECKOUT 設成 true，
+    // 測完拿掉。用環境變數而不是留個洞，是為了讓「現在可以買測試方案」變成一個
+    // 明確、看得見、會被 log 記下來的狀態。
+    if (INTERNAL_PLAN_PATTERN.test(selectedPlan.code)) {
+      if ((process.env.ALLOW_INTERNAL_PLAN_CHECKOUT || "").trim().toLowerCase() !== "true") {
+        throw statusError("找不到可購買的方案", 404);
+      }
+      console.warn("[orders] 內部方案結帳已由 ALLOW_INTERNAL_PLAN_CHECKOUT 放行", {
+        planCode: selectedPlan.code,
+        profileId: profile.id
+      });
+    }
     const amount = normalizeAmount(selectedPlan.price);
     if (selectedPlan.currency !== "TWD") throw statusError("綠界付款目前僅支援 TWD", 400);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "../../_shell";
 
@@ -28,16 +28,44 @@ type OrderDetail = {
   invoices?: Array<{ id: string; provider: string; invoice_number: string | null; random_code: string | null; invoice_date: string | null; buyer_type: string; buyer_name: string; buyer_id: string | null; buyer_email: string | null; carrier_type: string; carrier_num: string | null; donation_code: string | null; total_amount: number; status: string; error_code: string | null; error_msg: string | null; retry_count: number; last_attempted_at: string | null; voided_at: string | null; created_at: string }>;
 };
 
+type RefundPreview = {
+  order_no: string;
+  order_status: string;
+  order_amount: number;
+  already_refunded: number;
+  refundable_amount: number;
+  credits_granted: number;
+  credits_available: number;
+  active_expires_at: string | null;
+  invoice_number: string | null;
+  invoice_status: string | null;
+};
+
+type RefundRecord = {
+  id: string;
+  kind: string;
+  amount: number;
+  credits_expected: number;
+  credits_reclaimed: number;
+  credits_shortfall: number;
+  reason: string;
+  provider_reference: string | null;
+  admin_email: string;
+  created_at: string;
+};
+
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [id, setId] = useState("");
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<RefundPreview | null>(null);
+  const [refunds, setRefunds] = useState<RefundRecord[]>([]);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundBusy, setRefundBusy] = useState(false);
+  const [refundNotice, setRefundNotice] = useState("");
+  const [form, setForm] = useState({ amount: "", reason: "", reference: "", confirmed: false });
 
-  useEffect(() => {
-    params.then((p) => setId(p.id));
-  }, [params]);
-
-  useEffect(() => {
+  const loadOrder = useCallback(() => {
     if (!id) return;
     adminFetch(`/api/admin/orders?id=${id}`)
       .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
@@ -50,6 +78,62 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       })
       .catch((e) => setError(e?.message || "讀取失敗"));
   }, [id]);
+
+  const loadRefund = useCallback(() => {
+    if (!id) return;
+    adminFetch(`/api/admin/orders/${id}/refund`)
+      .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
+      .then(({ ok, data }) => {
+        if (!ok) return;
+        setPreview(data?.preview || null);
+        setRefunds(Array.isArray(data?.refunds) ? data.refunds : []);
+      })
+      .catch(() => {});
+  }, [id]);
+
+  useEffect(() => { loadRefund(); }, [loadRefund]);
+
+  async function submitRefund() {
+    setRefundNotice("");
+    const amount = Number(form.amount);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      setRefundNotice("退款金額必須是大於 0 的整數");
+      return;
+    }
+    setRefundBusy(true);
+    try {
+      const response = await adminFetch(`/api/admin/orders/${id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          reason: form.reason,
+          provider_reference: form.reference,
+          confirmed_in_ecpay: form.confirmed
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.error) throw new Error(data?.error || "退款登錄失敗");
+      setRefundNotice(
+        `已登錄。應收回 ${data.credits_expected} 點，實際收回 ${data.credits_reclaimed} 點` +
+        (data.credits_shortfall > 0 ? `，短少 ${data.credits_shortfall} 點（已被使用）` : "") + "。"
+      );
+      setRefundOpen(false);
+      setForm({ amount: "", reason: "", reference: "", confirmed: false });
+      loadOrder();
+      loadRefund();
+    } catch (e) {
+      setRefundNotice(e instanceof Error ? e.message : "退款登錄失敗");
+    } finally {
+      setRefundBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    params.then((p) => setId(p.id));
+  }, [params]);
+
+  useEffect(() => { loadOrder(); }, [loadOrder]);
 
   if (error && !order) {
     return (
@@ -186,6 +270,120 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         )}
       </Section>
 
+      <Section title="退款">
+        {!preview ? (
+          <p style={{ color: "var(--muted)" }}>讀取退款資訊中⋯</p>
+        ) : (
+          <>
+            <Field label="訂單金額" value={`${order.currency} ${preview.order_amount.toLocaleString()}`} />
+            <Field label="已退金額" value={`${order.currency} ${preview.already_refunded.toLocaleString()}`} />
+            <Field label="可退金額" value={`${order.currency} ${preview.refundable_amount.toLocaleString()}`} />
+            <Field label="本訂單發出點數" value={`${preview.credits_granted} 點`} />
+            <Field
+              label="目前可收回點數"
+              value={
+                `${preview.credits_available} 點` +
+                (preview.credits_available < preview.credits_granted
+                  ? `（差額 ${preview.credits_granted - preview.credits_available} 點已被使用，收不回來）`
+                  : "")
+              }
+            />
+            <Field label="發票" value={preview.invoice_number ? `${preview.invoice_number}（${preview.invoice_status}）` : "無"} />
+
+            {refundNotice && (
+              <p style={{ gridColumn: "1 / -1", color: refundNotice.startsWith("已登錄") ? "var(--green)" : "#ffb7b7" }}>
+                {refundNotice}
+              </p>
+            )}
+
+            {preview.refundable_amount > 0 && (order.status === "paid" || order.status === "partially_refunded") ? (
+              !refundOpen ? (
+                <div style={{ gridColumn: "1 / -1", marginTop: 10 }}>
+                  <button type="button" className="btn" onClick={() => { setRefundOpen(true); setForm((f) => ({ ...f, amount: String(preview.refundable_amount) })); }}>
+                    登錄退款
+                  </button>
+                  <p style={{ color: "var(--muted)", marginTop: 8, lineHeight: 1.7 }}>
+                    綠界的信用卡請退款 API 沒有測試環境，所以這一版不由系統代為呼叫。
+                    請先到<strong>綠界廠商後台</strong>完成實際退款，再回來這裡登錄，
+                    系統才會回收點數並更新訂單狀態。
+                  </p>
+                </div>
+              ) : (
+                <div style={{ gridColumn: "1 / -1", marginTop: 10, display: "grid", gap: 10 }}>
+                  <label>
+                    退款金額（上限 {preview.refundable_amount}）
+                    <input
+                      type="number" min={1} max={preview.refundable_amount} value={form.amount}
+                      onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    退款原因（必填，會寫入退款紀錄與稽核 log）
+                    <input
+                      type="text" value={form.reason} placeholder="例如：客戶反映報告不符需求"
+                      onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    綠界後台交易編號 / 備註（選填，供日後對帳）
+                    <input
+                      type="text" value={form.reference} placeholder={order.provider_trade_no || ""}
+                      onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
+                    />
+                  </label>
+                  <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <input
+                      type="checkbox" checked={form.confirmed}
+                      onChange={(e) => setForm((f) => ({ ...f, confirmed: e.target.checked }))}
+                    />
+                    <span>我已經在綠界廠商後台完成這筆退款，現在只是把結果登錄進系統。</span>
+                  </label>
+                  {preview.invoice_number && preview.invoice_status === "issued" && (
+                    <p style={{ color: "#e8cc83", lineHeight: 1.7 }}>
+                      這張訂單已開立發票 {preview.invoice_number}。系統目前沒有作廢／折讓功能，
+                      發票要另外到 EZPay 後台處理。
+                    </p>
+                  )}
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button type="button" className="btn primary" disabled={refundBusy || !form.confirmed} onClick={submitRefund}>
+                      {refundBusy ? "登錄中⋯" : "確認登錄退款"}
+                    </button>
+                    <button type="button" className="btn" disabled={refundBusy} onClick={() => setRefundOpen(false)}>取消</button>
+                  </div>
+                </div>
+              )
+            ) : (
+              <p style={{ gridColumn: "1 / -1", color: "var(--muted)" }}>
+                {preview.refundable_amount <= 0 ? "這張訂單已全額退款。" : "此訂單狀態不可退款。"}
+              </p>
+            )}
+
+            {refunds.length > 0 && (
+              <div style={{ gridColumn: "1 / -1", marginTop: 14 }}>
+                <table className="admin-table">
+                  <thead>
+                    <tr><th>時間</th><th>類型</th><th>金額</th><th>點數（應收/實收/短少）</th><th>原因</th><th>綠界備註</th><th>操作人</th></tr>
+                  </thead>
+                  <tbody>
+                    {refunds.map((r) => (
+                      <tr key={r.id}>
+                        <td>{formatDate(r.created_at)}</td>
+                        <td>{r.kind === "full" ? "全額" : "部分"}</td>
+                        <td>{r.amount.toLocaleString()}</td>
+                        <td>{r.credits_expected} / {r.credits_reclaimed} / {r.credits_shortfall}</td>
+                        <td>{r.reason}</td>
+                        <td style={{ fontFamily: "ui-monospace, monospace" }}>{r.provider_reference || "—"}</td>
+                        <td>{r.admin_email}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
+
       <Section title="發票 / 買受人資訊">
         <Field label="歷史不開票" value={order.legacy_no_invoice ? "是" : "否"} />
         <Field label="訂單發票要求" value={order.invoice_request ? JSON.stringify(order.invoice_request, null, 2) : "—"} pre />
@@ -254,7 +452,8 @@ function statusLabel(s: string) {
     pending: "待付款",
     failed: "失敗",
     cancelled: "已取消",
-    refunded: "已退款"
+    refunded: "已退款",
+    partially_refunded: "部分退款"
   } as Record<string, string>)[s] || s;
 }
 

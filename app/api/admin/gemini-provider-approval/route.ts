@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiJson } from "../../_helpers";
-import { requireAdmin, writeAdminAudit } from "@/lib/auth/admin";
+import { requireAdmin, requireNamedAdmin, writeAdminAudit } from "@/lib/auth/admin";
 import { errorMessage, errorStatus, readJson, statusError } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -97,10 +97,4 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     return apiJson({ error: errorMessage(error) }, errorStatus(error));
   }
-}
-
-async function requireNamedAdmin(request: NextRequest) {
-  const admin = await requireAdmin(request);
-  if (!admin.profile) throw statusError("此認證必須由具名管理員登入後執行，不能使用共用 ADMIN_KEY", 403);
-  return admin;
 }

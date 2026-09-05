@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, order_no, user_id, plan_id, order_type, course_product_id, item_name, amount, currency, status, provider, provider_trade_no, paid_at, created_at, invoice_request, legacy_no_invoice, plans(id, code, name, price, currency, credits, duration_days, is_active)")
+      .select("id, order_no, user_id, plan_id, order_type, course_product_id, item_name, amount, currency, status, provider, provider_trade_no, paid_at, created_at, invoice_request, legacy_no_invoice, plans(id, code, name, price, currency, credits, duration_days, is_active, is_addon)")
       .eq("order_no", merchantTradeNo)
       .maybeSingle();
 
@@ -56,7 +56,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (paidAmount !== Number(currentOrder.amount)) return ecpayText("0|Amount mismatch", 400);
-    if (currentOrder.status === "paid") return ecpayText("1|OK");
+
+    // 這裡刻意不因為「訂單已是 paid」就早退。
+    // 訂單標記與開通是兩段寫入，中間失敗會留下「已付款、沒開通」，
+    // 而綠界重送是唯一的補救機會 —— 早退等於把補救的門關上。
+    // 開通本身以 source_order_id 冪等（commit_paid_entitlement），重跑安全。
+    const alreadyPaid = currentOrder.status === "paid";
 
     const now = new Date();
 
@@ -72,6 +77,9 @@ export async function POST(request: NextRequest) {
       .in("status", ["pending", "failed"]);
 
     if (orderUpdateError) throw orderUpdateError;
+
+    // 這次呼叫是否真的完成了開通。重送通知時為 false，用來避免重寄付款通知信。
+    let newlyProvisioned = false;
 
     let notification: {
       orderType: "membership" | "course";
@@ -90,10 +98,17 @@ export async function POST(request: NextRequest) {
           paid_at: now.toISOString()
         })
         .eq("order_id", currentOrder.id)
+        // 只認 pending → paid 這一次轉換。少了這個條件，重送通知會再次命中，
+        // 讓下面的 newlyProvisioned 誤判為真而重寄一封報名成功信。
+        .eq("status", "pending")
         .select("id, name, phone, email, registration_type, amount")
         .maybeSingle();
 
       if (registrationError) throw registrationError;
+
+      // 重送時 registration 已是 paid，這個 update 不會命中，registration 為 null。
+      // 用它判斷「本次才真的完成報名」，避免重寄通知信。
+      newlyProvisioned = Boolean(registration);
 
       notification = {
         orderType: "course",
@@ -107,46 +122,38 @@ export async function POST(request: NextRequest) {
       };
     } else {
       if (!currentOrder.plans) return ecpayText("0|Plan not found", 404);
-      const expiresAt = new Date(now);
-      expiresAt.setDate(expiresAt.getDate() + Number(currentOrder.plans.duration_days || 30));
 
-      const { data: existingEntitlement, error: existingError } = await admin
-        .from("member_entitlements")
-        .select("id")
-        .eq("source_order_id", currentOrder.id)
-        .maybeSingle();
+      // 開通、續訂結轉與點數交易全部在 commit_paid_entitlement 這個 DB function 裡，
+      // 同一個 transaction 要嘛全成要嘛全退，並以 source_order_id 冪等。
+      // 續訂規則：剩餘點數疊加、效期從 max(現有到期日, now) 往後延，舊方案歸零並標記 expired。
+      const { data: commitRows, error: commitError } = await admin.rpc("commit_paid_entitlement", {
+        p_order_id: currentOrder.id,
+        p_user_id: currentOrder.user_id,
+        p_plan_id: currentOrder.plan_id,
+        p_credits: Number(currentOrder.plans.credits || 0),
+        p_duration_days: Number(currentOrder.plans.duration_days || 30),
+        p_ref_id: merchantTradeNo,
+        // 加購只加點數、不延長效期。少了這個旗標，199 元的加購會被當成月方案，
+        // 把整個訂閱效期往後多推 30 天。
+        p_is_addon: Boolean(currentOrder.plans.is_addon)
+      });
+      if (commitError) throw commitError;
 
-      if (existingError) throw existingError;
+      const commit = (Array.isArray(commitRows) ? commitRows[0] : commitRows) as
+        | { provisioned: boolean; entitlement_id: string; carried_credits: number; total_credits: number; expires_at: string }
+        | undefined;
+      if (!commit) throw new Error("commit_paid_entitlement 沒有回傳結果");
 
-      if (!existingEntitlement) {
-        const credits = Number(currentOrder.plans.credits || 0);
-        const { data: entitlement, error: entitlementError } = await admin
-          .from("member_entitlements")
-          .insert({
-            user_id: currentOrder.user_id,
-            plan_id: currentOrder.plan_id,
-            status: "active",
-            credits_remaining: credits,
-            starts_at: now.toISOString(),
-            expires_at: expiresAt.toISOString(),
-            source_order_id: currentOrder.id
-          })
-          .select("id")
-          .single();
-
-        if (entitlementError) throw entitlementError;
-
-        const { error: txError } = await admin.from("credit_transactions").insert({
-          user_id: currentOrder.user_id,
-          entitlement_id: entitlement.id,
-          type: "grant",
-          amount: credits,
-          balance_after: credits,
-          source: "ecpay_payment",
-          ref_id: merchantTradeNo
+      // 重送通知時 provisioned=false，代表這張訂單先前已開通；不重寄信、不重發點。
+      newlyProvisioned = commit.provisioned;
+      if (commit.provisioned) {
+        console.info("[notify] entitlement provisioned", {
+          orderNo: currentOrder.order_no,
+          carriedCredits: commit.carried_credits,
+          totalCredits: commit.total_credits,
+          expiresAt: commit.expires_at,
+          recoveredAfterFailure: alreadyPaid
         });
-
-        if (txError) throw txError;
       }
 
       const { data: profile } = await admin
@@ -164,7 +171,9 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    if (notification) {
+    // 只有這次真的完成開通／報名才寄信。綠界重送時 newlyProvisioned 為 false，
+    // 否則使用者每收到一次重送就會多一封「付款成功」。
+    if (notification && newlyProvisioned) {
       await sendOrderPaidEmails({
         orderNo: currentOrder.order_no,
         orderType: notification.orderType,

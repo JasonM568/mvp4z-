@@ -99,6 +99,26 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       teachingRules
     });
     const quality = faceQualityResultSchema.parse(run.quality_result);
+
+    // 硬性閘門：沒有任何面相學理依據就不出報告，也不扣點。
+    //
+    // 報告的內容來源是規則層算出來的 teachings（命中的老師條文）與 photoFingerprint
+    // （已接上老師部位、宮位、流年與正反向條件的特徵指紋）。兩者皆空時，
+    // 撰稿模型手上就只剩幾何數據，寫出來的東西等於純 AI 推理 —— 那不是我們要賣的東西。
+    // 先前只靠 prompt 指示模型「要說沒有命中條文」，那是軟約束，擋不住這件事。
+    if (rules.teachings.length === 0 && rules.photoFingerprint.length === 0) {
+      await appendFaceRunEvent({
+        runId: run.id,
+        userId: profile.id,
+        eventType: "analysis_blocked_no_doctrine",
+        metadata: { teachingRulesVersion: rules.teachingRulesVersion }
+      });
+      throw Object.assign(
+        new Error("這張照片可判讀的部位無法對應到任何面相學理條文，因此不產生報告，本次不扣點。請在光線均勻的環境正面重拍後再試一次。"),
+        { status: 422, code: "FACE_NO_DOCTRINE_BASIS" }
+      );
+    }
+
     const approvedKnowledge = await getPublishedFaceKnowledge();
     const generated = await generateFaceReport({
       mode: run.mode,
@@ -288,6 +308,11 @@ async function markRunFailed(runId: string, userId: string, code: string) {
 }
 
 function safeErrorCode(error: unknown) {
+  // 帶 code 屬性的錯誤：使用者看中文 message，稽核記英文代碼。
+  if (typeof error === "object" && error && "code" in error) {
+    const code = String((error as { code?: unknown }).code || "");
+    if (/^FACE_[A-Z0-9_]+$/.test(code)) return code;
+  }
   if (error instanceof Error && /^FACE_[A-Z0-9_]+$/.test(error.message)) return error.message;
   return "ANALYSIS_FAILED";
 }

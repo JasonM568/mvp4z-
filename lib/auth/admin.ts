@@ -13,6 +13,17 @@ export async function requireAdmin(request: NextRequest) {
   return { mode: "role" as const, profile };
 }
 
+/**
+ * 高風險動作專用：必須是具名管理員登入，不接受共用的 ADMIN_KEY。
+ * 用 ADMIN_KEY 過關的話 audit log 的 admin_user_id 會是 null，
+ * 事後查不出是誰按的 —— 退款、供應商核准這類動作不能容忍這件事。
+ */
+export async function requireNamedAdmin(request: NextRequest) {
+  const admin = await requireAdmin(request);
+  if (!admin.profile) throw statusError("此操作必須由具名管理員登入後執行，不能使用共用 ADMIN_KEY", 403);
+  return admin;
+}
+
 export async function writeAdminAudit(input: {
   adminUserId?: string | null;
   action: string;

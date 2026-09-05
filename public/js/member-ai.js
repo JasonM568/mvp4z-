@@ -28,7 +28,7 @@ async function loadMe(){
   try{
     const me = await api("/api/member/me");
     if(me.member.status !== "active") location.href = "/member";
-    $("memberLine").textContent = `${me.member.name || me.member.email}｜${me.member.plan}｜剩餘 ${me.member.credits_remaining} 次｜到期 ${me.member.expires_at}`;
+    $("memberLine").textContent = `${me.member.name || me.member.email}｜${me.member.plan}｜剩餘 ${me.member.credits_remaining} 點｜到期 ${me.member.expires_at}`;
   }catch(e){
     location.href = "/login";
   }
@@ -69,7 +69,7 @@ async function sendChat(presetText){
     chatHistory.push({role:"user", content: message});
     chatHistory.push({role:"assistant", content: data.reply});
     addMsg("bot", data.reply);
-    $("memberLine").textContent = `${data.member.name || data.member.email}｜${data.member.plan}｜剩餘 ${data.member.credits_remaining} 次｜到期 ${data.member.expires_at}`;
+    $("memberLine").textContent = `${data.member.name || data.member.email}｜${data.member.plan}｜剩餘 ${data.member.credits_remaining} 點｜到期 ${data.member.expires_at}`;
   }catch(e){
     addMsg("bot", "系統提示：" + e.message);
   }finally{

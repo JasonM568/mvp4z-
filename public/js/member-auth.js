@@ -44,9 +44,16 @@ async function registerMember(){
   try{
     const data = await api("/api/auth/register",{method:"POST",body:JSON.stringify(payload)});
     saveSession(data);
-    $("status").className = "status ok";
-    $("status").textContent = "註冊成功，已贈送 30 點免費體驗，正在為您導向…";
-    location.href = nextPath("/member-ai");
+    // 贈點與否由後端決定（同一支手機只發一次），文案一律用後端回的 notice，不要在前端寫死。
+    const granted = data.trial_granted !== false;
+    $("status").className = granted ? "status ok" : "status warn";
+    $("status").textContent = (data.notice || "註冊成功。") + (granted ? "正在為您導向…" : "");
+    if(granted){
+      location.href = nextPath("/member-ai");
+    }else{
+      // 沒拿到點數就別直接丟進 AI 頁（進去也沒點可用）。留幾秒讓人看完說明，再導向方案頁。
+      setTimeout(function(){ location.href = nextPath("/member-pricing"); }, 3500);
+    }
   }catch(e){
     $("status").className = "status error";
     $("status").textContent = e.message;
@@ -167,7 +174,7 @@ async function redeemCode(){
   try{
     const data = await api("/api/member/redeem",{method:"POST",body:JSON.stringify({code:$("code").value.trim()})});
     $("redeemStatus").className = "status ok";
-    $("redeemStatus").textContent = "啟用成功：" + data.plan + "，可用次數：" + data.credits_remaining;
+    $("redeemStatus").textContent = "啟用成功：" + data.plan + "，可用點數：" + data.credits_remaining;
     await loadMember();
   }catch(e){
     $("redeemStatus").className = "status error";

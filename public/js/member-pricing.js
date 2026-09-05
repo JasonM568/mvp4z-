@@ -52,12 +52,23 @@ const PLAN_PRESETS = {
     points: { report: 516, reportCount: 26, chat: 18 },
     features: ["全功能會員諮詢", "四象天機書大量點數", "優先客服與專屬服務"],
     cardClass: "gold"
+  },
+  single_report: {
+    badge: "單次加購",
+    description: "想再看一份報告，但還不需要整個月方案。",
+    // 20 點剛好一份報告，不做報告／聊天拆解。
+    points: null,
+    features: ["可用於四象天機書或完整面相報告（每份 20 點）", "已有方案時直接加進現有點數，到期日不變"],
+    cardClass: ""
   }
 };
 
-function formatPrice(price, currency) {
+function formatPrice(price, currency, plan) {
+  // 綠界走的是單次 AIO 付款，沒有定期定額。原本寫「/ 月」會讓人以為每月自動扣款，
+  // 也會讓人以為再買一次等於續訂。改成講效期，加購則標明是單次。
+  const unit = plan && plan.is_addon ? " / 單次" : " / " + (plan ? plan.duration_days : 30) + " 天";
   return (currency || "NT$") === "TWD"
-    ? "NT$" + Number(price).toLocaleString("zh-TW") + " / 月"
+    ? "NT$" + Number(price).toLocaleString("zh-TW") + unit
     : currency + " " + price;
 }
 
@@ -83,21 +94,24 @@ function planCardHTML(plan) {
   }
   const pointsLi = pts
     ? `<li>贈送 ${pts.report} 點（約 ${pts.reportCount} 次易學報告）</li>
-       <li>額外贈送 ${pts.chat} 點（偽 GPT 聊天用）</li>
+       <li>額外贈送 ${pts.chat} 點（AI 即時問答用）</li>
        <li>點數效期 ${escapeHTML(plan.duration_days)} 天</li>`
-    : `<li>共 ${escapeHTML(plan.credits)} 點</li>
-       <li>點數效期 ${escapeHTML(plan.duration_days)} 天</li>`;
+    : plan.is_addon
+      ? `<li>加購 ${escapeHTML(plan.credits)} 點</li>
+         <li>已有有效方案時沿用原到期日；沒有方案則自購買起 ${escapeHTML(plan.duration_days)} 天</li>`
+      : `<li>共 ${escapeHTML(plan.credits)} 點</li>
+         <li>點數效期 ${escapeHTML(plan.duration_days)} 天</li>`;
   return `
     <article class="card">
       <span class="badge">${escapeHTML(preset.badge)}</span>
       <h2>${escapeHTML(plan.name)}</h2>
-      <div class="price">${escapeHTML(formatPrice(plan.price, plan.currency))}</div>
+      <div class="price">${escapeHTML(formatPrice(plan.price, plan.currency, plan))}</div>
       <p>${escapeHTML(preset.description)}</p>
       <ul>
         ${pointsLi}
         ${featuresLi}
       </ul>
-      <button class="${btnClass}" data-plan-code="${escapeHTML(plan.code)}">立即購買</button>
+      <button class="${btnClass}" data-plan-code="${escapeHTML(plan.code)}">${plan.is_addon ? "單次加購" : "立即購買"}</button>
     </article>
   `;
 }

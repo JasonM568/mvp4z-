@@ -40,6 +40,8 @@ export type Plan = {
   credits: number;
   duration_days: number;
   is_active: boolean;
+  /** 加購型方案：只加點數、不延長效期。 */
+  is_addon?: boolean;
 };
 
 export type OrderWithPlan = {

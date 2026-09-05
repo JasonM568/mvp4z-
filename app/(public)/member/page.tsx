@@ -24,6 +24,16 @@ type CouncilRun = {
   created_at: string;
 };
 
+type MemberOrder = {
+  order_no: string;
+  amount: number;
+  status: string;
+  order_type: string;
+  item_name: string;
+  created_at: string;
+  activated: boolean;
+};
+
 type FaceRun = {
   id: string;
   status: string;
@@ -41,6 +51,8 @@ export default function MemberPage() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [pendingCouncil, setPendingCouncil] = useState(false);
+  const [payment, setPayment] = useState<{ state: "checking" | "activated" | "waiting" | "failed"; orderNo: string; message: string } | null>(null);
+  const [openOrders, setOpenOrders] = useState<MemberOrder[]>([]);
 
   const load = useCallback(async () => {
     const token = window.localStorage.getItem("xunfeng_member_token") || "";
@@ -62,6 +74,17 @@ export default function MemberPage() {
       const faceData = await faceResponse.json().catch(() => ({}));
       if (councilResponse.ok) setCouncil(Array.isArray(councilData.items) ? councilData.items : []);
       if (faceResponse.ok) setFaces(Array.isArray(faceData.items) ? faceData.items : []);
+
+      // 未完成的訂單要看得見。使用者把綠界頁面關掉之後，站內原本完全找不到那張單。
+      const orderResponse = await fetch("/api/member/orders", { headers });
+      const orderData = await orderResponse.json().catch(() => ({}));
+      if (orderResponse.ok && Array.isArray(orderData.items)) {
+        setOpenOrders(
+          (orderData.items as MemberOrder[]).filter(
+            (o) => o.status === "pending" || (o.status === "paid" && !o.activated)
+          )
+        );
+      }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "無法載入會員資料");
     } finally {
@@ -70,6 +93,74 @@ export default function MemberPage() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  /**
+   * 綠界付款後導回 /member?payment=paid|pending&order=XF...。
+   * 這兩個參數原本完全沒人讀，使用者付完款回來看不到任何結果，還可能看到舊點數
+   * —— 因為綠界的瀏覽器導回常常比 server 端的 notify 先到。
+   * 這裡輪詢訂單狀態，直到開通完成或逾時。
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("payment");
+    const orderNo = (params.get("order") || "").trim();
+    if (!result) return;
+
+    // 讀完就把參數從網址拿掉，重整不會再跳一次付款結果。
+    window.history.replaceState({}, "", window.location.pathname);
+
+    if (result !== "paid" && result !== "pending") {
+      setPayment({ state: "failed", orderNo, message: "付款未完成或已取消，您可以回方案頁重新購買。" });
+      return;
+    }
+    if (!orderNo) {
+      setPayment({ state: "waiting", orderNo, message: "已收到付款結果，正在更新您的方案。" });
+      return;
+    }
+
+    let cancelled = false;
+    setPayment({ state: "checking", orderNo, message: "付款完成，正在為您開通方案…" });
+
+    (async () => {
+      const token = window.localStorage.getItem("xunfeng_member_token") || "";
+      if (!token) return;
+      // 最多等約 20 秒（10 次 × 2 秒）。綠界 notify 通常幾秒內就到。
+      for (let attempt = 0; attempt < 10 && !cancelled; attempt += 1) {
+        try {
+          const response = await fetch(`/api/member/orders?order_no=${encodeURIComponent(orderNo)}`, {
+            headers: { Authorization: "Bearer " + token }
+          });
+          const data = await response.json().catch(() => ({}));
+          const order = (Array.isArray(data.items) ? data.items : [])[0] as MemberOrder | undefined;
+          if (order?.activated) {
+            if (cancelled) return;
+            setPayment({ state: "activated", orderNo, message: "付款完成，方案已開通。" });
+            void load();
+            return;
+          }
+          if (order && order.status !== "pending" && order.status !== "paid") {
+            if (cancelled) return;
+            setPayment({ state: "failed", orderNo, message: "這筆訂單並未完成付款，您可以回方案頁重新購買。" });
+            return;
+          }
+        } catch {
+          // 網路暫時失敗就繼續重試，不要把使用者嚇到。
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+      if (cancelled) return;
+      // 逾時不等於失敗：ATM／超商本來就要等實際繳費，信用卡也可能只是 notify 慢。
+      setPayment({
+        state: "waiting",
+        orderNo,
+        message:
+          "已收到付款資訊，但尚未確認開通。若您使用 ATM 或超商代碼，請於期限內完成繳費；" +
+          "信用卡付款通常幾分鐘內完成，稍後重新整理即可。若超過 30 分鐘仍未開通，請與我們聯繫。"
+      });
+    })();
+
+    return () => { cancelled = true; };
+  }, [load]);
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("xunfeng_four_aspects_pending");
@@ -96,6 +187,38 @@ export default function MemberPage() {
             <button type="button" onClick={logout}>登出</button>
           </div>
           {notice && <p className="status">{notice}</p>}
+          {payment && (
+            <div className={`my-payment-banner ${payment.state}`} role="status" aria-live="polite">
+              <strong>
+                {payment.state === "checking" && "正在確認付款…"}
+                {payment.state === "activated" && "付款完成，方案已開通"}
+                {payment.state === "waiting" && "已收到付款資訊，等待確認"}
+                {payment.state === "failed" && "付款未完成"}
+              </strong>
+              <p>{payment.message}</p>
+              {payment.orderNo && <span>訂單編號 {payment.orderNo}</span>}
+              {payment.state === "failed" && <a href="/member-pricing">回方案頁</a>}
+            </div>
+          )}
+          {openOrders.length > 0 && (
+            <div className="my-open-orders">
+              <strong>未完成的訂單</strong>
+              <ul>
+                {openOrders.map((order) => (
+                  <li key={order.order_no}>
+                    <span>{order.item_name}　NT${order.amount}</span>
+                    <b>
+                      {order.status === "pending"
+                        ? "尚未完成付款"
+                        : "已付款，開通處理中；若超過 30 分鐘仍未開通請與我們聯繫"}
+                    </b>
+                    <span>{order.order_no}</span>
+                    {order.status === "pending" && <a href="/member-pricing">重新購買</a>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="my-xunfeng-stats">
             <div><span>目前方案</span><strong>{String(member?.plan || "free").toUpperCase()}</strong></div>
             <div><span>剩餘點數</span><strong>{member?.credits_remaining ?? 0}</strong></div>
