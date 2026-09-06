@@ -253,6 +253,53 @@ function SkeletonTab({ settings, patch }: TabProps) {
         />
       </SectionCard>
 
+      <SectionCard title="關鍵點" hint="報告的第二段，緊接在總論之後。老師的判讀規則把這一段列為整份報告最重要的部分。">
+        <TextField
+          label="段落標題"
+          value={r.keyPoint.title}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.keyPoint.title = v))}
+        />
+        <TextField
+          label="這一段的要求"
+          multiline
+          value={r.keyPoint.body}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.keyPoint.body = v))}
+        />
+      </SectionCard>
+
+      <SectionCard title="時間節奏" hint="排在四象合參之後。定不出應期時要明說，不可硬給日期。">
+        <TextField
+          label="段落標題"
+          value={r.timing.title}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.timing.title = v))}
+        />
+        <StringListEditor
+          label="要點"
+          values={r.timing.items}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.timing.items = v))}
+        />
+        <TextField
+          label="補充要求"
+          multiline
+          value={r.timing.body}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.timing.body = v))}
+        />
+      </SectionCard>
+
+      <SectionCard title="關鍵風險" hint="排在時間節奏之後、行動方案之前。最多三項——列十幾項等於沒列。">
+        <TextField
+          label="段落標題"
+          value={r.risk.title}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.risk.title = v))}
+        />
+        <TextField
+          label="這一段的要求"
+          multiline
+          value={r.risk.body}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.risk.body = v))}
+        />
+      </SectionCard>
+
       <SectionCard title="行動方案" hint="每一期要交代哪些欄位。期別可以增減，系統會自動編號。">
         <TextField label="段落標題" value={r.actionPlan.title} onChange={(v) => patch((d) => void (d.reportSkeleton.actionPlan.title = v))} />
         {r.actionPlan.windows.map((w, i) => (

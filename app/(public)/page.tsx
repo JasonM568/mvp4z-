@@ -87,7 +87,7 @@ export default function HomePage() {
             <h2 className="section-title">最後得到的，不只是一句吉凶</h2>
             <p className="lead">《巽風四象天機書》把四術合參結果整理成決策結論、四象共識、行動步驟、風險條件與停損提醒。</p>
             <ul className="oracle-deliverables">
-              <li><strong>先看方向</strong><span>可進、可試行、暫緩、不建議或補資料後再判。</span></li>
+              <li><strong>先看方向</strong><span>可直接推進、有條件可成、宜借力推進、宜等待時機、宜調整策略後再進、宜暫時停止，或補資料後再判。</span></li>
               <li><strong>再看四象</strong><span>哪些訊號同向，哪些矛盾需要降權。</span></li>
               <li><strong>落到行動</strong><span>3 日、7 日、30 日可執行步驟與檢核標準。</span></li>
             </ul>

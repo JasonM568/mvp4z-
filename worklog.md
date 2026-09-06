@@ -1747,3 +1747,145 @@ Vercel `dpl_AcGkRj1EP8dG4wPMrQZ8Lfdtchvf` → READY（production）。
 
 **真人驗收尚未進行**（註冊防刷、購買、續訂疊加、加購不延期、面相引用、退款試算），
 這幾件需要實際操作，是下次的第一優先。
+
+## 2026-09-05（晚）｜易學報告參考文件從未進 prompt（修復）
+
+### 起因
+
+使用者問「易學報告的運作邏輯有沒有參考什麼資料庫文件」。
+
+### 稽核結果
+
+council 報告設計上讀三張表，全部走「讀不到就回退程式預設值」：
+
+| 來源 | 表 | 進 prompt 的位置 |
+|---|---|---|
+| 老師參考文件 | `ai_documents`（`include_in_prompt=true`，上限 6000 字） | 第一輪 + 終稿（`route.ts:146`、`:178`），第二輪刻意不掛 |
+| 報告設定版本 | `ai_prompt_profiles` | `render.ts` 渲染成所有 prompt |
+| 排盤流派 | `ai_school_profiles` | `chartBlock` |
+
+線上實際狀態（Supabase 查證）：
+
+- `ai_documents`：1 份，`四象問天機_風羿老師綜合判讀與回應規則`，3741 字，已勾選納入
+- `ai_prompt_profiles`：**0 筆**（從沒發布過任何版本）
+- `ai_school_profiles`：只有 1 筆 draft
+- `council_runs`：40 份報告，`prompt_profile_id` **全部 null**
+
+### Bug
+
+`lib/ai/council/settings/load.ts` 的 `buildDocumentBlock()` 只寫在「成功解析 published 設定」
+之後（原第 89 行），而沒有 published profile 時第 73 行直接回 `DEFAULT_RESULT`，
+其 `documentBlock` 寫死空字串。
+
+結果：老師上傳並勾了文件、後台顯示「已納入 3741 / 6000 字」，
+但那份文件**一次都沒進過任何 LLM 呼叫**。40 份報告全是純程式預設 prompt + 排盤結果。
+文件庫被設定版本綁架 —— 兩者本來就是獨立的東西。
+
+排盤那邊沒事：`lib/school-settings/load.ts` 是獨立路徑，回退的 `fengyi-v1` 與程式預設一致。
+
+### 修法
+
+- `buildDocumentBlock()` 提前到取 profile 之前執行，四條回退路徑（`query_failed`、
+  `no_published_profile`、`invalid_settings`、成功）都帶同一份 `documentBlock`。
+  `supabase_unavailable` 例外 —— 連 client 都建不出來，本來就查不到文件。
+- `DEFAULT_RESULT(reason, documentBlock = "")` 加第二參數。
+- `buildDocumentBlock()` 自己吞例外（`result.error` 與 try/catch 都回 `""`）。
+  這個查詢現在每份報告都會跑，不能有機會把已通過點數檢查的報告打掉。
+- 新增 `lib/ai/council/settings/load.test.ts`（4 case）鎖住：沒發布版本要帶文件、
+  設定驗證失敗要帶文件、文件查詢炸掉只變空字串、沒勾選為空字串。
+
+### 驗證
+
+`tsc --noEmit` 過；`vitest run` 23 檔 188 passed / 2 skipped。
+
+### 遺留
+
+- **尚未 commit / push / 部署**，正式站目前仍是舊行為。
+- 老師端還沒發布過 `ai_prompt_profiles` 與 `ai_school_profiles` 版本；
+  發布後 `council_runs.prompt_profile_id` 才會有值可追溯。
+- `lib/yixue/school/schools.ts` 的 `fengyi-v1` calendar 參數註記「暫定，待風羿老師簽核」，
+  `decidedAt` / `decidedBy` 仍是空字串。
+
+### 續：報告骨架改採老師文件的段落順序
+
+承上，使用者拍板「把骨架改成文件的順序」。
+
+原本終稿 prompt 同時塞兩套版型（老師文件第五節 7 段 vs `reportSkeleton` 自己的順序），
+而骨架寫「嚴格依下列段落與順序」。以老師文件為準，新順序：
+
+個案總論 → **關鍵點** → 完整度檢核 → 各術獨立判讀 → 四象合參 →
+**時間節奏** → **關鍵風險** → 行動方案 → 最終建議 → 專業聲明
+
+粗體三段是文件有、骨架原本沒有的，這次補上。完整度檢核／行動方案／專業聲明
+是文件沒有、系統要求必備的，保留並安插在不破壞文件順序的位置。
+
+改動：
+
+- `settings/schema.ts`：`reportSkeleton` 加 `keyPoint` / `timing` / `risk`
+  （皆 `titledSectionSchema`）。`ai_prompt_profiles` 目前 0 筆，沒有存量資料要遷移。
+- `settings/defaults.ts`：三段預設內容；終稿分身 `formatItems` 同步加
+  「關鍵點」「時間節奏與關鍵時間窗口」。
+- `settings/render.ts`：`renderReportSkeleton` 段落順序；檔頭補「這次是刻意改輸出」。
+- `app/admin/prompt-settings/page.tsx`：`SkeletonTab` 補三個編輯區——
+  不補的話老師在後台改不到這三段。
+- `app/api/ai/council/route.ts`：終稿自我檢查清單從 7 條擴到 10 條。
+
+驗證：`tsc` 過；`vitest` 23 檔 188 passed。
+`prompt-baseline.test.ts` 5 個 snapshot **刻意**更新（最終定稿分身 ×1、報告骨架 ×4），
+測試檔頭已加「刻意更新紀錄」段落說明原因與影響範圍。兜底報告與品質門檻 snapshot 未動。
+確認過中文序號自動接上：單術時交叉驗證段消失、後面序號仍連續。
+
+下游相容性檢查：
+
+- `quality.ts` 的 `hasUsableFinal` 結構錨點（個案總論／行動方案／最終建議／專業聲明）
+  全部還在，門檻 ≥4 命中不受影響。
+- `structured.ts` 的 `DECISIONS` 仍是 5 種，與骨架 `overview` 一致，沒有動到。
+
+### 沒做、要問老師的
+
+老師文件第十一節把決策型態擴到 7 種（多了「宜借力推進」「宜調整策略後再進」），
+骨架與 `structured.ts` 目前都是 5 種。要改會連動 `DECISIONS` enum、
+`_steps/report-step.tsx` 顏色對照、`app/(public)/page.tsx` 首頁文案，
+屬於方法論決定，這次刻意沒動。
+
+### 續：決策型態五種擴成七種
+
+使用者拍板「擴成 7 種」。依老師文件第十一節，採文件本身的用詞，不是在舊詞上加兩條：
+
+| 舊（5 種） | 新（7 種） |
+|---|---|
+| 可進 | 可直接推進 |
+| 可試行 | 有條件可成 |
+| —— | **宜借力推進** |
+| 暫緩 | 宜等待時機 |
+| —— | **宜調整策略後再進** |
+| 不建議 | 宜暫時停止 |
+| 補資料後再判 | 補資料後再判 |
+
+文件第七種寫作「資料不足，補資料後再判」，帶逗號不適合當 enum 值與徽章文字，
+沿用既有的「補資料後再判」，語意相同、舊資料不必轉檔。
+
+改動：
+
+- `lib/ai/council/structured.ts`：`DECISIONS` 換成七種；新增 `LEGACY_DECISIONS` 舊詞對照與
+  `normalizeDecision()`（並 export `DECISION_TYPES` / `CouncilDecision`）；
+  `decisionSchema` 改走正規化；機讀區塊規則第 2 條補上「有條件可成要說條件、
+  宜借力推進要指出借何種力量、宜等待時機要交代在等什麼訊號」；範例值改成「有條件可成」。
+- `settings/defaults.ts`：品質門檻的決策語句規則、報告骨架 `overview` 第一項改成七種。
+- `app/member-ai/decision/_steps/report-step.tsx`：徽章顏色表擴成七色
+  （綠→淺綠→藍(借力)→黃→橘(調整)→紅→灰），渲染前先過 `normalizeDecision`。
+- `app/(public)/page.tsx`：首頁「先看方向」文案同步。
+
+**舊報告相容**：DB 已有 40 份報告的 `structured.decision` 存著舊詞。
+`normalizeDecision` 會把舊詞對到新型態，儀表板徽章照樣有顏色，不需要資料轉檔。
+模型若沿用舊詞（訓練資料或前文殘留）也會被正規化，而不是判為 undefined。
+歷史報告頁 `app/(public)/member/reports/[id]` 只渲染 `final_text` 純文字，本來就不受影響。
+
+新增 `lib/ai/council/structured.test.ts`（9 case）：七種型態清單、新詞原樣通過、
+舊詞對照、帶逗號寫法、前後空白、對不上回 null、機讀區塊解析三則
+（新詞、舊詞正規化、不認得的詞只讓 decision 消失但其餘欄位照常交付）。
+
+`prompt-baseline.test.ts` 再更新 7 個 snapshot（品質門檻 ×3、報告骨架 ×4），
+測試檔頭「刻意更新紀錄」已補這一批。兜底報告 snapshot 全程未動。
+
+驗證：`tsc` 過、`vitest` 24 檔 197 passed / 2 skipped、`next build` 過（103 頁）。

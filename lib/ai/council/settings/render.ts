@@ -1,7 +1,12 @@
 // 巽風 council｜把設定渲染成 prompt 文字
 //
 // 這一層取代原本寫死在 personas.ts / quality.ts / brand.ts 裡的字串模板。
-// 輸出必須與改版前逐字元相同——prompt-baseline.test.ts 的 snapshot 是唯一判準。
+// 輸出的唯一判準是 prompt-baseline.test.ts 的 snapshot。
+//
+// 2026-09-05：報告骨架的段落順序刻意改成風羿老師《四象問天機｜綜合判讀與回應規則》
+// 第五節的順序，並補上文件有、骨架原本沒有的「關鍵點」「時間節奏」「關鍵風險」三段。
+// 原因：那份文件已納入 prompt，但它給的段落順序與骨架不同，而骨架寫的是
+// 「嚴格依下列段落與順序」——兩份互相打架。以老師的文件為準。
 //
 // 中文序號由程式產生（老師只填標題，不填「一、」），因為段落會依啟用術數
 // 數量增減，序號必須自動接上，讓老師手動維護一定會錯。
@@ -75,7 +80,13 @@ export function renderReportSkeleton(s: PromptSettings, enabledTerms: string[]):
   let n = 0;
   const num = () => cjk(n++);
 
+  // 段落順序依風羿老師《綜合判讀與回應規則》第五節：
+  // 先給結論 → 關鍵點 → 四象分判 → 四象合參 → 時間節奏 → 風險 → 建議。
+  // 完整度檢核、行動方案、專業聲明是文件沒有、但系統要求必備的段落，
+  // 分別掛在「分判之前（先交代資料夠不夠）」與「建議之前／報告最後」。
   const head1 = `${num()}、${r.overview.title}\n${numbered(r.overview.items)}`;
+
+  const keyPoint = `${num()}、${r.keyPoint.title}\n${r.keyPoint.body}`;
 
   const head2 = `${num()}、${r.completeness.title}\n${r.completeness.intro}\n${r.completeness.headerRow}\n${terms
     .map((t) => `${t}｜`)
@@ -90,6 +101,10 @@ export function renderReportSkeleton(s: PromptSettings, enabledTerms: string[]):
 
   const cross =
     terms.length > 1 ? `${num()}、${r.crossValidation.title}\n${numbered(r.crossValidation.items)}\n\n` : "";
+
+  const timing = `${num()}、${r.timing.title}\n${numbered(r.timing.items)}\n${r.timing.body}`;
+
+  const risk = `${num()}、${r.risk.title}\n${r.risk.body}`;
 
   const action = `${num()}、${r.actionPlan.title}\n${r.actionPlan.windows
     .map((w, i) => `${i + 1}. ${w.label}\n${w.fields.join("\n")}`)
@@ -113,11 +128,17 @@ export function renderReportSkeleton(s: PromptSettings, enabledTerms: string[]):
     "",
     head1,
     "",
+    keyPoint,
+    "",
     head2,
     "",
     termSections,
     "",
-    `${cross}${action}`,
+    `${cross}${timing}`,
+    "",
+    risk,
+    "",
+    action,
     "",
     finalRec,
     "",

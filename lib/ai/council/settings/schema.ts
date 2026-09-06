@@ -103,6 +103,8 @@ export const promptSettingsSchema = z.object({
     layoutHeading: z.string().trim().min(1),
     reportTitle: z.string().trim().min(1),
     overview: titledSectionSchema,
+    /** 「真正決定成敗的是什麼」。老師文件把這段列為整份報告最重要的一段。 */
+    keyPoint: titledSectionSchema,
     completeness: z.object({
       title: z.string().trim().min(1),
       intro: z.string().trim().min(1),
@@ -111,6 +113,10 @@ export const promptSettingsSchema = z.object({
     /** 每一術獨立判讀的固定小節，各術共用。 */
     termSubsections: z.array(z.string().trim().min(1)).min(1),
     crossValidation: titledSectionSchema,
+    /** 應期與觀察窗口。定不出來時要明說，不得硬給日期。 */
+    timing: titledSectionSchema,
+    /** 關鍵風險，最多三項——列十幾項等於沒列。 */
+    risk: titledSectionSchema,
     actionPlan: z.object({ title: z.string().trim().min(1), windows: z.array(actionWindowSchema).min(1) }),
     finalRecommendation: titledSectionSchema,
     disclaimer: titledSectionSchema

@@ -12,7 +12,47 @@ export const STRUCT_CLOSE = "<<<END_XF_STRUCT>>>";
 
 export type AspectKey = "bazi" | "qimen" | "liuyao" | "meihua";
 
-const DECISIONS = ["可進", "可試行", "暫緩", "不建議", "補資料後再判"] as const;
+// 決策型態依風羿老師《四象問天機｜綜合判讀與回應規則》第十一節的七種收斂型態。
+// 2026-09-05 從五種擴成七種：原本沒有「借力」與「調整策略」這兩條路，
+// 而老師的規則明說盤面顯示「自己力量不足、第三方有力」時要指出借力，
+// 只給可進／暫緩會逼模型把這種局硬歸到別的型態。
+const DECISIONS = [
+  "可直接推進",
+  "有條件可成",
+  "宜借力推進",
+  "宜等待時機",
+  "宜調整策略後再進",
+  "宜暫時停止",
+  "補資料後再判"
+] as const;
+
+// 舊詞對照。用途有二：
+// 1. 資料庫裡 40 份舊報告的 structured.decision 存的是舊詞，讀出來仍要能對到顏色。
+// 2. 模型有時會沿用舊詞（訓練資料或前文殘留），與其判為 undefined 不如正規化。
+// 「資料不足，補資料後再判」在老師文件裡帶逗號，這裡沿用既有的「補資料後再判」當值，
+// 語意相同、可當徽章文字，也讓舊資料不必轉檔。
+const LEGACY_DECISIONS: Record<string, (typeof DECISIONS)[number]> = {
+  可進: "可直接推進",
+  可試行: "有條件可成",
+  暫緩: "宜等待時機",
+  不建議: "宜暫時停止",
+  不可進: "宜暫時停止",
+  "資料不足，補資料後再判": "補資料後再判"
+};
+
+/** 把任意輸入正規化成七種決策型態之一；對不上回 null。前端徽章與解析共用。 */
+export function normalizeDecision(value: unknown): (typeof DECISIONS)[number] | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  if (DECISIONS.includes(text as (typeof DECISIONS)[number])) {
+    return text as (typeof DECISIONS)[number];
+  }
+  return LEGACY_DECISIONS[text] ?? null;
+}
+
+export const DECISION_TYPES = DECISIONS;
+export type CouncilDecision = (typeof DECISIONS)[number];
+
 const SIGNALS = ["green", "yellow", "red"] as const;
 
 // 寬容數值：接受 "87%"、87.4 之類輸入，取整並夾在 0-100；解析不出來就是 undefined
@@ -28,7 +68,7 @@ function toPercent(value: unknown): number | undefined {
 const percentSchema = z.preprocess(toPercent, z.number());
 
 const decisionSchema = z.preprocess(
-  (v) => (DECISIONS.includes(String(v ?? "").trim() as (typeof DECISIONS)[number]) ? String(v).trim() : undefined),
+  (v) => normalizeDecision(v) ?? undefined,
   z.enum(DECISIONS).optional()
 );
 
@@ -82,12 +122,15 @@ export function buildStructuredPrompt(modules?: YixuePayload["modules"]): string
 此區塊不算報告段落、不受「禁止 Markdown 與符號」規則限制，區塊內必須是合法 JSON，格式如下：
 
 ${STRUCT_OPEN}
-{"headline":"一句話順轉結論","decision":"可試行","resonance":87,"aspects":[{"key":"${keys[0]}","summary":"該術數一句話總結","confidence":80,"signal":"green","timing":"三個月後"}],"steps":["行動一","行動二","行動三"]}
+{"headline":"一句話順轉結論","decision":"有條件可成","resonance":87,"aspects":[{"key":"${keys[0]}","summary":"該術數一句話總結","confidence":80,"signal":"green","timing":"三個月後"}],"steps":["行動一","行動二","行動三"]}
 ${STRUCT_CLOSE}
 
 機讀區塊規則：
 1. headline：本案順轉結論一句話，40 字內，必須具體可執行，且與正文最終建議一致。
-2. decision：只能是「可進、可試行、暫緩、不建議、補資料後再判」其中之一，須與個案總論一致。
+2. decision：只能是「${DECISIONS.join("、")}」其中之一，須與個案總論一致。
+   判為「有條件可成」要在正文說清楚條件；判為「宜借力推進」要在正文指出應借何種力量
+   （權責人物、專業人士、中介者、合作者、制度、文件證據、資金資源）；
+   判為「宜等待時機」要交代在等什麼訊號，不得無期限等待。
 3. resonance：0 到 100 的整數，代表本次啟用術數結論的一致程度（共鳴度），須與交叉驗證段落一致；只啟用一個術數時代表該術數判讀的整體確信度。
 4. aspects：只能包含本次啟用術數，key 只允許：${keys.join("、")}。對照表：${TERM_KEY_TABLE}。
    每項包含：summary（該術數一句話總結，40 字內）、confidence（0 到 100 整數，可判斷程度）、

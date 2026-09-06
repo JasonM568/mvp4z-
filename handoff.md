@@ -1,5 +1,89 @@
 # Handoff
 
+## 2026-09-05（晚）｜易學報告：老師參考文件從未進 prompt（已修）＋報告骨架改採老師文件順序
+
+### 目前狀態
+
+- **已改完、tsc 過、vitest 23 檔 188 passed，但尚未 commit / push / 部署。**
+  正式站現在跑的仍是舊行為。
+
+### 問題
+
+`lib/ai/council/settings/load.ts` 把「老師的參考文件」綁在「有沒有已發布的設定版本」上：
+`buildDocumentBlock()` 只寫在成功解析 published profile 之後，沒有 published 就直接回
+`DEFAULT_RESULT`，其 `documentBlock` 寫死空字串。
+
+線上實況（Supabase 查證）：`ai_documents` 有 1 份已勾選納入的
+`四象問天機_風羿老師綜合判讀與回應規則`（3741 字），但 `ai_prompt_profiles` **0 筆**。
+結果是後台顯示「已納入 3741 / 6000 字」，實際上那份文件一次都沒進過 LLM，
+`council_runs` 40 份報告的 `prompt_profile_id` 全部是 null。
+
+### 修法
+
+`buildDocumentBlock()` 提前到取 profile 之前跑，四條路徑都帶同一份 `documentBlock`；
+`DEFAULT_RESULT(reason, documentBlock = "")` 加第二參數；文件查詢自己吞例外回 `""`
+（這查詢現在每份報告都會跑，不能有機會打掉已通過點數檢查的報告）。
+新增 `lib/ai/council/settings/load.test.ts` 4 個 case 鎖住行為。
+
+### 第二件事：報告骨架改採老師文件的段落順序（使用者拍板）
+
+原本終稿 prompt 同時塞進兩套版型：老師文件第五節的 7 段順序，與 `reportSkeleton`
+自己的順序，而骨架寫的是「嚴格依下列段落與順序」——等於給模型兩張互相矛盾的版型。
+決定以老師的文件為準。新順序：
+
+```
+一、個案總論（先給結論）
+二、關鍵點            ← 新增，文件說這是整份報告最重要的一段
+三、術數資料完整度檢核  ← 文件沒有，系統保留；放在分判前先交代資料夠不夠
+四..n、各術獨立判讀
+n+1、四象合參
+n+2、時間節奏          ← 新增
+n+3、關鍵風險（最多三項）← 新增
+n+4、行動方案（3/7/30 日）← 文件沒有，系統保留
+n+5、最終建議
+n+6、專業聲明
+```
+
+改動檔案：`settings/schema.ts`（reportSkeleton 加 keyPoint / timing / risk）、
+`settings/defaults.ts`（三段預設內容＋終稿分身的段落清單）、
+`settings/render.ts`（renderReportSkeleton 順序）、
+`app/admin/prompt-settings/page.tsx`（後台補三個編輯區，否則老師改不到）、
+`app/api/ai/council/route.ts`（終稿自我檢查清單補三條）。
+中文序號是程式產生的，單術時交叉驗證段消失、序號仍自動接上。
+
+`prompt-baseline.test.ts` 的 5 個 snapshot 是**刻意**更新的，
+測試檔頭已加「刻意更新紀錄」說明原因與影響範圍。兜底報告與品質門檻未動。
+
+### 待辦（依優先序）
+
+1. **commit + push + 部署**，然後實跑一份報告，確認：
+   文件真的有進 prompt、報告段落順序是新的、關鍵點／時間節奏／關鍵風險三段有出現。
+2. ~~決策型態擴到 7 種~~ **已做**（見下）。上線後要看一份實際報告，
+   確認模型真的會用到「宜借力推進」「宜調整策略後再進」這兩條新路，
+   而不是全部塞回「有條件可成」。
+3. 請老師到 `/admin/prompt-settings`、`/admin/school-settings` 各發布一版，
+   之後報告才有 `prompt_profile_id` / `school_version` 可追溯。
+4. `lib/yixue/school/schools.ts` 的 `fengyi-v1` calendar 參數仍註記「暫定，待簽核」，
+   `decidedAt` / `decidedBy` 是空字串。
+5. 小落差（不急）：終稿分身的段落清單寫「7日、14日、30日 KPI」，
+   但 `actionPlan` 是 3/7/30 日。改版前就存在，這次沒一併動。
+
+### 第三件事：決策型態 5 種 → 7 種（使用者拍板）
+
+採老師文件第十一節的用詞，不是在舊詞上加兩條：
+
+可進→可直接推進、可試行→有條件可成、暫緩→宜等待時機、不建議→宜暫時停止、
+補資料後再判（不變），另新增 **宜借力推進**、**宜調整策略後再進**。
+
+改動：`structured.ts`（`DECISIONS` ＋ `LEGACY_DECISIONS` ＋ `normalizeDecision()`，
+機讀區塊規則補上三種型態的舉證要求）、`settings/defaults.ts`（品質門檻與骨架總論）、
+`_steps/report-step.tsx`（徽章七色，渲染前先正規化）、`app/(public)/page.tsx`（首頁文案）。
+
+**不需要資料轉檔**：DB 那 40 份舊報告存的是舊詞，`normalizeDecision` 會對到新型態，
+徽章照樣有顏色；模型若沿用舊詞也會被正規化而不是丟掉。
+新增 `structured.test.ts`（9 case）鎖住這件事。
+
+
 ## 2026-09-05｜註冊防刷、付款開通原子化、面相學理閘門、199 加購、後台半自動退款
 
 ### 目前狀態

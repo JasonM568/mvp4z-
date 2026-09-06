@@ -3,16 +3,20 @@
 // 隱藏儀表板與圖卡、白紙全文直接展開。個別欄位缺（timing/signal）→ 該元素不渲染。
 // 列印 PDF 走 .council-print 副本（掛在 page.tsx），這裡全部在 .council-screen 內、列印時自動隱藏。
 
-import type { CouncilStructured } from "@/lib/ai/council/structured";
+import { normalizeDecision, type CouncilDecision, type CouncilStructured } from "@/lib/ai/council/structured";
 import { ASPECT_CONFIG, ResonanceRing, resonanceLabel, SIGNAL_COLORS } from "../_aspects";
 import { ReportDocument, ReportToc, type ReportMeta } from "../_report-document";
 import { ShareCardButton } from "../_share-card";
 
-const DECISION_COLORS: Record<string, string> = {
-  可進: "#4ade80",
-  可試行: "#6ff0b4",
-  暫緩: "#facc15",
-  不建議: "#f87171",
+// 七種決策型態的徽章顏色，順序＝從最可以動到最不能動。
+// 舊報告存的是舊詞，一律先過 normalizeDecision 再查表，不另外留舊詞的顏色。
+const DECISION_COLORS: Record<CouncilDecision, string> = {
+  可直接推進: "#4ade80",
+  有條件可成: "#6ff0b4",
+  宜借力推進: "#60a5fa",
+  宜等待時機: "#facc15",
+  宜調整策略後再進: "#fb923c",
+  宜暫時停止: "#f87171",
   補資料後再判: "#9ca3af"
 };
 
@@ -41,6 +45,8 @@ export function ReportStep({
   onDownloadJson: () => void;
   onDownloadPdf: () => void;
 }) {
+  // 舊報告存的是擴版前的決策詞，正規化後才查得到顏色。
+  const decision = normalizeDecision(structured?.decision);
   return (
     <section className="section" style={{ paddingTop: 26 }}>
       <div className="wrap xf-report-wrap">
@@ -94,12 +100,12 @@ export function ReportStep({
 
             <article className="panel xf-conclusion">
               <h2>🧭 你的順轉方向</h2>
-              {structured.decision && (
+              {decision && (
                 <span
                   className="xf-decision-badge"
-                  style={{ borderColor: DECISION_COLORS[structured.decision], color: DECISION_COLORS[structured.decision] }}
+                  style={{ borderColor: DECISION_COLORS[decision], color: DECISION_COLORS[decision] }}
                 >
-                  {structured.decision}
+                  {decision}
                 </span>
               )}
               <p className="xf-conclusion-headline">{structured.headline}</p>

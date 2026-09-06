@@ -21,11 +21,13 @@ export type LoadedPromptSettings = {
   fallbackReason: string | null;
 };
 
-const DEFAULT_RESULT = (reason: string | null): LoadedPromptSettings => ({
+// documentBlock 要獨立傳進來：文件庫與設定版本是兩件事，
+// 老師沒發布過設定版本時，他勾選的文件仍然必須進 prompt。
+const DEFAULT_RESULT = (reason: string | null, documentBlock = ""): LoadedPromptSettings => ({
   settings: DEFAULT_PROMPT_SETTINGS,
   profileId: null,
   versionLabel: "系統預設",
-  documentBlock: "",
+  documentBlock,
   fallbackReason: reason
 });
 
@@ -58,6 +60,11 @@ async function readFromDatabase(): Promise<LoadedPromptSettings> {
     return DEFAULT_RESULT("supabase_unavailable");
   }
 
+  // 文件庫先讀，且與設定版本的成敗無關。
+  // 曾經這行寫在「成功解析 published 設定」之後，導致老師上傳並勾選了文件、
+  // 後台也顯示「已納入 N 字」，但因為從沒發布過設定版本，文件一次都沒進過 prompt。
+  const documentBlock = await buildDocumentBlock(admin);
+
   const { data, error } = await admin
     .from("ai_prompt_profiles")
     .select("id, version_label, settings")
@@ -66,11 +73,11 @@ async function readFromDatabase(): Promise<LoadedPromptSettings> {
 
   if (error) {
     console.warn("[prompt-settings] 讀取已發布設定失敗，改用程式預設值", error);
-    return DEFAULT_RESULT("query_failed");
+    return DEFAULT_RESULT("query_failed", documentBlock);
   }
   if (!data) {
     // 後台還沒發布過任何版本。這是正常狀態，不是錯誤。
-    return DEFAULT_RESULT("no_published_profile");
+    return DEFAULT_RESULT("no_published_profile", documentBlock);
   }
 
   const parsed = promptSettingsSchema.safeParse(data.settings);
@@ -79,14 +86,14 @@ async function readFromDatabase(): Promise<LoadedPromptSettings> {
       profileId: data.id,
       issue: parsed.error.issues[0]?.message
     });
-    return DEFAULT_RESULT("invalid_settings");
+    return DEFAULT_RESULT("invalid_settings", documentBlock);
   }
 
   return {
     settings: parsed.data,
     profileId: data.id,
     versionLabel: data.version_label,
-    documentBlock: await buildDocumentBlock(admin),
+    documentBlock,
     fallbackReason: null
   };
 }
@@ -101,13 +108,26 @@ async function readFromDatabase(): Promise<LoadedPromptSettings> {
 async function buildDocumentBlock(
   admin: ReturnType<typeof createSupabaseAdminClient>
 ): Promise<string> {
-  const { data, error } = await admin
-    .from("ai_documents")
-    .select("title, extracted_text, char_count")
-    .eq("include_in_prompt", true)
-    .order("created_at", { ascending: true });
+  // 這個查詢現在每份報告都會跑（不再只跑在設定版本成功的路徑上），
+  // 所以自己吞掉例外：文件讀不到就當作沒勾選，不可以讓報告產不出來。
+  let data: Array<{ title: string; extracted_text: string | null; char_count: number }> | null = null;
+  try {
+    const result = await admin
+      .from("ai_documents")
+      .select("title, extracted_text, char_count")
+      .eq("include_in_prompt", true)
+      .order("created_at", { ascending: true });
+    if (result.error) {
+      console.warn("[prompt-settings] 讀取參考文件失敗，本次報告不附文件", result.error);
+      return "";
+    }
+    data = result.data;
+  } catch (error) {
+    console.warn("[prompt-settings] 讀取參考文件發生例外，本次報告不附文件", error);
+    return "";
+  }
 
-  if (error || !data?.length) return "";
+  if (!data?.length) return "";
 
   const parts: string[] = [];
   let used = 0;
