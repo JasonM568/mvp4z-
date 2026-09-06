@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { adminFetch } from "../_shell";
+import { SchoolEffectiveStatus, useEffectiveStatus } from "../_effective-status";
 import { TAIWAN_PLACES } from "@/lib/yixue/geo/places";
 import type { YixueChart } from "@/lib/yixue/types";
 
@@ -54,6 +55,14 @@ export default function SchoolSettingsPage() {
   const [decidedBy, setDecidedBy] = useState("風羿老師");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // 生效狀態問報告管線本身，不從 state.published 推算——那是「存了什麼」不是「用了什麼」。
+  const { status: effective, failed: effectiveFailed, refresh: refreshEffective } = useEffectiveStatus();
+  // 有草稿、且草稿與目前生效值真的不同時，該被按的是「發布」不是再存一次。
+  // 草稿內容與生效值相同就不催——那只是老師存過但沒改東西。
+  const pendingDraft = Boolean(
+    effective?.school.draft &&
+      (effective.school.draft.changes.length > 0 || effective.school.live === "defaults")
+  );
   const [message, setMessage] = useState("");
 
   // 試算用的生辰。預設挑一個會踩到晚子時分歧的時刻，老師一進來就看得到差別。
@@ -139,6 +148,7 @@ export default function SchoolSettingsPage() {
       if (!res.ok) throw new Error(data?.error || "儲存失敗");
       setMessage("草稿已儲存。目前的報告仍用已發布的流派，要按「發布」才生效。");
       await reload();
+      await refreshEffective();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "儲存失敗");
     } finally {
@@ -155,6 +165,7 @@ export default function SchoolSettingsPage() {
       if (!res.ok) throw new Error(data?.error || "發布失敗");
       setMessage(`已發布。最多 ${data.effective_in_seconds} 秒後全面生效。`);
       await reload();
+      await refreshEffective();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "發布失敗");
     } finally {
@@ -180,22 +191,7 @@ export default function SchoolSettingsPage() {
         </div>
       )}
 
-      <div className="kpi-grid" style={{ marginBottom: 18 }}>
-        <div className="kpi-card">
-          <div className="label">目前生效流派</div>
-          <div className="value" style={{ fontSize: 18 }}>{state.published?.settings.label || "系統預設（暫定）"}</div>
-          <div className="hint">
-            {state.published?.published_at
-              ? `發布於 ${new Date(state.published.published_at).toLocaleString("zh-TW")}`
-              : "尚未發布過，報告使用程式內建的暫定值"}
-          </div>
-        </div>
-        <div className="kpi-card">
-          <div className="label">草稿</div>
-          <div className="value" style={{ fontSize: 18 }}>{state.draft?.version_label || "無"}</div>
-          <div className="hint">{state.draft ? "已儲存，尚未發布" : "尚未建立草稿"}</div>
-        </div>
-      </div>
+      <SchoolEffectiveStatus status={effective} failed={effectiveFailed} />
 
       <div className="admin-form-grid" style={{ marginBottom: 18 }}>
         <label>
@@ -319,11 +315,23 @@ export default function SchoolSettingsPage() {
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
-        <button type="button" className="admin-action-btn" onClick={saveDraft} disabled={saving}>
+        {/* 按鈕權重跟著狀態走：有未發布草稿時，該被按的是「發布」而不是再存一次。
+            原本發布固定是 ghost 次要按鈕，老師按完主按鈕就離開，草稿放了一個月沒生效。 */}
+        <button
+          type="button"
+          className={`admin-action-btn${pendingDraft ? " ghost" : ""}`}
+          onClick={saveDraft}
+          disabled={saving}
+        >
           {saving ? "處理中⋯" : "儲存草稿"}
         </button>
-        <button type="button" className="admin-action-btn ghost" onClick={publish} disabled={saving || !state.draft}>
-          發布草稿
+        <button
+          type="button"
+          className={`admin-action-btn${pendingDraft ? "" : " ghost"}`}
+          onClick={publish}
+          disabled={saving || !state.draft}
+        >
+          {pendingDraft ? "發布草稿（尚未生效）" : "發布草稿"}
         </button>
         <button
           type="button"

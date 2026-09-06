@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "../_shell";
+import { PromptEffectiveStatus, useEffectiveStatus } from "../_effective-status";
 import type { PromptSettings } from "@/lib/ai/council/settings/schema";
 import { RuleListEditor, SectionCard, StringListEditor, TextField } from "./_editors";
 
@@ -40,8 +41,12 @@ export default function PromptSettingsPage() {
   const [tab, setTab] = useState<TabKey>("skeleton");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // 生效狀態問報告管線本身，不從 state.published 推算。
+  const { status: effective, failed: effectiveFailed, refresh: refreshEffective } = useEffectiveStatus();
   const [message, setMessage] = useState("");
   const [dirty, setDirty] = useState(false);
+  // 有草稿但沒發布 → 該按的是發布。dirty（有未存修改）時仍以「先存」為主。
+  const pendingDraft = Boolean(effective?.prompt.draft) && !dirty;
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -92,6 +97,7 @@ export default function PromptSettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "儲存失敗");
       setMessage("草稿已儲存。目前正在產出的報告不受影響，要按「發布」才會生效。");
+      await refreshEffective();
       setDirty(false);
       await reload();
     } catch (e) {
@@ -111,6 +117,7 @@ export default function PromptSettingsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "發布失敗");
       setMessage(`已發布。最多 ${data.effective_in_seconds} 秒後全面生效。`);
+      await refreshEffective();
       await reload();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "發布失敗");
@@ -155,27 +162,14 @@ export default function PromptSettingsPage() {
         </div>
       )}
 
+      <PromptEffectiveStatus status={effective} failed={effectiveFailed} />
+      {dirty && (
+        <p style={{ color: "#e6a95c", margin: "0 0 12px" }}>
+          有尚未儲存的修改。未儲存的內容不會進入草稿，也不會被發布。
+        </p>
+      )}
+
       <div className="kpi-grid" style={{ marginBottom: 18 }}>
-        <div className="kpi-card">
-          <div className="label">目前生效版本</div>
-          <div className="value" style={{ fontSize: 18 }}>
-            {state.published?.version_label || "系統預設"}
-          </div>
-          <div className="hint">
-            {state.published?.published_at
-              ? `發布於 ${new Date(state.published.published_at).toLocaleString("zh-TW")}`
-              : "尚未發布過任何版本，報告使用程式內建內容"}
-          </div>
-        </div>
-        <div className="kpi-card">
-          <div className="label">草稿</div>
-          <div className="value" style={{ fontSize: 18 }}>
-            {state.draft ? state.draft.version_label : "無"}
-          </div>
-          <div className="hint">
-            {dirty ? "有尚未儲存的修改" : state.draft ? "已儲存，尚未發布" : "尚未建立草稿"}
-          </div>
-        </div>
         <div className="kpi-card">
           <div className="label">內容字數</div>
           <div className="value" style={{ fontSize: 18, color: overBudget ? "#ff8d7a" : undefined }}>
@@ -216,11 +210,21 @@ export default function PromptSettingsPage() {
       {tab === "fallback" && <FallbackTab settings={settings} patch={patch} />}
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
-        <button type="button" className="admin-action-btn" onClick={saveDraft} disabled={saving || overBudget}>
+        <button
+          type="button"
+          className={`admin-action-btn${pendingDraft ? " ghost" : ""}`}
+          onClick={saveDraft}
+          disabled={saving || overBudget}
+        >
           {saving ? "處理中⋯" : "儲存草稿"}
         </button>
-        <button type="button" className="admin-action-btn ghost" onClick={publish} disabled={saving || !state.draft}>
-          發布草稿
+        <button
+          type="button"
+          className={`admin-action-btn${pendingDraft ? "" : " ghost"}`}
+          onClick={publish}
+          disabled={saving || !state.draft}
+        >
+          {pendingDraft ? "發布草稿（尚未生效）" : "發布草稿"}
         </button>
         <button type="button" className="admin-action-btn ghost" onClick={resetToDefaults} disabled={saving}>
           還原成系統預設

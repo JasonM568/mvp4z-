@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { adminFetch } from "../_shell";
+import { DocumentsEffectiveStatus, useEffectiveStatus } from "../_effective-status";
 
 type DocumentRow = {
   id: string;
@@ -36,6 +37,8 @@ export default function AdminDocumentsPage() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("reference");
   const [term, setTerm] = useState("");
+  // 生效狀態一律問後端，不從 documents 自己推算——這頁的舊 KPI 正是這樣算錯的。
+  const { status: effective, failed: effectiveFailed, refresh: refreshEffective } = useEffectiveStatus();
 
   const includedChars = useMemo(
     () => documents.reduce((sum, document) => sum + (document.include_in_prompt ? document.char_count : 0), 0),
@@ -102,6 +105,8 @@ export default function AdminDocumentsPage() {
     if (!response.ok) return setError(body.error || "更新失敗");
     setDocuments((current) => current.map((document) => (document.id === id ? { ...document, ...body.document } : document)));
     setMessage("文件設定已更新，報告端最多 60 秒後全面生效。");
+    // 勾選改變會改變實際進 prompt 的內容，重問一次生效狀態，不要讓畫面停在舊真相。
+    if ("include_in_prompt" in patch) void refreshEffective();
   }
 
   async function remove(document: DocumentRow) {
@@ -112,6 +117,7 @@ export default function AdminDocumentsPage() {
     if (!response.ok) return setError(body.error || "刪除失敗");
     setDocuments((current) => current.filter((item) => item.id !== document.id));
     setMessage(`已刪除「${document.title}」。`);
+    void refreshEffective();
   }
 
   function rename(document: DocumentRow) {
@@ -126,8 +132,10 @@ export default function AdminDocumentsPage() {
       <h1>老師文件</h1>
       <p className="lead">上傳純文字教材，勾選後會作為四象天機報告的補充判讀依據。目前接受 UTF-8／Big5 的 .txt、.md，單檔上限 2MB。</p>
 
+      <DocumentsEffectiveStatus status={effective} failed={effectiveFailed} />
+
       <section className="kpi-card" style={{ margin: "18px 0", maxWidth: 760 }}>
-        <div className="label">目前納入 Prompt 的字數</div>
+        <div className="label">目前勾選的字數（這是勾選狀態，不代表已進入 Prompt）</div>
         <div className="value" style={{ fontSize: 24 }}>{includedChars.toLocaleString()} / {budget.toLocaleString()} 字</div>
         <div style={{ height: 8, background: "rgba(255,255,255,.1)", borderRadius: 20, overflow: "hidden", marginTop: 10 }}>
           <div style={{ width: `${percentage}%`, height: "100%", background: includedChars > budget * 0.85 ? "#e6a95c" : "var(--green)" }} />
