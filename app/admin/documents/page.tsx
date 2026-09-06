@@ -124,7 +124,7 @@ export default function AdminDocumentsPage() {
   return (
     <>
       <h1>老師文件</h1>
-      <p className="lead">上傳純文字教材，勾選後會作為易學報告的補充判讀依據。目前接受 UTF-8／Big5 的 .txt、.md，單檔上限 2MB。</p>
+      <p className="lead">上傳純文字教材，勾選後會作為四象天機報告的補充判讀依據。目前接受 UTF-8／Big5 的 .txt、.md，單檔上限 2MB。</p>
 
       <section className="kpi-card" style={{ margin: "18px 0", maxWidth: 760 }}>
         <div className="label">目前納入 Prompt 的字數</div>

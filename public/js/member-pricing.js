@@ -93,7 +93,7 @@ function planCardHTML(plan) {
     );
   }
   const pointsLi = pts
-    ? `<li>贈送 ${pts.report} 點（約 ${pts.reportCount} 次易學報告）</li>
+    ? `<li>贈送 ${pts.report} 點（約 ${pts.reportCount} 次四象天機報告）</li>
        <li>額外贈送 ${pts.chat} 點（AI 即時問答用）</li>
        <li>點數效期 ${escapeHTML(plan.duration_days)} 天</li>`
     : plan.is_addon

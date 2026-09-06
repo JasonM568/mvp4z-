@@ -123,7 +123,7 @@ export default function TokenUsagePage() {
               <div className="hint">in {formatTokens(stats.totals.tokens_in)} / out {formatTokens(stats.totals.tokens_out)}</div>
             </div>
             <div className="kpi-card">
-              <div className="label">易學報告</div>
+              <div className="label">四象天機報告</div>
               <div className="value">{stats.totals.council_runs}</div>
               <div className="hint">
                 平均 {avgCouncilCostNtd > 0 ? formatNtd(avgCouncilCostNtd) : "—"} / 份
@@ -193,7 +193,7 @@ export default function TokenUsagePage() {
               <thead>
                 <tr>
                   <th>日期</th>
-                  <th>易學報告</th>
+                  <th>四象天機報告</th>
                   <th>AI 聊天</th>
                   <th>Tokens In</th>
                   <th>Tokens Out</th>

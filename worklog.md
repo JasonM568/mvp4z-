@@ -1905,3 +1905,57 @@ alias 已切 `www.xunfeng.tw` / `xunfeng.tw`。
    不要看後台字數 —— 後台字數這一個月一直顯示「已納入」，實際一次都沒進去）
 2. 模型會不會真的走「宜借力推進」「宜調整策略後再進」兩條新路，
    還是全部塌回「有條件可成」
+
+### 續：「易學報告」改名「四象天機報告」（2026-09-06）
+
+使用者問「這份報告的運算邏輯有沒有參考老師的 Prompt 還是文件」，順帶要求把
+「易學報告」改名為「四象天機報告」。
+
+掃過才發現這份報告站上同時有三個名字：
+- 《巽風四象天機書》—— 正式交付名，30+ 處（前台首頁、報告標題、PDF 檔名、
+  分享卡、prompt 的 reportTitle）
+- 易學報告 —— 4 處，後台文件管理／Token 用量、定價頁 JS
+- 易學決策報告／易學決策系統 —— 程式註解與 prompt 內部自稱
+
+使用者拍板：**只收掉「易學報告」散稱，《巽風四象天機書》維持不動**。
+理由是不去動 prompt 的 reportTitle 就不必重跑快照，也不會讓新舊報告的
+PDF 檔名對不起來。代價是站上仍並存「天機書」與「天機報告」兩種說法
+（member-pricing.js 同一支檔案裡 53、61 行是「四象天機書」，96 行是
+「四象天機報告」），這是知情下的取捨，不是漏改。
+
+改動 6 處：
+- `app/admin/documents/page.tsx`（文件庫說明）
+- `app/admin/token-usage/page.tsx`（KPI 卡標籤、表格欄名）
+- `public/js/member-pricing.js`（贈點說明）
+- `lib/auth/tier.ts`、`app/member-ai/face/reports/[id]/report.css`（註解）
+
+worklog / handoff 的歷史段落刻意不改 —— 那是當時的紀錄，改了會失真。
+
+驗證：tsc 過、vitest 24 檔 197 passed / 2 skipped、next build 過（103 頁）。
+純字串改動，prompt 與快照未動。
+
+### 附記：這份報告的運算邏輯（回答使用者提問）
+
+分三層，只有第一層是程式在算：
+
+1. **排盤（程式，決定論）** `lib/yixue/`。純函式、無 I/O、無 Date.now()、無 env，
+   有 golden test。算完經 `renderChartForPrompt` 包成「【系統排盤結果】…為既定事實…
+   你的任務是解讀，不是排盤」進 prompt，刻意不讓 LLM 碰數字。
+   參數來自 `school/schools.ts` 的 `fengyi-v1`：真太陽時 longitude+eot、
+   晚子時日柱 next、早晚子時柱 split、交節 tie-break instant。
+   **這組參數仍標「暫定，待簽核」，decidedAt / decidedBy 是空字串，
+   但 41 份已收費報告都是用它跑的。**
+
+2. **奇門／六爻／梅花：沒有程式計算。** 引擎是 `0.1.0-phase0`，
+   `buildYixueChart` 只處理 `modules.bazi`。這三術進 prompt 的是使用者自己填的
+   起卦資料，由 LLM 自行解讀。**四象裡只有「命」這一象是程式算的。**
+
+3. **判讀規則（prompt，非決定論）**，三個來源：
+   - `settings/defaults.ts` 寫死的預設 → 一直是這個在跑
+   - DB `ai_prompt_profiles`（老師後台發布的設定）→ **0 筆，從沒生效過**
+   - DB `ai_documents`（老師勾選的文件，3741 字）→ **今天上午才第一次真的進 prompt**
+
+所以「有沒有參考老師的東西」的準確答案是：文件有，從今天開始；
+老師的 Prompt 到目前為止一次都沒被用過。
+文件的身份是「補充參考資料，不得直接照抄」，上限 6000 字，
+影響判讀口徑，**影響不到排盤數字**（第一層完全不看文件）。

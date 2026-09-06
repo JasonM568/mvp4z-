@@ -13,7 +13,7 @@ export type TierResolution = {
   monthlyFreeQuota: number;
 };
 
-// 2026-06-01 點數經濟：易學報告統一 20 點/份，免費體驗(trial)也能用，VIP 特規取消。
+// 2026-06-01 點數經濟：四象天機報告統一 20 點/份，免費體驗(trial)也能用，VIP 特規取消。
 // 直接寫死 20，不再讀 COUNCIL_CREDIT_COST env（prod 舊值 10 會被忽略，該 env 已廢棄可移除）。
 const DEFAULT_COUNCIL_COST = 20;
 
