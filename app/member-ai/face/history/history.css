@@ -23,3 +23,56 @@
 .face-history-detail h2 { margin: 12px 0 24px; }.face-history-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.85 ui-serif, "Noto Serif TC", serif; color: #e8dfd0; }
 .face-history-close { float: right; border: 0; color: #d5ad60; background: transparent; font-size: 28px; cursor: pointer; }.face-history-placeholder { display: grid; place-items: center; min-height: 380px; color: #777064; text-align: center; }
 @media (max-width: 820px) { .face-history-page { padding: 44px 14px 70px; }.face-history-head { align-items: start; flex-direction: column; }.face-history-layout { grid-template-columns: 1fr; }.face-history-detail { position: static; max-height: none; }.face-history-actions button, .face-history-actions a { flex: 1; text-align: center; }.face-history-list dl { flex-direction: column; gap: 6px; } }
+
+/* 保存額度。
+   平時是安靜的資訊列，接近上限才轉黃、滿額轉紅——
+   一直亮著的警示等於沒有警示。 */
+.face-quota {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.face-quota-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  font-size: 14px;
+}
+
+.face-quota-line strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+}
+
+.face-quota-line span {
+  color: var(--muted, #9a9384);
+}
+
+.face-quota-bar {
+  margin-top: 10px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.face-quota-bar > div {
+  height: 100%;
+  background: var(--green, #6ef0b4);
+  transition: width 0.3s ease;
+}
+
+.face-quota.warn { border-color: #e6a95c; }
+.face-quota.warn .face-quota-bar > div { background: #e6a95c; }
+
+.face-quota.full { border-color: #ff8d7a; background: rgba(255, 141, 122, 0.07); }
+.face-quota.full .face-quota-bar > div { background: #ff8d7a; }
+.face-quota.full .face-quota-line span { color: #ff8d7a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .face-quota-bar > div { transition: none; }
+}

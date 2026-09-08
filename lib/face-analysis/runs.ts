@@ -18,6 +18,28 @@ const PUBLIC_RUN_FIELDS = [
   "updated_at"
 ].join(", ");
 
+/**
+ * 會員目前保存了幾份面相報告。
+ *
+ * 只算 completed：那是有報告內容、會員真正「存著」的那些。
+ * failed 與 expired 沒有報告可看，deleted 已經被會員自己清掉，都不佔額度——
+ * 否則一次失敗的分析會永久吃掉一格，而會員完全不知道為什麼。
+ *
+ * 用 head + count 不撈資料：這個數字每次列表與每次建立任務都會問一遍。
+ */
+export async function countStoredFaceReports(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  profileId: string
+): Promise<number> {
+  const { count, error } = await admin
+    .from("face_analysis_runs")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", profileId)
+    .eq("status", "completed");
+  if (error) throw error;
+  return count || 0;
+}
+
 export async function createRun(input: {
   profileId: string;
   entitlementId?: string | null;

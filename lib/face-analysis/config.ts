@@ -6,6 +6,15 @@ export const FACE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const FACE_IMAGE_MAX_DIMENSION = 4096;
 export const FACE_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
+/**
+ * 每位會員能保存的面相報告份數上限。
+ *
+ * 只計 completed——那才是會員真正「存著的檔案」；失敗、過期、已刪的不佔額度。
+ * 滿額時擋住新的分析而不是自動刪最舊的：報告是會員付點數換來的，
+ * 系統無權替他決定哪一份可以消失。要繼續做就自己刪一份，主導權留在會員手上。
+ */
+export const FACE_REPORT_STORAGE_LIMIT = 30;
+
 // 同一會員能同時掛著幾個「進行中」的任務，以及超過多久就不再算進行中。
 // 兩者必須成對使用：只有上限沒有時間窗，中斷的任務會累加到帳號被永久擋下。
 export const FACE_RUN_OPEN_LIMIT = 3;

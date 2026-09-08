@@ -40,6 +40,24 @@ export default function FaceAnalysisPage() {
   const [report, setReport] = useState<StructuredReport | null>(null);
   const [analysisPhase, setAnalysisPhase] = useState(0);
   const [analysisSeconds, setAnalysisSeconds] = useState(0);
+  // 保存額度。滿額時要在會員拍照之前就擋，不能等他填完同意書才退回。
+  const [storage, setStorage] = useState<{ used: number; limit: number } | null>(null);
+
+  // 額度只在進站時查一次就夠：真正的把關在後端建立任務時，這裡只是提前告知。
+  // 查不到就不顯示，不因為額度查詢失敗擋住整個功能。
+  useEffect(() => {
+    const token = window.localStorage.getItem(TOKEN_KEY) || "";
+    if (!token) return;
+    let cancelled = false;
+    void fetch("/api/face-analysis/runs?limit=1", { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.storage || typeof data.storage.limit !== "number") return;
+        setStorage(data.storage);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const requestIdRef = useRef<string | null>(null);
@@ -242,6 +260,8 @@ export default function FaceAnalysisPage() {
     }
   }
 
+  const storageFull = Boolean(storage && storage.used >= storage.limit);
+
   return (
     <>
       <SiteHeader showMobileDock={false} />
@@ -268,9 +288,25 @@ export default function FaceAnalysisPage() {
               {collaborationAssessment && <label className="face-field"><span>合作項目描述（必填）</span><textarea rows={5} maxLength={1000} value={collaborationProject} onChange={(event) => setCollaborationProject(event.target.value)} placeholder="例如：合作開設餐飲店，對方負責營運與人員管理，我負責資金與行銷，最擔心帳務透明與決策權。" /></label>}
             </section>
             <div className="face-price-note"><strong>品質檢查免費</strong><span>完整報告 20 點</span><span>原始照片最長 24 小時內刪除</span></div>
+            {storageFull && (
+              <div className="face-quota-block" role="status">
+                <strong>報告已存滿 {storage?.used} / {storage?.limit} 份</strong>
+                <p>面相報告保存在您的帳號下，每位會員可保存 {storage?.limit} 份。要開始新的分析，請先到「我的面相報告」刪除不需要的報告。</p>
+                <a className="face-secondary" href="/member-ai/face/history">前往刪除報告</a>
+              </div>
+            )}
             <div className="face-landing-actions">
-              <button className="face-primary" onClick={() => setStep("capture")} data-xf-event="face_start_quality_check">開始免費品質檢查</button>
-              <a className="face-secondary" href="/member-ai/face/history">我的面相報告</a>
+              <button
+                className="face-primary"
+                onClick={() => setStep("capture")}
+                disabled={storageFull}
+                data-xf-event="face_start_quality_check"
+              >
+                開始免費品質檢查
+              </button>
+              <a className="face-secondary" href="/member-ai/face/history">
+                我的面相報告{storage ? `（${storage.used}/${storage.limit}）` : ""}
+              </a>
             </div>
             <p className="face-fineprint">本功能屬傳統民俗文化與自我觀察參考，不代表對個性、命運或未來的事實認定。</p>
           </section>

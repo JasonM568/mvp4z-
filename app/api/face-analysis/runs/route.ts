@@ -13,11 +13,13 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { canUseFaceAnalysis } from "@/lib/auth/face-tier";
 import {
   FACE_ANALYSIS_CONSENT_VERSION,
+  FACE_REPORT_STORAGE_LIMIT,
   FACE_RUN_OPEN_LIMIT,
   FACE_RUN_OPEN_WINDOW_MINUTES,
   FACE_RUN_OPEN_WINDOW_MS,
   isFaceAnalysisEnabled
 } from "@/lib/face-analysis/config";
+import { countStoredFaceReports } from "@/lib/face-analysis/runs";
 
 export const runtime = "nodejs";
 
@@ -39,7 +41,10 @@ export async function GET(request: NextRequest) {
       .limit(limit + 1);
     if (cursor) query = query.lt("created_at", cursor);
 
-    const { data, error } = await query;
+    const [{ data, error }, stored] = await Promise.all([
+      query,
+      countStoredFaceReports(admin, profile.id)
+    ]);
     if (error) throw error;
     const rows = data || [];
     const hasMore = rows.length > limit;
@@ -48,6 +53,9 @@ export async function GET(request: NextRequest) {
     return apiJson({
       ok: true,
       items,
+      // 保存額度隨列表一起回，前端才能在會員按下「開始」之前就先提醒，
+      // 而不是等他拍完照、填完同意書才被擋。
+      storage: { used: stored, limit: FACE_REPORT_STORAGE_LIMIT },
       nextCursor: hasMore && last?.created_at ? encodeCursor(String(last.created_at)) : null
     });
   } catch (error) {
@@ -112,6 +120,17 @@ export async function POST(request: NextRequest) {
     if (recentError) throw recentError;
     if (openError) throw openError;
     if ((recentCount || 0) >= 10) throw statusError("操作過於頻繁，請稍後再試", 429);
+
+    // 保存額度在「建立任務」時就擋，不等到扣點才擋——
+    // 讓會員拍完照、填完同意書再被退回是最糟的順序。
+    const stored = await countStoredFaceReports(admin, profile.id);
+    if (stored >= FACE_REPORT_STORAGE_LIMIT) {
+      throw statusError(
+        `您已保存 ${stored} 份面相報告，達到 ${FACE_REPORT_STORAGE_LIMIT} 份上限。` +
+          `請到「我的面相報告」刪除不需要的報告後再開始新的分析。本次未扣點。`,
+        409
+      );
+    }
     // 同一個 requestId 是前端重送（createRun 本來就會回同一筆），不該被自己擋下。
     const isRetry = (openRuns || []).some((row) => row.request_id === input.requestId);
     if (!isRetry && (openRuns?.length || 0) >= FACE_RUN_OPEN_LIMIT) {

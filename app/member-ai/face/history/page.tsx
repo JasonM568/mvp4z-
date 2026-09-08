@@ -16,6 +16,8 @@ type FaceRun = {
   created_at: string;
 };
 
+type Storage = { used: number; limit: number };
+
 const TOKEN_KEY = "xunfeng_member_token";
 
 export default function FaceHistoryPage() {
@@ -24,6 +26,7 @@ export default function FaceHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [storage, setStorage] = useState<Storage | null>(null);
 
   const token = () => window.localStorage.getItem(TOKEN_KEY) || "";
 
@@ -41,6 +44,9 @@ export default function FaceHistoryPage() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "無法載入歷史報告");
       setRuns(Array.isArray(data.items) ? data.items : Array.isArray(data.runs) ? data.runs : []);
+      // 額度由後端算（只計 completed），前端不自己數列表——
+      // 列表有分頁，數列表會在第二頁之後開始少算。
+      setStorage(data.storage && typeof data.storage.limit === "number" ? data.storage : null);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "無法載入歷史報告");
     } finally {
@@ -99,9 +105,15 @@ export default function FaceHistoryPage() {
       <SiteHeader showMobileDock={false} />
       <main className="face-history-page">
         <header className="face-history-head">
-          <div><span>我的巽風</span><h1>面相報告紀錄</h1><p>報告會永久保存在您的帳號下，登入後隨時可重新查看與下載 PDF。這裡只顯示報告資料，不會以人臉縮圖作為歷史封面。</p></div>
+          <div>
+            <span>我的巽風</span>
+            <h1>面相報告紀錄</h1>
+            <p>報告保存在您的帳號下，登入後隨時可重新查看與下載 PDF。這裡只顯示報告資料，不會以人臉縮圖作為歷史封面。</p>
+          </div>
           <a href="/member-ai/face">新增面相分析</a>
         </header>
+
+        {storage && <FaceQuota storage={storage} />}
         {notice && <p className="face-history-notice" role="status">{notice}</p>}
         {loading ? <p className="face-history-empty">載入中…</p> : runs.length === 0 ? (
           <section className="face-history-empty"><h2>還沒有面相報告</h2><p>完成第一份分析後，報告會出現在這裡。</p></section>
@@ -128,6 +140,36 @@ export default function FaceHistoryPage() {
         )}
       </main>
     </>
+  );
+}
+
+/**
+ * 保存額度。
+ *
+ * 滿額時把「要做什麼」寫進去，不只是報一個數字——
+ * 會員看到「30/30」不會自己推論出「所以我要先刪一份」。
+ */
+function FaceQuota({ storage }: { storage: Storage }) {
+  const full = storage.used >= storage.limit;
+  const nearlyFull = !full && storage.used >= storage.limit - 3;
+  const percent = Math.min(100, Math.round((storage.used / storage.limit) * 100));
+
+  return (
+    <section className={`face-quota${full ? " full" : nearlyFull ? " warn" : ""}`} aria-live="polite">
+      <div className="face-quota-line">
+        <strong>已保存 {storage.used} / {storage.limit} 份</strong>
+        {full ? (
+          <span>已達上限。請先刪除不需要的報告，才能開始新的分析。</span>
+        ) : nearlyFull ? (
+          <span>剩下 {storage.limit - storage.used} 份額度。</span>
+        ) : (
+          <span>刪除報告可釋放額度。</span>
+        )}
+      </div>
+      <div className="face-quota-bar" role="presentation">
+        <div style={{ width: `${percent}%` }} />
+      </div>
+    </section>
   );
 }
 
