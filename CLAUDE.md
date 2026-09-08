@@ -58,10 +58,12 @@
 
 ## 待解（開放真實用戶 / 正式收款前的 gate）
 
-- council 多 provider 待補 **OpenAI / Gemini / DeepSeek key**。
+- ~~council 多 provider 待補 key~~ → 2026-09-08 查證：三家 key 都已設好在跑（正式庫 45 次呼叫，OpenAI 45 成功、Gemini 41、DeepSeek 44）。
 - **信用卡真實刷卡 E2E 尚未補測**（ECPay 已切正式 MID `3325455`）。
 - **發票走 EZPay 不是 ECPay**。adapter 其實已改寫完成（`issue-invoice-from-order.ts:12` 已 import `./ezpay-invoice`），
   但 `.env.example:55` 仍列舊的 `ECPAY_INVOICE_*`，實際讀的是 `EZPAY_INVOICE_*` —— 環境設定要對齊。
   另：只有 `issueInvoice()`，**沒有作廢／折讓**，做退款前要先補。
 - Supabase Auth custom SMTP（Resend）未接；忘記密碼受預設 3 封/小時限制。
+- **奇門遁甲排盤待風羿老師校對**（`docs/specs/yixue-engine/SCHOOL-DECISIONS.md` 決策 8）。
+  定局法沒有定本，工程無從自證，老師比對三張盤例前不該把奇門判讀當定論。
 - 詳見 `handoff.md` 最新「待辦 / 下次起手式」。

@@ -207,3 +207,34 @@ export function solarDateOf(t: SolarTime): { year: number; month: number; day: n
 }
 
 export const EARTH_BRANCH_NAMES: readonly string[] = EARTH_BRANCHES;
+
+/**
+ * 當下所在的節氣（24 個全取，含中氣）。
+ *
+ * 與 monthOrderAt 的差別：八字月柱只以「節」分界，中氣不換月；
+ * 奇門的三元定局用的是完整 24 節氣，每個節氣 15 天分上中下三元、各 5 天。
+ * 所以這裡不往回走到節，取的就是當下生效的那一個節氣。
+ *
+ * index 與 SOLAR_TERMS 一致，0 為冬至。奇門的陽遁陰遁正好以此分半：
+ * 0–11（冬至到芒種）陽遁、12–23（夏至到大雪）陰遁。
+ */
+export function currentTermAt(t: SolarTime): { index: number; name: string; at: string; daysInto: number } {
+  const term = t.getTerm();
+  const termTime = term.getJulianDay().getSolarTime();
+  return {
+    index: term.getIndex(),
+    name: SOLAR_TERMS[term.getIndex()],
+    at: formatSolarTime(termTime),
+    daysInto: t.getJulianDay().getDay() - term.getJulianDay().getDay()
+  };
+}
+
+/** 時柱。奇門的值符值使與旬首都依時干支定，八字之外也要用。 */
+export function hourPillarOf(t: SolarTime, school: { lateZiDayPillar: "next" | "same"; earlyLateZiHourPillar: "split" | "merge" }): StemBranch {
+  const isLateZi = t.getHour() === 23;
+  const basis =
+    isLateZi && school.earlyLateZiHourPillar === "split" ? dayPillar(t, "next") : dayPillar(t, "same");
+  return hourPillarFromDayStem(stemIndexOf(basis), t.getHour());
+}
+
+export const HEAVEN_STEM_NAMES: readonly string[] = HEAVEN_STEMS;

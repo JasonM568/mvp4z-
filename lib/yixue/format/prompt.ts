@@ -5,7 +5,8 @@
 //
 // 措辭刻意強調「既定事實」——沒有這句，模型會自行腦補一組干支然後跟盤面打架。
 
-import type { LiuyaoChart, LiuyaoLine, MeihuaChart, YixueChart } from "../types";
+import type { LiuyaoChart, LiuyaoLine, MeihuaChart, QimenChart, YixueChart } from "../types";
+import { LUOSHU_LAYOUT } from "../qimen/tables";
 
 export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): string {
   const t = chart.resolvedTime;
@@ -35,6 +36,10 @@ export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): st
       // 盤面保留原值，只在對外顯示時取到小數一位。
       `月令：${chart.bazi.monthOrder.term}（交節 ${chart.bazi.monthOrder.termAt}），距節 ${chart.bazi.monthOrder.daysIntoTerm.toFixed(1)} 天`
     );
+  }
+
+  if (chart.qimen) {
+    lines.push("", ...qimenLines(chart.qimen));
   }
 
   if (chart.liuyao) {
@@ -80,6 +85,42 @@ function meihuaLines(m: MeihuaChart): string[] {
     "以上卦象、動爻、體用與生剋關係皆由系統依梅花易數起卦法計算，為既定事實。",
     "請就此盤解讀，不得自行改起卦、改動爻、改體用，也不得另算一組卦象。"
   ];
+  return out;
+}
+
+/**
+ * 奇門盤面。
+ *
+ * 依洛書方位排成三行三列（上南下北），與紙上排盤的樣子一致——
+ * 奇門的判讀高度依賴方位關係，排成清單會讓「生門在東南」這種資訊消失。
+ */
+function qimenLines(c: QimenChart): string[] {
+  const by = new Map(c.cells.map((x) => [x.palace, x]));
+  const out: string[] = [
+    "【奇門遁甲．系統排盤】",
+    `${c.termName}（交節 ${c.termAt}）　${c.dun}${c.ju}局　${c.yuan}　定局符頭：${c.futou}`,
+    `日柱 ${c.dayGanzhi}　時柱 ${c.hourGanzhi}　旬首 ${c.xunshou}（遁${c.xunshouYi}）`,
+    `值符：${c.zhiFuStar}　落 ${c.zhiFuPalace} 宮${c.zhiFuInCenter ? "（時干在中五宮，寄坤二）" : ""}`,
+    `值使：${c.zhiShiDoor}　落 ${c.zhiShiPalace} 宮`,
+    `中五宮地盤干：${c.centerStem}（隨天禽寄坤二，不單獨佔宮）`,
+    "",
+    "九宮盤（依洛書方位，上南下北）："
+  ];
+
+  for (const row of LUOSHU_LAYOUT) {
+    const parts = row.map((p) => {
+      const cell = by.get(p);
+      if (!cell) return `　${p}中宮　地盤 ${c.centerStem}`;
+      return `${cell.gua}${p}（${cell.direction}）${cell.god}．${cell.star}．${cell.door}　天盤${cell.skyStem}／地盤${cell.earthStem}`;
+    });
+    out.push(...parts.map((x) => `　${x}`), "");
+  }
+
+  out.push(
+    "以上局數、三奇六儀、值符值使、天盤九星、八門與八神皆由系統依時家奇門（拆補法、轉盤）排出，為既定事實。",
+    "請就此盤判讀，不得自行改局數、改陰陽遁、改門星神位置，也不得另排一個局。",
+    "格局取用（伏吟反吟、擊刑、入墓、十干克應等）與用神取用屬判讀，由你依老師的規則判斷。"
+  );
   return out;
 }
 
@@ -159,6 +200,12 @@ export function renderChartDigest(chart: YixueChart): string {
     const hour = p.hour ? p.hour.ganzhi.label : "無時柱";
     parts.push(
       `四柱 ${p.year.ganzhi.label} ${p.month.ganzhi.label} ${p.day.ganzhi.label} ${hour}；月令 ${chart.bazi.monthOrder.term}`
+    );
+  }
+  if (chart.qimen) {
+    const q = chart.qimen;
+    parts.push(
+      `奇門 ${q.termName}${q.dun}${q.ju}局${q.yuan}，值符${q.zhiFuStar}落${q.zhiFuPalace}宮、值使${q.zhiShiDoor}落${q.zhiShiPalace}宮`
     );
   }
   if (chart.liuyao) {

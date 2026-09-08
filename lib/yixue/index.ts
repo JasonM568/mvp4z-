@@ -15,6 +15,7 @@ import type {
   LiuyaoSource,
   MeihuaChart,
   MeihuaSource,
+  QimenChart,
   YixueChart
 } from "./types";
 import { buildMonthOrder, buildPillars } from "./calendar/pillars";
@@ -22,9 +23,10 @@ import { resolveBirthTime, type BirthInput } from "./calendar/resolve";
 import { makeSolarTime } from "./calendar/tyme";
 import { buildMeihuaChart } from "./meihua/meihua";
 import { buildLiuyaoChart } from "./liuyao/liuyao";
+import { buildQimenChart } from "./qimen/qimen";
 
 /** 改演算法就要進版，讓 golden set 對得上。 */
-export const ENGINE_VERSION = "0.3.0-liuyao";
+export const ENGINE_VERSION = "0.4.0-qimen";
 
 export type YixueModules = {
   bazi?: boolean;
@@ -131,6 +133,20 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
     }
   }
 
+  // 奇門。起局時刻缺一不可——定局要節氣、日柱、時柱，全部由時刻決定。
+  let qimen: QimenChart | null = null;
+  if (input.modules.qimen) {
+    if (!divTime) {
+      allWarnings.push("奇門遁甲：缺少起局時刻，本次未排盤。");
+    } else {
+      try {
+        qimen = buildQimenChart(school, divTime);
+      } catch (error) {
+        allWarnings.push(`奇門遁甲：排盤失敗（${error instanceof Error ? error.message : String(error)}），本次未排盤。`);
+      }
+    }
+  }
+
   return {
     schoolVersion: school.id,
     engineVersion: ENGINE_VERSION,
@@ -139,10 +155,11 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
     bazi,
     meihua,
     liuyao,
+    qimen,
     warnings: allWarnings
   };
 }
 
 export type { BirthInput };
-export type { YixueChart, MeihuaChart, MeihuaSource, LiuyaoChart, LiuyaoSource } from "./types";
+export type { YixueChart, MeihuaChart, MeihuaSource, LiuyaoChart, LiuyaoSource, QimenChart } from "./types";
 export { resolveSchool, ACTIVE_SCHOOL_ID, SCHOOL_PRESETS } from "./school/schools";

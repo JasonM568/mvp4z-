@@ -4,7 +4,7 @@
 // - 全部是純資料，可 JSON.stringify，不含 class instance、Date、function。
 // - 各術的盤面欄位隨該術的 Phase 加入，不預先開空欄位。
 //
-// 目前實作範圍：Phase 0 曆法底座與四柱、Phase 1 梅花易數、Phase 2 六爻納甲。
+// 目前實作範圍：Phase 0 曆法底座與四柱、Phase 1 梅花易數、Phase 2 六爻納甲、Phase 3 奇門遁甲。
 
 /** 干支。label 是「甲子」這種合寫，方便直接印進報告。 */
 export type StemBranch = {
@@ -188,6 +188,46 @@ export type LiuyaoChart = {
   lines: LiuyaoLine[];
 };
 
+// ---------------------------------------------------------------- 奇門遁甲
+
+/** 一宮的內容。中五宮不出現在這裡——它寄坤二，其地盤干另以 centerStem 表示。 */
+export type QimenPalaceCell = {
+  palace: number;
+  gua: string;
+  direction: string;
+  element: string;
+  /** 地盤三奇六儀，固定不動。 */
+  earthStem: string;
+  /** 天盤干，隨九星轉動；坤二宮會同時帶著寄中的中五宮干。 */
+  skyStem: string;
+  star: string;
+  door: string;
+  god: string;
+};
+
+export type QimenChart = {
+  dun: "陽遁" | "陰遁";
+  ju: number;
+  yuan: string;
+  termName: string;
+  termAt: string;
+  /** 定局所用的符頭（日干為甲或己之日）。 */
+  futou: string;
+  dayGanzhi: string;
+  hourGanzhi: string;
+  xunshou: string;
+  xunshouYi: string;
+  zhiFuStar: string;
+  /** 值符星所落宮。時干落中五宮時寄坤二，此時 zhiFuInCenter 為 true。 */
+  zhiFuPalace: number;
+  zhiFuInCenter: boolean;
+  zhiShiDoor: string;
+  zhiShiPalace: number;
+  /** 中五宮的地盤干。它隨天芮／天禽走，不單獨佔一宮。 */
+  centerStem: string;
+  cells: QimenPalaceCell[];
+};
+
 export type YixueChart = {
   /** 對應 SCHOOL_PRESETS 的 id，寫進 council_runs.school_version。 */
   schoolVersion: string;
@@ -203,6 +243,7 @@ export type YixueChart = {
   bazi: BaziChart | null;
   meihua: MeihuaChart | null;
   liuyao: LiuyaoChart | null;
+  qimen: QimenChart | null;
   /** 排盤過程中的降級或存疑事項，會印進 prompt 讓 LLM 知道判讀限制。 */
   warnings: string[];
 };

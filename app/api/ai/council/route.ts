@@ -194,13 +194,14 @@ export async function POST(request: NextRequest) {
     const { reportText, structuredRaw } = extractStructuredBlock(final.text || "");
     const finalOk = hasUsableFinal({ ...final, text: reportText });
     const fallbackUsed = !finalOk;
-    // 共鳴度的計算輸入。覆蓋率算的是「本次啟用的術數裡，有幾個是程式真排盤」——
-    // 奇門目前沒有排盤引擎，啟用它就會拉低這個分數，這是誠實反映而不是懲罰。
+    // 共鳴度的計算輸入。覆蓋率算的是「本次啟用的術數裡，有幾個是程式真排盤」。
+    // 排盤失敗（缺起卦時刻、資料不合法）時該術不計入，分數會跟著降——這是誠實反映。
     const enabledKeys = enabledAspectKeys(councilInput.yixue?.modules);
     const chartedKeys = new Set<string>();
     if (chart?.bazi) chartedKeys.add("bazi");
     if (chart?.meihua) chartedKeys.add("meihua");
     if (chart?.liuyao) chartedKeys.add("liuyao");
+    if (chart?.qimen) chartedKeys.add("qimen");
     const resonanceContext = {
       completeness: chart ? chart.completeness.score : null,
       enabledCount: enabledKeys.length,

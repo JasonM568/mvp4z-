@@ -150,6 +150,7 @@ ${enabledModules(input)}
 【奇門遁甲資料】
 起局方式：${input.yixue?.qimen?.mode || "未填"}
 事件／對方方位：${input.yixue?.qimen?.direction || "未填"}
+（局已由系統排好，含局數、三奇六儀、值符值使、八門八神，見系統排盤區塊）
 
 【卜卦／六爻資料】
 起卦方式：${input.yixue?.liuyao?.mode || "未填"}
@@ -184,6 +185,7 @@ ${enabledModules(input)}
 【奇門遁甲資料】
 起局方式：${input.yixue?.qimen?.mode || "未填"}
 事件／對方方位：${input.yixue?.qimen?.direction || "未填"}
+（局已由系統排好，含局數、三奇六儀、值符值使、八門八神，見系統排盤區塊）
 
 【卜卦／六爻資料】
 起卦方式：${input.yixue?.liuyao?.mode || "未填"}
