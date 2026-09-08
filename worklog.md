@@ -2189,6 +2189,19 @@ SCHOOL-DECISIONS.md 決策 8 附三張完整盤例請老師比對。
 tsc 過；vitest 33 檔 331 passed / 2 skipped。
 四術端到端跑過一次，盤面與共鳴度都正確產出。
 
+### 收工：已上線
+
+三個 commit push 到 main（`e43766a`／`bd13433`／`8908166`），
+Vercel `dpl_DyDqg2WVtvUNTnhQfkfJigL4MRHL` → READY，已掛 `www.xunfeng.tw`。
+
+補做四術全時段掃描（`lib/yixue/sweep.test.ts`）：480 個時刻 × 4 組流派 × 四術。
+第一次跑就抓到一個問題——不是排盤錯，是那條測試 6.6 秒超過 vitest 預設 5 秒逾時，
+單獨跑 4 秒會過、整套並行就掛。**閃爍的測試比沒有測試更糟**，
+它會訓練人把紅燈當雜訊，所以改成明確給 30 秒而不是縮小掃描範圍。連跑三次確認穩定。
+
+正式站煙霧測試：`decision` 頁的 bundle 內確認 `台北時間（UTC+8）`、`Asia/Taipei`、
+`時間依據`、`納甲`、`計算依據` 都在，舊的「不會判斷，請用時間起卦」已消失。
+
 ### 遺留
 
 - 奇門待老師校對（決策 8）
