@@ -2314,3 +2314,32 @@ subset 之後的 glyph ID 被當成字元碼寫出去，字型宣告成 simple f
 
 - 兩項都未經真人驗收
 - 天機書的「下載 PDF」仍是 `window.print()`，可複用產生器但欄位結構不同
+
+### 教訓：部署探針把本機 IP 打到觸發 Vercel Security Checkpoint（2026-09-08）
+
+反證那批（`f1868a6`）**部署是成功的**，`dpl_FrKAAbFxAZtuEyELqCQ2yY5p1Uhi` → READY。
+但我掛的部署探針回報逾時，原因不是部署失敗，是**探針本身把這台機器的 IP 擋掉了**。
+
+探針寫成「抓 /admin/prompt-settings 的 HTML → 取出所有 chunk → 逐一下載 grep」，
+每輪約 9 個請求、跑 60 輪 ＝ 15 分鐘內最多 540 個請求。
+Vercel 的防護判定為異常流量，之後這個 IP 的**所有**請求都回 403
+「Vercel Security Checkpoint」挑戰頁，探針當然永遠找不到目標字串。
+
+**確認過對一般使用者沒有影響**：改用 Vercel 自己的抓取器
+（`web_fetch_vercel_url`）取正式站首頁，回 200、內容完整。403 是 IP 範圍的，
+不是全站封鎖，也不是 Attack Challenge Mode 被打開。
+本機 IP 的 403 在事後數十分鐘仍未解除。
+
+**下次的做法**：
+1. 優先用 Vercel API 查部署狀態（`list_deployments` 看 sha 與 state），
+   那是權威來源，不必碰正式站。
+2. 真的要打正式站煙霧測試，**一輪只打一個請求**、間隔拉到 30 秒以上、
+   總次數控制在 20 次內。先前幾次探針（首頁字串、單一 JS、cron 回 401）
+   都是一輪一個請求，都沒事；這次一輪九個請求就出事。
+3. 不要為了驗證前端字串去掃 chunk。要驗打包內容，直接 grep 本機
+   `.next/static/chunks`——同一份 source、零網路請求。這次最後就是這樣驗的：
+   `.next/static/chunks/app/admin/prompt-settings/page-*.js` 含「原文進入 Prompt」。
+
+**併行工作提醒**：`f1868a6` 之後已有另一個 session 推了三個面相相關 commit
+（`020a54b` 保存上限 30 份、`d97b9d6` 真 PDF、`367d526` 交接）。
+未觸及反證的任何檔案。本機工作區乾淨、與 origin 同步。
