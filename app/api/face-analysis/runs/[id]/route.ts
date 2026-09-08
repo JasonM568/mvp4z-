@@ -7,7 +7,7 @@ import {
   statusError
 } from "@/lib/auth/member";
 import { appendFaceRunEvent, getOwnedPublicRun, getOwnedRun } from "@/lib/face-analysis/runs";
-import { deleteRunImage } from "@/lib/face-analysis/storage";
+import { deleteFacePdf, deleteRunImage } from "@/lib/face-analysis/storage";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -59,6 +59,15 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       throw error;
     }
 
+    // 報告 PDF 一併刪掉。報告從資料庫消失但 PDF 還躺在儲存桶裡，那不叫刪除。
+    // 這裡不因失敗而中止：照片已刪、redact 也該照做完，PDF 殘留是可補的，
+    // 但留下一筆刪一半的紀錄不是。失敗記 log 讓它可被追。
+    try {
+      await deleteFacePdf(profile.id, id);
+    } catch (pdfError) {
+      console.warn("[face] 報告 PDF 刪除失敗，需人工清理", { runId: id, pdfError });
+    }
+
     const { data, error } = await admin.rpc("redact_face_analysis_run", {
       p_run_id: id,
       p_user_id: profile.id
@@ -69,7 +78,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       runId: id,
       userId: profile.id,
       eventType: "run_deleted",
-      metadata: { imageDeleted: Boolean(run.storage_path) }
+      metadata: { imageDeleted: Boolean(run.storage_path), pdfDeleted: true }
     });
     return apiJson({ ok: true, deleted: data });
   } catch (error) {

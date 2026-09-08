@@ -1,4 +1,12 @@
 export const FACE_ANALYSIS_BUCKET = "face-analysis-uploads";
+
+/**
+ * 報告 PDF 的儲存桶，與照片分開。
+ *
+ * 照片有 24 小時刪除的排程，PDF 要跟著報告長期保存——
+ * 放同一個桶遲早會有人把清照片的排程套到 PDF 上。
+ */
+export const FACE_REPORT_PDF_BUCKET = "face-analysis-reports";
 export const FACE_ANALYSIS_CONSENT_VERSION = "2026-08-01";
 export const FACE_IMAGE_RETENTION_HOURS = 24;
 export const FACE_SIGNED_URL_TTL_SECONDS = 300;

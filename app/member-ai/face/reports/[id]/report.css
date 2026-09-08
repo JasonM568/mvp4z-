@@ -47,3 +47,21 @@
   .face-focus-grid article { break-inside: avoid; }
   details > summary { display: none; }
 }
+
+/* PDF 產生失敗時的訊息。放在按鈕正上方——
+   會員按了按鈕沒反應時，視線就在按鈕附近，訊息放頁首他看不到。 */
+.face-report-error {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid #ff8d7a;
+  border-radius: 10px;
+  background: rgba(255, 141, 122, 0.08);
+  color: #ff8d7a;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.face-report-actions .face-primary:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
