@@ -56,7 +56,10 @@ export default function MemberPricingPage() {
           </p>
           <p className="lead" style={{ marginTop: 18 }}>
             還沒決定？<strong>註冊即送 30 點</strong>，付費前先免費體驗。
-            <a className="btn primary" href="/member-ai" style={{ marginLeft: 12 }}>
+            {/* 文案是「進入我的巽風」，就要進會員中心 /member（點數、報告、方案都在那）。
+                原本連到 /member-ai 聊天頁：剛註冊拿到 30 點的人按下去會掉進空白聊天室，
+                看不到自己的點數與報告。 */}
+            <a className="btn primary" href="/member" style={{ marginLeft: 12 }}>
               進入我的巽風
             </a>
           </p>
