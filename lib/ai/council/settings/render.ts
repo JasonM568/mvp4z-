@@ -82,6 +82,7 @@ export function renderReportSkeleton(s: PromptSettings, enabledTerms: string[]):
 
   // 段落順序依風羿老師《綜合判讀與回應規則》第五節：
   // 先給結論 → 關鍵點 → 四象分判 → 四象合參 → 時間節奏 → 風險 → 建議。
+  // 2026-09-07 加入「反證」，掛在合參之後、時間節奏之前（文件沒有這段，是使用者要求）。
   // 完整度檢核、行動方案、專業聲明是文件沒有、但系統要求必備的段落，
   // 分別掛在「分判之前（先交代資料夠不夠）」與「建議之前／報告最後」。
   const head1 = `${num()}、${r.overview.title}\n${numbered(r.overview.items)}`;
@@ -101,6 +102,11 @@ export function renderReportSkeleton(s: PromptSettings, enabledTerms: string[]):
 
   const cross =
     terms.length > 1 ? `${num()}、${r.crossValidation.title}\n${numbered(r.crossValidation.items)}\n\n` : "";
+
+  // 反證緊接在合參之後：合參剛把結論收斂起來，這一段立刻挑戰它，
+  // 讀者才會帶著反面意見往下讀時間節奏與行動方案。
+  // 單術時合參段不出現，反證仍然要出現——一術也可能判錯。
+  const counter = `${num()}、${r.counterEvidence.title}\n${numbered(r.counterEvidence.items)}\n${r.counterEvidence.body}`;
 
   const timing = `${num()}、${r.timing.title}\n${numbered(r.timing.items)}\n${r.timing.body}`;
 
@@ -134,7 +140,9 @@ export function renderReportSkeleton(s: PromptSettings, enabledTerms: string[]):
     "",
     termSections,
     "",
-    `${cross}${timing}`,
+    `${cross}${counter}`,
+    "",
+    timing,
     "",
     risk,
     "",

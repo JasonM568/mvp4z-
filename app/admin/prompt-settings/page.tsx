@@ -271,6 +271,28 @@ function SkeletonTab({ settings, patch }: TabProps) {
         />
       </SectionCard>
 
+      <SectionCard
+        title="反證"
+        hint="排在四象合參之後、時間節奏之前。這是老師寫「要反證什麼」的地方——注意它跟關鍵風險的分工：風險是照這個判斷去做可能出什麼事，反證是這個判斷本身可能就是錯的。"
+      >
+        <TextField
+          label="段落標題"
+          value={r.counterEvidence.title}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.counterEvidence.title = v))}
+        />
+        <StringListEditor
+          label="要反證的項目"
+          values={r.counterEvidence.items}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.counterEvidence.items = v))}
+        />
+        <TextField
+          label="反證規則（這段會原文進入 Prompt）"
+          multiline
+          value={r.counterEvidence.body}
+          onChange={(v) => patch((d) => void (d.reportSkeleton.counterEvidence.body = v))}
+        />
+      </SectionCard>
+
       <SectionCard title="時間節奏" hint="排在四象合參之後。定不出應期時要明說，不可硬給日期。">
         <TextField
           label="段落標題"

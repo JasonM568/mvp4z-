@@ -52,6 +52,26 @@ describe("預設設定健全性", () => {
     );
   });
 
+  it("舊設定沒有 counterEvidence 也要能解析，不得靜默回退預設值", () => {
+    // 2026-09-07 才加的欄位。老師在那之前存的設定沒有它，若設成必填，
+    // parse 會失敗 → loadPromptSettings 回退預設值 → 他整份編輯靜默失效。
+    // 這條測試就是擋這件事；日後在既有設定上加欄位，一律要給 default。
+    const legacy = structuredClone(D) as Record<string, any>;
+    delete legacy.reportSkeleton.counterEvidence;
+
+    const parsed = promptSettingsSchema.safeParse(legacy);
+    expect(parsed.success).toBe(true);
+    // 補進來的預設段落要有標題，否則 render 會產出「、」開頭的空段。
+    expect(parsed.success && parsed.data.reportSkeleton.counterEvidence.title).toBe("反證");
+  });
+
+  it("反證與關鍵風險必須是不同的要求，不可寫成同一件事", () => {
+    // 這兩段最容易被寫成同義複述。預設內容有把分工講清楚才算數。
+    const { counterEvidence, risk } = D.reportSkeleton;
+    expect(counterEvidence.body).toContain("不是把風險換句話說");
+    expect(counterEvidence.body).not.toBe(risk.body);
+  });
+
   it("各術共用小節有帶術數名稱 token，否則四術小結會長一樣", () => {
     expect(D.reportSkeleton.termSubsections.join()).toContain("{{術數名稱}}");
   });

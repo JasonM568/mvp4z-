@@ -113,6 +113,23 @@ export const promptSettingsSchema = z.object({
     /** 每一術獨立判讀的固定小節，各術共用。 */
     termSubsections: z.array(z.string().trim().min(1)).min(1),
     crossValidation: titledSectionSchema,
+    /**
+     * 反證。緊接在四象合參之後——合參剛把結論收斂起來，這一段立刻挑戰它。
+     *
+     * 與「關鍵風險」的分工要分清楚，否則兩段會寫成同一件事：
+     * 風險是「照這個判斷去做，執行上可能出什麼事」，
+     * 反證是「這個判斷本身可能是錯的，錯在哪、什麼證據會推翻它」。
+     *
+     * 有 default 是刻意的：這個欄位在 2026-09-07 才加，老師先前存的設定沒有它。
+     * 若設成必填，舊設定會 parse 失敗 → loadPromptSettings 回退預設值 →
+     * 老師整份已發布的編輯靜默失效，而後台不會有任何人察覺。
+     * 日後新增段落一律比照辦理：**在既有設定上加欄位，必須給 default。**
+     */
+    counterEvidence: titledSectionSchema.default({
+      title: "反證",
+      items: [],
+      body: ""
+    }),
     /** 應期與觀察窗口。定不出來時要明說，不得硬給日期。 */
     timing: titledSectionSchema,
     /** 關鍵風險，最多三項——列十幾項等於沒列。 */
