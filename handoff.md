@@ -29,6 +29,63 @@
 
 ---
 
+## 2026-09-08 收工總結（下半場：面相儲存與 PDF）
+
+> ⚠️ **本次有另一個 Claude session（`session_01KH8bck…`）在同一個工作目錄同時作業**，
+> 它的 commit `f1868a6`（報告反證段落）夾在本 session 的 commit 之間。
+> 兩邊的 commit 內容各自乾淨、沒有互相污染，但**它改寫了 handoff.md 開頭，
+> 導致本段第一次寫入時字串錨點對不上而靜默失敗**（`str.replace` 沒配到不報錯）。
+> 日後在同一目錄多開 session，改 handoff／worklog 一律要驗證寫入結果，不能只寫不看。
+
+### 最新狀態
+
+面相模組補上三件事：**每次分析都保存**（本來就有）、**真正的 PDF 檔可下載**（新做）、
+**每位會員 30 份上限**（新做，滿額擋住由會員自己刪）。
+
+**已 commit、已 push、已部署。** Vercel `dpl_BTZomkfTMznVciNdRfxE7Brsf561` → READY。
+
+| commit | 內容 |
+|---|---|
+| `020a54b` | 保存上限 30 份，滿額擋住新分析；額度顯示與前端預先提醒 |
+| `d97b9d6` | pdfkit 產生真正的 PDF 並存進 Supabase Storage |
+| `367d526` | 交接文件與 CLAUDE.md 約束（**當時漏了 handoff.md，本段為補寫**） |
+
+### ⚠️ 這次最該記住的技術教訓
+
+**pdf-lib 產出通篇亂碼時，API 不報錯、位元組數正常、連字寬量測都正確。**
+
+第一版用 pdf-lib + `subset: true`，測試全綠、43 KB、79 ms，看起來完全成功。
+把 PDF 轉成圖片才看到中文全變成 `! " # $ % & ' ( )`——glyph ID 被當字元碼寫出去。
+若只驗 API 就交付，付費會員會拿到一份通篇亂碼的報告。
+
+改用 pdfkit 後正確。三種方案的對照寫在 `assets/fonts/README.md`。
+**日後換字型或換 PDF 套件，一定要把產出的 PDF 轉圖看過。**
+
+### 驗證
+
+- tsc 過；vitest **345 passed / 2 skipped**；next build 過（105 頁）
+- Vercel trace 檔已確認含字型與 pdfkit 的 14 個 `.afm`（`fs` 讀的檔 Next.js 追蹤不到，
+  靠 `outputFileTracingIncludes` 明寫，否則正式站產 PDF 會 ENOENT）
+- migration `20260908120000_face_report_pdf_bucket` 已套用正式庫
+- 實際產一份 118 KB 的完整報告並人工看過畫面：中英數混排、中文斷行、分頁皆正確
+- **正式站煙霧測試沒做完**：curl 打太多次觸發 Vercel 的機器人防護
+  （`x-vercel-mitigated: challenge`），全站對本機 curl 回 403。
+  **真人用瀏覽器不受影響**，部署狀態經 Vercel API 確認為 READY。
+  下次要驗正式站，改用瀏覽器或降低請求頻率。
+
+### 未完成
+
+- **真人驗收全部未做**：本次兩項、四術排盤，以及 9/05 那批
+  （註冊防刷、付款開通、199 加購、退款試算）
+- 天機書的「下載 PDF」仍是 `window.print()`。面相已有可複用的產生器，
+  但欄位結構不同，要另寫版面
+- 奇門三張校對盤例待風羿老師比對（`docs/specs/yixue-engine/SCHOOL-DECISIONS.md` 決策 8）
+- 流派草稿仍未發布；決策 5／6／7 待簽核
+- 老師的後台操作指引（一頁式）：
+  https://claude.ai/code/artifact/733542af-b00f-4ea2-8a29-17bbae860695
+
+---
+
 ## 2026-09-08 收工總結
 
 ### 最新狀態
