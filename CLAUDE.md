@@ -64,6 +64,11 @@
   但 `.env.example:55` 仍列舊的 `ECPAY_INVOICE_*`，實際讀的是 `EZPAY_INVOICE_*` —— 環境設定要對齊。
   另：只有 `issueInvoice()`，**沒有作廢／折讓**，做退款前要先補。
 - Supabase Auth custom SMTP（Resend）未接；忘記密碼受預設 3 封/小時限制。
+- **面相報告每位會員上限 30 份**（`FACE_REPORT_STORAGE_LIMIT`）。滿額擋住新分析，
+  由會員自己刪，不自動刪最舊的。只計 `completed`。
+- **PDF 一律用 pdfkit，不要換 pdf-lib**。pdf-lib 對 CJK 的 CFF 子集化會產出亂碼，
+  且 API 不報錯、位元組數與字寬量測都正常——換套件或換字型必須把 PDF 轉圖看過。
+  見 `assets/fonts/README.md`。
 - **奇門遁甲排盤待風羿老師校對**（`docs/specs/yixue-engine/SCHOOL-DECISIONS.md` 決策 8）。
   定局法沒有定本，工程無從自證，老師比對三張盤例前不該把奇門判讀當定論。
 - 詳見 `handoff.md` 最新「待辦 / 下次起手式」。

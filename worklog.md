@@ -2256,3 +2256,61 @@ Vercel `dpl_DyDqg2WVtvUNTnhQfkfJigL4MRHL` → READY，已掛 `www.xunfeng.tw`。
 
 **附記**：本次開工時發現六爻與奇門已在 `bd13433`／`8908166` 改為程式排盤
 （「四術排盤引擎全部完成」）。先前 worklog 記的「只有八字是程式排盤」已過時。
+
+
+---
+
+## 2026-09-08（下半場）　面相：保存上限與真正的 PDF
+
+### 需求
+
+「面相的分析模組要能夠儲存每次的分析資料，PDF 檔案都要能讓會員登入在下載，
+每個會員可以存 30 個檔案。」
+
+查證後發現三件裡兩件已經有了：`face_analysis_runs` 本來就永久保存報告，
+`/member-ai/face/history` 也本來就要登入才看得到。真正缺的是 30 份上限，
+以及「PDF」其實是 `window.print()` 而不是一份檔案。
+
+兩個決定問過使用者：滿額**擋住由會員自己刪**（不自動刪最舊的）、
+PDF **產生真正的檔案並存起來**（不維持瀏覽器列印）。
+
+### 保存上限（`020a54b`）
+
+`FACE_REPORT_STORAGE_LIMIT = 30`，只計 `completed`——failed 與 expired 沒有報告可看、
+deleted 已被會員清掉，都不佔額度。一次失敗的分析永久吃掉一格而會員不知道為什麼，
+是這裡最容易犯的錯。
+
+擋在「建立任務」而不是「扣點」：讓會員拍完照、填完同意書再被退回是最糟的順序。
+額度隨列表 API 一起回傳，前端才能在按下「開始」之前就先停用按鈕。
+
+### PDF（`d97b9d6`）——這次最有價值的教訓
+
+先做技術驗證再寫，結果證明這個決定是對的。
+
+第一版 pdf-lib + `subset: true`：**測試全綠、43 KB、79 ms、字寬量測正確**。
+把 PDF 轉成 PNG 一看，中文全部變成 `! " # $ % & ' ( )`——
+subset 之後的 glyph ID 被當成字元碼寫出去，字型宣告成 simple font 而非 Type0/CID。
+
+**API 不報錯、位元組數正常、寬度量測也對。只有看畫面才會發現。**
+
+再測兩種：
+- pdf-lib + OTF `subset: false` → 正確，但 4.9 MB／份
+- pdf-lib + 可變 TTF `subset: true` → 缺字（堪、輿、乙、丙、丑、寅、全部英數消失），字重也錯
+
+換 pdfkit + 同一份 OTF → 正確、33 KB、60 ms。中文斷行與 justify 也正常
+（pdfkit 會在中文字之間斷行，不需要自己寫斷行器）。
+
+實作要點：
+- 字型 5.4 MB 放 `assets/fonts/`，不放 `public/`——它只在伺服器端嵌入 PDF
+- `outputFileTracingIncludes`：fs 讀的檔案 Next.js 追蹤不到，
+  不明寫會在正式站 ENOENT。已驗證 trace 含字型與 pdfkit 的 14 個 `.afm`
+- 新桶 `face-analysis-reports` 與照片桶分開：照片有 24 小時刪除排程，
+  PDF 要跟報告長期保存，同桶遲早會被排程清掉
+- 第一次下載才產、產完存檔。不在 analyze 當下產——那條路徑已在跟 maxDuration 賽跑，
+  PDF 隨時可重產、報告不能
+- 會員刪報告時一併刪 PDF
+
+### 遺留
+
+- 兩項都未經真人驗收
+- 天機書的「下載 PDF」仍是 `window.print()`，可複用產生器但欄位結構不同
