@@ -39,8 +39,13 @@ const FIELD_LABELS: Record<string, string> = {
   lateZiDayPillar: "晚子時日柱",
   earlyLateZiHourPillar: "早晚子時柱",
   termTieBreak: "交節判定",
-  defaultLongitude: "預設經度"
+  defaultLongitude: "預設經度",
+  timeQuaDateBasis: "梅花時間起卦曆法",
+  timeQuaYearNumber: "梅花時間起卦年數"
 };
+
+/** 要比對的設定段落。新增一術就在這裡加一段，其餘邏輯不必動。 */
+const SECTIONS = ["calendar", "meihua"] as const;
 
 export function describeSchoolValue(field: string, value: unknown): string {
   const table = VALUE_LABELS[field];
@@ -54,24 +59,30 @@ export function describeSchoolValue(field: string, value: unknown): string {
  * 回空陣列有兩種意思，呼叫端都當「不必催發布」處理：
  * 沒有草稿，或草稿內容與生效值相同。
  *
- * 刻意只比對 calendar 內的已知欄位：草稿是 DB 來的 jsonb，形狀不可信，
+ * 刻意只比對已知欄位：草稿是 DB 來的 jsonb，形狀不可信，
  * 多出來的欄位一律忽略而不是報錯——這頁的職責是提醒，不是驗證。
+ *
+ * 草稿缺整個段落也不算差異（例如舊草稿沒有 meihua）：那是欄位新增造成的，
+ * 不是老師改的，報出來只會讓真正的改動被雜訊蓋掉。
  */
 export function diffSchool(live: SchoolConfig, draft: unknown): string[] {
   if (!draft || typeof draft !== "object") return [];
-  const draftCalendar = (draft as { calendar?: unknown }).calendar;
-  if (!draftCalendar || typeof draftCalendar !== "object") return [];
-
-  const after = draftCalendar as Record<string, unknown>;
-  const before = live.calendar as unknown as Record<string, unknown>;
 
   const changes: string[] = [];
-  for (const field of Object.keys(FIELD_LABELS)) {
-    if (!(field in after)) continue;
-    if (before[field] === after[field]) continue;
-    changes.push(
-      `${FIELD_LABELS[field]}：${describeSchoolValue(field, before[field])} → ${describeSchoolValue(field, after[field])}`
-    );
+  for (const section of SECTIONS) {
+    const draftSection = (draft as Record<string, unknown>)[section];
+    if (!draftSection || typeof draftSection !== "object") continue;
+
+    const after = draftSection as Record<string, unknown>;
+    const before = (live as unknown as Record<string, Record<string, unknown>>)[section] || {};
+
+    for (const field of Object.keys(FIELD_LABELS)) {
+      if (!(field in after)) continue;
+      if (before[field] === after[field]) continue;
+      changes.push(
+        `${FIELD_LABELS[field]}：${describeSchoolValue(field, before[field])} → ${describeSchoolValue(field, after[field])}`
+      );
+    }
   }
   return changes;
 }

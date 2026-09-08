@@ -14,6 +14,10 @@ const LIVE: SchoolConfig = {
     lateZiDayPillar: "next",
     earlyLateZiHourPillar: "split",
     termTieBreak: "instant"
+  },
+  meihua: {
+    timeQuaDateBasis: "農曆",
+    timeQuaYearNumber: "地支序"
   }
 };
 

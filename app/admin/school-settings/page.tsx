@@ -26,9 +26,15 @@ type SchoolConfig = {
     earlyLateZiHourPillar: "split" | "merge";
     termTieBreak: "instant" | "day";
   };
+  meihua: {
+    timeQuaDateBasis: "農曆" | "國曆";
+    timeQuaYearNumber: "地支序" | "農曆年數";
+  };
 };
 
 type FieldGuide = {
+  /** 設定落在哪一段（calendar / meihua …）。新增一術就多一段，這頁不必改。 */
+  section: string;
   path: string;
   title: string;
   why: string;
@@ -130,8 +136,12 @@ export default function SchoolSettingsPage() {
     return () => clearTimeout(t);
   }, [settings, birth, state, runPreview]);
 
-  function setCalendarField(path: string, value: string) {
-    setSettings((prev) => (prev ? { ...prev, calendar: { ...prev.calendar, [path]: value } } : prev));
+  function setSchoolField(section: string, path: string, value: string) {
+    setSettings((prev) => {
+      if (!prev) return prev;
+      const current = (prev as unknown as Record<string, Record<string, unknown>>)[section] || {};
+      return { ...prev, [section]: { ...current, [path]: value } } as SchoolConfig;
+    });
     setMessage("");
   }
 
@@ -215,9 +225,10 @@ export default function SchoolSettingsPage() {
       <div className="admin-detail">
         <div>
           {state.field_guide.map((field) => {
-            const current = (settings.calendar as unknown as Record<string, string>)[field.path];
+            const section = (settings as unknown as Record<string, Record<string, string>>)[field.section] || {};
+            const current = section[field.path];
             return (
-              <div className="kpi-card" key={field.path} style={{ marginBottom: 18 }}>
+              <div className="kpi-card" key={`${field.section}.${field.path}`} style={{ marginBottom: 18 }}>
                 <div className="admin-section-title" style={{ marginTop: 0 }}>{field.title}</div>
                 <p className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 13, lineHeight: 1.8 }}>
                   {field.why}
@@ -239,9 +250,9 @@ export default function SchoolSettingsPage() {
                     >
                       <input
                         type="radio"
-                        name={field.path}
+                        name={`${field.section}.${field.path}`}
                         checked={current === opt.value}
-                        onChange={() => setCalendarField(field.path, opt.value)}
+                        onChange={() => setSchoolField(field.section, field.path, opt.value)}
                         style={{ marginTop: 4 }}
                       />
                       <span>

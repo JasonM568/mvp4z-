@@ -4,7 +4,7 @@
 // - 全部是純資料，可 JSON.stringify，不含 class instance、Date、function。
 // - 各術的盤面欄位隨該術的 Phase 加入，不預先開空欄位。
 //
-// 目前實作範圍：Phase 0 曆法底座與四柱。
+// 目前實作範圍：Phase 0 曆法底座與四柱、Phase 1 梅花易數。
 
 /** 干支。label 是「甲子」這種合寫，方便直接印進報告。 */
 export type StemBranch = {
@@ -70,6 +70,60 @@ export type BaziChart = {
   monthOrder: MonthOrder;
 };
 
+// ---------------------------------------------------------------- 梅花易數
+
+/** 八卦的對外摘要。不外流 lines 以外的內部結構，下游只需要這四項。 */
+export type TrigramSummary = {
+  name: string;
+  /** 自然象：天、澤、火、雷、風、水、山、地。 */
+  nature: string;
+  element: string;
+  symbol: string;
+};
+
+export type HexagramSummary = {
+  name: string;
+  upper: TrigramSummary;
+  lower: TrigramSummary;
+  /** 六爻陰陽，index 0 為初爻（最下）。true 為陽爻。 */
+  lines: boolean[];
+};
+
+/** 體用生剋的五種關係。吉凶由此推，不由模型自由發揮。 */
+export type TiYongRelation = "用生體" | "體生用" | "用剋體" | "體剋用" | "比和";
+
+export type TiYongJudgement = {
+  relation: TiYongRelation;
+  note: string;
+};
+
+/** 梅花起卦來源。三種起卦方式的輸入形狀不同，用 discriminated union 而非選填欄位。 */
+export type MeihuaSource =
+  | { mode: "時間起卦" }
+  | { mode: "數字起卦"; numbers: number[] }
+  | { mode: "上下卦起卦"; upper: string; lower: string; movingLine: number };
+
+export type MeihuaChart = {
+  mode: MeihuaSource["mode"];
+  /** 起卦數字的完整推導過程，供老師逐步驗算。 */
+  derivation: Array<{ label: string; value: number; note?: string }>;
+  upperNumber: number;
+  lowerNumber: number;
+  /** 動爻爻位 1–6。 */
+  movingLine: number;
+  /** 本卦：事情的當下狀態。 */
+  ben: HexagramSummary;
+  /** 互卦：事情發展的中間過程。 */
+  hu: HexagramSummary;
+  /** 變卦：事情的結果。 */
+  bian: HexagramSummary;
+  ti: { position: "上卦" | "下卦"; trigram: TrigramSummary };
+  yong: { position: "上卦" | "下卦"; trigram: TrigramSummary };
+  tiYong: TiYongJudgement;
+  huToTi: { upper: TiYongJudgement; lower: TiYongJudgement };
+  bianToTi: TiYongJudgement;
+};
+
 export type YixueChart = {
   /** 對應 SCHOOL_PRESETS 的 id，寫進 council_runs.school_version。 */
   schoolVersion: string;
@@ -83,6 +137,7 @@ export type YixueChart = {
   resolvedTime: ResolvedTime;
   completeness: Completeness;
   bazi: BaziChart | null;
+  meihua: MeihuaChart | null;
   /** 排盤過程中的降級或存疑事項，會印進 prompt 讓 LLM 知道判讀限制。 */
   warnings: string[];
 };

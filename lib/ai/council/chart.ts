@@ -6,7 +6,13 @@
 //
 // 排盤失敗一律回 null 讓報告照常產出——引擎的 bug 不該有能力讓收費產品下線。
 
-import { buildYixueChart, type BirthInput, type YixueChart } from "@/lib/yixue";
+import {
+  buildYixueChart,
+  type BirthInput,
+  type DivinationTimeInput,
+  type MeihuaSource,
+  type YixueChart
+} from "@/lib/yixue";
 import type { SchoolConfig } from "@/lib/yixue/school/types";
 import type { CouncilInput } from "./personas";
 
@@ -54,6 +60,73 @@ export function toBirthInput(input: CouncilInput): BirthInput | null {
   };
 }
 
+/**
+ * 起卦／起局時刻。
+ *
+ * 優先序：梅花自填的起卦時間 → 表單的事件時間。兩者常常不同——
+ * 「現在時間」起卦取的是送出的當下，事件時間則是問事所指的時點。
+ * 起卦要用前者，取不到才退而求其次，並在盤上留 warning 說明用了哪一個。
+ */
+export function toDivinationTime(input: CouncilInput): DivinationTimeInput | null {
+  const raw = input.yixue?.meihua?.time;
+  if (typeof raw === "string") {
+    // 前端固定送 "YYYY-MM-DD HH:mm"。用正則而非 new Date()，
+    // 避免不同執行環境對這個格式的時區解讀不一致（Node 會當 UTC，瀏覽器當當地）。
+    const m = raw.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})/);
+    if (m) {
+      return {
+        year: Number(m[1]),
+        month: Number(m[2]),
+        day: Number(m[3]),
+        hour: Number(m[4]),
+        minute: Number(m[5])
+      };
+    }
+  }
+
+  const e = input.yixue?.eventTime;
+  const year = optionalNum(e?.year);
+  const month = optionalNum(e?.month);
+  const day = optionalNum(e?.day);
+  if (year === null || month === null || day === null) return null;
+  return {
+    year,
+    month,
+    day,
+    hour: optionalNum(e?.hour) ?? 0,
+    minute: optionalNum(e?.minute) ?? 0
+  };
+}
+
+/**
+ * 梅花起卦來源。
+ *
+ * 數字起卦一律回傳原始數字，不採用前端算好的上下卦——前端那份是為了即時預覽，
+ * 真正出報告的盤必須由引擎重算，否則「程式排盤」又變成「相信前端」。
+ */
+export function toMeihuaSource(input: CouncilInput): MeihuaSource {
+  const m = input.yixue?.meihua;
+  const mode = m?.mode;
+
+  if (mode === "數字起卦") {
+    const numbers = (m?.numbers || [])
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n) && n !== 0);
+    if (numbers.length) return { mode: "數字起卦", numbers };
+    // 勾了數字起卦卻沒填數字：退回時間起卦，比排不出卦好。
+    return { mode: "時間起卦" };
+  }
+
+  if (mode === "上下卦起卦" && m?.upperTrigram && m?.lowerTrigram) {
+    const movingLine = Number(m.movingLine);
+    if (Number.isInteger(movingLine) && movingLine >= 1 && movingLine <= 6) {
+      return { mode: "上下卦起卦", upper: m.upperTrigram, lower: m.lowerTrigram, movingLine };
+    }
+  }
+
+  return { mode: "時間起卦" };
+}
+
 export function buildChartForCouncil(
   input: CouncilInput,
   school: SchoolConfig
@@ -64,7 +137,12 @@ export function buildChartForCouncil(
   const started = Date.now();
   try {
     const chart = buildYixueChart(
-      { birth, modules: input.yixue?.modules || { bazi: true } },
+      {
+        birth,
+        modules: input.yixue?.modules || { bazi: true },
+        divinationTime: toDivinationTime(input),
+        meihua: toMeihuaSource(input)
+      },
       school
     );
     return { chart: { ...chart, computeMs: Date.now() - started }, computeMs: Date.now() - started, error: null };

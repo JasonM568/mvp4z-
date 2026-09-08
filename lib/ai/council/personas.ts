@@ -83,20 +83,30 @@ function enabledModules(input: CouncilInput) {
   return names.length ? names.join("、") : "未指定";
 }
 
+/**
+ * 梅花輸入資料。
+ *
+ * 2026-09-08 起這裡只列「使用者輸入了什麼」，不再要求模型推算——
+ * 卦象由排盤引擎算好放在 chartBlock（renderChartForPrompt 的梅花段）。
+ *
+ * 舊版這裡有一句「請依此時間推算上下卦與動爻」，等於叫模型心算起卦，
+ * 而它算錯不會有任何人發現。留著會讓模型另起一組卦跟真盤打架，故移除。
+ */
 function meihuaBlock(m: YixuePayload["meihua"]): string {
   const mode = m?.mode || "未填";
   const lines = [`起卦方式：${mode}`];
   if (mode === "時間起卦") {
     lines.push(`時間依據：${m?.timeMode || "現在時間"}`);
     lines.push(`起卦時間：${m?.time || "未提供"}`);
-    lines.push("請依此時間推算上下卦與動爻");
+    lines.push("（卦象已由系統起好，見系統排盤區塊）");
     return lines.join("\n");
   }
   if (Array.isArray(m?.numbers) && m.numbers.length) {
-    lines.push(`輸入數字：${m.numbers.join("、")}（已依先天八卦數換算）`);
+    lines.push(`輸入數字：${m.numbers.join("、")}`);
   }
   lines.push(`上卦：${m?.upperTrigram || "未填"}　下卦：${m?.lowerTrigram || "未填"}`);
   lines.push(`動爻：${m?.movingLine || "未填"}`);
+  lines.push("（卦象已由系統起好，見系統排盤區塊）");
   return lines.join("\n");
 }
 

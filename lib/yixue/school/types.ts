@@ -52,6 +52,30 @@ export type CalendarSchool = {
   termTieBreak: "instant" | "day";
 };
 
+/**
+ * 梅花易數。目前只有時間起卦有流派分歧——數字起卦與直接指定上下卦
+ * 沒有可爭議的空間，所以不開旋鈕。
+ */
+export type MeihuaSchool = {
+  /**
+   * 時間起卦數的是哪一種曆法的年月日。
+   * - 農曆：邵雍原法，數農曆月與農曆日（主流）
+   * - 國曆：直接數國曆月日
+   *
+   * 分歧盤例見 SCHOOL-DECISIONS.md 決策 5。
+   */
+  timeQuaDateBasis: "農曆" | "國曆";
+
+  /**
+   * 年數怎麼取。
+   * - 地支序：子1、丑2…亥12（主流，數字小、與月日同量級）
+   * - 農曆年數：直接用 2026 這種四位數
+   *
+   * 兩者的餘數幾乎必然不同，等於整組卦都會變。見決策 6。
+   */
+  timeQuaYearNumber: "地支序" | "農曆年數";
+};
+
 export type SchoolConfig = {
   /** 版本 id，會寫進 council_runs.school_version，讓歷史報告可重現。 */
   id: string;
@@ -60,4 +84,5 @@ export type SchoolConfig = {
   decidedAt: string;
   decidedBy: string;
   calendar: CalendarSchool;
+  meihua: MeihuaSchool;
 };

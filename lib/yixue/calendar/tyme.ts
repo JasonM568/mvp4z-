@@ -163,3 +163,47 @@ export function solarTermAt(year: number, index: number): { name: string; at: st
 }
 
 export const SOLAR_TERM_NAMES: readonly string[] = SOLAR_TERMS;
+
+// ---------------------------------------------------------------- 農曆與地支序（梅花、六爻起卦用）
+
+/**
+ * 取農曆年月日與該年的年支序。
+ *
+ * 梅花「年月日時起卦法」數的是農曆日期，不是國曆——這是流派可切換項
+ * （見 SCHOOL-DECISIONS.md 決策 5），但兩派都需要農曆值才能比較，所以一律提供。
+ *
+ * branchIndex 為 tyme4ts 的地支 index（子=0）。易學數卦時子算 1，
+ * 由呼叫端 +1，不在此處偷偷加，避免「這個 1 是哪來的」變成無人敢動的魔術數字。
+ *
+ * lateZiDayPillar 沿用曆法流派（決策 1）：晚子時（23:00–23:59）若判定已屬隔日，
+ * 這裡的農曆日也要跟著進位。不跟會出現同一份報告裡「八字用隔日、梅花用當日」
+ * 的內部矛盾——那比兩派選錯更糟，因為它兩派都不是。
+ */
+export function lunarDateOf(t: SolarTime, lateZiDayPillar: "next" | "same" = "same"): {
+  year: number;
+  /** 月份取絕對值；閏月以 isLeapMonth 表示，不用負數外流。 */
+  month: number;
+  isLeapMonth: boolean;
+  day: number;
+  /** 農曆年的年支 index，子=0。 */
+  yearBranchIndex: number;
+} {
+  const base = t.getLunarHour().getLunarDay();
+  const lunarDay = lateZiDayPillar === "next" && t.getHour() === 23 ? base.next(1) : base;
+  const lunarMonth = lunarDay.getLunarMonth();
+  const rawMonth = lunarMonth.getMonth();
+  return {
+    year: lunarMonth.getYear(),
+    month: Math.abs(rawMonth),
+    isLeapMonth: rawMonth < 0,
+    day: lunarDay.getDay(),
+    yearBranchIndex: lunarMonth.getLunarYear().getSixtyCycle().getEarthBranch().getIndex()
+  };
+}
+
+/** 國曆年月日。時間起卦的「國曆派」用。 */
+export function solarDateOf(t: SolarTime): { year: number; month: number; day: number } {
+  return { year: t.getYear(), month: t.getMonth(), day: t.getDay() };
+}
+
+export const EARTH_BRANCH_NAMES: readonly string[] = EARTH_BRANCHES;

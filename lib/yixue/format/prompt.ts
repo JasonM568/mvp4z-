@@ -5,7 +5,7 @@
 //
 // 措辭刻意強調「既定事實」——沒有這句，模型會自行腦補一組干支然後跟盤面打架。
 
-import type { YixueChart } from "../types";
+import type { MeihuaChart, YixueChart } from "../types";
 
 export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): string {
   const t = chart.resolvedTime;
@@ -31,8 +31,14 @@ export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): st
     lines.push(
       "",
       `四柱：年 ${p.year.ganzhi.label}　月 ${p.month.ganzhi.label}　日 ${p.day.ganzhi.label}　時 ${hour}`,
-      `月令：${chart.bazi.monthOrder.term}（交節 ${chart.bazi.monthOrder.termAt}），距節 ${chart.bazi.monthOrder.daysIntoTerm} 天`
+      // daysIntoTerm 是浮點（起運要用到小數），但直接印會漏出 27.312109030783176 這種數字。
+      // 盤面保留原值，只在對外顯示時取到小數一位。
+      `月令：${chart.bazi.monthOrder.term}（交節 ${chart.bazi.monthOrder.termAt}），距節 ${chart.bazi.monthOrder.daysIntoTerm.toFixed(1)} 天`
     );
+  }
+
+  if (chart.meihua) {
+    lines.push("", ...meihuaLines(chart.meihua));
   }
 
   lines.push("", `資料完整度：${chart.completeness.score} 分`);
@@ -47,12 +53,48 @@ export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): st
   return lines.join("\n");
 }
 
+/**
+ * 梅花盤面。
+ *
+ * 推導過程逐步列出不是為了給模型看，是為了讓老師與會員能驗算——
+ * 「程式算的」如果不能被檢查，跟「模型編的」在可信度上沒有差別。
+ */
+function meihuaLines(m: MeihuaChart): string[] {
+  const out: string[] = [
+    "【梅花易數．系統起卦】",
+    `起卦方式：${m.mode}`,
+    ...m.derivation.map((d) => `　${d.label}：${d.value}${d.note ? `（${d.note}）` : ""}`),
+    "",
+    `本卦：${m.ben.name}（上${m.ben.upper.name} 下${m.ben.lower.name}）　動爻：第 ${m.movingLine} 爻`,
+    `互卦：${m.hu.name}（上${m.hu.upper.name} 下${m.hu.lower.name}）`,
+    `變卦：${m.bian.name}（上${m.bian.upper.name} 下${m.bian.lower.name}）`,
+    `體卦：${m.ti.position} ${m.ti.trigram.name}（${m.ti.trigram.element}）　用卦：${m.yong.position} ${m.yong.trigram.name}（${m.yong.trigram.element}）`,
+    `體用關係：${m.tiYong.relation}——${m.tiYong.note}`,
+    `互卦對體（事情發展過程）：上互 ${m.hu.upper.name}（${m.hu.upper.element}）為 ${m.huToTi.upper.relation}；下互 ${m.hu.lower.name}（${m.hu.lower.element}）為 ${m.huToTi.lower.relation}`,
+    `變卦對體（事情結果）：${m.bianToTi.relation}——${m.bianToTi.note}`,
+    "",
+    "以上卦象、動爻、體用與生剋關係皆由系統依梅花易數起卦法計算，為既定事實。",
+    "請就此盤解讀，不得自行改起卦、改動爻、改體用，也不得另算一組卦象。"
+  ];
+  return out;
+}
+
 /** 第二輪用的短摘要。第二輪是攻擊第一輪的文字，不需要重讀完整盤面。 */
 export function renderChartDigest(chart: YixueChart): string {
-  if (!chart.bazi) return `系統排盤：資料完整度 ${chart.completeness.score} 分`;
-  const p = chart.bazi.pillars;
-  const hour = p.hour ? p.hour.ganzhi.label : "無時柱";
-  return `系統排盤（既定事實）：四柱 ${p.year.ganzhi.label} ${p.month.ganzhi.label} ${p.day.ganzhi.label} ${hour}；月令 ${chart.bazi.monthOrder.term}；完整度 ${chart.completeness.score} 分`;
+  const parts: string[] = [];
+  if (chart.bazi) {
+    const p = chart.bazi.pillars;
+    const hour = p.hour ? p.hour.ganzhi.label : "無時柱";
+    parts.push(
+      `四柱 ${p.year.ganzhi.label} ${p.month.ganzhi.label} ${p.day.ganzhi.label} ${hour}；月令 ${chart.bazi.monthOrder.term}`
+    );
+  }
+  if (chart.meihua) {
+    const m = chart.meihua;
+    parts.push(`梅花 本卦${m.ben.name}／互${m.hu.name}／變${m.bian.name}，動第 ${m.movingLine} 爻，${m.tiYong.relation}`);
+  }
+  if (!parts.length) return `系統排盤：資料完整度 ${chart.completeness.score} 分`;
+  return `系統排盤（既定事實）：${parts.join("；")}；完整度 ${chart.completeness.score} 分`;
 }
 
 function fmt(n: number): string {
