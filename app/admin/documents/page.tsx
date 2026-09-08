@@ -28,14 +28,16 @@ const TERM_LABELS = { bazi: "八字", qimen: "奇門", liuyao: "六爻", meihua:
 
 export default function AdminDocumentsPage() {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  const [budget, setBudget] = useState(6000);
+  const [budget, setBudget] = useState(24000);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  // 一次可選多個檔案。老師手上是一整組 .md，一次一個傳到第五個就會放棄。
+  const [files, setFiles] = useState<File[]>([]);
+  const [progress, setProgress] = useState("");
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("reference");
+  const [category, setCategory] = useState("principle");
   const [term, setTerm] = useState("");
   // 生效狀態一律問後端，不從 documents 自己推算——這頁的舊 KPI 正是這樣算錯的。
   const { status: effective, failed: effectiveFailed, refresh: refreshEffective } = useEffectiveStatus();
@@ -53,7 +55,7 @@ export default function AdminDocumentsPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "讀取文件失敗");
       setDocuments(body.documents || []);
-      setBudget(body.char_budget || 6000);
+      setBudget(body.char_budget || 24000);
       if (body.setup_required) setError(body.setup_required);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "讀取文件失敗");
@@ -66,32 +68,63 @@ export default function AdminDocumentsPage() {
     void load();
   }, []);
 
+  /**
+   * 上傳。一次可選多個檔案，逐一送出。
+   *
+   * 刻意循序而不是 Promise.all：後端每筆都要抽文字與計字數，同時打過去
+   * 只會讓其中幾筆逾時而且看不出是哪幾筆。循序慢一點，但每一筆的成敗都明確。
+   *
+   * 單筆失敗不中止整批——已經成功的那幾份不該因為第五份壞掉而白傳。
+   */
   async function upload(event: FormEvent) {
     event.preventDefault();
-    if (!file) return setError("請先選擇 .txt 或 .md 檔案");
+    if (!files.length) return setError("請先選擇 .txt 或 .md 檔案（可一次選多個）");
     setSaving(true);
     setError("");
     setMessage("");
-    try {
-      const form = new FormData();
-      form.set("file", file);
-      form.set("title", title || file.name.replace(/\.[^.]+$/, ""));
-      form.set("category", category);
-      form.set("term", term);
-      const response = await adminFetch("/api/admin/documents", { method: "POST", body: form });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "上傳失敗");
-      setFile(null);
-      setTitle("");
-      setMessage(`已上傳「${body.document.title}」，預設尚未納入報告。`);
-      const input = document.getElementById("document-file") as HTMLInputElement | null;
-      if (input) input.value = "";
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "上傳失敗");
-    } finally {
-      setSaving(false);
+    setProgress("");
+
+    const done: string[] = [];
+    const failed: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const current = files[i];
+      setProgress(`上傳中 ${i + 1} / ${files.length}：${current.name}`);
+      try {
+        const form = new FormData();
+        form.set("file", current);
+        // 多檔時標題一律取檔名：一個標題欄位配多個檔案只會讓它們全部同名。
+        form.set(
+          "title",
+          files.length === 1 && title ? title : current.name.replace(/\.[^.]+$/, "")
+        );
+        form.set("category", category);
+        form.set("term", term);
+        const response = await adminFetch("/api/admin/documents", { method: "POST", body: form });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || "上傳失敗");
+        done.push(body.document.title);
+      } catch (caught) {
+        failed.push(`${current.name}（${caught instanceof Error ? caught.message : "上傳失敗"}）`);
+      }
     }
+
+    setProgress("");
+    setFiles([]);
+    setTitle("");
+    const input = document.getElementById("document-file") as HTMLInputElement | null;
+    if (input) input.value = "";
+
+    if (done.length) {
+      setMessage(
+        `已上傳 ${done.length} 份：${done.join("、")}。` +
+          `\n⚠️ 全部預設「未納入報告」，請到下方清單逐一勾選「納入」才會進入報告。`
+      );
+    }
+    if (failed.length) setError(`${failed.length} 份失敗：${failed.join("；")}`);
+
+    await load();
+    setSaving(false);
   }
 
   async function update(id: string, patch: Partial<Pick<DocumentRow, "title" | "category" | "term" | "include_in_prompt">>) {
@@ -140,13 +173,49 @@ export default function AdminDocumentsPage() {
         <div style={{ height: 8, background: "rgba(255,255,255,.1)", borderRadius: 20, overflow: "hidden", marginTop: 10 }}>
           <div style={{ width: `${percentage}%`, height: "100%", background: includedChars > budget * 0.85 ? "#e6a95c" : "var(--green)" }} />
         </div>
-        <p className="muted">這段內容每份報告會送入多次模型呼叫，因此後端固定限制在 {budget.toLocaleString()} 字內。</p>
+        <p className="muted">
+          勾選「納入」的文件會整段送進報告的 Prompt（第一輪三個模型 ＋ 終稿，共 4 次），
+          所以總字數上限為 {budget.toLocaleString()} 字。
+        </p>
+        {includedChars > budget ? (
+          <p style={{ color: "#ff8d7a", fontWeight: 700, marginTop: 8 }}>
+            ⚠️ 已超出 {(includedChars - budget).toLocaleString()} 字。超出的部分會被截斷成
+            「⋯（後略）」，排在後面的文件甚至完全不會進入報告。請取消勾選部分文件，
+            或把內容精簡後重新上傳。
+          </p>
+        ) : (
+          <p className="muted" style={{ marginTop: 6 }}>
+            可上傳的檔案<strong>數量沒有上限</strong>；真正的限制是這裡的總字數。
+            上傳後預設「未納入」，要勾選才會進入報告。
+          </p>
+        )}
       </section>
 
       <form onSubmit={upload} style={{ display: "grid", gap: 12, maxWidth: 760, margin: "20px 0 28px" }}>
         <h2 style={{ margin: 0 }}>上傳文件</h2>
-        <input id="document-file" type="file" accept=".txt,.md,text/plain,text/markdown" onChange={(event) => { const selected = event.target.files?.[0] || null; setFile(selected); if (selected && !title) setTitle(selected.name.replace(/\.[^.]+$/, "")); }} />
-        <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="文件標題" maxLength={160} />
+        <input
+          id="document-file"
+          type="file"
+          multiple
+          accept=".txt,.md,text/plain,text/markdown"
+          onChange={(event) => {
+            const selected = Array.from(event.target.files || []);
+            setFiles(selected);
+            if (selected.length === 1 && !title) setTitle(selected[0].name.replace(/\.[^.]+$/, ""));
+            if (selected.length > 1) setTitle("");
+          }}
+        />
+        <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.8 }}>
+          可一次選多個檔案（.txt 或 .md，單檔 2MB 以內）。檔案數量沒有上限；
+          下方的「分類」與「術別」只是標籤，不限制可上傳的份數。
+        </p>
+        {files.length > 1 ? (
+          <p style={{ margin: 0, fontSize: 13 }}>
+            已選 {files.length} 個檔案，標題將自動取檔名：{files.map((f) => f.name).join("、")}
+          </p>
+        ) : (
+          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="文件標題" maxLength={160} />
+        )}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <select value={category} onChange={(event) => setCategory(event.target.value)}>
             {Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -155,11 +224,14 @@ export default function AdminDocumentsPage() {
             <option value="">不限術別</option>
             {Object.entries(TERM_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          <button className="admin-action-btn" type="submit" disabled={saving}>{saving ? "上傳中…" : "上傳文件"}</button>
+          <button className="admin-action-btn" type="submit" disabled={saving}>
+            {saving ? "上傳中…" : files.length > 1 ? `上傳 ${files.length} 份文件` : "上傳文件"}
+          </button>
         </div>
       </form>
 
-      {message && <p style={{ color: "var(--green)" }}>{message}</p>}
+      {progress && <p className="muted" style={{ whiteSpace: "pre-wrap" }}>{progress}</p>}
+      {message && <p style={{ color: "var(--green)", whiteSpace: "pre-wrap" }}>{message}</p>}
       {error && <p style={{ color: "#ffb7b7" }}>{error}</p>}
 
       <div className="admin-table-wrap">
