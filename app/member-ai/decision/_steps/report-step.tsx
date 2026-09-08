@@ -65,7 +65,10 @@ export function ReportStep({
               <ResonanceRing value={structured.resonance} />
               <div className="xf-resonance-text">
                 <div className="xf-resonance-label">{resonanceLabel(structured.aspects.length)}</div>
-                <p>四套古法交叉驗算的結論一致程度。共鳴度越高，代表不同術數指向同一個方向。</p>
+                <p>由各術結論方向的一致度、判讀確信度、排盤資料完整度與排盤覆蓋率計算，區間 60–90 分。</p>
+                {structured.resonanceBasis?.note && (
+                  <p className="xf-resonance-basis">計算依據：{structured.resonanceBasis.note}。</p>
+                )}
               </div>
             </article>
 

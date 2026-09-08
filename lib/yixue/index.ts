@@ -9,14 +9,22 @@
 // ★ 只在 server 使用。client 端一律 `import type`，否則 tyme4ts 會進瀏覽器 bundle。
 
 import type { SchoolConfig } from "./school/types";
-import type { Completeness, MeihuaChart, MeihuaSource, YixueChart } from "./types";
+import type {
+  Completeness,
+  LiuyaoChart,
+  LiuyaoSource,
+  MeihuaChart,
+  MeihuaSource,
+  YixueChart
+} from "./types";
 import { buildMonthOrder, buildPillars } from "./calendar/pillars";
 import { resolveBirthTime, type BirthInput } from "./calendar/resolve";
 import { makeSolarTime } from "./calendar/tyme";
 import { buildMeihuaChart } from "./meihua/meihua";
+import { buildLiuyaoChart } from "./liuyao/liuyao";
 
 /** 改演算法就要進版，讓 golden set 對得上。 */
-export const ENGINE_VERSION = "0.2.0-meihua";
+export const ENGINE_VERSION = "0.3.0-liuyao";
 
 export type YixueModules = {
   bazi?: boolean;
@@ -48,7 +56,15 @@ export type YixueEngineInput = {
   divinationTime?: DivinationTimeInput | null;
   /** 梅花起卦來源。未提供時視為時間起卦。 */
   meihua?: MeihuaSource | null;
+  /** 六爻起卦來源。未提供時視為時間起卦。 */
+  liuyao?: LiuyaoSource | null;
+  /** 六爻自己的起卦時刻。未提供時沿用 divinationTime。 */
+  liuyaoTime?: DivinationTimeInput | null;
 };
+
+function toSolar(t: DivinationTimeInput | null | undefined) {
+  return t ? makeSolarTime(t.year, t.month, t.day, t.hour, t.minute) : null;
+}
 
 /** 各項缺漏對完整度的扣分。時辰缺漏影響最大——整根時柱不成立。 */
 const COMPLETENESS_PENALTY: Record<string, number> = {
@@ -77,21 +93,16 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
 
   const allWarnings = [...warnings];
 
+  // 起卦時刻只解析一次，梅花與六爻共用——同一份報告不該對「現在」有兩種認知。
+  const divTime = toSolar(input.divinationTime);
+  const liuyaoTime = toSolar(input.liuyaoTime) || divTime;
+
   // 梅花。起卦失敗只降級成 null 並留下 warning——排不出卦不該讓整份報告掛掉，
   // 但也絕不能靜默略過，否則又回到「模型自己編一個卦」的老問題。
   let meihua: MeihuaChart | null = null;
   if (input.modules.meihua) {
     const source: MeihuaSource = input.meihua || { mode: "時間起卦" };
     const needsTime = source.mode === "時間起卦";
-    const divTime = input.divinationTime
-      ? makeSolarTime(
-          input.divinationTime.year,
-          input.divinationTime.month,
-          input.divinationTime.day,
-          input.divinationTime.hour,
-          input.divinationTime.minute
-        )
-      : null;
 
     if (needsTime && !divTime) {
       allWarnings.push("梅花易數：缺少起卦時刻，本次未排卦。");
@@ -104,6 +115,22 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
     }
   }
 
+  // 六爻。與梅花同樣的降級原則：排不出來就留 warning，不讓報告掛掉、也不靜默略過。
+  let liuyao: LiuyaoChart | null = null;
+  if (input.modules.liuyao) {
+    const source: LiuyaoSource = input.liuyao || { mode: "時間起卦" };
+    // 六爻無論哪種起卦方式都需要時刻——月建、日辰、旬空、六神全由它決定。
+    if (!liuyaoTime) {
+      allWarnings.push("六爻：缺少起卦時刻，無法定月建與日辰，本次未排卦。");
+    } else {
+      try {
+        liuyao = buildLiuyaoChart(source, school, liuyaoTime);
+      } catch (error) {
+        allWarnings.push(`六爻：起卦失敗（${error instanceof Error ? error.message : String(error)}），本次未排卦。`);
+      }
+    }
+  }
+
   return {
     schoolVersion: school.id,
     engineVersion: ENGINE_VERSION,
@@ -111,10 +138,11 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
     completeness: scoreCompleteness(missing),
     bazi,
     meihua,
+    liuyao,
     warnings: allWarnings
   };
 }
 
 export type { BirthInput };
-export type { YixueChart, MeihuaChart, MeihuaSource } from "./types";
+export type { YixueChart, MeihuaChart, MeihuaSource, LiuyaoChart, LiuyaoSource } from "./types";
 export { resolveSchool, ACTIVE_SCHOOL_ID, SCHOOL_PRESETS } from "./school/schools";

@@ -5,7 +5,7 @@
 //
 // 措辭刻意強調「既定事實」——沒有這句，模型會自行腦補一組干支然後跟盤面打架。
 
-import type { MeihuaChart, YixueChart } from "../types";
+import type { LiuyaoChart, LiuyaoLine, MeihuaChart, YixueChart } from "../types";
 
 export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): string {
   const t = chart.resolvedTime;
@@ -35,6 +35,10 @@ export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): st
       // 盤面保留原值，只在對外顯示時取到小數一位。
       `月令：${chart.bazi.monthOrder.term}（交節 ${chart.bazi.monthOrder.termAt}），距節 ${chart.bazi.monthOrder.daysIntoTerm.toFixed(1)} 天`
     );
+  }
+
+  if (chart.liuyao) {
+    lines.push("", ...liuyaoLines(chart.liuyao));
   }
 
   if (chart.meihua) {
@@ -79,6 +83,74 @@ function meihuaLines(m: MeihuaChart): string[] {
   return out;
 }
 
+/**
+ * 六爻盤面。
+ *
+ * 逐爻一行，把納甲、六親、六神、世應、旬空、月破、與月建日辰的沖合生剋全部攤開。
+ * 這些是斷卦的原料，模型過去得自己心算，現在只需要讀。
+ *
+ * 刻意不給旺衰分數：那需要先定權重模型，屬流派決策，未經老師拍板不能由工程代填。
+ */
+function liuyaoLines(c: LiuyaoChart): string[] {
+  const out: string[] = [
+    "【卜卦／六爻．系統裝盤】",
+    `起卦方式：${c.mode}`,
+    ...c.derivation.map((d) => `　${d.label}：${d.value}${d.note ? `（${d.note}）` : ""}`),
+    "",
+    `本卦：${c.ben.hexagram.name}　${c.ben.palace.palace}（${c.ben.palace.palaceElement}）${c.ben.palace.position}　世在${c.ben.palace.shiYao}爻、應在${c.ben.palace.yingYao}爻`,
+    c.bian
+      ? `變卦：${c.bian.hexagram.name}　${c.bian.palace.palace}${c.bian.palace.position}`
+      : "變卦：無（六爻皆靜）",
+    `月建：${c.monthBranch}（${c.monthNote}）　日辰：${c.dayGanzhi.label}　旬空：${c.voidBranches.join("、")}`,
+    "",
+    "六爻（由上爻往下讀，與畫卦順序一致）："
+  ];
+
+  // 由上往下印，符合看盤習慣；每行自帶爻位名稱，不靠順序辨識。
+  for (let i = c.lines.length - 1; i >= 0; i--) {
+    out.push(`　${renderLiuyaoLine(c.lines[i])}`);
+  }
+
+  out.push(
+    "",
+    "以上卦象、納甲干支、六親、六神、世應、旬空、月破與沖合生剋皆由系統依納甲筮法裝盤，為既定事實。",
+    "請就此盤取用神與斷卦，不得自行改裝卦、改世應、改六親，也不得另起一組卦。",
+    "旺衰輕重與用神取用屬判讀，由你依老師的規則判斷；盤面資料不得更動。"
+  );
+  return out;
+}
+
+function renderLiuyaoLine(l: LiuyaoLine): string {
+  const parts = [
+    l.positionName,
+    l.yang ? "陽" : "陰",
+    `${l.ganzhi.label}（${l.ganzhi.element}）`,
+    l.relative,
+    l.god
+  ];
+  const marks: string[] = [];
+  if (l.isShi) marks.push("世");
+  if (l.isYing) marks.push("應");
+  if (l.moving) marks.push("動");
+  if (l.isVoid) marks.push("旬空");
+  if (l.isMonthBroken) marks.push("月破");
+  // 用頓號分隔：〔世旬空〕會被讀成一個詞，〔世、旬空〕才看得出是兩個獨立標記。
+  if (marks.length) parts.push(`〔${marks.join("、")}〕`);
+
+  parts.push(`月${describeRelation(l.month)}`);
+  parts.push(`日${describeRelation(l.day)}`);
+
+  if (l.changed) {
+    parts.push(`變出 ${l.changed.ganzhi.label}（${l.changed.ganzhi.element}）${l.changed.relative}，回頭${l.changed.relationToOriginal}`);
+  }
+  return parts.join("　");
+}
+
+function describeRelation(r: { relation: string; clash: boolean; combine: boolean }): string {
+  const extra = [r.clash ? "沖" : "", r.combine ? "合" : ""].filter(Boolean).join("");
+  return `${r.relation}${extra ? `．${extra}` : ""}`;
+}
+
 /** 第二輪用的短摘要。第二輪是攻擊第一輪的文字，不需要重讀完整盤面。 */
 export function renderChartDigest(chart: YixueChart): string {
   const parts: string[] = [];
@@ -87,6 +159,14 @@ export function renderChartDigest(chart: YixueChart): string {
     const hour = p.hour ? p.hour.ganzhi.label : "無時柱";
     parts.push(
       `四柱 ${p.year.ganzhi.label} ${p.month.ganzhi.label} ${p.day.ganzhi.label} ${hour}；月令 ${chart.bazi.monthOrder.term}`
+    );
+  }
+  if (chart.liuyao) {
+    const l = chart.liuyao;
+    const shi = l.lines.find((x) => x.isShi);
+    parts.push(
+      `六爻 ${l.ben.hexagram.name}（${l.ben.palace.palace}）${l.bian ? `之${l.bian.hexagram.name}` : "靜卦"}，` +
+        `世${l.ben.palace.shiYao}爻${shi ? ` ${shi.ganzhi.label}${shi.relative}` : ""}，月建${l.monthBranch}、日辰${l.dayGanzhi.label}`
     );
   }
   if (chart.meihua) {

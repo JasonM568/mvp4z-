@@ -51,15 +51,31 @@ function buildMeihua(form: CouncilForm) {
   const pad = (n: number) => String(n).padStart(2, "0");
   const time =
     form.meihuaTimeMode === "現在時間"
-      ? formatNow()
+      ? formatNowTaipei()
       : `${form.eventYear}-${pad(form.eventMonth)}-${pad(form.eventDay)} ${pad(form.eventHour)}:${pad(form.eventMinute)}`;
   return { mode: form.meihuaMode, timeMode: form.meihuaTimeMode, time };
 }
 
-function formatNow(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/**
+ * 「現在時間」一律取台北時間（UTC+8），不用瀏覽器所在時區。
+ *
+ * 原本直接讀 new Date() 的本地欄位，會員人在國外或裝置時區設錯，起出來的卦就是別的時辰的卦，
+ * 而且沒有任何跡象——這種錯誤只會在事後對盤時才發現。
+ * 用 Intl 的 Asia/Taipei 取代，裝置時區再怎麼設都不影響起卦時刻。
+ */
+export function formatNowTaipei(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    // h23 而非 hour12:false：部分實作在 hour12:false 下會把午夜輸出成 24。
+    hourCycle: "h23"
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "00";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
 }
 
 export function getMemberToken(): string {
@@ -113,6 +129,13 @@ export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) 
       qimen: { mode: form.qimenTimeMode, direction: form.direction },
       liuyao: {
         mode: form.liuyaoMode,
+        // 時間起卦才帶起卦時刻；選現在時間就取台北當下，否則用事件／起局時間。
+        // 六爻無論哪種起卦方式都需要時刻——月建、日辰、旬空、六神全由它決定。
+        timeMode: form.liuyaoMode === "時間起卦" ? form.liuyaoTimeMode : undefined,
+        time:
+          form.liuyaoMode === "時間起卦" && form.liuyaoTimeMode === "現在時間"
+            ? formatNowTaipei()
+            : undefined,
         yao: [form.yao1, form.yao2, form.yao3, form.yao4, form.yao5, form.yao6]
       },
       meihua: buildMeihua(form)

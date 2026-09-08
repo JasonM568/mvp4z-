@@ -27,7 +27,9 @@ export const hourBranches: Array<[string, string]> = [
 ];
 
 export const trigramOptions = ["不確定", "乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
-export const yaoOptions = ["不會判斷，請用時間起卦", "少陽", "少陰", "老陽", "老陰"];
+// 「不會判斷，請用時間起卦」已移除：時間起卦現在是獨立的起卦方式，選了就不會顯示爻位。
+// 舊資料若仍帶著該值，後端 toLiuyaoSource() 會整組退回時間起卦。
+export const yaoOptions = ["少陽", "少陰", "老陽", "老陰"];
 export const reportTemplates = ["商業決策顧問報告", "標準個人諮詢報告", "企業主管簡報版", "教學展示版"];
 export const topics = ["事業／工作", "財運／投資", "考試／升學", "感情／人際", "房產／陽宅", "健康／身心"];
 export const reviewModes = ["啟用策略校核層", "啟用深度反證層", "不啟用"];
@@ -48,6 +50,8 @@ export const meihuaUpperTrigrams = ["乾", "兌", "離", "震", "巽", "坎", "�
 export const meihuaLowerTrigrams = ["乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
 export const meihuaMovingLines = ["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"];
 export const meihuaTimeModes = ["現在時間", "自行輸入時間"];
+/** 六爻時間起卦的時間依據。與梅花同一組選項，措辭一致避免會員以為是兩件事。 */
+export const liuyaoTimeModes = ["現在時間", "自行輸入時間"];
 
 export type CouncilForm = {
   clientName: string;
@@ -78,6 +82,7 @@ export type CouncilForm = {
   qimenTimeMode: string;
   direction: string;
   liuyaoMode: string;
+  liuyaoTimeMode: string;
   yao1: string;
   yao2: string;
   yao3: string;
@@ -130,12 +135,13 @@ export function buildInitialForm(): CouncilForm {
     qimenTimeMode: "現在起局",
     direction: "不確定",
     liuyaoMode: "時間起卦",
-    yao1: "不會判斷，請用時間起卦",
-    yao2: "不會判斷，請用時間起卦",
-    yao3: "不會判斷，請用時間起卦",
-    yao4: "不會判斷，請用時間起卦",
-    yao5: "不會判斷，請用時間起卦",
-    yao6: "不會判斷，請用時間起卦",
+    liuyaoTimeMode: "現在時間",
+    yao1: "少陽",
+    yao2: "少陽",
+    yao3: "少陽",
+    yao4: "少陽",
+    yao5: "少陽",
+    yao6: "少陽",
     meihuaMode: "時間起卦",
     upperTrigram: "乾",
     lowerTrigram: "坤",

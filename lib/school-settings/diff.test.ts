@@ -18,6 +18,9 @@ const LIVE: SchoolConfig = {
   meihua: {
     timeQuaDateBasis: "農曆",
     timeQuaYearNumber: "地支序"
+  },
+  liuyao: {
+    monthRule: "節月"
   }
 };
 

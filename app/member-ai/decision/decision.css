@@ -877,3 +877,12 @@
     animation: none;
   }
 }
+
+/* 共鳴度的計算依據。刻意用小字排在說明下方——它是給想驗算的人看的，
+   不搶主要敘述，但必須看得到：一個沒有依據的分數跟模型隨手填的沒有差別。 */
+.xf-resonance-basis {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--muted);
+}

@@ -52,7 +52,8 @@ import {
   buildStructuredPrompt,
   CouncilStructured,
   extractStructuredBlock,
-  parseStructured
+  parseStructured,
+  enabledAspectKeys
 } from "@/lib/ai/council/structured";
 
 export const runtime = "nodejs";
@@ -193,10 +194,23 @@ export async function POST(request: NextRequest) {
     const { reportText, structuredRaw } = extractStructuredBlock(final.text || "");
     const finalOk = hasUsableFinal({ ...final, text: reportText });
     const fallbackUsed = !finalOk;
+    // 共鳴度的計算輸入。覆蓋率算的是「本次啟用的術數裡，有幾個是程式真排盤」——
+    // 奇門目前沒有排盤引擎，啟用它就會拉低這個分數，這是誠實反映而不是懲罰。
+    const enabledKeys = enabledAspectKeys(councilInput.yixue?.modules);
+    const chartedKeys = new Set<string>();
+    if (chart?.bazi) chartedKeys.add("bazi");
+    if (chart?.meihua) chartedKeys.add("meihua");
+    if (chart?.liuyao) chartedKeys.add("liuyao");
+    const resonanceContext = {
+      completeness: chart ? chart.completeness.score : null,
+      enabledCount: enabledKeys.length,
+      chartedCount: enabledKeys.filter((k) => chartedKeys.has(k)).length
+    };
+
     let structured: CouncilStructured | null = null;
     if (!fallbackUsed) {
       try {
-        structured = parseStructured(structuredRaw, councilInput.yixue?.modules);
+        structured = parseStructured(structuredRaw, councilInput.yixue?.modules, resonanceContext);
       } catch {
         structured = null;
       }

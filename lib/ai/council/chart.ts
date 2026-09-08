@@ -10,6 +10,7 @@ import {
   buildYixueChart,
   type BirthInput,
   type DivinationTimeInput,
+  type LiuyaoSource,
   type MeihuaSource,
   type YixueChart
 } from "@/lib/yixue";
@@ -67,23 +68,28 @@ export function toBirthInput(input: CouncilInput): BirthInput | null {
  * 「現在時間」起卦取的是送出的當下，事件時間則是問事所指的時點。
  * 起卦要用前者，取不到才退而求其次，並在盤上留 warning 說明用了哪一個。
  */
-export function toDivinationTime(input: CouncilInput): DivinationTimeInput | null {
-  const raw = input.yixue?.meihua?.time;
-  if (typeof raw === "string") {
-    // 前端固定送 "YYYY-MM-DD HH:mm"。用正則而非 new Date()，
-    // 避免不同執行環境對這個格式的時區解讀不一致（Node 會當 UTC，瀏覽器當當地）。
-    const m = raw.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})/);
-    if (m) {
-      return {
-        year: Number(m[1]),
-        month: Number(m[2]),
-        day: Number(m[3]),
-        hour: Number(m[4]),
-        minute: Number(m[5])
-      };
-    }
-  }
+/**
+ * 解析前端送來的 "YYYY-MM-DD HH:mm"。
+ *
+ * 用正則而非 new Date()：Node 會把這個格式當 UTC、瀏覽器當當地時間，
+ * 同一個字串在兩邊會差八小時，而八小時足以跨掉一個時辰甚至一天。
+ * 前端送的已經是台北時間（見 _actions.ts 的 formatNowTaipei），這裡只做字面解析。
+ */
+function parseClockString(raw: unknown): DivinationTimeInput | null {
+  if (typeof raw !== "string") return null;
+  const m = raw.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})/);
+  if (!m) return null;
+  return {
+    year: Number(m[1]),
+    month: Number(m[2]),
+    day: Number(m[3]),
+    hour: Number(m[4]),
+    minute: Number(m[5])
+  };
+}
 
+/** 表單的「事件／起局時間」。各術取不到自己的起卦時刻時共同的退路。 */
+function eventTimeOf(input: CouncilInput): DivinationTimeInput | null {
   const e = input.yixue?.eventTime;
   const year = optionalNum(e?.year);
   const month = optionalNum(e?.month);
@@ -96,6 +102,25 @@ export function toDivinationTime(input: CouncilInput): DivinationTimeInput | nul
     hour: optionalNum(e?.hour) ?? 0,
     minute: optionalNum(e?.minute) ?? 0
   };
+}
+
+/**
+ * 全報告共用的起卦／起局時刻，也是各術取不到自己時刻時的預設。
+ * 優先序：梅花自填的起卦時間 → 事件時間。
+ */
+export function toDivinationTime(input: CouncilInput): DivinationTimeInput | null {
+  return parseClockString(input.yixue?.meihua?.time) || eventTimeOf(input);
+}
+
+/**
+ * 六爻自己的起卦時刻。
+ *
+ * 會員可以在六爻區塊選「現在時間」，那時前端會送台北當下；沒選就用事件時間。
+ * 不共用梅花的時間——兩術在表單上是兩個獨立的起卦動作，共用會讓其中一邊
+ * 顯示的「起卦時間」與實際用的不符。
+ */
+export function toLiuyaoTime(input: CouncilInput): DivinationTimeInput | null {
+  return parseClockString(input.yixue?.liuyao?.time) || eventTimeOf(input);
 }
 
 /**
@@ -127,6 +152,24 @@ export function toMeihuaSource(input: CouncilInput): MeihuaSource {
   return { mode: "時間起卦" };
 }
 
+/**
+ * 六爻起卦來源。
+ *
+ * 表單的爻位下拉含「不會判斷，請用時間起卦」這個選項，實務上絕大多數會員都選它
+ * （正式庫的紀錄裡六爻六個位置幾乎全是這個值）。只要有任何一爻不是合法爻象，
+ * 就整組退回時間起卦——半組手動半組推算會排出一個誰也沒下過的卦。
+ */
+export function toLiuyaoSource(input: CouncilInput): LiuyaoSource {
+  const yao = input.yixue?.liuyao?.yao;
+  const mode = input.yixue?.liuyao?.mode;
+  const VALID = ["少陽", "少陰", "老陽", "老陰"];
+
+  if (mode !== "時間起卦" && Array.isArray(yao) && yao.length === 6 && yao.every((y) => VALID.includes(y))) {
+    return { mode: "手動輸入", yao: [...yao] };
+  }
+  return { mode: "時間起卦" };
+}
+
 export function buildChartForCouncil(
   input: CouncilInput,
   school: SchoolConfig
@@ -141,7 +184,9 @@ export function buildChartForCouncil(
         birth,
         modules: input.yixue?.modules || { bazi: true },
         divinationTime: toDivinationTime(input),
-        meihua: toMeihuaSource(input)
+        meihua: toMeihuaSource(input),
+        liuyao: toLiuyaoSource(input),
+        liuyaoTime: toLiuyaoTime(input)
       },
       school
     );

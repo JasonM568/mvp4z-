@@ -44,6 +44,10 @@ export type YixuePayload = {
   };
   liuyao?: {
     mode?: string;
+    /** 時間起卦時：「現在時間」或「自行輸入時間」。 */
+    timeMode?: string;
+    /** 起卦時刻，格式 YYYY-MM-DD HH:mm。缺值時退回事件／起局時間。 */
+    time?: string;
     yao?: string[];
   };
   meihua?: {
@@ -150,6 +154,7 @@ ${enabledModules(input)}
 【卜卦／六爻資料】
 起卦方式：${input.yixue?.liuyao?.mode || "未填"}
 六爻：${input.yixue?.liuyao?.yao?.join("、") || "未填"}
+（卦已由系統裝好，含納甲、六親、六神、世應、旬空、月破，見系統排盤區塊）
 
 【梅花易數資料】
 ${meihuaBlock(input.yixue?.meihua)}
@@ -183,6 +188,7 @@ ${enabledModules(input)}
 【卜卦／六爻資料】
 起卦方式：${input.yixue?.liuyao?.mode || "未填"}
 六爻：${input.yixue?.liuyao?.yao?.join("、") || "未填"}
+（卦已由系統裝好，含納甲、六親、六神、世應、旬空、月破，見系統排盤區塊）
 
 【梅花易數資料】
 ${meihuaBlock(input.yixue?.meihua)}

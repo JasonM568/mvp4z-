@@ -30,6 +30,9 @@ type SchoolConfig = {
     timeQuaDateBasis: "農曆" | "國曆";
     timeQuaYearNumber: "地支序" | "農曆年數";
   };
+  liuyao: {
+    monthRule: "節月" | "農曆月";
+  };
 };
 
 type FieldGuide = {

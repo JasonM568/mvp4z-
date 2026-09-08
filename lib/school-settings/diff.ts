@@ -41,11 +41,12 @@ const FIELD_LABELS: Record<string, string> = {
   termTieBreak: "交節判定",
   defaultLongitude: "預設經度",
   timeQuaDateBasis: "梅花時間起卦曆法",
-  timeQuaYearNumber: "梅花時間起卦年數"
+  timeQuaYearNumber: "梅花時間起卦年數",
+  monthRule: "六爻月建"
 };
 
 /** 要比對的設定段落。新增一術就在這裡加一段，其餘邏輯不必動。 */
-const SECTIONS = ["calendar", "meihua"] as const;
+const SECTIONS = ["calendar", "meihua", "liuyao"] as const;
 
 export function describeSchoolValue(field: string, value: unknown): string {
   const table = VALUE_LABELS[field];

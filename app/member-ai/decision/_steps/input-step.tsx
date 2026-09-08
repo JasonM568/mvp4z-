@@ -12,6 +12,7 @@ import {
   hourBranches,
   hours,
   liuyaoModes,
+  liuyaoTimeModes,
   meihuaLowerTrigrams,
   meihuaModes,
   meihuaMovingLines,
@@ -270,13 +271,36 @@ export function InputStep({
                   <SubPanel title="卜卦／六爻">
                     <div className="form council-grid-3">
                       <label>起卦方式<select value={form.liuyaoMode} onChange={(e) => update("liuyaoMode", e.target.value)}>{liuyaoModes.map((x) => <option key={x}>{x}</option>)}</select></label>
-                      {(["yao1", "yao2", "yao3", "yao4", "yao5", "yao6"] as const).map((k, i) => (
-                        <label key={k}>
-                          {["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"][i]}
-                          <select value={form[k]} onChange={(e) => update(k, e.target.value)}>{yaoOptions.map((x) => <option key={x}>{x}</option>)}</select>
-                        </label>
-                      ))}
+                      {form.liuyaoMode === "時間起卦" && (
+                        <label>時間依據<select value={form.liuyaoTimeMode} onChange={(e) => update("liuyaoTimeMode", e.target.value)}>{liuyaoTimeModes.map((x) => <option key={x}>{x}</option>)}</select></label>
+                      )}
                     </div>
+
+                    {form.liuyaoMode === "時間起卦" ? (
+                      form.liuyaoTimeMode === "現在時間" ? (
+                        <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
+                          以送出當下的台北時間（UTC+8）起卦，系統依時間推卦並自動裝上納甲、六親、六神、世應。
+                        </p>
+                      ) : (
+                        <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
+                          以下方「事件／起局時間」為起卦時刻。請確認該欄位已填寫。
+                        </p>
+                      )
+                    ) : (
+                      <>
+                        <p style={{ color: "var(--muted)", margin: "12px 0 8px", fontSize: 13 }}>
+                          請依實際搖卦結果，由初爻（最下）往上爻依序選擇。老陽、老陰為動爻。
+                        </p>
+                        <div className="form council-grid-3">
+                          {(["yao1", "yao2", "yao3", "yao4", "yao5", "yao6"] as const).map((k, i) => (
+                            <label key={k}>
+                              {["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"][i]}
+                              <select value={form[k]} onChange={(e) => update(k, e.target.value)}>{yaoOptions.map((x) => <option key={x}>{x}</option>)}</select>
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </SubPanel>
                 )}
 

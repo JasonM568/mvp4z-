@@ -27,13 +27,19 @@ export const meihuaSchoolSchema = z.object({
   timeQuaYearNumber: z.enum(["地支序", "農曆年數"]).default("地支序")
 });
 
+/** 同 meihua：給 default，舊紀錄少這一段時不讓整份設定 parse 失敗。 */
+export const liuyaoSchoolSchema = z.object({
+  monthRule: z.enum(["節月", "農曆月"]).default("節月")
+});
+
 export const schoolConfigSchema = z.object({
   id: z.string().trim().min(1),
   label: z.string().trim().min(1, "請填流派名稱").max(60),
   decidedAt: z.string().default(""),
   decidedBy: z.string().default(""),
   calendar: calendarSchoolSchema,
-  meihua: meihuaSchoolSchema.default({ timeQuaDateBasis: "農曆", timeQuaYearNumber: "地支序" })
+  meihua: meihuaSchoolSchema.default({ timeQuaDateBasis: "農曆", timeQuaYearNumber: "地支序" }),
+  liuyao: liuyaoSchoolSchema.default({ monthRule: "節月" })
 });
 
 /**
@@ -100,6 +106,16 @@ export const SCHOOL_FIELD_GUIDE = [
     options: [
       { value: "地支序", label: "地支序（子1…亥12）", hint: "2026 丙午年 → 年數 7" },
       { value: "農曆年數", label: "農曆年數", hint: "2026 年 → 年數 2026" }
+    ]
+  },
+  {
+    section: "liuyao",
+    path: "monthRule",
+    title: "六爻月建怎麼取",
+    why: "月建決定月破與各爻的旺衰，是六爻斷卦的主要依據之一。已交節但農曆還沒換月的那幾天，兩派會給出不同的月建，整盤判讀跟著不同。",
+    options: [
+      { value: "節月", label: "節月（與八字月柱同一套）", hint: "以立春、驚蟄等節分界" },
+      { value: "農曆月", label: "農曆月", hint: "正月建寅、二月建卯，依農曆月份" }
     ]
   }
 ] as const;

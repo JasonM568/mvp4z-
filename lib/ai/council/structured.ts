@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { YixuePayload } from "@/lib/ai/council/personas";
 import { cleanReportText } from "@/lib/ai/council/quality";
+import { computeResonance, type ResonanceBasis, type ResonanceInput } from "@/lib/ai/council/resonance";
 
 export const STRUCT_OPEN = "<<<XF_STRUCT>>>";
 export const STRUCT_CLOSE = "<<<END_XF_STRUCT>>>";
@@ -83,7 +84,9 @@ const signalSchema = z.preprocess(
 export const councilStructuredSchema = z.object({
   headline: z.string().trim().min(4).max(120),
   decision: decisionSchema,
-  resonance: percentSchema,
+  // 模型仍可能因訓練慣性寫出 resonance，收下但一律忽略——
+  // 共鳴度改由 computeResonance() 依真實資料算，見 resonance.ts 的說明。
+  resonance: percentSchema.optional(),
   aspects: z
     .array(
       z.object({
@@ -99,7 +102,14 @@ export const councilStructuredSchema = z.object({
   steps: z.array(z.string().trim().min(2).max(80)).min(1).max(3)
 });
 
-export type CouncilStructured = z.infer<typeof councilStructuredSchema>;
+type ParsedStructured = z.infer<typeof councilStructuredSchema>;
+
+export type CouncilStructured = Omit<ParsedStructured, "resonance"> & {
+  /** 由 computeResonance() 算出，恆為 60–90 的整數。 */
+  resonance: number;
+  /** 分數怎麼來的。前端會顯示，讓這個數字可被檢查。 */
+  resonanceBasis?: ResonanceBasis;
+};
 
 // 與 enabledTermNames 同步的 key 版本（含全空保底八字）
 export function enabledAspectKeys(modules?: YixuePayload["modules"]): AspectKey[] {
@@ -122,7 +132,7 @@ export function buildStructuredPrompt(modules?: YixuePayload["modules"]): string
 此區塊不算報告段落、不受「禁止 Markdown 與符號」規則限制，區塊內必須是合法 JSON，格式如下：
 
 ${STRUCT_OPEN}
-{"headline":"一句話順轉結論","decision":"有條件可成","resonance":87,"aspects":[{"key":"${keys[0]}","summary":"該術數一句話總結","confidence":80,"signal":"green","timing":"三個月後"}],"steps":["行動一","行動二","行動三"]}
+{"headline":"一句話順轉結論","decision":"有條件可成","aspects":[{"key":"${keys[0]}","summary":"該術數一句話總結","confidence":80,"signal":"green","timing":"三個月後"}],"steps":["行動一","行動二","行動三"]}
 ${STRUCT_CLOSE}
 
 機讀區塊規則：
@@ -131,11 +141,14 @@ ${STRUCT_CLOSE}
    判為「有條件可成」要在正文說清楚條件；判為「宜借力推進」要在正文指出應借何種力量
    （權責人物、專業人士、中介者、合作者、制度、文件證據、資金資源）；
    判為「宜等待時機」要交代在等什麼訊號，不得無期限等待。
-3. resonance：0 到 100 的整數，代表本次啟用術數結論的一致程度（共鳴度），須與交叉驗證段落一致；只啟用一個術數時代表該術數判讀的整體確信度。
+3. 不要輸出 resonance 或任何整體分數欄位。共鳴度由系統依各術信號的一致度、
+   確信度、排盤完整度與排盤覆蓋率計算，模型自填的分數一律被忽略。
 4. aspects：只能包含本次啟用術數，key 只允許：${keys.join("、")}。對照表：${TERM_KEY_TABLE}。
    每項包含：summary（該術數一句話總結，40 字內）、confidence（0 到 100 整數，可判斷程度）、
-   signal（吉凶信號，只能是 green、yellow、red；卜卦／六爻必填，其他術數可省略）、
+   signal（吉凶信號，只能是 green、yellow、red）、
    timing（時間窗或應期提示，20 字內，沒有就省略此欄位）。
+   confidence 與 signal 是整體共鳴度的計算輸入，請依該術盤面實際可判讀的程度誠實給值，
+   盤面不清、資料不足就給低分，不要為了好看一律給高分。signal 每一術都要給。
 5. steps：1 到 3 條立即可執行的行動，每條 30 字內，對應正文 3 日內行動方案。
 6. 區塊內不得有註解、不得改用其他定界符、不得出現未啟用術數、定界符前後不得再有其他文字。
 `.trim();
@@ -163,9 +176,16 @@ function stripDelimiters(text: string) {
 }
 
 // 解析 + 清洗 + 過濾成只留啟用術數。任何失敗回 null，絕不 throw。
+/**
+ * 解析終稿的機讀區塊。
+ *
+ * resonanceContext 是必填的：共鳴度必須由程式算，把它做成參數而不是事後補，
+ * 就沒有「忘記計算導致前端拿到 0 分」的可能。
+ */
 export function parseStructured(
   raw: string | null,
-  modules?: YixuePayload["modules"]
+  modules: YixuePayload["modules"] | undefined,
+  resonanceContext: Omit<ResonanceInput, "aspects">
 ): CouncilStructured | null {
   if (!raw) return null;
   try {
@@ -183,10 +203,16 @@ export function parseStructured(
     });
     if (!aspects.length) return null;
 
+    const resonance = computeResonance({
+      ...resonanceContext,
+      aspects: aspects.map((a) => ({ signal: a.signal, confidence: a.confidence }))
+    });
+
     return {
       headline: cleanShortText(result.data.headline),
       decision: result.data.decision,
-      resonance: result.data.resonance,
+      resonance: resonance.value,
+      resonanceBasis: resonance.basis,
       aspects: aspects.map((a) => ({
         ...a,
         summary: cleanShortText(a.summary),

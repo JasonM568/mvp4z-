@@ -4,7 +4,7 @@
 // - 全部是純資料，可 JSON.stringify，不含 class instance、Date、function。
 // - 各術的盤面欄位隨該術的 Phase 加入，不預先開空欄位。
 //
-// 目前實作範圍：Phase 0 曆法底座與四柱、Phase 1 梅花易數。
+// 目前實作範圍：Phase 0 曆法底座與四柱、Phase 1 梅花易數、Phase 2 六爻納甲。
 
 /** 干支。label 是「甲子」這種合寫，方便直接印進報告。 */
 export type StemBranch = {
@@ -124,6 +124,70 @@ export type MeihuaChart = {
   bianToTi: TiYongJudgement;
 };
 
+// ---------------------------------------------------------------- 六爻
+
+/** 五行關係，方向由主體看向對象。斷卦看的是方向，不能只說「有生剋」。 */
+export type ElementRelation = "生" | "被生" | "剋" | "被剋" | "比和";
+
+export type LiuyaoSource =
+  | { mode: "時間起卦" }
+  | { mode: "手動輸入"; yao: string[] };
+
+export type LiuyaoGanzhi = {
+  stem: string;
+  branch: string;
+  label: string;
+  element: string;
+};
+
+export type LiuyaoLine = {
+  /** 爻位 1–6，1 為初爻。 */
+  position: number;
+  positionName: string;
+  /** true 為陽爻。 */
+  yang: boolean;
+  moving: boolean;
+  ganzhi: LiuyaoGanzhi;
+  relative: string;
+  god: string;
+  isShi: boolean;
+  isYing: boolean;
+  /** 旬空：依日柱所在旬判定。 */
+  isVoid: boolean;
+  /** 月破：被月建所沖。 */
+  isMonthBroken: boolean;
+  month: { relation: ElementRelation; clash: boolean; combine: boolean };
+  day: { relation: ElementRelation; clash: boolean; combine: boolean; same: boolean };
+  changed: {
+    ganzhi: LiuyaoGanzhi;
+    relative: string;
+    /** 變爻回頭對動爻的作用（回頭生／回頭剋）。 */
+    relationToOriginal: ElementRelation;
+  } | null;
+};
+
+export type LiuyaoPalace = {
+  palace: string;
+  palaceElement: string;
+  position: string;
+  shiYao: number;
+  yingYao: number;
+};
+
+export type LiuyaoChart = {
+  mode: LiuyaoSource["mode"];
+  derivation: Array<{ label: string; value: number; note?: string }>;
+  ben: { hexagram: HexagramSummary; palace: LiuyaoPalace };
+  /** 無動爻時為 null（靜卦）。 */
+  bian: { hexagram: HexagramSummary; palace: LiuyaoPalace } | null;
+  movingPositions: number[];
+  monthBranch: string;
+  monthNote: string;
+  dayGanzhi: { stem: string; branch: string; label: string };
+  voidBranches: [string, string];
+  lines: LiuyaoLine[];
+};
+
 export type YixueChart = {
   /** 對應 SCHOOL_PRESETS 的 id，寫進 council_runs.school_version。 */
   schoolVersion: string;
@@ -138,6 +202,7 @@ export type YixueChart = {
   completeness: Completeness;
   bazi: BaziChart | null;
   meihua: MeihuaChart | null;
+  liuyao: LiuyaoChart | null;
   /** 排盤過程中的降級或存疑事項，會印進 prompt 讓 LLM 知道判讀限制。 */
   warnings: string[];
 };

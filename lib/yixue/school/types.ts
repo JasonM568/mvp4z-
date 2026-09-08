@@ -76,6 +76,25 @@ export type MeihuaSchool = {
   timeQuaYearNumber: "地支序" | "農曆年數";
 };
 
+/**
+ * 六爻（納甲筮法）。
+ *
+ * 只開一個旋鈕。原本預覽清單裡的另外兩項在本系統不成立：
+ * - 「時間起卦算法」：與梅花共用同一組設定，兩術對同一時刻不該給出不同的卦
+ * - 「三枚銅錢正反對應」：表單直接收少陽／少陰／老陽／老陰，使用者報的已是爻象
+ */
+export type LiuyaoSchool = {
+  /**
+   * 月建怎麼取。
+   * - 節月：月柱地支，以節分界，與八字月柱同一套（主流）
+   * - 農曆月：正月建寅、二月建卯，以農曆月份直接對地支
+   *
+   * 兩派在「已交節但農曆還沒換月」的日子會給出不同月建，
+   * 而月建決定月破與旺衰，整盤判讀會不同。見決策 7。
+   */
+  monthRule: "節月" | "農曆月";
+};
+
 export type SchoolConfig = {
   /** 版本 id，會寫進 council_runs.school_version，讓歷史報告可重現。 */
   id: string;
@@ -85,4 +104,5 @@ export type SchoolConfig = {
   decidedBy: string;
   calendar: CalendarSchool;
   meihua: MeihuaSchool;
+  liuyao: LiuyaoSchool;
 };
