@@ -48,7 +48,7 @@ PostgREST 嵌入不會歧義。
 
 ### Git 狀態
 
-已 commit，**push 狀態見下方指令輸出**。工作樹乾淨。
+`main...origin/main` 同步，工作樹乾淨。最新：`fa4ee01`。沒有長時間程序在跑。
 
 ---
 
