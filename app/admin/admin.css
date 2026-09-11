@@ -758,3 +758,36 @@ video.admin-thumb.large {
   .admin-image-order-item { grid-template-columns: 24px 72px minmax(0, 1fr); }
   .admin-image-order-actions { grid-column: 1 / -1; grid-auto-flow: column; justify-content: start; }
 }
+
+/* 課程報名名單的詳細欄位。
+   不沿用 .admin-detail——那是訂單明細頁的「主欄 + 320px 側欄」版面，
+   套在這裡會把「報名動機」這種整段文字擠進窄欄。 */
+.admin-reg-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px 24px;
+  margin: 0 0 18px;
+}
+
+.admin-reg-fields > div {
+  min-width: 0;
+}
+
+.admin-reg-fields dt {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.admin-reg-fields dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+/* 報名動機與學習背景常是整段文字，讓它們獨佔一整列比較好讀。 */
+.admin-reg-fields > div:nth-child(n + 3) {
+  grid-column: 1 / -1;
+}

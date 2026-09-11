@@ -35,8 +35,11 @@ const NAV_GROUPS = [
     ]
   },
   {
-    label: "顧問服務",
-    items: [{ href: "/admin/bookings", label: "預約名單" }]
+    label: "預約與報名",
+    items: [
+      { href: "/admin/bookings", label: "預約名單" },
+      { href: "/admin/course-registrations", label: "課程報名名單" }
+    ]
   },
   {
     label: "四象問天機",
