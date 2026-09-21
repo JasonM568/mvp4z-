@@ -1,5 +1,7 @@
 "use client";
 
+import { CreditsNotice } from "../_credits-notice";
+import { INSUFFICIENT_CREDITS_CODE } from "@/lib/auth/credits";
 import "./face.css";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -42,6 +44,8 @@ export default function FaceAnalysisPage() {
   const [analysisSeconds, setAnalysisSeconds] = useState(0);
   // 保存額度。滿額時要在會員拍照之前就擋，不能等他填完同意書才退回。
   const [storage, setStorage] = useState<{ used: number; limit: number } | null>(null);
+  // 點數不足的細節（需要／剩餘／差額）。有值就在流程中改顯示加購出口。
+  const [creditsShortfall, setCreditsShortfall] = useState<Record<string, unknown> | null>(null);
 
   // 額度只在進站時查一次就夠：真正的把關在後端建立任務時，這裡只是提前告知。
   // 查不到就不顯示，不因為額度查詢失敗擋住整個功能。
@@ -221,7 +225,17 @@ export default function FaceAnalysisPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "報告產生失敗");
+      if (!response.ok) {
+        // 點數不足要顯示出口而不是一句紅字：剛用完免費點數的會員在這裡最容易流失。
+        if (data.code === INSUFFICIENT_CREDITS_CODE) {
+          setCreditsShortfall(data.details || {});
+          setNotice("");
+          setStep("ready");
+          setBusy(false);
+          return;
+        }
+        throw new Error(data.error || "報告產生失敗");
+      }
       setReport((data.run?.report_structured || null) as StructuredReport | null);
       track("face_report_completed", {
         charged: Number(data.creditsCharged || data.run?.credits_charged || 0)
@@ -367,6 +381,16 @@ export default function FaceAnalysisPage() {
               <div className="face-eyebrow">步驟 2 · 品質通過</div>
               <h1 id="ready-title">照片已可進行分析</h1>
               <p>系統已確認單一正面人臉、基本清晰度、光線與角度符合門檻。</p>
+
+              {/* 點數不足時直接把出口放在這裡。照片已經通過品質檢查、同意書也勾了，
+                  這一刻把人擋下來卻不給去處，是最容易流失的地方。 */}
+              {creditsShortfall && (
+                <CreditsNotice
+                  details={creditsShortfall as never}
+                  onBack={() => setCreditsShortfall(null)}
+                  backLabel="我知道了"
+                />
+              )}
               {quality && (
                 <dl className="face-quality-grid">
                   <div><dt>人臉數量</dt><dd>{quality.faceCount}</dd></div>

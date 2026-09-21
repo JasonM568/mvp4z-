@@ -4,6 +4,8 @@
 // fetch 完成（done）且至少展示 6 秒後跳 100%，停 900ms 再進報告頁。
 // 注意：fallback 兜底稿是 ok:true，不會走 errorMsg 這條路。
 
+import { CreditsNotice } from "../../_credits-notice";
+import { INSUFFICIENT_CREDITS_CODE } from "@/lib/auth/credits";
 import { useEffect, useRef, useState } from "react";
 import { ASPECT_CONFIG, type AspectKey } from "../_aspects";
 
@@ -20,12 +22,16 @@ export function ScanningStep({
   aspects,
   done,
   errorMsg,
+  errorCode,
+  errorDetails,
   onComplete,
   onBack
 }: {
   aspects: AspectKey[];
   done: boolean;
   errorMsg: string | null;
+  errorCode?: string | null;
+  errorDetails?: Record<string, unknown> | null;
   onComplete: () => void;
   onBack: () => void;
 }) {
@@ -71,18 +77,29 @@ export function ScanningStep({
   const currentAspect = stageIdx < aspects.length ? ASPECT_CONFIG[aspects[stageIdx]] : null;
 
   if (errorMsg) {
+    // 點數不足要給出口，不是給「返回修改」——會員改表單也變不出點數。
+    const outOfCredits = errorCode === INSUFFICIENT_CREDITS_CODE;
     return (
       <section className="section xf-scan">
         <div className="wrap xf-scan-wrap">
           <div className="xf-step-hint">步驟 2/3：四象掃描</div>
-          <article className="panel" style={{ borderColor: "rgba(248,113,113,.5)" }}>
-            <h2 style={{ marginTop: 0 }}>掃描未完成</h2>
-            <p className="lead" style={{ fontSize: 16 }}>系統提示：{errorMsg}</p>
-            <p style={{ color: "var(--muted)", fontSize: 14 }}>本次未產出報告、未扣點。請調整後重新啟動掃描。</p>
-            <button className="btn primary" onClick={onBack} style={{ marginTop: 10 }}>
-              返回修改
-            </button>
-          </article>
+          {outOfCredits ? (
+            <CreditsNotice
+              details={errorDetails as never}
+              message={errorMsg}
+              onBack={onBack}
+              backLabel="返回修改"
+            />
+          ) : (
+            <article className="panel" style={{ borderColor: "rgba(248,113,113,.5)" }}>
+              <h2 style={{ marginTop: 0 }}>掃描未完成</h2>
+              <p className="lead" style={{ fontSize: 16 }}>系統提示：{errorMsg}</p>
+              <p style={{ color: "var(--muted)", fontSize: 14 }}>本次未產出報告、未扣點。請調整後重新啟動掃描。</p>
+              <button className="btn primary" onClick={onBack} style={{ marginTop: 10 }}>
+                返回修改
+              </button>
+            </article>
+          )}
         </div>
       </section>
     );

@@ -12,7 +12,13 @@ async function api(path, options={}){
   if(token()) headers.Authorization = "Bearer " + token();
   const res = await fetch(API_BASE + path, Object.assign({}, options, {headers}));
   const data = await res.json().catch(() => ({}));
-  if(!res.ok) throw new Error(data.error || ("API 錯誤：" + res.status));
+  if(!res.ok){
+    // 錯誤碼與細節要一起帶上來，前端才判斷得出「這是點數不足」而不必比對中文字串。
+    const err = new Error(data.error || ("API 錯誤：" + res.status));
+    err.code = data.code || null;
+    err.details = data.details || null;
+    throw err;
+  }
   return data;
 }
 
@@ -71,12 +77,60 @@ async function sendChat(presetText){
     addMsg("bot", data.reply);
     $("memberLine").textContent = `${data.member.name || data.member.email}｜${data.member.plan}｜剩餘 ${data.member.credits_remaining} 點｜到期 ${data.member.expires_at}`;
   }catch(e){
-    addMsg("bot", "系統提示：" + e.message);
+    if(e.code === "INSUFFICIENT_CREDITS"){
+      // 點數不足不是「系統提示」，是一個要有出口的狀態。
+      // 只丟一句紅字，剛用完免費點數的會員就在這裡離開了。
+      addCreditsNotice(e.details || {}, e.message);
+    }else{
+      addMsg("bot", "系統提示：" + e.message);
+    }
   }finally{
     $("sendBtn").disabled = false;
     $("sendBtn").textContent = "送出";
   }
 }
+/**
+ * 點數不足的氣泡：講清楚差多少，並直接給加購入口。
+ * 用 textContent 逐段塞而不是 innerHTML——details 來自 API 回應，
+ * 拼字串進 innerHTML 等於把它當成可信來源。
+ */
+function addCreditsNotice(details, message){
+  const wrap = document.createElement("div");
+  wrap.className = "msg bot credits-notice";
+
+  const title = document.createElement("strong");
+  title.textContent = "點數不足";
+  wrap.appendChild(title);
+
+  const body = document.createElement("p");
+  const required = Number(details.required);
+  const remaining = Number(details.remaining);
+  body.textContent = Number.isFinite(required) && Number.isFinite(remaining)
+    ? "本次需要 " + required + " 點，您目前剩 " + remaining + " 點。加購點數或升級方案後即可繼續，本次未扣點。"
+    : (message || "點數已用完。加購點數或升級方案後即可繼續，本次未扣點。");
+  wrap.appendChild(body);
+
+  const actions = document.createElement("div");
+  actions.className = "credits-actions";
+
+  const buy = document.createElement("a");
+  buy.href = "/member-pricing";
+  buy.className = "btn primary";
+  buy.textContent = "前往加購點數";
+  buy.setAttribute("data-xf-event", "credits_upgrade_from_chat");
+  actions.appendChild(buy);
+
+  const mine = document.createElement("a");
+  mine.href = "/member";
+  mine.className = "btn ghost";
+  mine.textContent = "查看我的點數";
+  actions.appendChild(mine);
+
+  wrap.appendChild(actions);
+  $("messages").appendChild(wrap);
+  $("messages").scrollTop = $("messages").scrollHeight;
+}
+
 function logout(){ clearToken(); location.href = "/login"; }
 function initMemberAi(){
   if(!$("sendBtn") || !$("message")) return; // DOM not ready

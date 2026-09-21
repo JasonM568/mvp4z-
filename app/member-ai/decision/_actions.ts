@@ -86,6 +86,9 @@ export function getMemberToken(): string {
 export type CouncilApiResult = {
   ok?: boolean;
   error?: string;
+  /** 機器可判讀的錯誤碼。前端據此決定要顯示哪種出口，不比對中文字串。 */
+  code?: string;
+  details?: Record<string, unknown>;
   final?: { ok: boolean; label: string; text: string };
   structured?: CouncilStructured | null;
   fallback_used?: boolean;

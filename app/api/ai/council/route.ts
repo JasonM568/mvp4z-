@@ -6,13 +6,14 @@
 import { NextRequest } from "next/server";
 import { apiJson } from "../../_helpers";
 import {
-  errorMessage,
   errorStatus,
   getPublicMember,
   readJson,
   requireBearerProfile,
-  statusError
+  statusError,
+  errorBody
 } from "@/lib/auth/member";
+import { insufficientCreditsError } from "@/lib/auth/credits";
 import { resolveTierFeatures, TierFeatures } from "@/lib/auth/tier";
 import { getMonthlyCouncilUsage } from "@/lib/auth/council-quota";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -105,7 +106,11 @@ export async function POST(request: NextRequest) {
     // 4. 點數預檢（不扣點，僅驗證足額；正式扣點在 LLM 跑完才執行）
     const previousCredits = Number(entitlement.credits_remaining || 0);
     if (creditsToCharge > 0 && previousCredits < creditsToCharge) {
-      throw statusError("點數不足，請先儲值或升級方案", 403);
+      throw insufficientCreditsError({
+        feature: "四象天機報告",
+        required: creditsToCharge,
+        remaining: previousCredits
+      });
     }
 
     // 5. 載入報告設定（風羿老師後台維護的內容）
@@ -323,7 +328,7 @@ export async function POST(request: NextRequest) {
       generated_at: new Date().toISOString()
     });
   } catch (error) {
-    return apiJson({ error: errorMessage(error) }, errorStatus(error));
+    return apiJson(errorBody(error), errorStatus(error));
   }
 }
 

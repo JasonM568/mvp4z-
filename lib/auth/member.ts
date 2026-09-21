@@ -296,6 +296,26 @@ export function statusError(message: string, status: number) {
   return Object.assign(new Error(message), { status });
 }
 
+/**
+ * 錯誤回應的完整信封。
+ *
+ * 原本各路由一律回 `{ error: message }`，前端只拿得到一句中文——
+ * 要判斷「這是不是點數不足」就只能比對字串，改一次文案就壞一次。
+ * 帶上 code 與 details 之後，前端才能據以顯示對應的出口（例如前往加購）。
+ *
+ * 沒有 code 的錯誤行為完全不變，仍然只有 error 一個欄位。
+ */
+export function errorBody(error: unknown): { error: string; code?: string; details?: unknown } {
+  const body: { error: string; code?: string; details?: unknown } = { error: errorMessage(error) };
+  if (typeof error === "object" && error) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === "string" && code) body.code = code;
+    const details = (error as { details?: unknown }).details;
+    if (details !== undefined) body.details = details;
+  }
+  return body;
+}
+
 export function errorStatus(error: unknown) {
   if (typeof error === "object" && error && "status" in error) {
     const status = Number((error as { status?: number }).status);

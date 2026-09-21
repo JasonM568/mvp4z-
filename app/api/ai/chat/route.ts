@@ -13,13 +13,14 @@ import { NextRequest } from "next/server";
 import { apiJson } from "../../_helpers";
 import { askXunfengAI, chatCreditCost, chatSchema } from "@/lib/ai/member-chat";
 import {
-  errorMessage,
   errorStatus,
   getPublicMember,
   readJson,
   requireBearerProfile,
-  statusError
+  statusError,
+  errorBody
 } from "@/lib/auth/member";
+import { insufficientCreditsError } from "@/lib/auth/credits";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 // chat 扣點：以 AI 回覆中文字數計（每 1000 字 1 點），跑完 LLM 才知道實際字數。
@@ -49,7 +50,11 @@ export async function POST(request: NextRequest) {
 
     const previousCredits = Number(entitlement.credits_remaining || 0);
     if (previousCredits < MIN_CHAT_CHARGE) {
-      throw statusError("點數已用完，請續訂方案或啟用新方案", 403);
+      throw insufficientCreditsError({
+        feature: "AI 即時問答",
+        required: MIN_CHAT_CHARGE,
+        remaining: previousCredits
+      });
     }
 
     // 2. 跑 LLM；失敗會 throw，整個 request 失敗、credit 不扣
@@ -109,7 +114,7 @@ export async function POST(request: NextRequest) {
       member
     });
   } catch (error) {
-    return apiJson({ error: errorMessage(error) }, errorStatus(error));
+    return apiJson(errorBody(error), errorStatus(error));
   }
 }
 

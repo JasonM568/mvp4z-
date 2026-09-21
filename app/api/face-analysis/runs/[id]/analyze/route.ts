@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server";
 import { apiJson } from "@/app/api/_helpers";
 import {
-  errorMessage,
   errorStatus,
   getPublicMember,
   requireBearerProfile,
-  statusError
+  statusError,
+  errorBody
 } from "@/lib/auth/member";
+import { insufficientCreditsError } from "@/lib/auth/credits";
 import { FACE_ANALYSIS_CREDIT_COST, canUseFaceAnalysis } from "@/lib/auth/face-tier";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { appendFaceRunEvent, getOwnedPublicRun, getOwnedRun } from "@/lib/face-analysis/runs";
@@ -61,7 +62,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const entitlement = await findEligibleEntitlement(profile.id);
     if (!entitlement) throw statusError("會員方案未啟用或已到期", 403);
     if (entitlement.credits_remaining < FACE_ANALYSIS_CREDIT_COST) {
-      throw statusError(`完整面相報告需要 ${FACE_ANALYSIS_CREDIT_COST} 點，目前點數不足`, 403);
+      throw insufficientCreditsError({
+        feature: "完整面相報告",
+        required: FACE_ANALYSIS_CREDIT_COST,
+        remaining: Number(entitlement.credits_remaining || 0)
+      });
     }
 
     const { data: locked, error: lockError } = await admin
@@ -247,7 +252,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
   } catch (error) {
     if (activeRunId && activeUserId) await markRunFailed(activeRunId, activeUserId, safeErrorCode(error));
-    return apiJson({ error: errorMessage(error) }, errorStatus(error));
+    return apiJson(errorBody(error), errorStatus(error));
   }
 }
 

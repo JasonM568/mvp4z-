@@ -2,6 +2,7 @@
 // 極簡區只問：問題／出生年月日時／性別；34 個專業欄位原樣收進「進階設定」摺疊區。
 // 扣點 consent 紅線：啟動掃描前必須秀出扣點說明並勾選同意。
 
+import { CreditsNotice } from "../../_credits-notice";
 import {
   baziModes,
   birthPlaceOptions,
@@ -46,7 +47,8 @@ export function InputStep({
   generateLabel,
   generateDisabled,
   onGenerate,
-  notice
+  notice,
+  creditsShortfall
 }: {
   form: CouncilForm;
   modules: CouncilModules;
@@ -61,6 +63,8 @@ export function InputStep({
   generateDisabled: boolean;
   onGenerate: () => void;
   notice: string;
+  /** 點數看起來不夠時的提示資料。只提示不擋——最終仍由後端判定。 */
+  creditsShortfall?: { required: number; remaining: number; shortfall: number; feature: string } | null;
 }) {
   return (
     <section className="section" style={{ paddingTop: 26 }}>
@@ -379,6 +383,16 @@ export function InputStep({
               </button>
             </div>
             {notice && <div className="status ok" style={{ marginTop: 14 }}>{notice}</div>}
+
+            {/* 點數看起來不夠時，在按鈕正下方就先講清楚並給出口，
+                不必等他按下去、跑完流程才被擋。
+                刻意不停用按鈕：餘額是前端快取的值，萬一過時會把有點數的人鎖死，
+                最終判定仍在後端。 */}
+            {creditsShortfall && (
+              <div style={{ marginTop: 16 }}>
+                <CreditsNotice details={creditsShortfall} />
+              </div>
+            )}
           </article>
         </div>
       </div>

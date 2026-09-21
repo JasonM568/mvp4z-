@@ -1,0 +1,124 @@
+/* 點數不足提示的樣式。
+   刻意由元件自己 import，不放進 decision.css——面相頁不載入那支，
+   放錯地方會讓同一個元件在天機書有樣式、在面相頁裸奔。
+*/
+/* 點數不足的共用提示。
+   刻意不用一般錯誤的紅框：這不是故障，是一個有明確出口的狀態，
+   做得像錯誤只會讓會員以為系統壞了而直接離開。 */
+.xf-credits-notice {
+  border: 1px solid var(--gold, #d2a954);
+  border-radius: 16px;
+  background: rgba(210, 169, 84, 0.07);
+  padding: 26px 28px;
+}
+
+.xf-credits-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--gold, #d2a954);
+  margin-bottom: 8px;
+}
+
+.xf-credits-notice h2 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  line-height: 1.4;
+}
+
+.xf-credits-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+}
+
+.xf-credits-figures > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.xf-credits-figures span {
+  font-size: 12.5px;
+  color: var(--muted, #9a9384);
+}
+
+.xf-credits-figures strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.xf-credits-figures .short strong {
+  color: var(--gold, #d2a954);
+}
+
+.xf-credits-message {
+  margin: 0 0 16px;
+  font-size: 14.5px;
+  line-height: 1.85;
+  color: var(--muted, #9a9384);
+}
+
+.xf-credits-message strong {
+  color: inherit;
+}
+
+.xf-credits-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* 按鈕自帶樣式，不借用 .btn.primary／.btn.ghost。
+   前者只定義在 styles/member.css、後者全站根本沒有定義，
+   而面相頁用的是另一套 .face-primary——借用會讓同一個元件在某些頁面裸奔。 */
+.xf-credits-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 12px 22px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.xf-credits-btn.primary {
+  color: #171109;
+  background: linear-gradient(135deg, #eed18b, #b98732);
+}
+
+.xf-credits-btn.ghost {
+  color: inherit;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.xf-credits-btn:hover {
+  transform: translateY(-1px);
+}
+
+.xf-credits-btn:focus-visible {
+  outline: 2px solid var(--gold, #d2a954);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xf-credits-btn { transition: none; }
+  .xf-credits-btn:hover { transform: none; }
+}
+
+/* 面相頁的就緒畫面是置中排版，提示卡要拉回靠左並留間距。 */
+.face-ready .xf-credits-notice {
+  margin: 18px 0 4px;
+  text-align: left;
+}

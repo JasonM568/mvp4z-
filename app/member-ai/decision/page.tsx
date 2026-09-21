@@ -40,6 +40,8 @@ export default function DecisionPage() {
   const [jsonPacket, setJsonPacket] = useState<any>(null);
   const [notice, setNotice] = useState("");
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scanErrorCode, setScanErrorCode] = useState<string | null>(null);
+  const [scanErrorDetails, setScanErrorDetails] = useState<Record<string, unknown> | null>(null);
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [memberStatus, setMemberStatus] = useState<"loading" | "guest" | "member">("loading");
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
@@ -169,6 +171,22 @@ export default function DecisionPage() {
 
   const payload = useMemo(() => buildCouncilPayload(form, modules), [form, modules]);
   const tier = member?.tier;
+
+  /**
+   * 點數看起來不夠時，在輸入頁就先提示。
+   *
+   * 每個方案的 monthlyFreeQuota 目前都是 0，所以報告一定扣點，這個判斷會準。
+   * 但仍只做提示不做阻擋——餘額是前端拿到的快取值，用它去鎖按鈕，
+   * 萬一值過時就會把實際有點數的會員關在門外。最終判定一律在後端。
+   */
+  const creditsShortfall = (() => {
+    if (!member || !tier || memberStatus !== "member") return null;
+    const required = Number(tier.councilCost || 0);
+    const remaining = Number(member.credits_remaining || 0);
+    if (required <= 0 || remaining >= required) return null;
+    if (Number(tier.monthlyFreeQuota || 0) > 0) return null; // 還有免費額度就不提示
+    return { required, remaining, shortfall: required - remaining, feature: "四象天機報告" };
+  })();
   const canUseCouncil = tier?.canUseCouncil ?? false;
   const isGuest = memberStatus === "guest";
   const showMemberGate = memberStatus !== "loading" && !canUseCouncil;
@@ -215,6 +233,8 @@ export default function DecisionPage() {
     }
     setNotice("");
     setScanError(null);
+    setScanErrorCode(null);
+    setScanErrorDetails(null);
     setStep("scanning");
     generate();
   }
@@ -234,8 +254,11 @@ export default function DecisionPage() {
     }));
 
     if (data?.error) {
-      track("four_aspects_failed", { stage: "generation" });
+      track("four_aspects_failed", { stage: "generation", code: data.code || "unknown" });
       setScanError(data.error);
+      // 點數不足要顯示的是出口而不是「返回修改」，所以錯誤碼要一起帶進掃描畫面。
+      setScanErrorCode(data.code || null);
+      setScanErrorDetails(data.details || null);
       setJsonPacket({ request: payload, error: data.error });
       setLoading(false);
       return;
@@ -358,6 +381,7 @@ export default function DecisionPage() {
             generateDisabled={loading || memberStatus === "loading" || (canUseCouncil && !agreed)}
             onGenerate={handleGenerateClick}
             notice={notice}
+            creditsShortfall={creditsShortfall}
           />
         )}
 
@@ -366,9 +390,13 @@ export default function DecisionPage() {
             aspects={enabledAspects(modules)}
             done={!loading && !!report}
             errorMsg={scanError}
+            errorCode={scanErrorCode}
+            errorDetails={scanErrorDetails}
             onComplete={() => setStep("report")}
             onBack={() => {
               setScanError(null);
+              setScanErrorCode(null);
+              setScanErrorDetails(null);
               setStep("input");
             }}
           />
