@@ -21,14 +21,29 @@ const STATUS_FILTERS = [
   { key: "active", label: "啟用中" },
   { key: "pending", label: "未啟用" },
   { key: "expired", label: "已到期" },
+  { key: "stuck", label: "點數卡住" },
   { key: "admin", label: "管理員" }
 ];
+
+/**
+ * 「卡住」＝資格還有效，但點數不夠產一份報告。
+ *
+ * 這一群在原本的列表裡看不出來：狀態是啟用中、點數欄位也有數字，
+ * 跟正常會員長得一樣。但 2026-09-22 查證時，13 位有效 trial 會員裡有 6 位
+ * 剛好停在 10 點——全是「註冊 30 點、產 1 份報告扣 20」的結果，
+ * 而且 0 人付費、0 人開過結帳頁。這是最該主動聯繫的一群。
+ */
+function isStuck(m: { status: string; credits_remaining: number }, reportCost: number) {
+  return m.status === "active" && m.credits_remaining < reportCost;
+}
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
+  // 報告成本由後端給，後台不自己寫死 20——改價時只改一個地方。
+  const [reportCost, setReportCost] = useState(20);
   const [creditTarget, setCreditTarget] = useState<Member | null>(null);
   const [creditAmount, setCreditAmount] = useState(10);
   const [creditPlan, setCreditPlan] = useState("pro");
@@ -45,6 +60,7 @@ export default function MembersPage() {
     const res = await adminFetch("/api/admin/members");
     const data = await res.json();
     setMembers(data?.members || []);
+    if (typeof data?.report_cost === "number") setReportCost(data.report_cost);
     setLoading(false);
   };
 
@@ -58,21 +74,23 @@ export default function MembersPage() {
       active: members.filter((m) => m.status === "active").length,
       pending: members.filter((m) => m.status === "pending").length,
       expired: members.filter((m) => m.status === "expired").length,
-      admin: members.filter((m) => m.role === "admin").length
+      admin: members.filter((m) => m.role === "admin").length,
+      stuck: members.filter((m) => isStuck(m, reportCost)).length
     };
-  }, [members]);
+  }, [members, reportCost]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return members.filter((m) => {
       if (filter === "admin" && m.role !== "admin") return false;
-      if (filter !== "all" && filter !== "admin" && m.status !== filter) return false;
+      if (filter === "stuck" && !isStuck(m, reportCost)) return false;
+      if (filter !== "all" && filter !== "admin" && filter !== "stuck" && m.status !== filter) return false;
       if (!q) return true;
       return [m.name, m.email, m.phone, m.plan, m.role]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(q));
     });
-  }, [members, filter, query]);
+  }, [members, filter, query, reportCost]);
 
   async function createCode() {
     setCodeSaving(true);
@@ -183,6 +201,23 @@ export default function MembersPage() {
 
       {creditMessage && <div className="admin-inline-message" style={{ marginBottom: 12 }}>{creditMessage}</div>}
 
+      {/* 卡住的人要主動被看見，不能只是列表裡一個不起眼的數字。
+          這些人資格還有效、點數也還有，但產不出報告——而且實測 0 人會自己去結帳。 */}
+      {counts.stuck > 0 && filter !== "stuck" && (
+        <div className="admin-inline-message" style={{ marginBottom: 12, borderColor: "#e6a95c" }}>
+          <strong>{counts.stuck} 位會員的資格還有效，但點數不夠產報告（需 {reportCost} 點）。</strong>
+          {" "}他們用完免費點數後就停在那裡，實測不會自己去結帳。
+          <button
+            className="admin-action-btn small"
+            type="button"
+            style={{ marginLeft: 10 }}
+            onClick={() => setFilter("stuck")}
+          >
+            查看名單
+          </button>
+        </div>
+      )}
+
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
@@ -220,7 +255,14 @@ export default function MembersPage() {
                   <div>{m.plan}</div>
                   <span className={`admin-pill ${m.status}`}>{statusLabel(m.status)}</span>
                 </td>
-                <td style={{ fontWeight: 800 }}>{m.credits_remaining.toLocaleString()}</td>
+                <td style={{ fontWeight: 800 }}>
+                  {m.credits_remaining.toLocaleString()}
+                  {isStuck(m, reportCost) && (
+                    <div className="admin-pill cancelled" style={{ marginTop: 4, fontWeight: 600 }}>
+                      不足 {reportCost} 點
+                    </div>
+                  )}
+                </td>
                 <td>{m.expires_at ? new Date(m.expires_at).toLocaleString("zh-TW") : "—"}</td>
                 <td>{new Date(m.created_at).toLocaleString("zh-TW")}</td>
                 <td>
