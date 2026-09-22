@@ -8,7 +8,12 @@
 import type { LiuyaoChart, LiuyaoLine, MeihuaChart, QimenChart, YixueChart } from "../types";
 import { LUOSHU_LAYOUT } from "../qimen/tables";
 
-export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): string {
+export function renderChartForPrompt(
+  chart: YixueChart,
+  schoolLabel: string,
+  /** 已簽核時傳「拍板人　日期」，未簽核傳空字串。 */
+  signature = ""
+): string {
   const t = chart.resolvedTime;
   const lines: string[] = [
     "【系統排盤結果】",
@@ -16,6 +21,9 @@ export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): st
     "請直接引用，不得自行改算年月日時柱，也不得寫「請提供出生資料」「無法推算」。",
     "若你的認知與此處不符，一律以本區塊為準——你的任務是解讀，不是排盤。",
     `採用流派：${schoolLabel}`,
+    // 簽核狀態獨立印一行：流派名稱是老師自己打的字，他簽核後未必會回去改，
+    // 靠名稱判斷會讓「已簽核」的盤一直對客戶顯示「待簽核」。
+    signature ? `流派簽核：${signature}` : "流派簽核：尚未簽核，本次判讀請據此說明限制",
     `出生時間：${t.civil}（${t.inputCalendar}輸入${t.isLeapMonth ? "，閏月" : ""}）`
   ];
 

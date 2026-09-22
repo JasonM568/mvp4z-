@@ -191,3 +191,20 @@ describe("流年流月進 prompt", () => {
     expect(renderChartDigest(chart)).toContain("當下流月 丁酉");
   });
 });
+
+describe("流派簽核狀態進 prompt", () => {
+  // 流派名稱是老師自己打的字。他簽核後未必會回去把「（暫定，待簽核）」拿掉，
+  // 所以簽核狀態必須獨立印一行，不能靠名稱判斷。
+  it("已簽核時印出拍板人與日期", () => {
+    const chart = buildChartForCouncil(input(), SCHOOL).chart!;
+    const text = renderChartForPrompt(chart, SCHOOL.label, "風羿老師　2026-09-08");
+    expect(text).toContain("流派簽核：風羿老師　2026-09-08");
+  });
+
+  it("未簽核時要明說，並要求判讀時說明限制", () => {
+    const chart = buildChartForCouncil(input(), SCHOOL).chart!;
+    const text = renderChartForPrompt(chart, SCHOOL.label);
+    expect(text).toContain("流派簽核：尚未簽核");
+    expect(text).toContain("請據此說明限制");
+  });
+});

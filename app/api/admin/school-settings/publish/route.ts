@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     const { data: draft, error: draftError } = await admin
       .from("ai_school_profiles")
-      .select("id, version_label, settings")
+      .select("id, version_label, settings, decided_by")
       .eq("status", "draft")
       .maybeSingle();
 
@@ -44,9 +44,20 @@ export async function POST(request: NextRequest) {
       if (error) throw statusError(`封存前一版失敗：${error.message}`, 500);
     }
 
+    // 簽核資訊一併寫進 settings，不是只留在 decided_by 欄位。
+    // 引擎與後台橫幅讀的都是 settings.decidedBy；只存欄位的話，老師簽了名、
+    // 報告仍會對客戶印「暫定，待簽核」（2026-09-08 的 v2 就是這樣）。
+    // 讀取端另有合併邏輯讓舊版本也能對，這裡是讓新版本自帶完整資訊。
+    const publishedAt = new Date().toISOString();
+    const signed = {
+      ...parsed.data,
+      decidedBy: parsed.data.decidedBy || draft.decided_by || "",
+      decidedAt: publishedAt.slice(0, 10)
+    };
+
     const { error: publishError } = await admin
       .from("ai_school_profiles")
-      .update({ status: "published", published_at: new Date().toISOString() })
+      .update({ status: "published", published_at: publishedAt, settings: signed })
       .eq("id", draft.id);
 
     if (publishError) {

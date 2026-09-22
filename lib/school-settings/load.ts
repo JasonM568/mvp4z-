@@ -38,6 +38,20 @@ export async function loadSchool(now: number): Promise<LoadedSchool> {
   return result;
 }
 
+/** 把 DB 欄位的簽核資訊補進 settings。settings 已有值時不覆蓋。 */
+export function mergeSignature(settings: unknown, decidedBy: unknown, publishedAt: unknown): unknown {
+  if (!settings || typeof settings !== "object") return settings;
+  const s = settings as Record<string, unknown>;
+  const by = typeof s.decidedBy === "string" && s.decidedBy ? s.decidedBy : String(decidedBy || "");
+  const at =
+    typeof s.decidedAt === "string" && s.decidedAt
+      ? s.decidedAt
+      : typeof publishedAt === "string" && publishedAt
+        ? publishedAt.slice(0, 10)
+        : "";
+  return { ...s, decidedBy: by, decidedAt: at };
+}
+
 async function read(): Promise<LoadedSchool> {
   let admin;
   try {
@@ -49,7 +63,7 @@ async function read(): Promise<LoadedSchool> {
 
   const { data, error } = await admin
     .from("ai_school_profiles")
-    .select("id, settings")
+    .select("id, settings, decided_by, published_at")
     .eq("status", "published")
     .maybeSingle();
 
@@ -61,7 +75,17 @@ async function read(): Promise<LoadedSchool> {
   }
   if (!data) return defaultResult("no_published_profile");
 
-  const parsed = schoolConfigSchema.safeParse(data.settings);
+  // 簽核資訊補回 settings。
+  //
+  // 後台的「決定人」欄位存進 DB 欄位 decided_by，但引擎與後台橫幅讀的都是
+  // settings.decidedBy。兩邊沒接起來的後果實際發生過：老師 2026-09-08 發布了 v2、
+  // decided_by 寫著「風羿老師」，而每一份收費報告仍對客戶印
+  //「採用流派：風羿老師流派 v1（暫定，待簽核）」，後台也顯示「尚未經老師簽核」。
+  //
+  // 在讀取時合併而不是改資料：舊的已發布版本立刻就對，不必動任何一列。
+  // settings 裡已有值時以 settings 為準——那是更晚寫入的來源。
+  const merged = mergeSignature(data.settings, data.decided_by, data.published_at);
+  const parsed = schoolConfigSchema.safeParse(merged);
   if (!parsed.success) {
     console.warn("[school] 已發布流派驗證失敗，改用程式預設值", {
       profileId: data.id,

@@ -132,7 +132,10 @@ export async function POST(request: NextRequest) {
     if (chartError) {
       console.warn("[council] 排盤未完成，改用原始生辰資料", { reason: chartError });
     }
-    const chartBlock = chart ? renderChartForPrompt(chart, school.label) : "";
+    const schoolSignature = school.decidedBy
+      ? `${school.decidedBy}${school.decidedAt ? `　${school.decidedAt}` : ""}`
+      : "";
+    const chartBlock = chart ? renderChartForPrompt(chart, school.label, schoolSignature) : "";
     const chartDigest = chart ? renderChartDigest(chart) : "";
 
     // 7. 組 council input
