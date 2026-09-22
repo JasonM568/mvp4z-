@@ -14,7 +14,11 @@
 於是**每份收費報告對客戶印「採用流派：…（暫定，待簽核）」**、後台顯示「尚未經老師簽核」。
 與先前那批同一種病，方向相反：這次是老師做了、系統說他沒做。
 
-### 已修（未部署）
+### 已修並上線
+
+- commit `4f9db45` → `main`
+- Vercel `dpl_6BK8XmxJ49iDiigPP9X1j9kNYvKB` → READY（production）
+- 煙霧測試：首頁 buildId `EXpU4zoP5wA0m0CC4w9EG` → `ZYrfYCDc7nOnPO3Ot6C0L`（一個請求）
 
 - `mergeSignature()` 在讀取時把 DB 欄位補進 settings——**不改資料**，已發布的舊版本立刻就對。
 - publish 一併寫進 settings，新版本自帶完整資訊。
