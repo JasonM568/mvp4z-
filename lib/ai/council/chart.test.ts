@@ -138,3 +138,56 @@ describe("盤面進 prompt", () => {
     expect(block).toContain("缺少：");
   });
 });
+
+describe("流年流月進 prompt", () => {
+  // 這一組測試鎖的是 2026-09-22 查到的實際行為：每一份報告都把大運流年流月
+  // 列為「缺少的客戶資料」，行動方案第一條寫著「補齊大運、流年流月資料」。
+  // 流年流月是推導得出的，系統算得出來就不該跟付費會員要。
+  function withEvent(): CouncilInput {
+    return {
+      ...input(),
+      yixue: {
+        ...input().yixue,
+        eventTime: { year: 2026, month: 9, day: 22, hour: 14, minute: 0 }
+      }
+    } as CouncilInput;
+  }
+
+  it("有事件時間就推得出流年流月，並逐月標出所屬流年", () => {
+    const chart = buildChartForCouncil(withEvent(), SCHOOL).chart!;
+    const f = chart.bazi!.fleeting!;
+    expect(f.year.label).toBe("丙午");
+    expect(f.months[0].ganzhi.label).toBe("丁酉");
+    // 第六個月跨立春，流年已換——序列必須自己帶得出這件事。
+    expect(f.months[5].year.label).toBe("丁未");
+  });
+
+  it("prompt 明說流年流月是推導結果，不得要求會員提供", () => {
+    const chart = buildChartForCouncil(withEvent(), SCHOOL).chart!;
+    const text = renderChartForPrompt(chart, SCHOOL.label);
+    expect(text).toContain("流年：丙午");
+    expect(text).toContain("丁酉月");
+    expect(text).toContain("不得在報告中要求會員提供");
+  });
+
+  it("大運未實作必須明講，且同樣禁止叫會員自己補", () => {
+    // 沒有這一句，模型看不到大運就會寫成「請會員補齊大運資料」——
+    // 那正是這次要修掉的行為，不是模型的錯，是盤面沒交代清楚。
+    const chart = buildChartForCouncil(withEvent(), SCHOOL).chart!;
+    const text = renderChartForPrompt(chart, SCHOOL.label);
+    expect(text).toContain("尚未提供程式排的大運");
+    expect(text).toContain("不得要求會員自行提供大運資料");
+  });
+
+  it("沒有事件時間就不推流年流月，並留下 warning 而不是靜默略過", () => {
+    const chart = buildChartForCouncil(input(), SCHOOL).chart!;
+    expect(chart.bazi!.fleeting).toBeNull();
+    expect(chart.warnings.some((w) => w.includes("未推流年流月"))).toBe(true);
+  });
+
+  it("第二輪摘要也帶流年與當下流月，否則校核輪看不到", () => {
+    const chart = buildChartForCouncil(withEvent(), SCHOOL).chart!;
+    expect(renderChartDigest(chart)).toContain("流年 丙午");
+    expect(renderChartDigest(chart)).toContain("當下流月 丁酉");
+  });
+});

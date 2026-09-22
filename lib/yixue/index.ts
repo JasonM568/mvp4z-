@@ -19,6 +19,7 @@ import type {
   YixueChart
 } from "./types";
 import { buildMonthOrder, buildPillars } from "./calendar/pillars";
+import { buildFleeting } from "./bazi/fleeting";
 import { resolveBirthTime, type BirthInput } from "./calendar/resolve";
 import { makeSolarTime } from "./calendar/tyme";
 import { buildMeihuaChart } from "./meihua/meihua";
@@ -86,18 +87,27 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
     school.calendar
   );
 
-  const bazi = input.modules.bazi
-    ? {
-        pillars: buildPillars(solarTime, school.calendar, hourKnown),
-        monthOrder: buildMonthOrder(solarTime)
-      }
-    : null;
-
   const allWarnings = [...warnings];
 
   // 起卦時刻只解析一次，梅花與六爻共用——同一份報告不該對「現在」有兩種認知。
+  // 八字的流年流月也對齊這個時刻，理由相同。
   const divTime = toSolar(input.divinationTime);
   const liuyaoTime = toSolar(input.liuyaoTime) || divTime;
+
+  // 流年流月以事件／起局時刻為基準，不是出生時刻——會員問的是「現在這件事」。
+  // 沒有事件時間就給 null 並留 warning：這兩者是推導得出的，不該再去跟會員要，
+  // 但也不能沒有基準還硬算。
+  const bazi = input.modules.bazi
+    ? {
+        pillars: buildPillars(solarTime, school.calendar, hourKnown),
+        monthOrder: buildMonthOrder(solarTime),
+        fleeting: divTime ? buildFleeting(divTime) : null
+      }
+    : null;
+
+  if (input.modules.bazi && !divTime) {
+    allWarnings.push("八字：缺少事件時間，本次未推流年流月。");
+  }
 
   // 梅花。起卦失敗只降級成 null 並留下 warning——排不出卦不該讓整份報告掛掉，
   // 但也絕不能靜默略過，否則又回到「模型自己編一個卦」的老問題。

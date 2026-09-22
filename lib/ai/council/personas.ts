@@ -11,6 +11,8 @@ import type { PromptSettings } from "./settings/schema";
 export type YixuePayload = {
   clientName?: string;
   gender?: string;
+  /** 身分／角色。只作判讀背景，不參與術數計算——大運要用的是 gender。 */
+  identity?: string;
   birth?: {
     calendar?: string;
     /** 農曆才有意義。前端一直有送、schema 一直有收，型別漏宣告導致被靜默丟棄。 */
@@ -133,7 +135,8 @@ export function yixueDataBlock(input: CouncilInput, chartBlock = "") {
     return `
 【個案基本資料】
 案主：${input.yixue?.clientName || "未填"}
-性別／身份：${input.yixue?.gender || "未填"}
+性別：${input.yixue?.gender || "未填"}
+身分：${input.yixue?.identity || "未填"}
 問題類型：${input.topic || "未指定"}
 交付模式：${input.deliverableMode || "商業決策顧問報告"}
 問題：${input.question || "未填"}
@@ -165,7 +168,8 @@ ${meihuaBlock(input.yixue?.meihua)}
   return `
 【個案基本資料】
 案主：${input.yixue?.clientName || "未填"}
-性別／身份：${input.yixue?.gender || "未填"}
+性別：${input.yixue?.gender || "未填"}
+身分：${input.yixue?.identity || "未填"}
 問題類型：${input.topic || "未指定"}
 交付模式：${input.deliverableMode || "商業決策顧問報告"}
 問題：${input.question || "未填"}

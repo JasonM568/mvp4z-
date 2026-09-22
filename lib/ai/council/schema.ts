@@ -13,6 +13,8 @@ export const councilSchema = z.object({
     .object({
       clientName: z.string().trim().max(40).optional(),
       gender: z.string().trim().max(20).optional(),
+      /** 身分／角色，自由填寫。不參與術數計算，只作判讀背景。 */
+      identity: z.string().trim().max(40).optional(),
       birth: z
         .object({
           calendar: z.string().optional(),

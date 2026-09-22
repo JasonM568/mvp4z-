@@ -238,3 +238,39 @@ export function hourPillarOf(t: SolarTime, school: { lateZiDayPillar: "next" | "
 }
 
 export const HEAVEN_STEM_NAMES: readonly string[] = HEAVEN_STEMS;
+
+// ---------------------------------------------------------------- 流年流月
+
+/** 時刻 t 所屬節月的「節」。getTerm() 可能回氣，往回走到最近的節。 */
+function jieOf(t: SolarTime) {
+  let term = t.getTerm();
+  while (!term.isJie()) term = term.next(-1);
+  return term;
+}
+
+/**
+ * 從 t 所在的節月起算，第 i 個節月的年柱、月柱與起始節。i=0 即 t 當下所在的節月。
+ *
+ * 年柱一起回傳而不是由呼叫端自行推算：流年在立春換，而立春就是節之一，
+ * 所以同一段流月序列會跨到下一個流年。把年柱綁在每個月上，
+ * 「流月跟著流年異動」就是結構本身保證的，不必靠呼叫端記得處理。
+ *
+ * 取節氣時刻 +5 天當探針，而不是節的精確時刻本身：
+ * 邊界時刻會受交節 tie-break 影響，往後 5 天則穩穩落在該節月內
+ * （最短的節月也有 29 天以上），不必為了邊界再寫一套判斷。
+ */
+export function fleetingMonthAt(
+  t: SolarTime,
+  i: number
+): { year: StemBranch; month: StemBranch; term: string; termAt: string } {
+  const jie = jieOf(t).next(i * 2);
+  const at = jie.getJulianDay().getSolarTime();
+  const probe = jie.getJulianDay().next(5).getSolarTime();
+  const sch = SixtyCycleHour.fromSolarTime(probe);
+  return {
+    year: fromSixtyCycle(sch.getYear()),
+    month: fromSixtyCycle(sch.getMonth()),
+    term: SOLAR_TERMS[jie.getIndex()],
+    termAt: formatSolarTime(at)
+  };
+}

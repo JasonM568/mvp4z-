@@ -33,7 +33,10 @@ export const yaoOptions = ["少陽", "少陰", "老陽", "老陰"];
 export const reportTemplates = ["商業決策顧問報告", "標準個人諮詢報告", "企業主管簡報版", "教學展示版"];
 export const topics = ["事業／工作", "財運／投資", "考試／升學", "感情／人際", "房產／陽宅", "健康／身心"];
 export const reviewModes = ["啟用策略校核層", "啟用深度反證層", "不啟用"];
-export const genderOptions = ["男", "女", "其他／不指定", "企業主", "考生"];
+// 性別與身分拆成兩欄。原本擠在同一格（男／女／其他／企業主／考生），
+// 選「企業主」就等於沒有性別——而大運的順逆是陽男陰女順排、陰男陽女逆排，
+// 沒有乾淨的男／女就排不出來。拆開是為大運鋪路，本身也比較合理。
+export const genderOptions = ["男", "女", "不指定"];
 export const calendarOptions = ["國曆", "農曆"];
 
 // 出生地：只為真太陽時校正而收。清單直接取自排盤引擎的經緯度表，
@@ -56,6 +59,8 @@ export const liuyaoTimeModes = ["現在時間", "自行輸入時間"];
 export type CouncilForm = {
   clientName: string;
   gender: string;
+  /** 身分／角色，自由填寫。只作為判讀背景，不參與任何術數計算。 */
+  identity: string;
   topic: string;
   reportTemplate: string;
   question: string;
@@ -110,7 +115,10 @@ export function buildInitialForm(): CouncilForm {
   const now = new Date();
   return {
     clientName: "",
+    // ⚠️ 大運上線前要重新檢視這個預設值：沒被動過的「男」會讓一半的人
+    // 靜默拿到錯的大運順逆。屆時應改為強制選擇或不指定時不排大運。
     gender: "男",
+    identity: "",
     topic: "事業／工作",
     reportTemplate: "商業決策顧問報告",
     question: "",

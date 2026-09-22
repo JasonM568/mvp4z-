@@ -135,12 +135,16 @@ export function InputStep({
                     {g === "男" ? "♂ 男" : "♀ 女"}
                   </button>
                 ))}
-                {!["男", "女"].includes(form.gender) && (
-                  <span className="badge" style={{ marginBottom: 0 }}>{form.gender}</span>
-                )}
+                <button
+                  type="button"
+                  className={"xf-gender-btn" + (form.gender === "不指定" ? " active" : "")}
+                  onClick={() => update("gender", "不指定")}
+                >
+                  不指定
+                </button>
               </div>
               <p style={{ color: "var(--muted)", fontSize: 12, margin: "8px 0 0" }}>
-                其他身分（企業主／考生等）與更多專業選項，請展開下方進階設定。
+                身分（企業主／考生等）現在是獨立欄位，與更多專業選項一起放在下方進階設定。
               </p>
             </div>
           </article>
@@ -156,10 +160,23 @@ export function InputStep({
                     <input value={form.clientName} onChange={(e) => update("clientName", e.target.value)} placeholder="例如：王先生" />
                   </label>
                   <label>
-                    性別／身分
+                    性別
                     <select value={form.gender} onChange={(e) => update("gender", e.target.value)}>
-                      {genderOptions.map((x) => <option key={x}>{x}</option>)}
+                      {/* 若帶進來的值不在清單內（例如舊版的「企業主」），仍列出來，
+                          不要讓使用者填過的資料在切到這一頁時被靜默換掉。 */}
+                      {(genderOptions.includes(form.gender)
+                        ? genderOptions
+                        : [form.gender, ...genderOptions]
+                      ).map((x) => <option key={x}>{x}</option>)}
                     </select>
+                  </label>
+                  <label>
+                    身分（選填）
+                    <input
+                      value={form.identity}
+                      onChange={(e) => update("identity", e.target.value)}
+                      placeholder="例如：企業主、考生、負責人"
+                    />
                   </label>
                   <label>
                     問題類型

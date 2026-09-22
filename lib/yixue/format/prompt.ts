@@ -36,6 +36,31 @@ export function renderChartForPrompt(chart: YixueChart, schoolLabel: string): st
       // 盤面保留原值，只在對外顯示時取到小數一位。
       `月令：${chart.bazi.monthOrder.term}（交節 ${chart.bazi.monthOrder.termAt}），距節 ${chart.bazi.monthOrder.daysIntoTerm.toFixed(1)} 天`
     );
+
+    // 流年流月一起印，並逐月標出所屬流年——立春會換年，序列本來就可能跨兩個流年。
+    // 措辭刻意寫「已由系統依曆法推定」：這兩者以前被當成缺少的客戶資料，
+    // 報告因此年年降權並叫會員自己去補。現在它是既定事實，不得再列為待補項目。
+    const f = chart.bazi.fleeting;
+    if (f) {
+      lines.push(
+        "",
+        `流年：${f.year.label}（以立春分界，與年柱同一套規則，已由系統依曆法推定）`,
+        "流月（依節分界，逐月列出所屬流年）：",
+        ...f.months.map(
+          (m) =>
+            `- ${m.year.label}年 ${m.ganzhi.label}月｜起於${m.term} ${m.termAt}${m.current ? "（事件時刻所在月）" : ""}`
+        ),
+        "流年流月為推導結果，不是待補資料；不得在報告中要求會員提供。"
+      );
+    }
+
+    // 大運未實作，必須明講。沒有這一句，模型會把「沒看到大運」寫成
+    // 「請會員補齊大運資料」——那正是這次要修掉的行為。
+    lines.push(
+      "",
+      "大運：本系統尚未提供程式排的大運（起運法待老師簽核）。",
+      "涉及大運的判斷請明確降權並說明理由，但不得要求會員自行提供大運資料。"
+    );
   }
 
   if (chart.qimen) {
@@ -199,7 +224,10 @@ export function renderChartDigest(chart: YixueChart): string {
     const p = chart.bazi.pillars;
     const hour = p.hour ? p.hour.ganzhi.label : "無時柱";
     parts.push(
-      `四柱 ${p.year.ganzhi.label} ${p.month.ganzhi.label} ${p.day.ganzhi.label} ${hour}；月令 ${chart.bazi.monthOrder.term}`
+      `四柱 ${p.year.ganzhi.label} ${p.month.ganzhi.label} ${p.day.ganzhi.label} ${hour}；月令 ${chart.bazi.monthOrder.term}` +
+        (chart.bazi.fleeting
+          ? `；流年 ${chart.bazi.fleeting.year.label}、當下流月 ${chart.bazi.fleeting.months[0].ganzhi.label}`
+          : "")
     );
   }
   if (chart.qimen) {

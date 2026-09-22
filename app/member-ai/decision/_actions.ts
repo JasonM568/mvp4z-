@@ -104,10 +104,11 @@ export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) 
     context: form.context,
     topic: form.topic,
     deliverableMode: form.reportTemplate,
-    clientProfile: `${form.clientName || "未填"}｜${form.gender}`,
+    clientProfile: `${form.clientName || "未填"}｜${form.gender}${form.identity ? `｜${form.identity}` : ""}`,
     yixue: {
       clientName: form.clientName,
       gender: form.gender,
+      identity: form.identity,
       birth: {
         calendar: form.calendarType,
         isLeapMonth: form.isLeapMonth,

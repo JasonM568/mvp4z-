@@ -6,6 +6,8 @@
 //
 // 目前實作範圍：Phase 0 曆法底座與四柱、Phase 1 梅花易數、Phase 2 六爻納甲、Phase 3 奇門遁甲。
 
+import type { Fleeting } from "./bazi/fleeting";
+
 /** 干支。label 是「甲子」這種合寫，方便直接印進報告。 */
 export type StemBranch = {
   stem: string;
@@ -68,6 +70,12 @@ export type Completeness = {
 export type BaziChart = {
   pillars: FourPillars;
   monthOrder: MonthOrder;
+  /**
+   * 事件／起局時刻的流年與接下來的流月。
+   * 放在 bazi 底下而不是頂層：它是八字的判讀依據，不是全盤共用的時間資訊。
+   * 沒有事件時間時為 null——那時沒有基準可對齊，硬給等於猜。
+   */
+  fleeting: Fleeting | null;
 };
 
 // ---------------------------------------------------------------- 梅花易數
