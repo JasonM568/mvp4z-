@@ -13,6 +13,13 @@
 後台沒得改是因為 `SchoolConfig` 只有 calendar／meihua／liuyao 三段，沒有 bazi 段；
 決策書第 327 行自己把「起運法」列為尚未開放。功能不存在，不是漏做設定頁。
 
+### 已上線
+
+- commit `7482b2b` → `main`
+- Vercel `dpl_HoVTDbb8Y8NR8mhbKNYpLbcEU9zP` → READY（production）
+- 煙霧測試：首頁 buildId `2dyZ6-mJh_bTPVjanlcxq` → `u2GwdH5dLkm8qSW1k2Zwp`
+  （一輪一個請求、60 秒一次的低頻探針，避開上次觸發 Vercel 防護的問題）
+
 ### 已完成（走使用者拍板的 A 案）
 
 - 新增 `lib/yixue/bazi/fleeting.ts`：流年（立春分界）＋往後 6 個節月，
