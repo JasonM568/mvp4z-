@@ -21,6 +21,7 @@ import type {
 } from "./types";
 import { buildMonthOrder, buildPillars } from "./calendar/pillars";
 import { buildLuckCycles } from "./bazi/luck";
+import { buildBaziDerived } from "./bazi/tengods";
 import { buildFleeting } from "./bazi/fleeting";
 import { resolveBirthTime, type BirthInput } from "./calendar/resolve";
 import { makeSolarTime } from "./calendar/tyme";
@@ -111,6 +112,7 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
       pillars,
       monthOrder: buildMonthOrder(solarTime),
       fleeting: divTime ? buildFleeting(divTime) : null,
+      derived: buildBaziDerived(pillars),
       luck: buildLuckCycles({
         birthTime: solarTime,
         yearPillar: pillars.year.ganzhi,

@@ -45,6 +45,30 @@ export function renderChartForPrompt(
       `月令：${chart.bazi.monthOrder.term}（交節 ${chart.bazi.monthOrder.termAt}），距節 ${chart.bazi.monthOrder.daysIntoTerm.toFixed(1)} 天`
     );
 
+    // 十神與藏干。2026-09-23 之前這一段完全沒給——等於把八個字丟過去
+    // 叫模型自己在腦中推導十神，而它推錯不會有任何人發現。
+    const d = chart.bazi.derived;
+    lines.push(
+      "",
+      `日主：${d.dayMaster}（${d.dayMasterYinYang}${d.dayMasterElement}）。以下十神皆以此為「我」。`,
+      "四柱十神與地支藏干："
+    );
+    for (const pillar of d.tenGods) {
+      const hidden = pillar.hidden.map((h) => `${h.stem}（${h.role}・${h.god}）`).join("、");
+      lines.push(`- ${pillar.position}柱 ${pillar.ganzhi}｜天干 ${pillar.stemGod}｜藏干 ${hidden}`);
+    }
+    const dist = (o: Record<string, number>) =>
+      ["木", "火", "土", "金", "水"].map((k) => `${k}${o[k] ?? 0}`).join(" ");
+    lines.push(
+      `五行分佈｜天干：${dist(d.distribution.stems)}`,
+      `五行分佈｜地支本氣：${dist(d.distribution.branchMain)}`,
+      `五行分佈｜含全部藏干：${dist(d.distribution.allHidden)}`,
+      "十神、藏干與五行分佈由系統查表推出，為既定事實，請直接引用，不得自行改判。",
+      // 這一句是刻意的。旺衰要先定藏干權重，那是老師未簽核的流派分歧，
+      // 系統給了數字反而會讓模型以為有官方結論可抄。
+      "系統不提供旺衰強弱評分（藏干權重屬流派分歧，尚未簽核）；旺衰請依老師的規則自行判斷並說明依據。"
+    );
+
     // 流年流月一起印，並逐月標出所屬流年——立春會換年，序列本來就可能跨兩個流年。
     // 措辭刻意寫「已由系統依曆法推定」：這兩者以前被當成缺少的客戶資料，
     // 報告因此年年降權並叫會員自己去補。現在它是既定事實，不得再列為待補項目。

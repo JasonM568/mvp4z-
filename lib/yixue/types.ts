@@ -67,6 +67,44 @@ export type Completeness = {
   missing: string[];
 };
 
+/** 地支所藏的一個天干。 */
+export type HiddenStem = {
+  stem: string;
+  /** 本氣／中氣／餘氣。權重是流派分歧，這裡只標角色不給分數。 */
+  role: string;
+  element: string;
+  /** 對日主的十神。組裝時才填。 */
+  god?: string;
+};
+
+export type TenGodPillar = {
+  position: "年" | "月" | "日" | "時";
+  ganzhi: string;
+  /** 天干對日主的十神。日柱標「日主」。 */
+  stemGod: string;
+  hidden: HiddenStem[];
+};
+
+/**
+ * 八字的推導層：十神、藏干、五行分佈。
+ * 全部是查表與數數，沒有流派分歧，所以不開設定欄位。
+ * **刻意不含旺衰評分**——那要先定藏干權重，是老師要拍板的事。
+ */
+export type BaziDerived = {
+  dayMaster: string;
+  dayMasterElement: string;
+  dayMasterYinYang: string;
+  tenGods: TenGodPillar[];
+  distribution: {
+    /** 只數四個天干。 */
+    stems: Record<string, number>;
+    /** 只數四個地支的本氣。 */
+    branchMain: Record<string, number>;
+    /** 把所有藏干都數進去。 */
+    allHidden: Record<string, number>;
+  };
+};
+
 /** 一步大運。 */
 export type LuckCycle = {
   /** 第幾步，從 1 起。 */
@@ -111,6 +149,8 @@ export type BaziChart = {
    * 順逆排完全由性別決定，猜一個等於有一半的人拿到相反的盤。
    */
   luck: LuckCycles | null;
+  /** 十神、藏干、五行分佈。四柱排得出來就一定有。 */
+  derived: BaziDerived;
 };
 
 // ---------------------------------------------------------------- 梅花易數
