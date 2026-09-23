@@ -1,6 +1,6 @@
 # Handoff
 
-## 2026-09-23｜決策報告模組敵意稽核：9 條全屬實，6 條已修上線
+## 2026-09-23｜決策報告模組敵意稽核：9 條全屬實、全部修復上線
 
 ### 背景
 
@@ -55,15 +55,9 @@
 
 **驗收條件「會員登入後能正常使用」：成立。**
 
-### 未完成（交給 pane「報告稽核員」，進行中）
+### #7 #8（已結案）
 
-- **#7 P2**：策略校核層／八字判讀方式兩個下拉從沒進過 payload；奇門起局方式有送、
-  schema 有收，但沒傳進引擎。pane 已移除前兩個假旋鈕，正在接奇門時間。
-  注意：奇門目前共用全報告的 `divinationTime`，要真的生效等於要給它獨立時間線。
-- **#8 P2**：兜底稿仍寫「大運未納入」（假話，大運昨天已上線），且不看啟用模組固定列四術。
-
-pane 與 PM 共用同一個工作樹，已明確分工：pane 只碰 `settings/defaults.ts`、
-`settings/render.ts`、`quality.ts`、input-step 的進階選項區。pane 已被要求 push 前先回報。
+見下方「補記（09:12）」。
 
 ### 仍待風羿老師（沒有工程解）
 
@@ -99,11 +93,107 @@ commit 訊息完全沒提到它——我推了一份自己沒審過的程式上�
 （`toSolar(input.qimenTime) || divTime`，無呼叫端傳值時等同原狀），但共用工作樹時
 不該整檔 `git add`。是 pane 主動來問才發現。
 
-### 下次起手式（更新）
+### 補記（09:35）｜Gemini 退避與告警：已完成調查與設計，**程式尚未動**
 
-1. Gemini 30 天內 6 次高負載失敗，會靜默把三模型降成兩模型——要不要做退避或告警。
-2. `ai_prompt_profiles` 仍 0 筆，報告內容設定從沒發布過。
-3. 決策 5/6/7/8/9 簽核、奇門三張盤例校對、旺衰與藏干權重：**只能等風羿老師**。
+使用者交辦「Gemini 失敗要做退避跟告警」。調查完成、設計定案，但**一行程式都還沒寫**，
+接手者請從這裡開始。
+
+#### 正式庫的實際失敗分布（全期間，重試之後仍失敗的次數）
+
+| provider | 錯誤 | 次數 | 最近一次 |
+|---|---|---|---|
+| Gemini | `This model is currently experiencing high demand…` | **11** | 2026-09-23 01:13 |
+| Gemini | 系統回應逾時 | 2 | 2026-09-01 |
+| DeepSeek | 系統回應逾時 | 2 | 2026-09-08 |
+| OpenAI | 系統回應逾時 | 1 | 2026-08-08 |
+
+查法（失敗紀錄存在 `council_runs.first_round` / `debate_round` 的 ModelResult 陣列裡）：
+
+```sql
+with r as (
+  select created_at, jsonb_array_elements(coalesce(first_round,'[]'::jsonb)) as m from council_runs
+  union all
+  select created_at, jsonb_array_elements(coalesce(debate_round,'[]'::jsonb)) as m from council_runs
+)
+select m->>'role', m->>'error', count(*), max(created_at)
+from r where (m->>'ok')::boolean is false group by 1,2 order by 3 desc;
+```
+
+#### 現況為什麼沒用
+
+`lib/ai/council/providers.ts` 的 `withRetry()` 有兩個問題：
+
+1. **重試零延遲**。上一次失敗後立刻再打一次。「high demand」是上游壅塞，
+   需要時間才會好，秒內重試幾乎必然再失敗——上表那 11 次全都是重試後才記錄的。
+2. **什麼錯都重試**（只有訊息含「未設定」才跳過）。400 這種永久性錯誤也會白白再花 45 秒。
+
+#### 退避的預算限制（這是設計上最關鍵的一點）
+
+現在最壞情況：R1(45×2) + R2(45×2) + 終稿(110×1) = **290 秒**，而 route 的
+`maxDuration = 300`。**只剩 10 秒餘裕，不能無腦加 sleep。**
+
+可行的原因：「high demand」是**秒回**的錯誤，不是逾時。第一次嘗試若 2 秒就失敗，
+那一輪就剩下 43 秒可用。所以退避必須做成**預算感知**：
+
+- 給 `withRetry()` 一個 `budgetMs`（該次呼叫所有嘗試的總時間上限）
+- 睡之前先算 `elapsed + backoff + timeoutMs <= budgetMs`，塞不下就不睡（或直接放棄重試）
+- 退避值建議 1.5–3 秒起跳、加 jitter；不是越久越好，因為預算就那麼多
+
+#### 錯誤分類（要一起做，否則退避只是把浪費拉長）
+
+`ModelResult` 目前只留 `error` 字串，沒有 HTTP status。要加 `status`，然後：
+
+- **重試**：429、5xx、AbortError（逾時）、網路中斷
+- **不重試**：400／401／403（金鑰錯、請求不合法），以及現有的「未設定」
+
+#### 告警：有一個硬障礙，先講清楚
+
+**正式站沒有 `RESEND_API_KEY`**（`npx vercel env ls production` 確認，清單裡沒有）。
+`lib/notifications/admin-alerts.ts` 的 `sendAdminAlert()` 在缺 key 時直接
+`return { ok:false, skipped:true, reason:"missing_resend_config" }`。
+
+**推論：目前全站的 admin 告警一封都沒發出去過**，包含綠界付款異常
+（`app/api/payments/ecpay/notify/route.ts:214,232`）、註冊異常
+（`app/api/auth/register/route.ts:109`）、pending-drafts 排程
+（`app/api/cron/pending-drafts/route.ts:152`）。**這已經超出 Gemini 的範圍，
+是一個獨立的、更嚴重的問題**——付款出事沒有人會知道。
+
+所以告警要做兩層，不綁死在寄信上：
+
+1. **後台可見的 provider 健康狀態**（今天就有效，不依賴 Resend）。
+   資料來源就是上面那段 SQL；顯示 24h / 7d / 30d 各家失敗次數與門檻狀態。
+   建議同時把「本份報告實際由幾家模型產出」顯示出來，讓降級看得見。
+2. **沿用 `sendAdminAlert()` 寄信**（Resend key 設好後自動生效，不必再改程式）。
+   `ADMIN_EMAILS` 正式站已設，`ADMIN_ALERT_EMAILS` 沒設但程式會 fallback 到前者。
+
+#### 順帶查清楚的：決策報告目前接哪幾家
+
+一份報告打 **7 次 API、橫跨三家**：
+
+- 第一輪平行三家：OpenAI（主判讀）／Gemini（策略推演）／DeepSeek（攻防反證）
+- 第二輪攻防同三家各一次（`ENABLE_DEBATE_ROUND` 可關，正式站有設此變數）
+- **終稿只由 OpenAI 寫**（`timeoutMs: 110000, attempts: 1`）
+
+實際模型：
+
+- OpenAI — 正式站有設 `OPENAI_MODEL`（本機 `.env.local` 是 `gpt-4.1-mini`）。
+  正式站的值未確認：要讀就得 `vercel env pull` 把整包 secret 拉到磁碟，沒有這樣做。
+- Gemini — 正式站**沒有** `GEMINI_MODEL` → 走程式預設 **`gemini-2.5-flash`**，
+  且 `thinkingBudget: 0`（關思考鏈，否則多花 10–40 秒容易頂到 timeout）
+- DeepSeek — 正式站**沒有** `DEEPSEEK_MODEL` → 走預設 **`deepseek-chat`**
+
+因為終稿只靠 OpenAI，Gemini 掛掉報告仍生得出來，只是從三家意見變兩家——
+**這就是要處理的靜默降級：會員付一樣的錢，拿到的是少一家意見的報告，而且沒有任何跡象。**
+
+### 下次起手式（更新 09:35）
+
+1. **Gemini 退避＋告警（使用者交辦，尚未動工）** — 見上方補記（09:35）。
+   順序建議：錯誤分類 → 預算感知退避 → 後台健康面板 → 寄信（等 Resend）。
+2. **`RESEND_API_KEY` 沒設，全站 admin 告警實際上沒在運作** — 這是補記中順帶查到的，
+   影響範圍超出 Gemini（付款異常也沒人收得到）。**優先度應該高於 Gemini 退避。**
+   與 memory 裡「Resend xunfeng.tw 網域驗證」那項待辦是同一條線。
+3. `ai_prompt_profiles` 仍 0 筆，報告內容設定從沒發布過。
+4. 決策 5/6/7/8/9 簽核、奇門三張盤例校對、旺衰與藏干權重：**只能等風羿老師**。
 
 
 ---
