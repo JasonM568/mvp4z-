@@ -1,10 +1,9 @@
 // 階段二：問題輸入頁（Input）— 極簡三欄位＋進階摺疊
-// 極簡區只問：問題／出生年月日時／性別；34 個專業欄位原樣收進「進階設定」摺疊區。
+// 極簡區只問：問題／出生年月日時／性別；進階欄位收進摺疊區。
 // 扣點 consent 紅線：啟動掃描前必須秀出扣點說明並勾選同意。
 
 import { CreditsNotice } from "../../_credits-notice";
 import {
-  baziModes,
   birthPlaceOptions,
   calendarOptions,
   days,
@@ -23,7 +22,6 @@ import {
   months,
   qimenModes,
   reportTemplates,
-  reviewModes,
   topics,
   trigramOptions,
   yaoOptions,
@@ -214,7 +212,6 @@ export function InputStep({
                   <label>是否閏月<select value={form.isLeapMonth} onChange={(e) => update("isLeapMonth", e.target.value)}>{yesNoUncertain.map((x) => <option key={x}>{x}</option>)}</select></label>
                   <label>時辰是否確定<select value={form.birthTimeKnown} onChange={(e) => update("birthTimeKnown", e.target.value)}>{yesNoUncertain2.map((x) => <option key={x}>{x}</option>)}</select></label>
                   <label>出生地<select value={form.birthPlace} onChange={(e) => update("birthPlace", e.target.value)}>{birthPlaceOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
-                  <label>策略校核層<select value={form.reviewMode} onChange={(e) => update("reviewMode", e.target.value)}>{reviewModes.map((x) => <option key={x}>{x}</option>)}</select></label>
                 </div>
                 <div className="form council-grid-4">
                   <label>
@@ -280,18 +277,15 @@ export function InputStep({
                   <label>事件分<select value={form.eventMinute} onChange={(e) => update("eventMinute", Number(e.target.value))}>{minutes.map((x) => <option key={x}>{x}</option>)}</select></label>
                 </div>
 
-                {modules.bazi && (
-                  <SubPanel title="八字命理">
-                    <label>判讀方式<select value={form.baziMode} onChange={(e) => update("baziMode", e.target.value)}>{baziModes.map((x) => <option key={x}>{x}</option>)}</select></label>
-                  </SubPanel>
-                )}
-
                 {modules.qimen && (
                   <SubPanel title="奇門遁甲">
                     <div className="form council-grid-2">
-                      <label>起局方式<select value={form.qimenTimeMode} onChange={(e) => update("qimenTimeMode", e.target.value)}>{qimenModes.map((x) => <option key={x}>{x}</option>)}</select></label>
+                      <label>起局時間依據<select value={form.qimenTimeMode === "指定時間" ? "指定時間" : "現在起局"} onChange={(e) => update("qimenTimeMode", e.target.value)}>{qimenModes.map((x) => <option key={x}>{x}</option>)}</select></label>
                       <label>事件方位<select value={form.direction} onChange={(e) => update("direction", e.target.value)}>{trigramOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
                     </div>
+                    <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
+                      {form.qimenTimeMode === "指定時間" ? "依上方事件／起局時間排盤。" : "以送出當下的台北時間排盤。"}
+                    </p>
                   </SubPanel>
                 )}
 

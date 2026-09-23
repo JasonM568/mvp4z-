@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
     const finalLabel = finalOk ? final.label : "風羿老師備援交付稿";
     const finalText = finalOk
       ? cleanReportText(reportText)
-      : cleanReportText(buildSafeFallbackReport(councilInput, prompt.settings));
+      : cleanReportText(buildSafeFallbackReport(councilInput, prompt.settings, chart));
 
     const totalTokensIn = firstTokens.in + debateTokens.in + (final.tokensIn || 0);
     const totalTokensOut = firstTokens.out + debateTokens.out + (final.tokensOut || 0);

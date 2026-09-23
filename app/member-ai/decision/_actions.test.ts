@@ -6,7 +6,8 @@
 // 所以判斷不出來時一律當後者。
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runCouncilReport } from "./_actions";
+import { buildCouncilPayload, runCouncilReport } from "./_actions";
+import { buildInitialForm, buildInitialModules } from "./_form-config";
 
 const payload = {} as Parameters<typeof runCouncilReport>[0];
 
@@ -54,5 +55,35 @@ describe("runCouncilReport 的錯誤分類", () => {
     const r = await runCouncilReport(payload);
     expect(r.transportFailed).toBe(true);
     expect(r.error).toContain("504");
+  });
+});
+
+describe("#7 進階選項必須真能控制報告", () => {
+  it("不再向會員顯示沒有對應輸入與流程的策略校核／八字判讀旋鈕", () => {
+    const form = buildInitialForm() as unknown as Record<string, unknown>;
+    expect(form).not.toHaveProperty("reviewMode");
+    expect(form).not.toHaveProperty("baziMode");
+  });
+
+  it("奇門現在起局送獨立的台北當下時間；指定時間留給事件欄位", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-09-23T02:15:00.000Z"));
+      const form = buildInitialForm();
+      form.eventYear = 2020;
+      form.eventMonth = 1;
+      form.eventDay = 2;
+      form.eventHour = 3;
+      form.eventMinute = 4;
+      form.qimenTimeMode = "現在起局";
+      const now = buildCouncilPayload(form, buildInitialModules());
+      expect(now.yixue.qimen).toMatchObject({ mode: "現在起局", time: "2026-09-23 10:15" });
+      form.qimenTimeMode = "指定時間";
+      const specified = buildCouncilPayload(form, buildInitialModules());
+      expect(specified.yixue.qimen).toMatchObject({ mode: "指定時間" });
+      expect(specified.yixue.qimen.time).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

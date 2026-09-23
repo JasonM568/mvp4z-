@@ -12,6 +12,7 @@
 // 數量增減，序號必須自動接上，讓老師手動維護一定會錯。
 
 import type { PromptSettings, RuleItem } from "./schema";
+import type { YixueChart } from "@/lib/yixue/types";
 import { PROMPT_TOKENS as T } from "./schema";
 
 const CJK_NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三", "十四"];
@@ -169,6 +170,8 @@ export type FallbackContext = {
   meihuaMode: string;
   meihuaUpper: string;
   meihuaLower: string;
+  enabledTerms: string[];
+  chart: YixueChart | null;
 };
 
 function renderWeights(w: PromptSettings["fallbackReport"]["weights"]): string {
@@ -193,9 +196,8 @@ export function renderFallbackReport(s: PromptSettings, ctx: FallbackContext): s
     [T.WEIGHTS]: renderWeights(f.weights)
   };
 
-  // 兜底稿固定列出四術，不隨啟用模組增減——這是改版前的既有行為，
-  // 為了保持輸出一致而保留。要改成只列啟用術數，必須是獨立一次的刻意調整。
-  const termOrder = Object.keys(f.termReadings);
+  // 有選術數只列本次啟用者；舊 API 輸入沒有 modules 時保留完整四術，不產空稿。
+  const termOrder = ctx.enabledTerms.length ? ctx.enabledTerms : Object.keys(f.termReadings);
 
   let n = 0;
   const num = () => cjk(n++);
@@ -203,16 +205,22 @@ export function renderFallbackReport(s: PromptSettings, ctx: FallbackContext): s
   const overview = `${num()}、${f.overview.title}\n${numbered(f.overview.items.map((i) => fill(i, values)))}`;
 
   const completeness = `${num()}、${f.completeness.title}\n${f.completeness.headerRow}\n${termOrder
-    .map((t) => `${t}｜${fill(f.completeness.rows[t] ?? "", values)}`)
+    .map((t) => `${t}｜${fallbackFacts(t, ctx.chart).join("｜")}`)
     .join("\n")}`;
 
   const readings = termOrder
-    .map((t) => `${num()}、${t}獨立判讀\n${fill(f.termReadings[t] ?? "", values)}`)
+    .map((t) => {
+      const hasChart = hasFallbackChart(t, ctx.chart);
+      const guidance = hasChart
+        ? fill(f.termReadings[t] ?? "", values)
+        : "本術本次沒有系統盤面，不能據此推斷成敗、方位或應期。";
+      return `${num()}、${t}獨立判讀\n${fallbackFacts(t, ctx.chart)[0]}。${guidance}`;
+    })
     .join("\n\n");
 
-  const cross = `${num()}、${f.crossValidation.title}\n${numbered(
-    f.crossValidation.items.map((i) => fill(i, values))
-  )}`;
+  const cross = termOrder.length > 1
+    ? `${num()}、${f.crossValidation.title}\n目前未取得通過校核的終稿，不能宣稱各術訊號同向或給出權重排序。請由老師比對本次已排出的盤面。`
+    : "";
 
   const action = `${num()}、${f.actionPlan.title}\n${f.actionPlan.windows
     .map((w, i) => `${i + 1}. ${w.label}\n${w.fields.map((x) => fill(x, values)).join("\n")}`)
@@ -225,4 +233,38 @@ export function renderFallbackReport(s: PromptSettings, ctx: FallbackContext): s
   return [f.reportTitle, "", overview, "", completeness, "", readings, "", cross, "", action, "", advice, "", disclaimer].join(
     "\n"
   );
+}
+
+function hasFallbackChart(term: string, chart: YixueChart | null): boolean {
+  return Boolean(
+    (term === "八字命理" && chart?.bazi) ||
+    (term === "奇門遁甲" && chart?.qimen) ||
+    (term === "卜卦／六爻" && chart?.liuyao) ||
+    (term === "梅花易數" && chart?.meihua)
+  );
+}
+
+/** 兜底稿只能陳述本次真實排出的資料；沒有盤就明說沒有。 */
+function fallbackFacts(term: string, chart: YixueChart | null): [string, string, string, string] {
+  if (term === "八字命理" && chart?.bazi) {
+    const b = chart.bazi;
+    const p = b.pillars;
+    const acquired = `四柱 ${p.year.ganzhi.label} ${p.month.ganzhi.label} ${p.day.ganzhi.label} ${p.hour?.ganzhi.label ?? "無時柱"}；` +
+      `流年${b.fleeting?.year.label ?? "未推定"}；大運${b.luck ? `${b.luck.directionLabel}、${b.luck.startAgeYears}歲起` : "未排"}`;
+    const missing = [!p.hour && "出生時辰", !b.fleeting && "事件時間", !b.luck && "排大運所需性別"].filter(Boolean).join("、") || "無已知缺漏";
+    return [acquired, missing, "僅能核對盤面，未完成顧問判讀", "終稿未通過交付門檻"];
+  }
+  if (term === "奇門遁甲" && chart?.qimen) {
+    const q = chart.qimen;
+    return [`${q.termName}${q.dun}${q.ju}局；值符${q.zhiFuStar}、值使${q.zhiShiDoor}`, "無已知盤面缺漏", "僅能核對盤面，未完成顧問判讀", "終稿未通過交付門檻"];
+  }
+  if (term === "卜卦／六爻" && chart?.liuyao) {
+    const l = chart.liuyao;
+    return [`本卦${l.ben.hexagram.name}；${l.bian ? `變卦${l.bian.hexagram.name}` : "靜卦"}；世${l.ben.palace.shiYao}爻`, "無已知盤面缺漏", "僅能核對盤面，未完成顧問判讀", "終稿未通過交付門檻"];
+  }
+  if (term === "梅花易數" && chart?.meihua) {
+    const m = chart.meihua;
+    return [`本卦${m.ben.name}；互卦${m.hu.name}；變卦${m.bian.name}；動第${m.movingLine}爻`, "無已知盤面缺漏", "僅能核對盤面，未完成顧問判讀", "終稿未通過交付門檻"];
+  }
+  return ["本次未取得系統盤面", "需確認輸入資料或排盤原因", "無法判讀", "盤面未成立，且終稿未通過交付門檻"];
 }

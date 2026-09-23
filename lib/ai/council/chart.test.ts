@@ -8,7 +8,8 @@
 import { describe, expect, it } from "vitest";
 import { resolveSchool } from "@/lib/yixue";
 import { renderChartDigest, renderChartForPrompt } from "@/lib/yixue/format/prompt";
-import { buildChartForCouncil, toBirthInput } from "./chart";
+import { buildChartForCouncil, toBirthInput, toQimenTime } from "./chart";
+import { councilSchema } from "./schema";
 import { yixueDataBlock, type CouncilInput } from "./personas";
 
 const SCHOOL = resolveSchool("fengyi-v1");
@@ -78,6 +79,32 @@ describe("表單轉排盤輸入", () => {
 
   it("完全沒有出生資料時回 null，不硬排", () => {
     expect(toBirthInput(input(null))).toBeNull();
+  });
+});
+
+describe("#7 奇門獨立起局時刻", () => {
+  it("API 驗證保留現在起局的 time", () => {
+    const parsed = councilSchema.parse({
+      question: "要不要擴店",
+      yixue: { qimen: { mode: "現在起局", time: "2026-09-23 10:15" } }
+    });
+    expect(parsed.yixue?.qimen?.time).toBe("2026-09-23 10:15");
+  });
+
+  it("奇門取自己的時間，不被梅花與事件時間覆蓋", () => {
+    const request = input();
+    request.yixue!.modules = { qimen: true };
+    request.yixue!.eventTime = { year: 2020, month: 1, day: 2, hour: 3, minute: 4 };
+    request.yixue!.meihua = { mode: "時間起卦", time: "2021-02-03 04:05" };
+    request.yixue!.qimen = { mode: "現在起局", time: "2026-09-23 10:15" };
+    expect(toQimenTime(request)).toMatchObject({ year: 2026, month: 9, day: 23, hour: 10, minute: 15 });
+    const chart = buildChartForCouncil(request, SCHOOL).chart!;
+    expect(chart.qimen).not.toBeNull();
+    const expected = buildChartForCouncil({
+      ...request,
+      yixue: { ...request.yixue, meihua: undefined, qimen: { mode: "指定時間" } }
+    }, SCHOOL).chart!;
+    expect(chart.qimen?.hourGanzhi).not.toBe(expected.qimen?.hourGanzhi);
   });
 });
 

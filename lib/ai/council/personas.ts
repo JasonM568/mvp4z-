@@ -43,6 +43,7 @@ export type YixuePayload = {
   qimen?: {
     mode?: string;
     direction?: string;
+    time?: string;
   };
   liuyao?: {
     mode?: string;

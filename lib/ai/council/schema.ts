@@ -51,7 +51,8 @@ export const councilSchema = z.object({
       qimen: z
         .object({
           mode: z.string().optional(),
-          direction: z.string().optional()
+          direction: z.string().optional(),
+          time: z.string().optional()
         })
         .optional(),
       liuyao: z

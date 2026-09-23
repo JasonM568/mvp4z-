@@ -141,7 +141,11 @@ export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) 
         minute: form.eventMinute
       },
       modules,
-      qimen: { mode: form.qimenTimeMode, direction: form.direction },
+      qimen: {
+        mode: form.qimenTimeMode === "指定時間" ? "指定時間" : "現在起局",
+        direction: form.direction,
+        time: form.qimenTimeMode === "指定時間" ? undefined : formatNowTaipei()
+      },
       liuyao: {
         mode: form.liuyaoMode,
         // 時間起卦才帶起卦時刻；選現在時間就取台北當下，否則用事件／起局時間。

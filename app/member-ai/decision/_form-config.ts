@@ -32,7 +32,6 @@ export const trigramOptions = ["不確定", "乾", "兌", "離", "震", "巽", "
 export const yaoOptions = ["少陽", "少陰", "老陽", "老陰"];
 export const reportTemplates = ["商業決策顧問報告", "標準個人諮詢報告", "企業主管簡報版", "教學展示版"];
 export const topics = ["事業／工作", "財運／投資", "考試／升學", "感情／人際", "房產／陽宅", "健康／身心"];
-export const reviewModes = ["啟用策略校核層", "啟用深度反證層", "不啟用"];
 // 性別與身分拆成兩欄。原本擠在同一格（男／女／其他／企業主／考生），
 // 選「企業主」就等於沒有性別——而大運的順逆是陽男陰女順排、陰男陽女逆排，
 // 沒有乾淨的男／女就排不出來。拆開是為大運鋪路，本身也比較合理。
@@ -45,8 +44,7 @@ export const birthPlaceOptions = ["不確定", ...TAIWAN_PLACES.map((p) => p.lab
 export const yesNoUncertain = ["否", "是", "不確定"];
 export const yesNoUncertain2 = ["是", "否", "不確定"];
 
-export const baziModes = ["依出生資料自動初判", "補充四柱資料", "只看流年趨勢"];
-export const qimenModes = ["現在起局", "指定時間", "不確定，由系統抓目前時間"];
+export const qimenModes = ["現在起局", "指定時間"];
 export const liuyaoModes = ["時間起卦", "三枚銅錢"];
 export const meihuaModes = ["時間起卦", "數字起卦", "上下卦起卦"];
 export const meihuaUpperTrigrams = ["乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
@@ -77,13 +75,11 @@ export type CouncilForm = {
   birthPlace: string;
   isLeapMonth: string;
   birthTimeKnown: string;
-  reviewMode: string;
   eventYear: number;
   eventMonth: number;
   eventDay: number;
   eventHour: number;
   eventMinute: number;
-  baziMode: string;
   qimenTimeMode: string;
   direction: string;
   liuyaoMode: string;
@@ -135,13 +131,11 @@ export function buildInitialForm(): CouncilForm {
     birthPlace: "不確定",
     isLeapMonth: "否",
     birthTimeKnown: "是",
-    reviewMode: "啟用策略校核層",
     eventYear: now.getFullYear(),
     eventMonth: now.getMonth() + 1,
     eventDay: now.getDate(),
     eventHour: now.getHours(),
     eventMinute: now.getMinutes(),
-    baziMode: "依出生資料自動初判",
     qimenTimeMode: "現在起局",
     direction: "不確定",
     liuyaoMode: "時間起卦",

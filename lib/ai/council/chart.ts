@@ -133,6 +133,12 @@ export function toLiuyaoTime(input: CouncilInput): DivinationTimeInput | null {
   return parseClockString(input.yixue?.liuyao?.time) || eventTimeOf(input);
 }
 
+/** 奇門「現在起局」用送出當下台北時間；「指定時間」沿用事件時間。 */
+export function toQimenTime(input: CouncilInput): DivinationTimeInput | null {
+  return parseClockString(input.yixue?.qimen?.time) || eventTimeOf(input);
+}
+
+
 /**
  * 梅花起卦來源。
  *
@@ -216,6 +222,7 @@ export function buildChartForCouncil(
         // 傳 null 讓引擎回 null 大運，而不是讓它猜一個方向。
         gender: input.yixue?.gender === "男" || input.yixue?.gender === "女" ? input.yixue.gender : null,
         divinationTime: toDivinationTime(input),
+        qimenTime: toQimenTime(input),
         meihua: toMeihuaSource(input),
         liuyao: toLiuyaoSource(input),
         liuyaoTime: toLiuyaoTime(input)

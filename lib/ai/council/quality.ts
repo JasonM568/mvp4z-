@@ -13,6 +13,7 @@ import {
   type FallbackContext
 } from "./settings/render";
 import type { PromptSettings } from "./settings/schema";
+import type { YixueChart } from "@/lib/yixue/types";
 
 const CJK_NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二", "十三", "十四"];
 
@@ -55,13 +56,21 @@ export function buildFinalFormatPrompt(
 
 export function buildSafeFallbackReport(
   input: CouncilInput,
-  settings: PromptSettings = DEFAULT_PROMPT_SETTINGS
+  settings: PromptSettings = DEFAULT_PROMPT_SETTINGS,
+  chart: YixueChart | null = null
 ) {
-  return renderFallbackReport(settings, fallbackContext(input));
+  return renderFallbackReport(settings, {
+    ...fallbackContext(input),
+    enabledTerms: ([
+      ["bazi", "八字命理"], ["qimen", "奇門遁甲"],
+      ["liuyao", "卜卦／六爻"], ["meihua", "梅花易數"]
+    ] as const).filter(([key]) => input.yixue?.modules?.[key]).map(([, label]) => label),
+    chart
+  });
 }
 
 /** 從 CouncilInput 取出兜底報告要填的值。缺值一律用中文佔位詞，不留空。 */
-function fallbackContext(input: CouncilInput): FallbackContext {
+function fallbackContext(input: CouncilInput): Omit<FallbackContext, "enabledTerms" | "chart"> {
   const yixue = (input as { yixue?: Record<string, unknown> })?.yixue as Record<string, any> | undefined;
   const birth = yixue?.birth;
   const eventTime = yixue?.eventTime;
