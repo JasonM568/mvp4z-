@@ -142,7 +142,7 @@ if (runErr) {
   check("council_runs 有最新紀錄", !!run);
   check(
     "council_runs.structured 與 API 回傳一致",
-    JSON.stringify(run?.structured ?? null) === JSON.stringify(s ?? null)
+    stableJson(run?.structured ?? null) === stableJson(s ?? null)
   );
   console.log(`   credits_charged=${run?.credits_charged}, fallback=${run?.fallback_used}`);
 }
@@ -154,6 +154,25 @@ if (fail.length) {
 }
 
 // ---------- helpers ----------
+
+/**
+ * 鍵序無關的 JSON 字串化。
+ *
+ * 原本這裡直接用 JSON.stringify 比對，但 Postgres 的 jsonb 會把鍵重排
+ * （先比長度、再比字典序），所以存進去是 steps→aspects→headline→resonance，
+ * 程式產出的卻是 headline→resonance→…→steps。**兩邊內容完全一樣也永遠比不過。**
+ *
+ * 這條檢查先前之所以會 PASS，是因為那時 structured 兩邊都是 null——
+ * "null" === "null"。等到 structured 真的有值，它就開始每次都報假警報。
+ * 會固定失敗的檢查等於沒有檢查，久了只會教人忽略它。2026-09-23。
+ */
+function stableJson(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value ?? null);
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableJson(value[k])}`).join(",")}}`;
+}
+
 function parseArgs(argv) {
   const out = {};
   for (const a of argv) {
