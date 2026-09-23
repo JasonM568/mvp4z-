@@ -143,6 +143,13 @@ export function InputStep({
                   不指定
                 </button>
               </div>
+              {/* 「不指定」也要顯示：選了它一樣排不出大運，會員有權在送出前知道。 */}
+              {form.gender !== "男" && form.gender !== "女" && modules.bazi && (
+                <p className="xf-gender-hint">
+                  大運的順排／逆排由性別決定（陽男陰女順、陰男陽女逆），
+                  <strong>沒有選男或女就不會排大運</strong>。其餘四柱、十神與流年流月不受影響。
+                </p>
+              )}
               <p style={{ color: "var(--muted)", fontSize: 12, margin: "8px 0 0" }}>
                 身分（企業主／考生等）現在是獨立欄位，與更多專業選項一起放在下方進階設定。
               </p>

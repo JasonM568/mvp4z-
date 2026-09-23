@@ -886,3 +886,13 @@
   line-height: 1.75;
   color: var(--muted);
 }
+
+/* 性別未選時的提示。
+   講清楚「不選會少什麼」而不是只標必填——會員才知道值不值得填。 */
+.xf-gender-hint {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.xf-gender-hint strong { color: var(--gold, #d2a954); }

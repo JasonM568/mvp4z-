@@ -40,7 +40,14 @@ export function toBirthInput(input: CouncilInput): BirthInput | null {
   // 年月日缺一不可——沒有這三個就沒有任何一柱可排。
   if (year === null || month === null || day === null) return null;
 
-  const branch = birth.hourBranch && BRANCHES.includes(birth.hourBranch) ? birth.hourBranch : null;
+  // 會員明確說「時辰不確定」就不排時柱，即使下拉還停在預設值。
+  // 表單有獨立的「時辰是否確定」欄位，但橋接原本完全沒讀它——
+  // 會員選了「否」卻仍拿到一根確定的時柱，連帶影響十神與大運。
+  // 預設時辰是「寅」，所以沒改下拉的人等於被安上一個他沒說過的時辰。
+  const timeKnown = String(birth.timeKnown ?? "").trim();
+  const timeDenied = timeKnown === "否" || timeKnown.includes("不確定") || timeKnown === "不知道";
+  const branch =
+    !timeDenied && birth.hourBranch && BRANCHES.includes(birth.hourBranch) ? birth.hourBranch : null;
 
   // 「不確定」「海外／其他」都不是台灣縣市，findPlace 會查不到而退回預設經度，
   // 這裡先轉成 null 讓完整度分數如實反映「沒有出生地」。
@@ -53,8 +60,11 @@ export function toBirthInput(input: CouncilInput): BirthInput | null {
     month: num(month, 1),
     day: num(day, 1),
     hourBranch: branch,
-    hour: optionalNum(birth.hour),
-    minute: optionalNum(birth.minute),
+    // 說了時辰不確定就連精確鐘點一起不採信。
+    // resolve.ts 只要 hour/minute 有值就會拿去算真太陽時與起運天數，
+    // 只擋 hourBranch 會變成「不排時柱、卻仍用一個他說不準的時刻推大運」。
+    hour: timeDenied ? null : optionalNum(birth.hour),
+    minute: timeDenied ? null : optionalNum(birth.minute),
     placeLabel: place,
     longitude: null,
     latitude: null
@@ -143,13 +153,32 @@ export function toMeihuaSource(input: CouncilInput): MeihuaSource {
   }
 
   if (mode === "上下卦起卦" && m?.upperTrigram && m?.lowerTrigram) {
-    const movingLine = Number(m.movingLine);
+    const movingLine = parseMovingLine(m.movingLine);
     if (Number.isInteger(movingLine) && movingLine >= 1 && movingLine <= 6) {
       return { mode: "上下卦起卦", upper: m.upperTrigram, lower: m.lowerTrigram, movingLine };
     }
   }
 
   return { mode: "時間起卦" };
+}
+
+/** 爻位中文標籤。表單送的是這些字，不是數字。 */
+const MOVING_LINE_LABELS = ["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"];
+
+/**
+ * 動爻轉數字。
+ *
+ * 表單的下拉送的是「初爻」「二爻」這類中文標籤，但橋接原本直接 Number()，
+ * 六個選項全部變成 NaN，於是「上下卦起卦」一律被退回時間起卦——
+ * 會員精心選了上卦下卦與動爻，拿到的卻是另外一個卦。2026-09-23 敵意稽核抓到。
+ *
+ * 兩種都收：中文標籤與數字字串，因為舊的 payload 可能已經是數字。
+ */
+function parseMovingLine(value: unknown): number {
+  const raw = String(value ?? "").trim();
+  const labelIndex = MOVING_LINE_LABELS.indexOf(raw);
+  if (labelIndex >= 0) return labelIndex + 1;
+  return Number(raw);
 }
 
 /**

@@ -104,7 +104,9 @@ export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) 
     context: form.context,
     topic: form.topic,
     deliverableMode: form.reportTemplate,
-    clientProfile: `${form.clientName || "未填"}｜${form.gender}${form.identity ? `｜${form.identity}` : ""}`,
+    clientProfile: [form.clientName || "未填", form.gender || "性別未填", form.identity]
+      .filter(Boolean)
+      .join("｜"),
     yixue: {
       clientName: form.clientName,
       gender: form.gender,

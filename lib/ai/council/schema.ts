@@ -57,6 +57,11 @@ export const councilSchema = z.object({
       liuyao: z
         .object({
           mode: z.string().optional(),
+          // 2026-09-08 前端加了「現在時間」起卦並送 timeMode／time，但這裡沒宣告，
+          // Zod object 預設會把未宣告欄位剝掉——那個功能因此從上線起就沒作用過，
+          // 六爻一律退回事件時間起卦。2026-09-23 敵意稽核抓到。
+          timeMode: z.string().optional(),
+          time: z.string().optional(),
           yao: z.array(z.string()).optional()
         })
         .optional(),
