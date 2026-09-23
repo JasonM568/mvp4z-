@@ -2609,3 +2609,88 @@ tsc 過、vitest 42 檔 396 passed / 2 skipped、build 108 頁。
 
 **仍待老師**：決策 8、奇門盤面校對、起運法、報告內容設定從未發布
 （`ai_prompt_profiles` 0 筆，55 份報告 `prompt_profile_id` 全 null）。
+
+
+## 2026-09-23｜決策報告模組敵意稽核與修復（/loop）
+
+### 做了什麼
+
+使用者下 `/loop`：檢查決策報告模組各項命盤演算是否正常運作，有錯就排修復工程，
+驗收條件是「會員登入後要能正常使用」，並要求修復工程可另開 codex pane、PM 每 10 分鐘查進度。
+
+開 codex pane「報告稽核員」做唯讀敵意稽核，產出 `.audit-report.md`（9 條，附行號與
+「會員會看到什麼」）。**我逐條查證，9 條全部屬實。**
+
+### 重要判斷
+
+**1. 兩條是我自己造成的，講清楚而不是含混帶過。**
+- #2 性別預設「男」：2026-09-22 之前 gender 沒有任何計算會讀它，預設男是無害的；
+  隔天我把大運上線，順逆排完全由性別決定，這個預設就變成
+  「女性會員沒改就拿到男性的大運」。`_form-config.ts` 當初就留了
+  「大運上線前要重新檢視這個預設值」的警語——**寫了警語卻沒有人回來執行，等於沒寫。**
+- #3 六爻「現在時間」起卦：我 2026-09-08 在前端加了 `timeMode`/`time`，
+  但沒同步宣告進 `councilSchema`。Zod object 預設剝除未宣告欄位，
+  **這個功能從上線那天起就沒作用過一次。**
+
+**2. #1 (P0) 不包成交易，改成「不讓失敗有能力吃掉報告」。**
+扣點 RPC 與 `council_runs` 是兩次呼叫，包成單一交易要動 SQL function，風險與範圍都大。
+這次的處置是拿掉那個 `throw`：insert 失敗先大聲記錄，再用精簡欄位重試一次
+（拿掉 chart/structured/first_round 這些大 JSON 欄位，至少讓報告本文進得了歷史紀錄），
+兩次都失敗就照樣把報告交出去，附 `persist_warning` 請會員立刻自行保存。
+**收了錢就一定要交出東西，這條優先於資料完整。**
+
+**3. #9 的錯誤分類是不對稱的，所以預設要偏保守。**
+原本明確錯誤後不清 PENDING_KEY，會員重新整理會被困在五分鐘「找回中」。
+但不能無條件清：連線中斷或 504 時報告很可能真的跑完並扣了點，那正是找回機制存在的理由。
+`runCouncilReport` 因此改為區分「伺服器明確回了錯」與「我們沒聽到回音」，
+後者標 `transportFailed`，**分不出來時（回應不是 JSON）一律當後者**——
+分錯邊的代價不對稱：把後者當前者，會員付了錢卻永遠回不到那份報告。
+
+**4. E2E 測試有一條假警報，也是 bug。**
+`test-council-structured.mjs` 用 `JSON.stringify` 比對 API 與 DB 的 structured，
+但 Postgres 的 jsonb 會重排鍵（先比長度再比字典序），兩邊內容一樣也永遠比不過。
+它先前之所以是綠的，是因為當時 structured 兩邊都還是 null——`"null" === "null"`。
+**會固定失敗的檢查等於沒有檢查，久了只會教人忽略整份輸出。** 改用鍵序無關比對。
+
+**5. vitest 的 include 原本只有 `lib/**`。**
+前端那些「錯誤要怎麼分類」的規則無處可鎖，講得再清楚也擋不住下次改壞。加上 `app/**`。
+
+### 產出檔案
+
+- `lib/ai/council/schema.ts`：liuyao 補 `timeMode`/`time`
+- `lib/ai/council/chart.ts`：`parseMovingLine()` 中文爻位轉數字；`timeKnown` 連 hour/minute 一起不採信
+  （只擋 hourBranch 會變成「不排時柱、卻仍用一個他說不準的時刻推大運」）
+- `app/member-ai/decision/_form-config.ts`：gender 預設改空字串
+- `app/member-ai/decision/_steps/input-step.tsx`：八字啟用且沒選男／女時顯示「不會排大運」提示
+- `app/member-ai/decision/_actions.ts`：`transportFailed` 分類；clientProfile 不再留孤立分隔線
+- `app/member-ai/decision/page.tsx`：明確錯誤才清 PENDING；`persist_warning` 獨立金色警示列
+- `app/member-ai/decision/_steps/report-step.tsx`：新增 `warning` prop
+- `app/api/ai/council/route.ts`：insert 失敗不 throw ＋ 精簡重試 ＋ `run_id`
+- `lib/yixue/index.ts`：大運 birthYear 改取 `resolved.civil` 的國曆年
+- `vitest.config.mts`：include 加 `app/**`
+- 新增測試：`lib/ai/council/audit-fixes.test.ts`（12）、`app/member-ai/decision/_actions.test.ts`（4）、
+  `lib/yixue/bazi/luck.test.ts` +4
+
+### 驗證結果
+
+- `npx tsc --noEmit` 乾淨
+- `npx vitest run` 445 passed / 2 skipped（修 #6 後 lib/yixue 單獨 182 passed）
+- `npx next build` 108 頁通過
+- Vercel production：`df86083`、`3d8c8ad`、`73c18e4`、`75d8a25` 全 READY
+
+**正式站實跑（不是看程式碼推論）**：用 service role 替 `306465@gmail.com` 鑄 session token，
+對 `https://www.xunfeng.tw` 實跑一次 council，扣 20 點。HTTP 200、95 秒、無兜底、
+structured 正常。查正式庫最新一筆 `council_runs`：大運 8 步且順逆與干支正確
+（年柱己巳陰干 + 男 → 逆排，首運乙亥，起運 8 歲 = 1998）、十神藏干四柱齊全、
+六爻巽宮本宮卦世六應三本卦變卦納甲俱全。
+
+### 遺留事項
+
+- #7 #8 交給 pane「報告稽核員」，進行中，已要求 push 前回報。
+  pane 已移除「策略校核層」「八字判讀方式」兩個從沒進過 payload 的假旋鈕。
+- **pane 與 PM 共用同一個工作樹**，差點對撞在 #6 —— 是 pane 主動來問才避開。
+  已明確分檔分工。下次多 agent 同樹作業要先講好檔案邊界。
+- Navide 的 `cli_send` 回 ok 但訊息只貼進輸入框未送出，第二則短訊才把整個 buffer 送出去。
+  期間我一度判斷 pane 沒收到而準備自己全做——**工具回報 ok 不等於對方收到。**
+- Gemini 30 天內 6 次高負載失敗（最近一次今天），會靜默把三模型降成兩模型。
+- 決策 5/6/7/8/9 簽核、奇門盤例校對、旺衰與藏干權重、神煞取用：仍待風羿老師。
