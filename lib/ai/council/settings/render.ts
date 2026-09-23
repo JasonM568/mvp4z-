@@ -210,11 +210,12 @@ export function renderFallbackReport(s: PromptSettings, ctx: FallbackContext): s
 
   const readings = termOrder
     .map((t) => {
-      const hasChart = hasFallbackChart(t, ctx.chart);
-      const guidance = hasChart
-        ? fill(f.termReadings[t] ?? "", values)
-        : "本術本次沒有系統盤面，不能據此推斷成敗、方位或應期。";
-      return `${num()}、${t}獨立判讀\n${fallbackFacts(t, ctx.chart)[0]}。${guidance}`;
+      // 沒有盤面時不要把「本次未取得系統盤面」講兩次——
+      // 事實欄已經說過一次，判讀欄再說一次只是把報告變囉嗦。
+      if (!hasFallbackChart(t, ctx.chart)) {
+        return `${num()}、${t}獨立判讀\n本次未排出盤面，不能據此推斷成敗、方位或應期。`;
+      }
+      return `${num()}、${t}獨立判讀\n${fallbackFacts(t, ctx.chart)[0]}。${fill(f.termReadings[t] ?? "", values)}`;
     })
     .join("\n\n");
 
@@ -230,9 +231,11 @@ export function renderFallbackReport(s: PromptSettings, ctx: FallbackContext): s
 
   const disclaimer = `${num()}、${f.disclaimer.title}\n${fill(f.disclaimer.body, values)}`;
 
-  return [f.reportTitle, "", overview, "", completeness, "", readings, "", cross, "", action, "", advice, "", disclaimer].join(
-    "\n"
-  );
+  // 只啟用一術時 cross 是空字串（一術無從「合參」）。
+  // 用 filter 拿掉，否則 join 會在報告中間留下連續空行。
+  return [f.reportTitle, overview, completeness, readings, cross, action, advice, disclaimer]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function hasFallbackChart(term: string, chart: YixueChart | null): boolean {
