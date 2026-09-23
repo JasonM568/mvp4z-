@@ -2840,3 +2840,55 @@ DeepSeek 攻防反證）、第二輪攻防同三家各一次（`ENABLE_DEBATE_RO
    或考慮在 Gemini 失敗時換一家頂上。
 2. `RESEND_API_KEY` 仍未設，告警信寄不出去——這是現在的最高優先項。
 3. 成功的呼叫沒有記 `status`（只有失敗才記）。分類用不到，暫不處理。
+
+## 2026-09-23（續三）｜Resend 寄件網域：key 已設、DNS 已寫入，驗證仍 pending
+
+使用者把 `RESEND_API_KEY` 加進 Vercel。本輪把後續推到「只剩等 Resend」。
+
+### 重要判斷
+
+**1. 加了 key 不等於寄得出去——而且這件事只有實際按下去才會知道。**
+key 進去後我先提醒兩點：環境變數要 redeploy 才生效、`RESEND_FROM_EMAIL` 沒設
+會用 `noreply@xunfeng.tw` 而那需要網域驗證。實測證實了第二點：
+Resend 回 **403 `The xunfeng.tw domain is not verified`**。
+這正是「寄一封測試告警給我」那顆按鈕存在的價值——
+沒有它，發現方式會是某天真的出事卻沒收到信。
+
+**2. 不用 MCP 的 `replace_domains_by_domain_records`。**
+它吃 BIND zone-file 且是**整份取代**，用下去會把現有指向 Vercel 的
+ALIAS/CAA 洗掉。MCP 沒有「新增單筆」的工具，所以改用 `npx vercel dns add` 逐筆加。
+先 `vercel dns ls` 確認現有記錄全是 Vercel 預設、沒有自訂記錄，才動手。
+
+**3. 先排除最常見的失敗方式再等。**
+DKIM 的 TXT 很長，被切斷是這件事最典型的坑。所以寫入後直接查權威 NS
+（不是查快取）逐字比對：Resend 要求 218 字元、DNS 實際 218 字元，完全相同。
+先證明「不是我寫錯」，剩下的等待才有意義——否則等三小時後才發現值是壞的。
+
+**4. 錯誤訊息要原樣帶出來。**
+`sendAdminAlert()` 原本失敗只回 `resend_failed`，會讓人以為是 key 錯。
+改成把上游 status 與 body 帶出後，一眼就看到 `domain is not verified`。
+這次省下的排查時間遠超過改它的成本。
+
+### 產出檔案
+
+- `app/api/admin/email-domain/route.ts`（commit `b5d87e4`）：
+  GET 查網域狀態與所需 DNS、POST create 建網域、POST verify 要求重新檢查。
+  存在理由是 `RESEND_API_KEY` 只在正式站環境，本機讀不到，
+  「驗證了沒、還缺哪幾筆」原本沒有任何地方查得到。
+- `app/api/admin/provider-health/test-alert/route.ts` + 後台按鈕（commit `152eb4c`）
+- `lib/notifications/admin-alerts.ts`：收件人覆寫、失敗時帶出上游實際回應
+
+### 驗證結果
+
+- Resend 網域已建立（id `002e9ea7-0431-4a5e-bd33-c71f5424c35d`，us-east-1）
+- 四筆 DNS 已寫入並在權威 NS 上查得到（DKIM / SPF MX / SPF TXT / rsend CNAME）
+- DKIM 值逐字比對通過（218 = 218）
+- **Resend 狀態：`pending`（等約 10 分鐘仍未通過）**
+
+### 遺留事項
+
+1. **網域驗證仍 pending，告警目前還是寄不出去。** SES 的 DKIM 驗證常要
+   15 分鐘到數小時，這步不在工程手上。查法：`GET /api/admin/email-domain`。
+   通過後**一定要按測試按鈕確認真的收得到**，不要看到 key 有設就當作好了。
+2. 退避的實效仍未在真實流量上觀察到（見前一則）。
+3. `RESEND_FROM_EMAIL` 不需要設，程式預設就是 `巽風系統 <noreply@xunfeng.tw>`。

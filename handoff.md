@@ -257,15 +257,76 @@ where role = 'geminiFengYi' and attempts > 1
 order by created_at desc;
 ```
 
-### 下次起手式（更新 10:15）
+### 補記（10:55）｜Resend：key 已設、DNS 已寫入，**網域驗證仍 pending**
 
-1. **`RESEND_API_KEY` 沒設，全站 admin 告警實際上沒在運作** — 現在最高優先。
-   影響超出 Gemini：綠界付款異常、註冊異常也都沒人收得到。
-   新做的 provider 告警 cron 同樣卡在這裡（後台頁面不受影響，今天就能看）。
-   與 memory 裡「Resend xunfeng.tw 網域驗證」是同一條線。
-2. **確認退避的實效** — 見上方補記（10:15）末段的 SQL。
-   若幾天後 `attempts > 1 且 ok = true` 一直沒出現，代表退避沒救回任何一次，
-   要重新檢視退避長度或考慮在 Gemini 失敗時換一家頂上。
+使用者把 `RESEND_API_KEY` 加進 Vercel 之後的後續。**告警目前還是寄不出去**，
+但卡點已經從「沒有 key」前進到「等 Resend 驗證網域」。
+
+#### 做了什麼
+
+1. 確認 key 已在 production（但環境變數要 redeploy 才生效，已隨 commit 重新部署）
+2. 實際按下測試 → Resend 回 **403 `The xunfeng.tw domain is not verified`**
+   ——證實光加 key 不夠，這也是為什麼要有那顆測試按鈕
+3. `dig NS xunfeng.tw` → `ns1/ns2.vercel-dns.com`，DNS 在 Vercel，可以自己加
+4. 新增 `/api/admin/email-domain`（`b5d87e4`）：GET 查狀態與所需記錄、
+   POST create 建網域、POST verify 要求重新檢查。
+   **理由**：`RESEND_API_KEY` 只存在正式站環境，本機讀不到，
+   所以「驗證了沒、還缺哪幾筆」原本沒有任何地方查得到。
+5. 在 Resend 建立網域 `xunfeng.tw`（id `002e9ea7-0431-4a5e-bd33-c71f5424c35d`，
+   region us-east-1，對齊 Vercel 的 iad1）
+6. 用 `npx vercel dns add` 逐筆寫入四筆記錄
+   （**不用 MCP 的 `replace_domains_by_domain_records`——那是整份取代，
+   會把現有指向 Vercel 的 ALIAS/CAA 洗掉**）：
+
+| 類型 | 名稱 | 值 | record id |
+|---|---|---|---|
+| TXT | `resend._domainkey` | `p=MIGf…QAB`（218 字元） | `rec_e5bc87adb84f4307149237be` |
+| MX | `send` | `feedback-smtp.us-east-1.amazonses.com`（priority 10） | `rec_5a73357826be5e65bd218724` |
+| TXT | `send` | `v=spf1 include:amazonses.com ~all` | `rec_2287be4449493e5a25d1a3eb` |
+| CNAME | `rsend` | `send.forge.rmta.net` | `rec_4d9e2ab0a2cd91af74efbbb4` |
+
+#### DNS 端已確認無誤
+
+直接查權威 NS（不是查快取）四筆全部回得出來，而且
+**DKIM 值逐字比對過：Resend 要求 218 字元、DNS 實際 218 字元，完全相同**
+——長 TXT 被切斷是這件事最常見的失敗方式，先排除掉。
+
+```
+dig +short @ns1.vercel-dns.com resend._domainkey.xunfeng.tw TXT
+dig +short @ns1.vercel-dns.com send.xunfeng.tw TXT
+dig +short @ns1.vercel-dns.com send.xunfeng.tw MX
+dig +short @ns1.vercel-dns.com rsend.xunfeng.tw CNAME
+```
+
+#### 現況：等 Resend
+
+觸發 verify 後等了約 10 分鐘，狀態仍是 `pending`（`rsend` 那筆是 `not_started`）。
+SES 的 DKIM 驗證常要 15 分鐘到數小時。**這一步已經不在工程手上，只能等。**
+
+#### 驗證通過後要做的兩件事（都很短）
+
+1. 打開 `/admin/provider-health`，按「寄一封測試告警給我」——
+   成功才算數，不要看到 `RESEND_API_KEY` 有設就當作好了。
+2. 確認 `RESEND_FROM_EMAIL` 不需要設：程式預設就是
+   `巽風系統 <noreply@xunfeng.tw>`，網域一通就直接可用。
+
+查狀態（不必進 Resend 後台）：
+`GET /api/admin/email-domain`，帶管理員 bearer token。
+
+#### 一併修掉的
+
+`sendAdminAlert()` 原本失敗只回一句 `resend_failed`，會讓人以為是 key 錯。
+現在把上游的 status 與 body 原樣帶出來——這次就是靠它一眼看到
+「domain is not verified」，否則要往錯的方向查很久。
+
+### 下次起手式（更新 10:55）
+
+1. **查 Resend 網域驗證好了沒** — `GET /api/admin/email-domain`（帶管理員 token）。
+   通過後立刻按 `/admin/provider-health` 的「寄一封測試告警給我」確認真的收得到。
+   **設好 key ≠ 寄得出去，今天已經吃過這個虧一次。**
+   若隔天仍 pending，到 resend.com/domains 看它卡在哪一筆。
+2. **確認退避的實效** — 見補記（10:15）末段的 SQL；
+   看 `attempts > 1 且 ok = true` 有沒有出現。
 3. `ai_prompt_profiles` 仍 0 筆，報告內容設定從沒發布過。
 4. 決策 5/6/7/8/9 簽核、奇門三張盤例校對、旺衰與藏干權重：**只能等風羿老師**。
 
