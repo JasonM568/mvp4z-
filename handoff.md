@@ -319,16 +319,63 @@ SES 的 DKIM 驗證常要 15 分鐘到數小時。**這一步已經不在工程�
 現在把上游的 status 與 body 原樣帶出來——這次就是靠它一眼看到
 「domain is not verified」，否則要往錯的方向查很久。
 
-### 下次起手式（更新 10:55）
+### 補記（11:20）｜Resend 網域驗證完成，告警通道打通 ✅
 
-1. **查 Resend 網域驗證好了沒** — `GET /api/admin/email-domain`（帶管理員 token）。
-   通過後立刻按 `/admin/provider-health` 的「寄一封測試告警給我」確認真的收得到。
-   **設好 key ≠ 寄得出去，今天已經吃過這個虧一次。**
-   若隔天仍 pending，到 resend.com/domains 看它卡在哪一筆。
-2. **確認退避的實效** — 見補記（10:15）末段的 SQL；
-   看 `attempts > 1 且 ok = true` 有沒有出現。
-3. `ai_prompt_profiles` 仍 0 筆，報告內容設定從沒發布過。
-4. 決策 5/6/7/8/9 簽核、奇門三張盤例校對、旺衰與藏干權重：**只能等風羿老師**。
+`GET /api/admin/email-domain` 回 **`status: verified`**，四筆記錄全部 verified：
+
+| record | type | name | status |
+|---|---|---|---|
+| DKIM | TXT | `resend._domainkey` | verified |
+| SPF | MX | `send` | verified |
+| SPF | TXT | `send` | verified |
+| SPF | CNAME | `rsend` | verified |
+
+**使用者按下「寄一封測試告警給我」並確認正常收信。**
+
+這條從 2026-06-02 拖到今天的線結束了：寄信 code 早就上線，
+但正式站一直沒有 `RESEND_API_KEY`，`sendAdminAlert()` 每次都回 skipped，
+**全站 admin 告警（含綠界付款異常、註冊異常、pending-drafts）一封都沒真的寄出過，
+而且沒有任何地方看得出來。**
+
+#### 現在真的會寄的東西
+
+| 來源 | 觸發 |
+|---|---|
+| 綠界付款異常 | `app/api/payments/ecpay/notify/route.ts` |
+| 註冊異常 | `app/api/auth/register/route.ts` |
+| pending-drafts 排程 | `app/api/cron/pending-drafts` 每天 09:00 |
+| **報告模型失敗率**（今天新做的） | `app/api/cron/provider-health` 每天 09:10 |
+
+收件人 `ADMIN_EMAILS`＝`306465@gmail.com,kingking0909@yahoo.com.tw`。
+**注意：以上四種都會寄給兩個人**，只有後台那顆測試按鈕是單寄給按的人。
+若不想讓老師收到系統告警，設 `ADMIN_ALERT_EMAILS` 覆寫即可（程式已支援）。
+
+`RESEND_FROM_EMAIL` 不需要設，程式預設 `巽風系統 <noreply@xunfeng.tw>` 直接可用。
+
+#### 一併清掉的過時註解
+
+`/api/admin/provider-health` 與 `/api/cron/provider-health` 裡寫著
+「正式站目前沒有 RESEND_API_KEY，告警信一封都寄不出去」——當天寫、當天就變成假話。
+今天才因為兜底稿的「大運未納入」吃過一樣的虧，所以順手改掉，並保留歷史敘述與結果。
+
+#### 仍未完成的（同屬 Resend 那條線）
+
+go-live 第 3 步 **Supabase Auth custom SMTP 還沒接**
+（host `smtp.resend.com` / port 465 / user `resend` / pass = API key）。
+沒接的話忘記密碼信仍走 Supabase 預設寄件人，且受 3 封/小時限制。
+這與 admin 告警是兩套通道，網域驗證完成只解決了前者。
+
+### 下次起手式（更新 11:20）
+
+1. **Supabase Auth custom SMTP** — Resend 網域已驗證，這步現在做得下去了。
+   後台設 host `smtp.resend.com` / port 465 / user `resend` / pass = API key，
+   忘記密碼信才會變成巽風系統寄件人，也才擺脫預設的 3 封/小時限制。
+2. **確認退避的實效** — 見補記（10:15）末段的 SQL，
+   看 Gemini 有沒有出現 `attempts > 1 且 ok = true`。
+3. **考慮設 `ADMIN_ALERT_EMAILS`** — 現在系統告警會同時寄給老師（`ADMIN_EMAILS` 有兩位）。
+   若不想讓老師收到技術告警，設這個變數覆寫即可，程式已支援。
+4. `ai_prompt_profiles` 仍 0 筆，報告內容設定從沒發布過。
+5. 決策 5/6/7/8/9 簽核、奇門三張盤例校對、旺衰與藏干權重：**只能等風羿老師**。
 
 
 ---

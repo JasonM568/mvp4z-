@@ -12,9 +12,12 @@
 //   - 手動：curl -H "Authorization: Bearer $CRON_SECRET" .../api/cron/provider-health
 //   - 預覽：?dry_run=1 回傳會寄出的內容但不寄
 //
-// ⚠️ 正式站目前沒有設 RESEND_API_KEY，sendAdminAlert() 會直接 skip。
-// 回應裡的 alert.skipped 就是在講這件事——**看到 skipped 不要以為已經通知了。**
-// 真正今天就能看的是後台 /admin/provider-health。
+// 寄信通道：2026-09-23 已打通（RESEND_API_KEY 已設，xunfeng.tw 在 Resend 驗證完成，
+// 實際收到測試信）。在那之前這支只會 skip，而且沒有任何地方看得出來。
+//
+// ⚠️ 回應裡的 delivery.skipped / delivery.reason 仍要看：
+// **看到 skipped 或 resend_failed 就是沒有通知到，不要當成已經通知。**
+// 想當場確認鈴還會不會響，用後台 /admin/provider-health 的「寄一封測試告警給我」。
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

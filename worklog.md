@@ -2892,3 +2892,52 @@ DKIM 的 TXT 很長，被切斷是這件事最典型的坑。所以寫入後直�
    通過後**一定要按測試按鈕確認真的收得到**，不要看到 key 有設就當作好了。
 2. 退避的實效仍未在真實流量上觀察到（見前一則）。
 3. `RESEND_FROM_EMAIL` 不需要設，程式預設就是 `巽風系統 <noreply@xunfeng.tw>`。
+
+## 2026-09-23（續四）｜Resend 網域驗證完成，告警通道打通
+
+### 結果
+
+`GET /api/admin/email-domain` → `status: verified`，DKIM / SPF MX / SPF TXT /
+rsend CNAME 四筆全部 verified。**使用者按下後台的測試按鈕並確認正常收信。**
+
+從 2026-06-02 拖到今天的線結束：寄信 code 早就上線，但正式站一直沒有
+`RESEND_API_KEY`，`sendAdminAlert()` 每次都回 skipped，全站 admin 告警
+（綠界付款異常、註冊異常、pending-drafts）一封都沒真的寄出過，而且沒有跡象。
+
+### 重要判斷
+
+**1. 寫死的狀態敘述當天就會變成假話，要當場清掉。**
+`/api/admin/provider-health` 與 `/api/cron/provider-health` 的註解寫著
+「正式站目前沒有 RESEND_API_KEY，告警信一封都寄不出去」——今天上午寫、
+下午就不成立。今天稍早才因為兜底稿的「大運未納入」吃過一模一樣的虧
+（引擎補上能力後，寫死的文字繼續對會員說謊整整一天）。
+所以趁記憶還在就改掉，並保留歷史敘述＋結果，而不是把歷史抹掉。
+
+**2. 測試按鈕不因為「現在通了」就拿掉。**
+通道會再壞，而它壞的時候一樣安靜。留著才能隨時證明鈴還會響。
+
+**3. 發現一件使用者可能不想要的事，主動標出來。**
+`ADMIN_EMAILS` 有兩位（使用者與老師），所以綠界付款異常這類技術告警
+現在會同時寄給老師。程式已支援 `ADMIN_ALERT_EMAILS` 覆寫，
+已寫進起手式讓使用者自己決定，不擅自改。
+
+### 產出檔案
+
+- `app/api/admin/provider-health/route.ts`、`app/api/cron/provider-health/route.ts`：
+  清掉已成假話的註解
+- `app/api/admin/provider-health/test-alert/route.ts`、
+  `app/admin/provider-health/page.tsx`：歷史敘述補上結果
+
+### 驗證結果
+
+- Resend 網域 `xunfeng.tw`：`verified`，四筆記錄全 verified
+- 使用者實際收到測試信（這是我觀察不到的部分，由使用者確認）
+- `npx tsc --noEmit` → exit 0
+
+### 遺留事項
+
+1. **Supabase Auth custom SMTP 尚未接**（go-live 第 3 步）。
+   與 admin 告警是兩套通道，網域驗證只解決了前者；
+   忘記密碼信仍走 Supabase 預設寄件人並受 3 封/小時限制。
+2. 退避的實效仍未在真實流量上觀察到。
+3. 是否要用 `ADMIN_ALERT_EMAILS` 把技術告警與老師分開，待使用者決定。
