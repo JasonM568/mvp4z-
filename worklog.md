@@ -2765,3 +2765,78 @@ DeepSeek 攻防反證）、第二輪攻防同三家各一次（`ENABLE_DEBATE_RO
    建議順序：錯誤分類 → 預算感知退避 → 後台健康面板 → 寄信。
 2. `RESEND_API_KEY` 未設，全站 admin 告警實際上沒在運作。**優先度應高於第 1 項。**
 3. 正式站 `OPENAI_MODEL` 的實際值未確認。
+
+## 2026-09-23（續二）｜Gemini 退避與告警：實作完成上線
+
+承前一則「調查與設計（未動工）」，本輪把它做完。commit `54f63aa`。
+
+### 先看到的事實
+
+正式庫近況比先前查到的全期間數字難看得多：Gemini 24 小時 4/8 失敗（50%）、
+七日 6/14（43%），而 OpenAI 與 DeepSeek 同期都是 0。
+**今天大約一半的付費報告其實只有兩家模型的意見**，而且沒有人會發現——
+終稿是 OpenAI 寫的，少一家意見的報告看起來跟正常報告一模一樣。
+
+### 重要判斷
+
+**1. 退避的上界必須保持不變，否則是換一種壞法。**
+最壞情況 R1 + R2 + 終稿 = 290s，`maxDuration` 300s。所以 `withRetry` 收一個
+`budgetMs`，預設就等於改版前的 `attempts × timeoutMs`——退避只吃「快速失敗」
+省下來的時間。兩個門檻分開判是關鍵：「跑得下但塞不下退避」時**不睡、直接重試**，
+這保留了改版前逾時會重試一次的行為，290s 的上界因此原封不動。
+
+**2. 錯誤分類要看 status 不看字串。**
+依錯誤訊息文字分類，上游哪天把「high demand」換句話說，分類就靜默失效。
+所以 `ModelResult` 加了 `status`，測試裡也明確鎖住「上游改文案不影響分類」。
+
+**3. 門檻設錯的兩種壞法都要擋。**
+狂叫 → 沒有人再看告警；不叫 → 出事了也沒人知道。兩種都等於沒有告警。
+所以小樣本不用比率判定（一天只有幾份報告，一次失敗就是 10%），
+但 24 小時內失敗 3 次就不以樣本不足為由沉默。
+測試兩個方向都寫，不是只測「會叫」。
+
+**4. 「疑似不可用」的門檻從 3 改成 4，是測試逼出來的。**
+原本寫 3，測試寫到一半才意識到：一份報告會打同一家兩次（第一輪＋攻防），
+3 次只是一份半，比較像瞬間尖峰；4 次全滅才代表連續兩份都拿不到。
+這是先寫測試才發現的設計問題，不是事後補的。
+
+**5. 告警不綁死在寄信上。**
+正式站沒有 `RESEND_API_KEY`，只做寄信等於做了一個今天不會響的鈴。
+所以後台頁面（今天就有效）＋ cron 寄信（Resend 設好後自動生效）兩層，
+而且在後台頁面上直接寫明「信其實寄不出去」，避免看的人誤以為已經通知。
+
+**6. view 要 `security_invoker = true`。**
+預設的 security definer view 會用擁有者權限讀，繞過 RLS——
+而這個 view 底下是會員的付費報告。Supabase advisor 複查確認新 view 無 finding。
+
+### 產出檔案
+
+- `lib/ai/council/providers.ts`：錯誤分類、預算感知退避、`status`／`attempts`
+- `lib/ai/council/provider-health.ts`：門檻與判定、告警信內容
+- `lib/ai/council/provider-health-query.ts`：共用讀取
+- `app/api/admin/provider-health/route.ts`、`app/admin/provider-health/page.tsx`
+- `app/api/cron/provider-health/route.ts`、`vercel.json` 排程 `"10 1 * * *"`
+- `supabase/migrations/20260923100000_council_provider_calls.sql`（已 apply 到正式庫）
+- `app/admin/_shell.tsx` 加「報告模型健康」入口
+- 測試：`providers-retry.test.ts`（14）、`provider-health.test.ts`（13）
+
+### 驗證結果
+
+- `npx tsc --noEmit` → exit 0
+- `npx vitest run` → 49 檔 **488 passed** / 2 skipped
+- `npx next build` → 111 頁
+- Supabase security advisor：新 view 無 finding
+- 正式站 `/api/admin/provider-health` → 200，Gemini 正確標 warn（24h 4/8）
+- 未登入讀 view → `42501 permission denied`
+- 正式站實跑一份報告（扣 20 點，今日共 3 次、60 點）：77 秒、無兜底、`attempts` 進 DB
+
+### 遺留事項
+
+1. **退避路徑沒有在真實流量上觀察到。** 驗證那一跑六次呼叫全部一次成功，
+   只證明了重構沒回歸與 `attempts` 打通，**沒有證明退避真的救回一次 high demand**。
+   目前撐住它的是注入時鐘的單元測試。查法（往後幾天看）：
+   `select ... from council_provider_calls where role='geminiFengYi' and attempts > 1`。
+   若一直沒出現 `attempts > 1 且 ok = true`，要重新檢視退避長度，
+   或考慮在 Gemini 失敗時換一家頂上。
+2. `RESEND_API_KEY` 仍未設，告警信寄不出去——這是現在的最高優先項。
+3. 成功的呼叫沒有記 `status`（只有失敗才記）。分類用不到，暫不處理。

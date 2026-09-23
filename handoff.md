@@ -185,13 +185,87 @@ from r where (m->>'ok')::boolean is false group by 1,2 order by 3 desc;
 因為終稿只靠 OpenAI，Gemini 掛掉報告仍生得出來，只是從三家意見變兩家——
 **這就是要處理的靜默降級：會員付一樣的錢，拿到的是少一家意見的報告，而且沒有任何跡象。**
 
-### 下次起手式（更新 09:35）
+### 補記（10:15）｜Gemini 退避與告警：**已完成並上線**（commit `54f63aa`）
 
-1. **Gemini 退避＋告警（使用者交辦，尚未動工）** — 見上方補記（09:35）。
-   順序建議：錯誤分類 → 預算感知退避 → 後台健康面板 → 寄信（等 Resend）。
-2. **`RESEND_API_KEY` 沒設，全站 admin 告警實際上沒在運作** — 這是補記中順帶查到的，
-   影響範圍超出 Gemini（付款異常也沒人收得到）。**優先度應該高於 Gemini 退避。**
-   與 memory 裡「Resend xunfeng.tw 網域驗證」那項待辦是同一條線。
+上一則補記（09:35）寫的是「設計定案、程式未動」，這則是實作結果，以這則為準。
+
+#### 實際數字比原本查到的更難看
+
+| 視窗 | Gemini | OpenAI | DeepSeek |
+|---|---|---|---|
+| 24 小時 | **4/8 失敗（50%）** | 0/8 | 0/8 |
+| 七日 | **6/14（43%）** | 0/14 | 0/14 |
+| 三十日 | 9/62（14.5%） | 0/62 | 1/62 |
+
+**也就是今天大約一半的付費報告，其實只有兩家模型的意見。** 沒有人會發現，
+因為終稿是 OpenAI 寫的——少一家意見的報告看起來跟正常報告一模一樣。
+
+#### 退避（`lib/ai/council/providers.ts`）
+
+- 錯誤分類改看 **HTTP status** 而非錯誤字串：429／5xx／無 status（逾時、斷線）重試；
+  400／401／403 與金鑰未設定不重試。看字串的話，上游哪天改文案分類就靜默失效。
+- 退避 1.5s → 3s → 6s，上限 8s，±25% jitter；嘗試上限 2 → 4。
+- **最壞情況完全沒有變**（仍是 290s）。`withRetry` 收 `budgetMs`
+  （預設 = 改版前的 `attempts × timeoutMs`），睡之前先算得下去才睡，兩個門檻分開判：
+  - 連再跑一次完整嘗試的時間都沒有 → 放棄，不送注定被砍斷的呼叫
+  - 跑得下但塞不下退避（例如前一次就是跑滿 45 秒的逾時）→ **不睡，直接重試**
+  第二條保留了改版前逾時會重試一次的行為，上界因此原封不動。
+- `ModelResult` 新增 `status` 與 `attempts`，兩者都會進 `council_runs`。
+
+#### 告警（兩層，不綁死在寄信上）
+
+- **`/admin/provider-health`** — 今天就有效。三家 × 24h／7d／30d 失敗率、判定理由、
+  近 30 天失敗原因。頁面上直接寫明「信其實寄不出去」，避免看的人誤以為已經通知。
+- **`/api/cron/provider-health`** — 每天台灣 09:10（`vercel.json` `"10 1 * * *"`），
+  越過門檻才寄，全綠就安靜。`?dry_run=1` 可預覽。Resend 設好後自動生效。
+
+門檻與理由寫在 `lib/ai/council/provider-health.ts`：小樣本不用比率判定
+（一天只有幾份報告，一次失敗就是 10%，會叫到沒人看），但 24 小時內失敗 3 次就不以
+樣本不足為由沉默；「疑似不可用」要 4 次全滅——一份報告會打同一家兩次，
+4 次才代表連續兩份都拿不到。
+
+#### 資料來源：新 view `council_provider_calls`
+
+migration `20260923100000_council_provider_calls.sql`，把 `first_round` /
+`debate_round` 的 ModelResult 攤平成一列一次呼叫。原本要數幾次失敗，得把每份報告的
+完整判讀文字都拉一遍。`security_invoker = true` 讓底層 `council_runs` 的 RLS 照常生效
+（預設的 security definer view 會繞過 RLS，而這裡面是會員的付費報告）。
+
+#### 驗證
+
+- tsc exit 0；vitest 49 檔 **488 passed** / 2 skipped（新增 27 條）；build 111 頁
+- Supabase security advisor 複查：**新 view 無任何 finding**
+- 正式站 `/api/admin/provider-health` 回 200，Gemini 正確標 warn
+- 未登入讀該 view → `42501 permission denied`（確認沒外洩）
+- 正式站實跑一份報告（扣 20 點，今日共 3 次、60 點）：77 秒、無兜底，
+  `attempts` 已寫進 DB
+
+#### ⚠️ 尚未實測到的部分（接手者請注意）
+
+**退避路徑本身沒有在真實流量上觀察到。** 驗證那一跑六次呼叫全部一次成功，
+所以只證明了「重構後沒有回歸」與「`attempts` 欄位打通」，
+**沒有證明退避真的救回了一次 high demand**。目前撐住它的是注入時鐘的單元測試
+（`providers-retry.test.ts`，含「退避不會讓報告爆掉 maxDuration」那幾條）。
+
+要確認實效，看往後幾天 `council_provider_calls` 裡 Gemini 的
+`attempts > 1 且 ok = true` 有沒有出現：
+
+```sql
+select created_at, role, ok, attempts, status, error
+from council_provider_calls
+where role = 'geminiFengYi' and attempts > 1
+order by created_at desc;
+```
+
+### 下次起手式（更新 10:15）
+
+1. **`RESEND_API_KEY` 沒設，全站 admin 告警實際上沒在運作** — 現在最高優先。
+   影響超出 Gemini：綠界付款異常、註冊異常也都沒人收得到。
+   新做的 provider 告警 cron 同樣卡在這裡（後台頁面不受影響，今天就能看）。
+   與 memory 裡「Resend xunfeng.tw 網域驗證」是同一條線。
+2. **確認退避的實效** — 見上方補記（10:15）末段的 SQL。
+   若幾天後 `attempts > 1 且 ok = true` 一直沒出現，代表退避沒救回任何一次，
+   要重新檢視退避長度或考慮在 Gemini 失敗時換一家頂上。
 3. `ai_prompt_profiles` 仍 0 筆，報告內容設定從沒發布過。
 4. 決策 5/6/7/8/9 簽核、奇門三張盤例校對、旺衰與藏干權重：**只能等風羿老師**。
 
