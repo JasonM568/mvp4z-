@@ -30,6 +30,10 @@
     {
       "path": "/api/cron/expire-entitlements",
       "schedule": "5 1 * * *"
+    },
+    {
+      "path": "/api/cron/provider-health",
+      "schedule": "10 1 * * *"
     }
   ]
 }

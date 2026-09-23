@@ -47,7 +47,8 @@ const NAV_GROUPS = [
       { href: "/admin/council-runs", label: "天機書紀錄" },
       { href: "/admin/prompt-settings", label: "報告內容維護" },
       { href: "/admin/school-settings", label: "排盤流派設定" },
-      { href: "/admin/documents", label: "老師文件" }
+      { href: "/admin/documents", label: "老師文件" },
+      { href: "/admin/provider-health", label: "報告模型健康" }
     ]
   },
   {
