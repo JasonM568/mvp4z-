@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { buildLuckCycles, isYangStem, luckDirection } from "./luck";
 import { makeSolarTime, yearMonthPillars } from "../calendar/tyme";
 import { resolveSchool } from "../school/schools";
+import { buildYixueChart } from "../index";
 import type { SchoolConfig } from "../school/types";
 
 const S = resolveSchool("fengyi-v1");
@@ -175,5 +176,75 @@ describe("性別未填", () => {
   it("回 null 而不是猜一個方向", () => {
     expect(build(1990, 5, 20, 14, 30, "不指定")).toBeNull();
     expect(build(1990, 5, 20, 14, 30, null)).toBeNull();
+  });
+});
+
+describe("農曆年底出生的大運西元年（2026-09-23 敵意稽核 #6）", () => {
+  // 農曆 1985/12/20 的實際國曆生日是 1986-01-29。
+  // 引擎原本把「農曆 1985」直接當西元年加歲數，整條大運的年份會早一年——
+  // 這不是顯示問題：報告會據此說「某年進入某運」，每一句時間判斷都跟著錯。
+  const LUNAR_BIRTH = {
+    calendar: "農曆" as const,
+    isLeapMonth: false,
+    year: 1985,
+    month: 12,
+    day: 20,
+    hourBranch: "午",
+    hour: null,
+    minute: null,
+    placeLabel: null,
+    longitude: null,
+    latitude: null
+  };
+
+  function chartOf(gender: string) {
+    return buildYixueChart(
+      {
+        birth: LUNAR_BIRTH,
+        modules: { bazi: true },
+        gender,
+        divinationTime: null,
+        meihua: { mode: "時間起卦" },
+        liuyao: { mode: "時間起卦" },
+        liuyaoTime: null
+      },
+      resolveSchool("fengyi-v1")
+    );
+  }
+
+  it("實際國曆生日確實跨到隔年（前提成立才有這條 bug）", () => {
+    expect(chartOf("男").resolvedTime.civil.slice(0, 4)).toBe("1986");
+  });
+
+  it("大運首步的西元年 = 實際國曆出生年 + 起運歲數，不是農曆年", () => {
+    const chart = chartOf("男");
+    const luck = chart.bazi!.luck!;
+    expect(luck.cycles[0].fromYear).toBe(1986 + luck.cycles[0].fromAge);
+    // 明確擋住舊行為：用農曆年 1985 算會少一年。
+    expect(luck.cycles[0].fromYear).not.toBe(1985 + luck.cycles[0].fromAge);
+  });
+
+  it("每一步都連續，沒有只修第一步", () => {
+    const luck = chartOf("女").bazi!.luck!;
+    for (let i = 1; i < luck.cycles.length; i++) {
+      expect(luck.cycles[i].fromYear).toBe(luck.cycles[i - 1].fromYear + 10);
+    }
+  });
+
+  it("國曆輸入不受影響（沒有改壞原本就對的路徑）", () => {
+    const chart = buildYixueChart(
+      {
+        birth: { ...LUNAR_BIRTH, calendar: "國曆", year: 1985, month: 7, day: 12 },
+        modules: { bazi: true },
+        gender: "男",
+        divinationTime: null,
+        meihua: { mode: "時間起卦" },
+        liuyao: { mode: "時間起卦" },
+        liuyaoTime: null
+      },
+      resolveSchool("fengyi-v1")
+    );
+    const luck = chart.bazi!.luck!;
+    expect(luck.cycles[0].fromYear).toBe(1985 + luck.cycles[0].fromAge);
   });
 });

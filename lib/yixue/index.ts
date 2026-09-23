@@ -65,6 +65,8 @@ export type YixueEngineInput = {
   modules: YixueModules;
   /** 起卦時刻。未提供時梅花／六爻／奇門不排盤。 */
   divinationTime?: DivinationTimeInput | null;
+  /** 奇門自己的起局時刻；不與梅花共用選時。 */
+  qimenTime?: DivinationTimeInput | null;
   /** 梅花起卦來源。未提供時視為時間起卦。 */
   meihua?: MeihuaSource | null;
   /** 六爻起卦來源。未提供時視為時間起卦。 */
@@ -101,6 +103,7 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
   // 八字的流年流月也對齊這個時刻，理由相同。
   const divTime = toSolar(input.divinationTime);
   const liuyaoTime = toSolar(input.liuyaoTime) || divTime;
+  const qimenTime = toSolar(input.qimenTime) || divTime;
 
   // 流年流月以事件／起局時刻為基準，不是出生時刻——會員問的是「現在這件事」。
   // 沒有事件時間就給 null 並留 warning：這兩者是推導得出的，不該再去跟會員要，
@@ -120,7 +123,14 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
         gender: input.gender,
         school,
         referenceYear: input.divinationTime?.year ?? null,
-        birthYear: input.birth.year
+        // 取換算後的國曆年，不是會員填的那個年。
+        //
+        // 農曆輸入時 input.birth.year 是農曆年：農曆 1985/12/20 的實際國曆生日
+        // 落在 1986/01，直接拿去加歲數會讓整條大運的西元年早一年。
+        // resolved.civil 是正規化後的國曆當地時（YYYY-MM-DD HH:mm:ss），
+        // 而且不受真太陽時校正影響——大運的西元年是曆法年，不該被幾十分鐘的
+        // 經度校正推過年界。2026-09-23 敵意稽核 #6。
+        birthYear: Number(resolved.civil.slice(0, 4))
       })
     };
   }
@@ -171,11 +181,11 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
   // 奇門。起局時刻缺一不可——定局要節氣、日柱、時柱，全部由時刻決定。
   let qimen: QimenChart | null = null;
   if (input.modules.qimen) {
-    if (!divTime) {
+    if (!qimenTime) {
       allWarnings.push("奇門遁甲：缺少起局時刻，本次未排盤。");
     } else {
       try {
-        qimen = buildQimenChart(school, divTime);
+        qimen = buildQimenChart(school, qimenTime);
       } catch (error) {
         allWarnings.push(`奇門遁甲：排盤失敗（${error instanceof Error ? error.message : String(error)}），本次未排盤。`);
       }
