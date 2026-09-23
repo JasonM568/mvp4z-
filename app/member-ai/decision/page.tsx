@@ -39,6 +39,7 @@ export default function DecisionPage() {
   const [structured, setStructured] = useState<CouncilStructured | null>(null);
   const [jsonPacket, setJsonPacket] = useState<any>(null);
   const [notice, setNotice] = useState("");
+  const [reportWarning, setReportWarning] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanErrorCode, setScanErrorCode] = useState<string | null>(null);
   const [scanErrorDetails, setScanErrorDetails] = useState<Record<string, unknown> | null>(null);
@@ -243,6 +244,7 @@ export default function DecisionPage() {
     setLoading(true);
     setReport("");
     setStructured(null);
+    setReportWarning(null);
     setJsonPacket(null);
     window.localStorage.setItem(PENDING_KEY, JSON.stringify({
       startedAt: new Date().toISOString(),
@@ -260,6 +262,11 @@ export default function DecisionPage() {
       setScanErrorCode(data.code || null);
       setScanErrorDetails(data.details || null);
       setJsonPacket({ request: payload, error: data.error });
+      // 伺服器明確回錯 = 報告確定沒產出，清掉「進行中」紀錄。
+      // 不清的話，會員重新整理就會被丟進「正在找回…」輪詢五分鐘，
+      // 找一份永遠不會出現的報告，最後只等到一句找不到。2026-09-23 敵意稽核 #9。
+      // 反之 transportFailed（連線斷了、504）不能清——報告可能真的跑完並扣了點。
+      if (!data.transportFailed) window.localStorage.removeItem(PENDING_KEY);
       setLoading(false);
       return;
     }
@@ -289,6 +296,9 @@ export default function DecisionPage() {
           ? "本次使用 VIP 月內免費額度，未扣點。"
           : `已扣 ${data?.credits_charged || 0} 點，剩餘 ${data?.member?.credits_remaining ?? "未知"} 點。`
     );
+    // 寫入歷史紀錄出問題時必須講出來——會員已經付錢，有權知道這份報告
+    // 待會兒可能在「我的巽風」找不到，現在就該自己存下來。
+    setReportWarning(data?.persist_warning || null);
     track("four_aspects_completed", {
       result: data?.fallback_used ? "fallback" : "completed",
       charged: Number(data?.credits_charged || 0)
@@ -304,6 +314,7 @@ export default function DecisionPage() {
     update("question", "");
     setReport("");
     setStructured(null);
+    setReportWarning(null);
     setJsonPacket(null);
     setReportMeta(null);
     setNotice("");
@@ -409,6 +420,7 @@ export default function DecisionPage() {
             report={report}
             reportMeta={reportMeta}
             notice={notice}
+            warning={reportWarning}
             fileBase={reportFileBase}
             onRetry={handleRetry}
             onCopy={copy}

@@ -26,6 +26,7 @@ export function ReportStep({
   report,
   reportMeta,
   notice,
+  warning,
   fileBase,
   onRetry,
   onCopy,
@@ -38,6 +39,8 @@ export function ReportStep({
   report: string;
   reportMeta: ReportMeta | null;
   notice: string;
+  /** 已計費但出了狀況的事情，例如報告沒能寫進歷史紀錄。用金色警示，不混在綠色的 notice 裡。 */
+  warning?: string | null;
   fileBase: string;
   onRetry: () => void;
   onCopy: () => void;
@@ -57,6 +60,7 @@ export function ReportStep({
           <h1 className="xf-report-title">《巽風四象天機書》</h1>
           {reportMeta?.date && <p className="xf-report-date">{reportMeta.date} 生成</p>}
           {notice && <div className="status ok" style={{ marginTop: 10 }}>{notice}</div>}
+          {warning && <div className="status warn" style={{ marginTop: 6 }}>⚠️ {warning}</div>}
         </header>
 
         {structured ? (

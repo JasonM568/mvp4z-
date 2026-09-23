@@ -89,6 +89,15 @@ export type CouncilApiResult = {
   /** 機器可判讀的錯誤碼。前端據此決定要顯示哪種出口，不比對中文字串。 */
   code?: string;
   details?: Record<string, unknown>;
+  /**
+   * true = 我們沒收到伺服器的明確回應（連線中斷、504、WAF 擋頁），
+   * 報告可能已經跑完並扣了點。false／未設 = 伺服器明確回了錯，報告確定沒產出。
+   * 用途見 runCouncilReport 的說明。
+   */
+  transportFailed?: boolean;
+  /** 報告已產出並計費，但寫入歷史紀錄出了問題。必須讓會員看到。 */
+  persist_warning?: string | null;
+  run_id?: string | null;
   final?: { ok: boolean; label: string; text: string };
   structured?: CouncilStructured | null;
   fallback_used?: boolean;
@@ -156,13 +165,32 @@ export async function runCouncilReport(payload: ReturnType<typeof buildCouncilPa
   if (!token) {
     return { error: "尚未登入，請先登入會員。" };
   }
-  const res = await fetch("/api/ai/council", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify(payload)
-  });
-  return (await res.json()) as CouncilApiResult;
+  // transportFailed 的用途：區分「伺服器明確回了一個錯」與「我們根本沒聽到回音」。
+  //
+  // 前者代表報告確定沒產出（點數不足、驗證失敗…），本地的「進行中」紀錄該清掉；
+  // 後者代表報告可能已經跑完並扣了點，只是回應在路上掉了——那正是找回機制存在的理由，
+  // 這種情況清掉紀錄會讓會員付了錢卻再也回不到那份報告。分不清就一律當後者。
+  let res: Response;
+  try {
+    res = await fetch("/api/ai/council", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    return { error: (err as Error)?.message || "連線中斷", transportFailed: true };
+  }
+
+  try {
+    return (await res.json()) as CouncilApiResult;
+  } catch {
+    // 回的不是 JSON（Vercel 504、WAF 擋頁…）：伺服器那邊做到哪裡我們無從得知。
+    return {
+      error: `伺服器回應異常（HTTP ${res.status}）`,
+      transportFailed: true
+    };
+  }
 }

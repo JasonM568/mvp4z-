@@ -294,7 +294,14 @@ export async function POST(request: NextRequest) {
     const actualFreeQuotaUsed = actualCharge === 0 && !fallbackUsed && plannedFreeQuotaUsed;
 
     // 12. 寫 council_runs（含實際扣點結果）
-    const { error: runError } = await admin.from("council_runs").insert({
+    //
+    // 這一步失敗**不得 throw**。到這裡點數已經扣掉、報告已經生出來了，
+    // 原本的 `throw runError` 會讓 catch 回一個錯誤狀態碼，於是：
+    // 會員被扣 20 點、畫面顯示失敗、前台依慣例告訴他「未扣點」、
+    // 而那份他已經付過錢的報告只存在於這個 response 裡，隨著錯誤一起丟掉。
+    // 寧可交出報告並大聲記錄寫入失敗，也不可以收了錢什麼都不給。
+    // 2026-09-23 敵意稽核 #1。
+    const runRow = {
       user_id: profile.id,
       entitlement_id: entitlement.id,
       usage_log_id: usageLog?.id || null,
@@ -315,18 +322,71 @@ export async function POST(request: NextRequest) {
       // 排盤結果與當時的流派。流派改版後，舊報告的盤才有辦法重現。
       chart,
       school_version: chart ? school.id : null
-    });
-    if (runError) throw runError;
+    };
+
+    let runId: string | null = null;
+    let persistWarning: string | null = null;
+
+    const { data: runInserted, error: runError } = await admin
+      .from("council_runs")
+      .insert(runRow)
+      .select("id")
+      .single();
+
+    if (runError) {
+      console.error("[council] council_runs insert failed AFTER charging", {
+        userId: profile.id,
+        entitlementId: entitlement.id,
+        actualCharge,
+        usageLogId: usageLog?.id || null,
+        error: runError
+      });
+
+      // 再試一次精簡版。整列寫不進去最可能是某個大 JSON 欄位（chart / structured /
+      // first_round）出問題，把它們拿掉至少讓報告本文進得了歷史紀錄——
+      // 會員付了錢，下次登入要找得到這份報告，而不是只有當下那一畫面。
+      const { data: minimal, error: minimalError } = await admin
+        .from("council_runs")
+        .insert({
+          user_id: profile.id,
+          entitlement_id: entitlement.id,
+          usage_log_id: usageLog?.id || null,
+          final_label: finalLabel,
+          final_text: finalText,
+          final_ok: finalOk,
+          fallback_used: fallbackUsed,
+          credits_charged: actualCharge,
+          free_quota_used: actualFreeQuotaUsed,
+          prompt_profile_id: prompt.profileId
+        })
+        .select("id")
+        .single();
+
+      if (minimalError) {
+        console.error("[council] council_runs minimal insert ALSO failed", {
+          userId: profile.id,
+          error: minimalError
+        });
+        persistWarning = "報告已產出並已計費，但寫入歷史紀錄失敗，請立即保存本頁內容。";
+      } else {
+        runId = minimal?.id || null;
+        persistWarning = "報告已存入歷史紀錄，但排盤與辯論過程未能一併保存。";
+      }
+    } else {
+      runId = runInserted?.id || null;
+    }
 
     const member = await getPublicMember(profile.id);
     return apiJson({
       ok: true,
+      run_id: runId,
       final: { ok: finalOk, label: finalLabel, text: finalText },
       structured,
       fallback_used: fallbackUsed,
       credits_charged: actualCharge,
       free_quota_used: actualFreeQuotaUsed,
       credit_warning: creditWarning,
+      persist_warning: persistWarning,
       member,
       generated_at: new Date().toISOString()
     });
