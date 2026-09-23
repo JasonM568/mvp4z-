@@ -32,6 +32,11 @@ export const liuyaoSchoolSchema = z.object({
   monthRule: z.enum(["節月", "農曆月"]).default("節月")
 });
 
+/** 同 meihua／liuyao：給 default，舊紀錄少這一段時不讓整份設定 parse 失敗。 */
+export const baziSchoolSchema = z.object({
+  luckStartRule: z.enum(["精算到月", "整年進位"]).default("精算到月")
+});
+
 export const schoolConfigSchema = z.object({
   id: z.string().trim().min(1),
   label: z.string().trim().min(1, "請填流派名稱").max(60),
@@ -39,7 +44,8 @@ export const schoolConfigSchema = z.object({
   decidedBy: z.string().default(""),
   calendar: calendarSchoolSchema,
   meihua: meihuaSchoolSchema.default({ timeQuaDateBasis: "農曆", timeQuaYearNumber: "地支序" }),
-  liuyao: liuyaoSchoolSchema.default({ monthRule: "節月" })
+  liuyao: liuyaoSchoolSchema.default({ monthRule: "節月" }),
+  bazi: baziSchoolSchema.default({ luckStartRule: "精算到月" })
 });
 
 /**
@@ -116,6 +122,16 @@ export const SCHOOL_FIELD_GUIDE = [
     options: [
       { value: "節月", label: "節月（與八字月柱同一套）", hint: "以立春、驚蟄等節分界" },
       { value: "農曆月", label: "農曆月", hint: "正月建寅、二月建卯，依農曆月份" }
+    ]
+  },
+  {
+    section: "bazi",
+    path: "luckStartRule",
+    title: "大運起運歲數怎麼算",
+    why: "兩派都用「三日折一年」，差別在餘數。順排數到下一個節、逆排數回上一個節，天數除以三即年數；除不盡的部分要不要換算成月，決定會員看到的是「8 歲 4 個月起運」還是「8 歲起運」。順逆排與大運干支是通則，不受此項影響。",
+    options: [
+      { value: "精算到月", label: "精算到月", hint: "一日折四個月，例如 25.3 天 → 8 歲 5 個月起運" },
+      { value: "整年進位", label: "四捨五入到年", hint: "同一個例子 → 8 歲起運" }
     ]
   }
 ] as const;

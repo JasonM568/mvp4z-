@@ -274,3 +274,51 @@ export function fleetingMonthAt(
     termAt: formatSolarTime(at)
   };
 }
+
+/**
+ * 出生時刻前後最近的「節」。大運起運要用。
+ *
+ * 只取節不取氣——大運與月柱同一套分界，中氣不換月。
+ * 回傳的天數是**帶小數的儒略日差**，因為起運要精算到月甚至日，
+ * 先取整會把「差一天」變成「差四個月」。
+ *
+ * 順排（陽男陰女）數到 next，逆排（陰男陽女）數回 prev。
+ */
+export function jieAroundAt(t: SolarTime): {
+  prev: { name: string; at: string; daysSince: number };
+  next: { name: string; at: string; daysUntil: number };
+} {
+  const jd = t.getJulianDay().getDay();
+
+  let prev = t.getTerm();
+  while (!prev.isJie()) prev = prev.next(-1);
+
+  // 從當下的節氣往後找第一個節。若 getTerm() 本身就是節，next(1) 會先踩到氣，
+  // 迴圈會繼續走到下一個節，正是要的結果。
+  let next = t.getTerm().next(1);
+  while (!next.isJie()) next = next.next(1);
+
+  const prevJd = prev.getJulianDay().getDay();
+  const nextJd = next.getJulianDay().getDay();
+
+  return {
+    prev: {
+      name: SOLAR_TERMS[prev.getIndex()],
+      at: formatSolarTime(prev.getJulianDay().getSolarTime()),
+      daysSince: jd - prevJd
+    },
+    next: {
+      name: SOLAR_TERMS[next.getIndex()],
+      at: formatSolarTime(next.getJulianDay().getSolarTime()),
+      daysUntil: nextJd - jd
+    }
+  };
+}
+
+/** 六十甲子位移。大運自月柱順推或逆推時用。 */
+export function shiftSexagenary(sb: StemBranch, steps: number): StemBranch {
+  const g = HEAVEN_STEMS.indexOf(sb.stem as (typeof HEAVEN_STEMS)[number]);
+  const z = EARTH_BRANCHES.indexOf(sb.branch as (typeof EARTH_BRANCHES)[number]);
+  if (g < 0 || z < 0) throw new Error(`不合法的干支：${sb.label}`);
+  return stemBranchOf(g + steps, z + steps);
+}

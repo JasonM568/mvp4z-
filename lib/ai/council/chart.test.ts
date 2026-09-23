@@ -170,13 +170,31 @@ describe("流年流月進 prompt", () => {
     expect(text).toContain("不得在報告中要求會員提供");
   });
 
-  it("大運未實作必須明講，且同樣禁止叫會員自己補", () => {
-    // 沒有這一句，模型看不到大運就會寫成「請會員補齊大運資料」——
-    // 那正是這次要修掉的行為，不是模型的錯，是盤面沒交代清楚。
-    const chart = buildChartForCouncil(withEvent(), SCHOOL).chart!;
+  it("有性別就排出大運，並標明不是待補資料", () => {
+    // 2026-09-23 之前這裡印的是「本系統尚未提供程式排的大運」。
+    // 那句話讓模型不再跟會員要大運，但會員打開報告仍然什麼都看不到。
+    const withGender = { ...withEvent() } as CouncilInput;
+    (withGender.yixue as Record<string, unknown>).gender = "男";
+    const chart = buildChartForCouncil(withGender, SCHOOL).chart!;
+
+    expect(chart.bazi!.luck).not.toBeNull();
     const text = renderChartForPrompt(chart, SCHOOL.label);
-    expect(text).toContain("尚未提供程式排的大運");
-    expect(text).toContain("不得要求會員自行提供大運資料");
+    expect(text).toContain("大運：");
+    expect(text).toMatch(/順排|逆排/);
+    expect(text).toContain("起運：");
+    expect(text).toContain("大運序列（歲數為出生後經過的年數，非虛歲；西元年為準）：");
+    expect(text).toContain("不得在報告中要求會員提供");
+    expect(text).not.toContain("尚未提供程式排的大運");
+  });
+
+  it("性別未填時說清楚缺的是性別，不是叫會員提供大運", () => {
+    // 會員要補的是一個下拉選項，不是一張大運表。講錯了他只會放棄。
+    const chart = buildChartForCouncil(withEvent(), SCHOOL).chart!;
+    expect(chart.bazi!.luck).toBeNull();
+    const text = renderChartForPrompt(chart, SCHOOL.label);
+    expect(text).toContain("性別未填");
+    expect(text).toContain("補填性別即可排出大運");
+    expect(text).not.toContain("請提供大運資料");
   });
 
   it("沒有事件時間就不推流年流月，並留下 warning 而不是靜默略過", () => {

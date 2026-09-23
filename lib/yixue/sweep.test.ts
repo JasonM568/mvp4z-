@@ -65,6 +65,8 @@ describe("四術全時段掃描", () => {
                 longitude: null,
                 latitude: null
               },
+              // 帶性別：不帶的話大運一律回 null，這 1920 張盤等於完全沒驗到大運。
+              gender: "男",
               modules: { bazi: true, qimen: true, liuyao: true, meihua: true },
               divinationTime: s,
               meihua: { mode: "時間起卦" },

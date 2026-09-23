@@ -21,6 +21,9 @@ const LIVE: SchoolConfig = {
   },
   liuyao: {
     monthRule: "節月"
+  },
+  bazi: {
+    luckStartRule: "精算到月"
   }
 };
 

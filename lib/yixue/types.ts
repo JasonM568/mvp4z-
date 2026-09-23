@@ -67,6 +67,36 @@ export type Completeness = {
   missing: string[];
 };
 
+/** 一步大運。 */
+export type LuckCycle = {
+  /** 第幾步，從 1 起。 */
+  index: number;
+  ganzhi: StemBranch;
+  /** 歲數區間。為「出生後經過的年數」，與虛歲差一，不要混用。 */
+  fromAge: number;
+  toAge: number;
+  fromYear: number;
+  toYear: number;
+  /** 事件時刻是否落在這一步。沒有參考年時全為 false。 */
+  current: boolean;
+};
+
+export type LuckCycles = {
+  direction: "forward" | "backward";
+  directionLabel: string;
+  /** 順逆的判定依據，例如「陽年男，故順排」。讓老師與會員驗算得動。 */
+  basis: string;
+  /** 起運是數到哪一個節。順排數下一個、逆排數上一個。 */
+  countedTerm: string;
+  countedTermAt: string;
+  countedDays: number;
+  startAgeYears: number;
+  startAgeMonths: number;
+  startAgeExact: number;
+  startRule: string;
+  cycles: LuckCycle[];
+};
+
 export type BaziChart = {
   pillars: FourPillars;
   monthOrder: MonthOrder;
@@ -76,6 +106,11 @@ export type BaziChart = {
    * 沒有事件時間時為 null——那時沒有基準可對齊，硬給等於猜。
    */
   fleeting: Fleeting | null;
+  /**
+   * 大運。性別未填（表單的「不指定」）時為 null——
+   * 順逆排完全由性別決定，猜一個等於有一半的人拿到相反的盤。
+   */
+  luck: LuckCycles | null;
 };
 
 // ---------------------------------------------------------------- 梅花易數

@@ -62,13 +62,36 @@ export function renderChartForPrompt(
       );
     }
 
-    // 大運未實作，必須明講。沒有這一句，模型會把「沒看到大運」寫成
-    // 「請會員補齊大運資料」——那正是這次要修掉的行為。
-    lines.push(
-      "",
-      "大運：本系統尚未提供程式排的大運（起運法待老師簽核）。",
-      "涉及大運的判斷請明確降權並說明理由，但不得要求會員自行提供大運資料。"
-    );
+    // 大運。2026-09-23 之前這裡印的是「本系統尚未提供程式排的大運」——
+    // 那句話讓模型不再跟會員要大運，但會員打開報告仍然什麼都看不到。
+    // 現在由 bazi/luck.ts 實際排出，只有性別未填時才回到「排不出」的說法。
+    const luck = chart.bazi.luck;
+    if (luck) {
+      lines.push(
+        "",
+        `大運：${luck.directionLabel}（${luck.basis}）`,
+        `起運：${luck.startAgeYears} 歲` +
+          (luck.startAgeMonths ? ` ${luck.startAgeMonths} 個月` : "") +
+          `　依據：出生距${luck.countedTerm}（${luck.countedTermAt}）${luck.countedDays} 天，三日折一年（${luck.startRule}）`,
+        "大運序列（歲數為出生後經過的年數，非虛歲；西元年為準）：",
+        ...luck.cycles.map(
+          (c) =>
+            `- 第${c.index}步 ${c.ganzhi.label}｜${c.fromAge}–${c.toAge} 歲｜${c.fromYear}–${c.toYear} 年` +
+            (c.current ? "（事件時刻所在大運）" : "")
+        ),
+        "大運為系統依曆法與性別推排，不是待補資料；不得在報告中要求會員提供。"
+      );
+    } else {
+      lines.push(
+        "",
+        "大運：性別未填，無法判定順逆排（陽男陰女順、陰男陽女逆），本次未排大運。",
+        "涉及大運的判斷請明確降權並說明理由。",
+        // 刻意不在這裡引用那句不該出現的話——模型有時會照抄 prompt 裡的字句，
+        // 把反面示範寫進去等於提高它出現的機率。只講該怎麼寫。
+        "若要提醒會員，唯一該說的是「補填性別即可排出大運」。",
+        "缺的是性別這一個欄位，不是一份大運表，不要把它寫成要會員自行準備的資料。"
+      );
+    }
   }
 
   if (chart.qimen) {

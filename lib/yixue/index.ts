@@ -10,6 +10,7 @@
 
 import type { SchoolConfig } from "./school/types";
 import type {
+  BaziChart,
   Completeness,
   LiuyaoChart,
   LiuyaoSource,
@@ -19,6 +20,7 @@ import type {
   YixueChart
 } from "./types";
 import { buildMonthOrder, buildPillars } from "./calendar/pillars";
+import { buildLuckCycles } from "./bazi/luck";
 import { buildFleeting } from "./bazi/fleeting";
 import { resolveBirthTime, type BirthInput } from "./calendar/resolve";
 import { makeSolarTime } from "./calendar/tyme";
@@ -53,6 +55,11 @@ export type DivinationTimeInput = {
 };
 
 export type YixueEngineInput = {
+  /**
+   * 性別。**只有大運需要**——順逆排由它決定（陽男陰女順、陰男陽女逆）。
+   * 表單的「不指定」或未填時傳 null，大運會回 null 而不是猜一個方向。
+   */
+  gender?: string | null;
   birth: BirthInput;
   modules: YixueModules;
   /** 起卦時刻。未提供時梅花／六爻／奇門不排盤。 */
@@ -97,16 +104,32 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
   // 流年流月以事件／起局時刻為基準，不是出生時刻——會員問的是「現在這件事」。
   // 沒有事件時間就給 null 並留 warning：這兩者是推導得出的，不該再去跟會員要，
   // 但也不能沒有基準還硬算。
-  const bazi = input.modules.bazi
-    ? {
-        pillars: buildPillars(solarTime, school.calendar, hourKnown),
-        monthOrder: buildMonthOrder(solarTime),
-        fleeting: divTime ? buildFleeting(divTime) : null
-      }
-    : null;
+  let bazi: BaziChart | null = null;
+  if (input.modules.bazi) {
+    const pillars = buildPillars(solarTime, school.calendar, hourKnown);
+    bazi = {
+      pillars,
+      monthOrder: buildMonthOrder(solarTime),
+      fleeting: divTime ? buildFleeting(divTime) : null,
+      luck: buildLuckCycles({
+        birthTime: solarTime,
+        yearPillar: pillars.year.ganzhi,
+        monthPillar: pillars.month.ganzhi,
+        gender: input.gender,
+        school,
+        referenceYear: input.divinationTime?.year ?? null,
+        birthYear: input.birth.year
+      })
+    };
+  }
 
   if (input.modules.bazi && !divTime) {
     allWarnings.push("八字：缺少事件時間，本次未推流年流月。");
+  }
+  if (input.modules.bazi && bazi && !bazi.luck) {
+    // 說清楚是缺什麼。寫「未提供大運」會讓模型以為系統做不到，
+    // 但實際上只要會員把性別填了就排得出來。
+    allWarnings.push("八字：性別未填，無法判定大運順逆排，本次未排大運。");
   }
 
   // 梅花。起卦失敗只降級成 null 並留下 warning——排不出卦不該讓整份報告掛掉，
@@ -171,5 +194,5 @@ export function buildYixueChart(input: YixueEngineInput, school: SchoolConfig): 
 }
 
 export type { BirthInput };
-export type { YixueChart, MeihuaChart, MeihuaSource, LiuyaoChart, LiuyaoSource, QimenChart } from "./types";
+export type { YixueChart, MeihuaChart, MeihuaSource, LiuyaoChart, LiuyaoSource, QimenChart, LuckCycles } from "./types";
 export { resolveSchool, ACTIVE_SCHOOL_ID, SCHOOL_PRESETS } from "./school/schools";

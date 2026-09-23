@@ -183,6 +183,9 @@ export function buildChartForCouncil(
       {
         birth,
         modules: input.yixue?.modules || { bazi: true },
+        // 性別只有大運會用到（順逆排）。表單的「不指定」不是有效值，
+        // 傳 null 讓引擎回 null 大運，而不是讓它猜一個方向。
+        gender: input.yixue?.gender === "男" || input.yixue?.gender === "女" ? input.yixue.gender : null,
         divinationTime: toDivinationTime(input),
         meihua: toMeihuaSource(input),
         liuyao: toLiuyaoSource(input),

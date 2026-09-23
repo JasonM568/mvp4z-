@@ -33,6 +33,9 @@ type SchoolConfig = {
   liuyao: {
     monthRule: "節月" | "農曆月";
   };
+  bazi: {
+    luckStartRule: "精算到月" | "整年進位";
+  };
 };
 
 type FieldGuide = {

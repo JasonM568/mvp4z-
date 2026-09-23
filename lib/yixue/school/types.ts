@@ -95,6 +95,23 @@ export type LiuyaoSchool = {
   monthRule: "節月" | "農曆月";
 };
 
+/**
+ * 八字。目前只有大運的起運法有分歧。
+ *
+ * 順逆排（陽男陰女順、陰男陽女逆）與大運干支（自月柱推排）都是通則，不開旋鈕。
+ * 十神、藏干同理——那是查表不是判斷。
+ */
+export type BaziSchool = {
+  /**
+   * 起運歲數怎麼算。兩派都用「三日折一年」，差在餘數：
+   * - 精算到月：一日折四個月，給到「幾歲幾個月」
+   * - 整年進位：四捨五入到年，最少一歲
+   *
+   * 見 SCHOOL-DECISIONS.md 決策 9。
+   */
+  luckStartRule: "精算到月" | "整年進位";
+};
+
 export type SchoolConfig = {
   /** 版本 id，會寫進 council_runs.school_version，讓歷史報告可重現。 */
   id: string;
@@ -105,4 +122,5 @@ export type SchoolConfig = {
   calendar: CalendarSchool;
   meihua: MeihuaSchool;
   liuyao: LiuyaoSchool;
+  bazi: BaziSchool;
 };
