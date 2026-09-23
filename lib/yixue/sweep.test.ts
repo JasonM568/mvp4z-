@@ -145,3 +145,116 @@ describe("四術全時段掃描", () => {
     }
   });
 });
+
+describe("大運全出生時段掃描", () => {
+  // 上面那組掃描的出生日期固定在 1980-05-05，只有起卦時刻在變——
+  // 所以「不同生日排不排得出大運」其實從來沒被掃過。
+  //
+  // 大運靠 jieAroundAt 找出生時刻前後的節，是整個八字裡唯一會去翻節氣表的環節。
+  // 若某些生日（跨年邊界、閏月、節氣當天、農曆年底）讓它拋錯，
+  // 八字那一段沒有 try/catch，會直接讓**整張盤變成 null**——
+  // 不是只有大運不見，是連四柱都沒有。這種錯只會發生在少數生日，
+  // 主案例永遠碰不到，正是掃描存在的理由。
+  //
+  // 使用者 2026-09-23 問的就是這件事：「會不會又出現大運資料不出現的情況」。
+
+  function birthSamples() {
+    const out: Array<{ calendar: "國曆" | "農曆"; year: number; month: number; day: number; hourBranch: string }> = [];
+    for (const year of [1950, 1984, 1990, 2000, 2004, 2024]) {
+      for (let month = 1; month <= 12; month++) {
+        // 含月初、節氣常落點（4–8 號）、月中與月底
+        for (const day of [1, 5, 6, 7, 15, 28]) {
+          for (const hourBranch of ["子", "午", "亥"]) {
+            out.push({ calendar: "國曆", year, month, day, hourBranch });
+          }
+        }
+      }
+    }
+    // 農曆年底：實際國曆生日會跨到隔年，是 2026-09-23 修掉的 #6 那一類
+    for (const year of [1985, 1995, 2005]) {
+      for (const day of [1, 15, 29]) {
+        out.push({ calendar: "農曆", year, month: 12, day, hourBranch: "午" });
+      }
+    }
+    return out;
+  }
+
+  const BIRTHS = birthSamples();
+
+  it(`${BIRTHS.length} 個出生時刻 × 男女都排得出大運，且首步年份合理`, { timeout: 30_000 }, () => {
+    const failures: string[] = [];
+
+    for (const b of BIRTHS) {
+      for (const gender of ["男", "女"]) {
+        const tag = `${b.calendar} ${b.year}-${b.month}-${b.day} ${b.hourBranch}時 ${gender}`;
+        let chart;
+        try {
+          chart = buildYixueChart(
+            {
+              birth: {
+                calendar: b.calendar,
+                isLeapMonth: false,
+                year: b.year,
+                month: b.month,
+                day: b.day,
+                hourBranch: b.hourBranch,
+                hour: null,
+                minute: null,
+                placeLabel: "臺北市",
+                longitude: null,
+                latitude: null
+              },
+              gender,
+              modules: { bazi: true },
+              divinationTime: { year: 2026, month: 9, day: 23, hour: 10, minute: 0 },
+              meihua: { mode: "時間起卦" },
+              liuyao: { mode: "時間起卦" }
+            },
+            BASE
+          );
+        } catch (error) {
+          // 這一條若紅，代表的不只是大運不見，是整張盤都生不出來。
+          failures.push(`${tag}：throw ${error instanceof Error ? error.message : String(error)}`);
+          continue;
+        }
+
+        const luck = chart.bazi?.luck;
+        if (!luck) {
+          failures.push(`${tag}：大運為 null`);
+          continue;
+        }
+        if (luck.cycles.length === 0) failures.push(`${tag}：大運序列是空的`);
+        if (!/順排|逆排/.test(luck.directionLabel)) failures.push(`${tag}：順逆未判定`);
+
+        // 首步的西元年不該早於出生年，也不該離譜地晚（起運最多十年內）
+        const first = luck.cycles[0];
+        const solarYear = Number(chart.resolvedTime.civil.slice(0, 4));
+        if (first.fromYear < solarYear) failures.push(`${tag}：首運 ${first.fromYear} 早於出生年 ${solarYear}`);
+        if (first.fromYear > solarYear + 10) failures.push(`${tag}：首運 ${first.fromYear} 距出生年 ${solarYear} 超過十年`);
+      }
+    }
+
+    expect(failures.slice(0, 20)).toEqual([]);
+  });
+
+  it("同一個生日，男女的大運方向必定相反", () => {
+    const of = (gender: string) =>
+      buildYixueChart(
+        {
+          birth: {
+            calendar: "國曆", isLeapMonth: false, year: 1990, month: 3, day: 18,
+            hourBranch: "卯", hour: null, minute: null,
+            placeLabel: "臺北市", longitude: null, latitude: null
+          },
+          gender,
+          modules: { bazi: true },
+          divinationTime: { year: 2026, month: 9, day: 23, hour: 10, minute: 0 },
+          meihua: { mode: "時間起卦" },
+          liuyao: { mode: "時間起卦" }
+        },
+        BASE
+      ).bazi!.luck!;
+
+    expect(of("男").directionLabel).not.toBe(of("女").directionLabel);
+  });
+});

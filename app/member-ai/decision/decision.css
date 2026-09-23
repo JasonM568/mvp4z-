@@ -896,3 +896,12 @@
   color: var(--muted);
 }
 .xf-gender-hint strong { color: var(--gold, #d2a954); }
+
+/* 必填標記。只在該模組真的需要這個欄位時才出現，
+   否則滿頁都是「必填」等於沒有標。 */
+.xf-required {
+  margin-left: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gold, #d2a954);
+}

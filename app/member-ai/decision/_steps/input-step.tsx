@@ -120,8 +120,10 @@ export function InputStep({
               </div>
             </div>
 
-            <div className="form" style={{ marginTop: 16 }}>
-              <div className="xf-field-label">性別</div>
+            <div className="form" id="councilGender" style={{ marginTop: 16 }}>
+              <div className="xf-field-label">
+                性別{modules.bazi && <span className="xf-required">（八字必填）</span>}
+              </div>
               <div className="xf-gender-row">
                 {(["男", "女"] as const).map((g) => (
                   <button

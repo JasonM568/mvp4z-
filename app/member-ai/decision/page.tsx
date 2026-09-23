@@ -232,6 +232,20 @@ export default function DecisionPage() {
       (el as HTMLTextAreaElement | null)?.focus();
       return;
     }
+    // 八字開著就一定要有男／女，否則排不出大運（順逆由性別決定）。
+    //
+    // 2026-09-22 之前預設是「男」，所有人都排得出大運——但女性會員沒改就拿到
+    // 男性的大運，方向相反、每一步干支全錯。隔天改成不預選是對的，
+    // 可是只加了一行提示沒有擋住送出：會員沒注意到就扣 20 點換一份沒有大運的報告，
+    // 等於把「拿到錯的大運」換成「拿不到大運」，對他一樣是壞的。
+    //
+    // 這不是替使用者決定什麼，只是必填欄位的檢查——跟上面的問題必填同一層級。
+    if (modules.bazi && form.gender !== "男" && form.gender !== "女") {
+      setNotice("八字需要性別才能排出大運（順逆由性別決定）。請先選擇男或女，或關閉八字模組。");
+      const el = document.getElementById("councilGender");
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     setNotice("");
     setScanError(null);
     setScanErrorCode(null);
