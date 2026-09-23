@@ -7,8 +7,10 @@
  * 報告照樣產得出來，只是從三家意見變兩家。會員付一樣的錢、拿到少一家意見的報告，
  * 畫面上卻沒有任何跡象。
  *
- * 刻意不只做寄信：正式站目前沒有 RESEND_API_KEY，告警信寄不出去。
- * 只做寄信等於做了一個今天不會響的鈴。
+ * 刻意不只做寄信：這一頁不依賴 Resend 也能用。
+ * 2026-09-23 這頁上線時正式站根本沒設 RESEND_API_KEY，全站 admin 告警
+ * （含綠界付款異常）一封都沒寄出過而沒有人知道——只做寄信等於做了一個不會響的鈴。
+ * 頁面底下的「寄一封測試告警給我」就是為了讓人隨時能證明鈴會響。
  */
 
 import { useEffect, useState } from "react";
@@ -49,6 +51,8 @@ export default function ProviderHealthPage() {
   const [sampleSize, setSampleSize] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     adminFetch("/api/admin/provider-health")
@@ -65,6 +69,33 @@ export default function ProviderHealthPage() {
   }, []);
 
   const bad = health.filter((h) => h.level !== "ok");
+
+  /**
+   * 告警最糟的失敗方式是安靜地不運作——巽風的 admin 告警就這樣壞了不知道多久。
+   * 所以要有一個「現在就證明鈴會響」的按鈕，而不是等真的出事時才發現它不響。
+   * 只寄給按下去的人，不寄給全體管理員。
+   */
+  async function sendTest() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const r = await adminFetch("/api/admin/provider-health/test-alert", { method: "POST" });
+      const d = await r.json();
+      if (d?.ok) {
+        setTestResult({ ok: true, text: `已寄出到 ${d.sentTo}。沒收到的話先看垃圾郵件。` });
+      } else {
+        // 把上游的實際回應原樣顯示。最常見的失敗是寄件網域還沒在 Resend 驗證，
+        // 只寫「寄送失敗」會讓人往錯的方向查。
+        const dl = d?.delivery;
+        const why = [dl?.detail, dl?.reason, d?.error].filter(Boolean).join("　｜　");
+        setTestResult({ ok: false, text: why || "寄送失敗，但上游沒有回傳原因。" });
+      }
+    } catch (e: any) {
+      setTestResult({ ok: false, text: e?.message || "請求失敗" });
+    } finally {
+      setTesting(false);
+    }
+  }
 
   return (
     <>
@@ -143,9 +174,17 @@ export default function ProviderHealthPage() {
           <h2 style={{ marginTop: 28 }}>關於告警信</h2>
           <p className="muted" style={{ lineHeight: 1.9 }}>
             每天台灣時間 09:10 有一支排程掃這份資料，越過門檻才寄信給管理員，全綠就安靜。
-            但<strong>正式站目前沒有設 <code>RESEND_API_KEY</code>，信其實寄不出去</strong>
-            （全站的 admin 告警都一樣，包含綠界付款異常）。在那之前，這一頁是唯一看得到的地方。
+            告警最糟的失敗方式是<strong>安靜地不運作</strong>——所以與其相信它會響，
+            不如現在就按一次確認。測試信只會寄給你一個人，不會吵到其他管理員。
           </p>
+          <button className="admin-action-btn" type="button" onClick={sendTest} disabled={testing}>
+            {testing ? "寄送中…" : "寄一封測試告警給我"}
+          </button>
+          {testResult && (
+            <div className={`status ${testResult.ok ? "ok" : "error"}`} style={{ marginTop: 10 }}>
+              {testResult.text}
+            </div>
+          )}
         </>
       )}
     </>
