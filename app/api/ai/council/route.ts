@@ -19,6 +19,7 @@ import { COUNCIL_DAILY_LIMIT, getMonthlyCouncilUsage, getTodayCouncilCount } fro
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { councilSchema, CouncilRequest } from "@/lib/ai/council/schema";
 import { acquireCouncilSlot, releaseCouncilSlot } from "@/lib/ai/council/inflight";
+import { loadQimenSignoff, qimenSignatureText } from "@/lib/school-settings/qimen-signoff";
 import { loadPromptSettings } from "@/lib/ai/council/settings/load";
 import { buildChartForCouncil } from "@/lib/ai/council/chart";
 import { loadSchool } from "@/lib/school-settings/load";
@@ -160,7 +161,9 @@ export async function POST(request: NextRequest) {
     const schoolSignature = school.decidedBy
       ? `${school.decidedBy}${school.decidedAt ? `　${school.decidedAt}` : ""}`
       : "";
-    const chartBlock = chart ? renderChartForPrompt(chart, school.label, schoolSignature) : "";
+    // 奇門校對狀態只在報告真的有奇門盤時才查，讀不到一律當未簽核（保守）。
+    const qimenSignature = chart?.qimen ? qimenSignatureText(await loadQimenSignoff(Date.now())) : "";
+    const chartBlock = chart ? renderChartForPrompt(chart, school.label, schoolSignature, qimenSignature) : "";
     const chartDigest = chart ? renderChartDigest(chart) : "";
 
     // 7. 組 council input

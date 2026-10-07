@@ -79,6 +79,13 @@ function findFutou(dayStem: string, dayBranch: string): { branch: string; daysBa
  * 這一組規則就是「拆補法」與「置閏法」的分水嶺：置閏法遇到超神接氣要另置閏局，
  * 拆補法不置閏、直接以符頭補足。老師若採置閏，工程要另建，見決策 8。
  */
+/**
+ * 奇門定局規則的版本。**只要定局或排盤的規則改變就必須進版**（例如改成置閏法、改飛盤）。
+ * 後台的校對簽核綁在這個值上：規則一改，舊的簽核自動失效，老師必須重新比對。
+ * 純修 bug 但盤面不變的改動不需要進版。
+ */
+export const QIMEN_RULE_VERSION = "chaibu-zhuanpan-v1";
+
 export function determineJu(t: EngineTime, school: SchoolConfig) {
   const term = currentTermAt(t);
   const day = dayPillar(t, school.calendar.lateZiDayPillar);

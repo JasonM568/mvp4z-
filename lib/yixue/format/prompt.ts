@@ -12,7 +12,12 @@ export function renderChartForPrompt(
   chart: YixueChart,
   schoolLabel: string,
   /** 已簽核時傳「拍板人　日期」，未簽核傳空字串。 */
-  signature = ""
+  signature = "",
+  /**
+   * 奇門定局法的校對簽核，獨立於上面的流派簽核（那一項涵蓋曆法／梅花／六爻／八字，
+   * 奇門是之後才加進來的）。已簽核傳「拍板人　日期」，否則空字串。
+   */
+  qimenSignature = ""
 ): string {
   const t = chart.resolvedTime;
   const lines: string[] = [
@@ -119,7 +124,7 @@ export function renderChartForPrompt(
   }
 
   if (chart.qimen) {
-    lines.push("", ...qimenLines(chart.qimen));
+    lines.push("", ...qimenLines(chart.qimen, qimenSignature));
   }
 
   if (chart.liuyao) {
@@ -174,10 +179,14 @@ function meihuaLines(m: MeihuaChart): string[] {
  * 依洛書方位排成三行三列（上南下北），與紙上排盤的樣子一致——
  * 奇門的判讀高度依賴方位關係，排成清單會讓「生門在東南」這種資訊消失。
  */
-function qimenLines(c: QimenChart): string[] {
+function qimenLines(c: QimenChart, signature = ""): string[] {
   const by = new Map(c.cells.map((x) => [x.palace, x]));
   const out: string[] = [
     "【奇門遁甲．系統排盤】",
+    // 獨立一行：流派簽核與奇門校對是兩件事，不能讓前者的「已簽核」蓋住後者的「尚待校對」。
+    signature
+      ? `奇門定局法校對：已由 ${signature} 比對確認（拆補法、轉盤）`
+      : "奇門定局法校對：尚未經風羿老師比對確認。判讀奇門時請明說「奇門定局法尚待老師校對」，不可當作定論。",
     `${c.termName}（交節 ${c.termAt}）　${c.dun}${c.ju}局　${c.yuan}　定局符頭：${c.futou}`,
     `日柱 ${c.dayGanzhi}　時柱 ${c.hourGanzhi}　旬首 ${c.xunshou}（遁${c.xunshouYi}）`,
     `值符：${c.zhiFuStar}　落 ${c.zhiFuPalace} 宮${c.zhiFuInCenter ? "（時干在中五宮，寄坤二）" : ""}`,
