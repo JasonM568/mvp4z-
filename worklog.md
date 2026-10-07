@@ -2996,3 +2996,40 @@ rsend CNAME 四筆全部 verified。**使用者按下後台的測試按鈕並確
 1. 大運現在只剩「會員自己沒選性別」一種不出現的情況，而那已擋在送出前。
 2. Gemini 退避的實效仍未在真實流量上觀察到。
 3. Supabase Auth custom SMTP 尚未接。
+
+## 2026-10-07｜信用卡真實刷卡驗證通過
+
+### 內容
+- 使用者回報：ECPay 正式 MID `3325455` 真實刷卡已成功，確認可以收款。
+- 開放正式收款前的 gate「信用卡真實刷卡 E2E」解除。
+- 同步更新 `CLAUDE.md`、`README.md`、`docs/SYSTEM_ARCHITECTURE.md` 的待辦敘述。
+
+### 驗證結果
+- 依據為使用者口頭回報，我未查對應訂單／payments 紀錄；訂單編號、金額、發票是否開立皆未核對。
+
+### 遺留事項
+1. 建議抽查該筆訂單：`payments` 狀態、點數是否開通、EZPay 發票是否開立。
+2. `.env.example` 仍列舊 `ECPAY_INVOICE_*`，實際讀 `EZPAY_INVOICE_*`。
+3. 發票尚無作廢／折讓，退款前要先補。
+4. Supabase Auth custom SMTP 尚未接。
+
+## 2026-10-07｜易學決策報告 QA（第一輪，讀碼 + schema 自動化）
+
+### 內容與判斷
+- 讀 `app/api/ai/council/route.ts`、`0007_council_atomic_commit.sql`、`lib/ai/council/schema.ts`、`lib/auth/tier.ts`。
+- BLOCKER（讀碼推得、未實測）：預檢與扣點間隔 7 次 LLM，並行請求撞 CR002 後「報告照送、credits_charged=0」→ 一份點數換多份報告。
+- Critical：巢狀欄位無上限（C1）、生辰數值無範圍（C2）、無速率限制（C3）。
+
+### 產出檔案
+- `docs/qa/council-qa-2026-10-07.md`（矩陣、發現、UAT、總結）
+- `lib/ai/council/qa-schema.test.ts`（8 passed、7 expected-fail）
+- `scripts/qa-council-concurrency.mjs`（待在測試帳號執行，會扣點）
+
+### 遺留事項
+1. B1 尚未實測，需測試帳號、餘額調成 20。
+2. B1／C1／C2／C3 尚未修；修 schema 後把 `it.fails` 改 `it`。
+3. 並行以外的 E2E（斷線復原、備援不扣點）尚未跑。
+
+### 補記｜B1 修補（本機完成，未部署）
+- 新增 per-user inflight slot（migration `20261007100000`、`lib/ai/council/inflight.ts`），route 加 409 `COUNCIL_IN_PROGRESS`，前端保留第一份的找回紀錄。
+- 驗證：tsc、vitest 505 passed、next build 成功。尚未套 migration、未部署、未跑並行實測（缺測試帳號 token）。

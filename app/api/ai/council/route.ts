@@ -18,6 +18,7 @@ import { resolveTierFeatures, TierFeatures } from "@/lib/auth/tier";
 import { getMonthlyCouncilUsage } from "@/lib/auth/council-quota";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { councilSchema, CouncilRequest } from "@/lib/ai/council/schema";
+import { acquireCouncilSlot, releaseCouncilSlot } from "@/lib/ai/council/inflight";
 import { loadPromptSettings } from "@/lib/ai/council/settings/load";
 import { buildChartForCouncil } from "@/lib/ai/council/chart";
 import { loadSchool } from "@/lib/school-settings/load";
@@ -61,10 +62,12 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  // slot 搶到後，不論成功、失敗或丟錯都要釋放（TTL 兜底）。見 lib/ai/council/inflight.ts
+  let slotUserId: string | null = null;
+  const admin = createSupabaseAdminClient();
   try {
     const { profile } = await requireBearerProfile(request);
     const input = (await readJson(request, councilSchema)) as CouncilRequest;
-    const admin = createSupabaseAdminClient();
     const now = new Date().toISOString();
 
     // 1. 取得 active entitlement（含 tier_features）
@@ -112,6 +115,18 @@ export async function POST(request: NextRequest) {
         remaining: previousCredits
       });
     }
+
+    // 4.5 每位會員同時只允許 1 份進行中（QA-B1）。
+    // 沒有這道，並行請求會全部通過上面的預檢，之後撞 CR002 變成免費送出。
+    const slot = await acquireCouncilSlot(admin, profile.id);
+    if (!slot.acquired) {
+      // code 讓前端知道「這不是這次送出的失敗」：另一份仍在跑，前端不可清掉它的找回紀錄。
+      throw Object.assign(statusError("您已有一份報告正在生成中，請等它完成後再送出新的。", 409), {
+        code: "COUNCIL_IN_PROGRESS"
+      });
+    }
+    if (slot.degraded) console.warn("[council] inflight slot function 不存在（migration 未套用），未做並行保護");
+    slotUserId = profile.id;
 
     // 5. 載入報告設定（風羿老師後台維護的內容）
     // 讀取失敗一律回退程式預設值，不讓設定問題打斷已經通過點數檢查的請求。
@@ -392,6 +407,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     return apiJson(errorBody(error), errorStatus(error));
+  } finally {
+    if (slotUserId) await releaseCouncilSlot(admin, slotUserId);
   }
 }
 

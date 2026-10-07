@@ -59,7 +59,7 @@
 ## 待解（開放真實用戶 / 正式收款前的 gate）
 
 - ~~council 多 provider 待補 key~~ → 2026-09-08 查證：三家 key 都已設好在跑（正式庫 45 次呼叫，OpenAI 45 成功、Gemini 41、DeepSeek 44）。
-- **信用卡真實刷卡 E2E 尚未補測**（ECPay 已切正式 MID `3325455`）。
+- ~~信用卡真實刷卡 E2E 尚未補測~~ → 2026-10-07 使用者回報：正式 MID `3325455` 真實刷卡已驗證可收款。
 - **發票走 EZPay 不是 ECPay**。adapter 其實已改寫完成（`issue-invoice-from-order.ts:12` 已 import `./ezpay-invoice`），
   但 `.env.example:55` 仍列舊的 `ECPAY_INVOICE_*`，實際讀的是 `EZPAY_INVOICE_*` —— 環境設定要對齊。
   另：只有 `issueInvoice()`，**沒有作廢／折讓**，做退款前要先補。

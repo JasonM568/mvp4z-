@@ -1,5 +1,16 @@
 # Handoff
 
+## 2026-10-07｜易學決策報告 QA 第一輪
+
+詳見 `docs/qa/council-qa-2026-10-07.md`。BLOCKER：並行請求撞 CR002 會免費送出報告（讀碼推得、未實測）。Critical：欄位上限、日期範圍、速率限制。
+B1 已在本機修完（見 QA 文件「修補紀錄」），**未 commit／未套 migration／未部署**。
+下次起手式：先套 `20261007100000` migration，部署，再用測試帳號（餘額調成 20）跑 `node scripts/qa-council-concurrency.mjs --token=… --n=5` 確認 B1，再修。新增 `lib/ai/council/qa-schema.test.ts`（7 條 `it.fails`，修好後改回 `it`）。
+
+## 2026-10-07｜信用卡真實刷卡已驗證（gate 解除）
+
+使用者回報正式 MID `3325455` 真實刷卡成功、可收款。尚未核對該筆訂單的 payments／點數開通／EZPay 發票，下次可抽查。
+剩餘正式營運 gate：`.env.example` 的發票變數名對齊、發票作廢／折讓、Supabase custom SMTP、奇門定局法待風羿老師校對。
+
 ## 2026-09-23｜決策報告模組敵意稽核：9 條全屬實、全部修復上線
 
 ### 背景

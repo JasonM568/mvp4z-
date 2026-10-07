@@ -678,4 +678,4 @@ course_products
 3. 觀察舊 Worker 相容路徑流量，歸零後整組移除（見 12.4）。
 4. 補齊金流、發票、AI Council 與點數競爭情境的自動化測試。
 5. 補充正式環境的備份、監控、錯誤告警及事故處理流程。
-6. 完成正式營運 gate：ezPay 切正式字軌、信用卡真實刷卡 E2E、Gemini / DeepSeek 正式 key、Resend 網域驗證。
+6. 完成正式營運 gate：ezPay 切正式字軌、（信用卡真實刷卡 E2E 已於 2026-10-07 由使用者回報驗證通過）、Gemini / DeepSeek 正式 key、Resend 網域驗證。

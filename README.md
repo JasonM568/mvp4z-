@@ -123,6 +123,6 @@ Migration 放在 `supabase/migrations/`（目前到 `0014_council_structured.sql
 以 `handoff.md` 最新章節為準，目前已知：
 
 - 易學決策 Council 待補齊 OpenAI / Gemini / DeepSeek 正式 key
-- 信用卡真實刷卡 E2E 尚未補測（ECPay 已切正式 MID）
+- ~~信用卡真實刷卡 E2E~~：2026-10-07 使用者回報已驗證可收款（ECPay 正式 MID）
 - ezPay 發票目前仍走 stage 環境，未切正式
 - Supabase Auth custom SMTP（Resend）未接，忘記密碼受預設 3 封／小時限制

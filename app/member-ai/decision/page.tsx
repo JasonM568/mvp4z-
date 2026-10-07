@@ -260,6 +260,8 @@ export default function DecisionPage() {
     setStructured(null);
     setReportWarning(null);
     setJsonPacket(null);
+    // 另一個分頁／裝置已有一份在跑時，伺服器會回 COUNCIL_IN_PROGRESS。那份的找回紀錄不能被這次覆蓋掉。
+    const previousPending = window.localStorage.getItem(PENDING_KEY);
     window.localStorage.setItem(PENDING_KEY, JSON.stringify({
       startedAt: new Date().toISOString(),
       question: form.question.trim()
@@ -280,7 +282,10 @@ export default function DecisionPage() {
       // 不清的話，會員重新整理就會被丟進「正在找回…」輪詢五分鐘，
       // 找一份永遠不會出現的報告，最後只等到一句找不到。2026-09-23 敵意稽核 #9。
       // 反之 transportFailed（連線斷了、504）不能清——報告可能真的跑完並扣了點。
-      if (!data.transportFailed) window.localStorage.removeItem(PENDING_KEY);
+      if (data.code === "COUNCIL_IN_PROGRESS") {
+        if (previousPending) window.localStorage.setItem(PENDING_KEY, previousPending);
+        else window.localStorage.removeItem(PENDING_KEY);
+      } else if (!data.transportFailed) window.localStorage.removeItem(PENDING_KEY);
       setLoading(false);
       return;
     }
