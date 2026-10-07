@@ -3033,3 +3033,9 @@ rsend CNAME 四筆全部 verified。**使用者按下後台的測試按鈕並確
 ### 補記｜B1 修補（本機完成，未部署）
 - 新增 per-user inflight slot（migration `20261007100000`、`lib/ai/council/inflight.ts`），route 加 409 `COUNCIL_IN_PROGRESS`，前端保留第一份的找回紀錄。
 - 驗證：tsc、vitest 505 passed、next build 成功。尚未套 migration、未部署、未跑並行實測（缺測試帳號 token）。
+
+### 補記｜B1 已部署並實測通過
+- 已對正式 Supabase 套用 `council_inflight_slot` migration，commit `8f2f59c` 推上 main，Vercel READY。
+- 正式站並行 4 份：修補前交付 4 份／扣 20；修補後交付 1 份／扣 20、其餘 409（約 4 秒）、無殘留 slot。
+- 留下 QA 測試帳號 `qa-council-b1@example.com`（餘額 0，profile id `9a4359b5-46a9-4397-bf9d-1bd28703bf44`）與其 5 筆 council_runs，供日後重跑。
+- 下一步：C1（欄位上限）、C2（日期範圍）、C3（速率限制）。

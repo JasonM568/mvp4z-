@@ -95,7 +95,7 @@ test("連點「開始」只能送出一次", async ({ page }) => {
 **驗收通過（僅限已驗證範圍）**：question 長度與型別檢查、context 上限、未宣告欄位被剝除、SQLi／XSS 字串不影響 schema。
 **尚未驗證**：真實扣點與 CR002 行為、斷線復原、Gemini 退避、備援報告不扣點、UAT 全部項目（需測試帳號與實跑）。
 
-## 修補紀錄：QA-B1（2026-10-07，程式已完成、**尚未部署、尚未實測**）
+## 修補紀錄：QA-B1（2026-10-07，**已部署並於正式站實測通過**）
 
 - 作法：每位會員同時只允許 1 份進行中。LLM 開跑前先搶 slot，搶不到回 409（`code: COUNCIL_IN_PROGRESS`）；`finally` 一律釋放；slot 有 330 秒 TTL，function 被 kill 也會自己過期。
 - 檔案：`supabase/migrations/20261007100000_council_inflight_slot.sql`、`lib/ai/council/inflight.ts`（+ test）、`app/api/ai/council/route.ts`、`app/member-ai/decision/page.tsx`。
@@ -103,3 +103,15 @@ test("連點「開始」只能送出一次", async ({ page }) => {
 - 部署順序保護：migration 未套用時（function 不存在）降級放行並 warn，其他資料庫錯誤一律不放行。
 - 本機驗證：tsc 無錯、vitest 505 passed／7 expected fail、next build 成功。
 - 待做：套 migration → 部署 → 以 `scripts/qa-council-concurrency.mjs` 實測（預期交付 1 份、總扣點 20）。
+
+### 正式站實測結果（QA 專用帳號 `qa-council-b1@example.com`，餘額 20，並行 4 份）
+
+| | 修補前（部署前基線） | 修補後（commit `8f2f59c`） |
+|---|---|---|
+| 交付報告數 | 4 | 1 |
+| 總扣點 | 20 | 20 |
+| 免費送出 | 3（CR002） | 0 |
+| 其餘請求 | 200，約 100 秒 | 409，3.5～4.2 秒立即擋下 |
+| 完成後 `council_inflight` 殘留 | 不適用 | 0 列（正常釋放） |
+
+結論：**QA-B1 已修復並驗證。** 現在 BLOCKER 清單為空；C1／C2／C3 仍待修。

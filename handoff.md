@@ -3,8 +3,8 @@
 ## 2026-10-07｜易學決策報告 QA 第一輪
 
 詳見 `docs/qa/council-qa-2026-10-07.md`。BLOCKER：並行請求撞 CR002 會免費送出報告（讀碼推得、未實測）。Critical：欄位上限、日期範圍、速率限制。
-B1 已在本機修完（見 QA 文件「修補紀錄」），**未 commit／未套 migration／未部署**。
-下次起手式：先套 `20261007100000` migration，部署，再用測試帳號（餘額調成 20）跑 `node scripts/qa-council-concurrency.mjs --token=… --n=5` 確認 B1，再修。新增 `lib/ai/council/qa-schema.test.ts`（7 條 `it.fails`，修好後改回 `it`）。
+B1 已修、已部署、正式站實測通過（commit `8f2f59c`）。QA 帳號 `qa-council-b1@example.com` 留在正式庫（餘額 0）。
+下次起手式：修 C1／C2／C3，再用測試帳號（餘額調成 20）跑 `node scripts/qa-council-concurrency.mjs --token=… --n=5` 確認 B1，再修。新增 `lib/ai/council/qa-schema.test.ts`（7 條 `it.fails`，修好後改回 `it`）。
 
 ## 2026-10-07｜信用卡真實刷卡已驗證（gate 解除）
 
