@@ -18,7 +18,7 @@ type HistoryRow = {
   case_results: Array<{ id: string; label: string; match: boolean; note: string }>;
 };
 type ApiState = {
-  rule_version: string; method: string; cases: CaseView[]; status: Status; history: HistoryRow[]; setup_required: string | null;
+  rule_version: string; method: string; cases: CaseView[]; school_notes: string[]; school_warnings: string[]; status: Status; history: HistoryRow[]; setup_required: string | null;
 };
 type Answer = { match: boolean | null; note: string };
 
@@ -123,6 +123,19 @@ export default function QimenReviewPage() {
         </ol>
         <p className="muted" style={{ marginBottom: 0, lineHeight: 1.8 }}>
           若你用的是置閏法或茅山法，請在最下方備註寫明。那兩種目前系統沒有實作，會另外排工。
+        </p>
+      </div>
+
+      <div className="kpi-card" style={{ marginBottom: 18 }}>
+        <div className="admin-section-title" style={{ marginTop: 0 }}>這三盤使用的曆法設定（來自「排盤流派設定」已發布版本）</div>
+        <ul style={{ margin: 0, paddingLeft: 22, lineHeight: 2, fontSize: 16 }}>
+          {state.school_notes.map((n) => <li key={n}>{n}</li>)}
+        </ul>
+        {state.school_warnings.map((w) => (
+          <p key={w} style={{ margin: "12px 0 0", lineHeight: 1.9, fontSize: 16, color: "#ffd166" }}>⚠ {w}</p>
+        ))}
+        <p className="muted" style={{ marginBottom: 0, lineHeight: 1.8 }}>
+          這些設定只會改變日柱與時柱的標示；文件裡的盤例是以「晚子時進位」寫的，所以盤例一的日柱可能與文件不同，九宮盤內容是一樣的。
         </p>
       </div>
 
