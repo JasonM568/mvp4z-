@@ -428,7 +428,7 @@ function Kpi({ label, value }: { label: string; value: string }) {
 function Field({ label, value, mono: isMono, pre }: { label: string; value: string; mono?: boolean; pre?: boolean }) {
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
       {pre ? (
         <pre style={{ ...preStyle, fontFamily: isMono ? "ui-monospace, monospace" : "ui-monospace, monospace" }}>{value}</pre>
       ) : (
@@ -461,7 +461,7 @@ function registrationTypeLabel(value?: string | null) {
   return value === "returning" ? "複訓學員" : value === "new" ? "新生報名" : "—";
 }
 
-const mono: React.CSSProperties = { fontFamily: "ui-monospace, monospace", fontSize: 12 };
+const mono: React.CSSProperties = { fontFamily: "ui-monospace, monospace", fontSize: 14 };
 const preStyle: React.CSSProperties = {
   whiteSpace: "pre-wrap",
   background: "rgba(0,0,0,0.3)",
@@ -469,7 +469,7 @@ const preStyle: React.CSSProperties = {
   borderRadius: 12,
   padding: 12,
   color: "var(--text)",
-  fontSize: 12,
+  fontSize: 14,
   lineHeight: 1.6,
   margin: 0
 };

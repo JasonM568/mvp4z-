@@ -189,7 +189,7 @@ export default function FaceTeachingsPage() {
         <button className={`admin-action-btn${view === "table" ? "" : " ghost"}`} onClick={() => setView("table")}>表格模式</button>
         <button className={`admin-action-btn${view === "questions" ? "" : " ghost"}`} onClick={() => setView("questions")}>待老師確認事項</button>
         {view !== "questions" && (
-          <label style={{ alignSelf: "center", display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+          <label style={{ alignSelf: "center", display: "flex", gap: 6, alignItems: "center", fontSize: 15 }}>
             <input type="checkbox" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} />
             只看未核對
           </label>
@@ -200,7 +200,7 @@ export default function FaceTeachingsPage() {
         <button className="admin-action-btn ghost" disabled={busy} onClick={() => void importBuiltIn()}>
           從程式碼內建規則匯入
         </button>
-        <span className="muted" style={{ alignSelf: "center", fontSize: 13 }}>
+        <span className="muted" style={{ alignSelf: "center", fontSize: 15 }}>
           已存在的識別碼不會被覆蓋，重跑安全；老師改過的內容不受影響。
         </span>
       </div>}
@@ -247,11 +247,11 @@ export default function FaceTeachingsPage() {
             {visible.length === 0 && <tr><td colSpan={9} className="admin-empty">沒有規則。</td></tr>}
             {visible.map((rule) => (
               <tr key={rule.id}>
-                <td><code style={{ fontSize: 12 }}>{rule.rule_id}</code></td>
+                <td><code style={{ fontSize: 14 }}>{rule.rule_id}</code></td>
                 <td>{KIND_LABELS[rule.kind]}</td>
                 <td>{FEATURE_LABELS[rule.target] || rule.target}</td>
-                <td style={{ fontSize: 13 }}>{rule.kind === "morphology" ? describeCondition(rule.payload) : rule.kind === "fingerprint" ? String(rule.payload?.partName || "—") : "—"}</td>
-                <td style={{ maxWidth: 420, fontSize: 13, lineHeight: 1.6 }}>{rule.member_text.slice(0, 120)}{rule.member_text.length > 120 ? "⋯" : ""}</td>
+                <td style={{ fontSize: 15 }}>{rule.kind === "morphology" ? describeCondition(rule.payload) : rule.kind === "fingerprint" ? String(rule.payload?.partName || "—") : "—"}</td>
+                <td style={{ maxWidth: 420, fontSize: 15, lineHeight: 1.6 }}>{rule.member_text.slice(0, 120)}{rule.member_text.length > 120 ? "⋯" : ""}</td>
                 <td>{rule.safety_level}{rule.health_sensitive ? "（健康）" : ""}</td>
                 <td>{rule.status}</td>
                 <td>v{rule.version}</td>

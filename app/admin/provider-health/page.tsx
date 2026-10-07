@@ -140,7 +140,7 @@ export default function ProviderHealthPage() {
                       <span className={`status ${LEVEL_TEXT[h.level].cls}`} style={{ margin: 0 }}>
                         {LEVEL_TEXT[h.level].text}
                       </span>
-                      <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>{h.reason}</div>
+                      <div className="muted" style={{ fontSize: 14, marginTop: 4 }}>{h.reason}</div>
                     </td>
                     <td>{h.day.failures}/{h.day.calls}　{pct(h.day)}</td>
                     <td>{h.week.failures}/{h.week.calls}　{pct(h.week)}</td>

@@ -167,8 +167,8 @@ function TeachingAudit({ audit }: { audit: Audit }) {
           {audit.chain.map((row) => (
             <article key={row.id} style={{ padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,.09)", background: "rgba(0,0,0,.22)" }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10 }}>
-                <strong style={{ color: "var(--green)", fontSize: 15 }}>{row.featureLabel}</strong>
-                <code style={{ fontSize: 12, color: "var(--muted)" }}>{row.id}</code>
+                <strong style={{ color: "var(--green)", fontSize: 16 }}>{row.featureLabel}</strong>
+                <code style={{ fontSize: 14, color: "var(--muted)" }}>{row.id}</code>
                 {row.citedInReport
                   ? <Tag tone="good">報告已引用（{row.citedBy.join("、")}）</Tag>
                   : <Tag tone="warn">命中但報告未引用</Tag>}
@@ -204,8 +204,8 @@ function TeachingAudit({ audit }: { audit: Audit }) {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "110px minmax(0,1fr)", gap: 10, padding: "5px 0" }}>
-      <span style={{ color: "var(--muted)", fontSize: 13 }}>{label}</span>
-      <span style={{ color: "var(--text)", fontSize: 14, lineHeight: 1.75 }}>{children}</span>
+      <span style={{ color: "var(--muted)", fontSize: 15 }}>{label}</span>
+      <span style={{ color: "var(--text)", fontSize: 16, lineHeight: 1.75 }}>{children}</span>
     </div>
   );
 }
@@ -217,7 +217,7 @@ function Tag({ tone, children }: { tone: "good" | "warn" | "bad" | "neutral"; ch
     bad: { color: "#efc0ae", background: "rgba(164,70,50,.26)" },
     neutral: { color: "var(--muted)", background: "rgba(255,255,255,.07)" }
   }[tone];
-  return <span style={{ ...colors, padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 800 }}>{children}</span>;
+  return <span style={{ ...colors, padding: "4px 10px", borderRadius: 999, fontSize: 14, fontWeight: 800 }}>{children}</span>;
 }
 
 function Kpi({ label, value }: { label: string; value: string }) {
@@ -228,4 +228,4 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return <section className="kpi-card" style={{ marginTop: 16, padding: 22 }}><h2 style={{ fontSize: 16, margin: "0 0 12px" }}>{title}</h2>{children}</section>;
 }
 
-const pre: React.CSSProperties = { whiteSpace: "pre-wrap", overflowWrap: "anywhere", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, padding: 16, color: "var(--text)", fontSize: 13, lineHeight: 1.7, fontFamily: "ui-monospace, monospace", margin: 0, maxHeight: 620, overflow: "auto" };
+const pre: React.CSSProperties = { whiteSpace: "pre-wrap", overflowWrap: "anywhere", background: "rgba(0,0,0,.3)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 12, padding: 16, color: "var(--text)", fontSize: 15, lineHeight: 1.7, fontFamily: "ui-monospace, monospace", margin: 0, maxHeight: 620, overflow: "auto" };

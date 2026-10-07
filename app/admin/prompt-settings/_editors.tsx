@@ -18,7 +18,7 @@ const textareaStyle: React.CSSProperties = {
   padding: "10px 12px",
   resize: "vertical",
   fontFamily: "inherit",
-  fontSize: 14,
+  fontSize: 16,
   lineHeight: 1.7
 };
 
@@ -39,7 +39,7 @@ export function SectionCard({
         {title}
       </div>
       {hint && (
-        <p className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 13, lineHeight: 1.7 }}>
+        <p className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 15, lineHeight: 1.7 }}>
           {hint}
         </p>
       )}
@@ -58,11 +58,11 @@ export function TokenHelp({ tokens }: { tokens: string[] }) {
         borderRadius: 10,
         padding: "10px 12px",
         marginBottom: 12,
-        fontSize: 13,
+        fontSize: 15,
         lineHeight: 1.9
       }}
     >
-      <strong style={{ fontSize: 12, opacity: 0.7 }}>可用變數（系統會換成實際內容，請勿刪除）</strong>
+      <strong style={{ fontSize: 14, opacity: 0.7 }}>可用變數（系統會換成實際內容，請勿刪除）</strong>
       {tokens.map((t) => (
         <div key={t}>
           <code style={{ color: "var(--green)" }}>{t}</code>
@@ -99,10 +99,10 @@ export function StringListEditor({
 
   return (
     <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
-      <label style={{ fontSize: 13, opacity: 0.8 }}>{label}</label>
+      <label style={{ fontSize: 15, opacity: 0.8 }}>{label}</label>
       {values.map((v, i) => (
         <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <span className="muted" style={{ width: 24, paddingTop: 12, fontSize: 12 }}>
+          <span className="muted" style={{ width: 24, paddingTop: 12, fontSize: 14 }}>
             {i + 1}.
           </span>
           <textarea
@@ -165,24 +165,24 @@ export function RuleListEditor({
 
   return (
     <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
-      <label style={{ fontSize: 13, opacity: 0.8 }}>{label}</label>
+      <label style={{ fontSize: 15, opacity: 0.8 }}>{label}</label>
       <TokenHelp tokens={usedTokens} />
       {items.map((item, i) => {
         const missing = item.requiredTokens.filter((t) => !item.text.includes(t));
         return (
           <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-            <span className="muted" style={{ width: 24, paddingTop: 12, fontSize: 12 }}>
+            <span className="muted" style={{ width: 24, paddingTop: 12, fontSize: 14 }}>
               {i + 1}.
             </span>
             <div style={{ flex: 1 }}>
               <textarea value={item.text} onChange={(e) => update(i, e.target.value)} style={textareaStyle} />
               {item.isLocked && (
-                <p className="muted" style={{ margin: "6px 0 0", fontSize: 12, lineHeight: 1.6 }}>
+                <p className="muted" style={{ margin: "6px 0 0", fontSize: 14, lineHeight: 1.6 }}>
                   🔒 系統鎖定：{item.lockReason}
                 </p>
               )}
               {missing.length > 0 && (
-                <p style={{ margin: "6px 0 0", fontSize: 12, color: "#ff8d7a", lineHeight: 1.6 }}>
+                <p style={{ margin: "6px 0 0", fontSize: 14, color: "#ff8d7a", lineHeight: 1.6 }}>
                   缺少必要變數 {missing.join("、")}，存檔會被擋下。
                 </p>
               )}
@@ -242,7 +242,7 @@ export function TextField({
 }) {
   return (
     <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
-      <label style={{ fontSize: 13, opacity: 0.8 }}>{label}</label>
+      <label style={{ fontSize: 15, opacity: 0.8 }}>{label}</label>
       {multiline ? (
         <textarea value={value} onChange={(e) => onChange(e.target.value)} style={textareaStyle} />
       ) : (

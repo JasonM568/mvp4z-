@@ -123,8 +123,8 @@ export default function BookingDetail({ params }: { params: Promise<{ id: string
             </div>
             {booking.message && (
               <div style={{ marginTop: 14 }}>
-                <div className="label" style={{ fontSize: 11, color: "var(--muted)", fontWeight: 700, marginBottom: 4 }}>需求說明</div>
-                <pre style={{ whiteSpace: "pre-wrap", background: "rgba(0,0,0,0.3)", padding: 14, borderRadius: 12, margin: 0, color: "var(--text)", fontFamily: "inherit", fontSize: 14, lineHeight: 1.8 }}>{booking.message}</pre>
+                <div className="label" style={{ fontSize: 13, color: "var(--muted)", fontWeight: 700, marginBottom: 4 }}>需求說明</div>
+                <pre style={{ whiteSpace: "pre-wrap", background: "rgba(0,0,0,0.3)", padding: 14, borderRadius: 12, margin: 0, color: "var(--text)", fontFamily: "inherit", fontSize: 16, lineHeight: 1.8 }}>{booking.message}</pre>
               </div>
             )}
           </article>
@@ -132,7 +132,7 @@ export default function BookingDetail({ params }: { params: Promise<{ id: string
 
         <aside style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <article className="kpi-card" style={{ padding: 18 }}>
-            <h3 style={{ fontSize: 14, margin: "0 0 10px" }}>狀態</h3>
+            <h3 style={{ fontSize: 16, margin: "0 0 10px" }}>狀態</h3>
             <div style={{ display: "grid", gap: 6 }}>
               {STATUSES.map((s) => (
                 <button
@@ -148,7 +148,7 @@ export default function BookingDetail({ params }: { params: Promise<{ id: string
                     padding: "10px 14px",
                     borderRadius: 10,
                     fontWeight: 700,
-                    fontSize: 13,
+                    fontSize: 15,
                     minHeight: 0
                   }}
                 >
@@ -159,7 +159,7 @@ export default function BookingDetail({ params }: { params: Promise<{ id: string
           </article>
 
           <article className="kpi-card" style={{ padding: 18 }}>
-            <h3 style={{ fontSize: 14, margin: "0 0 10px" }}>內部備註</h3>
+            <h3 style={{ fontSize: 16, margin: "0 0 10px" }}>內部備註</h3>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -173,7 +173,7 @@ export default function BookingDetail({ params }: { params: Promise<{ id: string
                 padding: 12,
                 borderRadius: 10,
                 fontFamily: "inherit",
-                fontSize: 13,
+                fontSize: 15,
                 lineHeight: 1.6,
                 resize: "vertical"
               }}
@@ -182,7 +182,7 @@ export default function BookingDetail({ params }: { params: Promise<{ id: string
               onClick={() => patch({ admin_note: note })}
               disabled={saving || note === (booking.admin_note || "")}
               className="btn primary"
-              style={{ width: "100%", marginTop: 10, minHeight: 0, padding: "10px 14px", fontSize: 13 }}
+              style={{ width: "100%", marginTop: 10, minHeight: 0, padding: "10px 14px", fontSize: 15 }}
             >
               {saving ? "儲存中⋯" : "儲存備註"}
             </button>

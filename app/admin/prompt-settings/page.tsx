@@ -530,7 +530,7 @@ function FallbackTab({ settings, patch }: TabProps) {
           ))}
         </div>
         {total !== 100 && (
-          <p style={{ color: "#ff8d7a", fontSize: 13, marginTop: 8 }}>目前加總 {total}%，請調整成 100%。</p>
+          <p style={{ color: "#ff8d7a", fontSize: 15, marginTop: 8 }}>目前加總 {total}%，請調整成 100%。</p>
         )}
       </SectionCard>
 

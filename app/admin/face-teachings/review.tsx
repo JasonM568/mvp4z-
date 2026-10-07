@@ -51,17 +51,17 @@ export function ReviewCard({ rule, reviewerName, busy, onReview, onEdit }: {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
         <button
           onClick={() => setOpen((value) => !value)}
-          style={{ background: "none", border: 0, color: "var(--green)", cursor: "pointer", fontSize: 15, fontWeight: 800, padding: 0 }}
+          style={{ background: "none", border: 0, color: "var(--green)", cursor: "pointer", fontSize: 16, fontWeight: 800, padding: 0 }}
         >
           {open ? "▾" : "▸"} {rule.rule_id}
         </button>
         <StateTag state={state} />
-        <span className="muted" style={{ fontSize: 13 }}>v{rule.version}</span>
-        <span className="muted" style={{ fontSize: 13 }}>{rule.safety_level}</span>
-        <span style={{ marginLeft: "auto", color: "#8fb3b6", fontSize: 13 }}>出處：{rule.source_pages || "（未填）"}</span>
+        <span className="muted" style={{ fontSize: 15 }}>v{rule.version}</span>
+        <span className="muted" style={{ fontSize: 15 }}>{rule.safety_level}</span>
+        <span style={{ marginLeft: "auto", color: "#8fb3b6", fontSize: 15 }}>出處：{rule.source_pages || "（未填）"}</span>
       </div>
 
-      <p style={{ margin: "10px 0 0", color: "var(--text)", fontSize: 14, lineHeight: 1.7 }}>
+      <p style={{ margin: "10px 0 0", color: "var(--text)", fontSize: 16, lineHeight: 1.7 }}>
         {rule.member_text.slice(0, 140)}{rule.member_text.length > 140 ? "⋯" : ""}
       </p>
 
@@ -78,7 +78,7 @@ export function ReviewCard({ rule, reviewerName, busy, onReview, onEdit }: {
             </Panel>
           </div>
 
-          <dl style={{ display: "grid", gridTemplateColumns: "84px minmax(0,1fr)", gap: "6px 12px", margin: "14px 0 0", fontSize: 13 }}>
+          <dl style={{ display: "grid", gridTemplateColumns: "84px minmax(0,1fr)", gap: "6px 12px", margin: "14px 0 0", fontSize: 15 }}>
             <dt className="muted">部位</dt><dd style={{ margin: 0 }}>{rule.kind === "fingerprint" ? payload.partName || rule.target : rule.target}</dd>
             <dt className="muted">宮位</dt><dd style={{ margin: 0 }}>{rule.palaces.join("、") || "—"}</dd>
             <dt className="muted">主題</dt><dd style={{ margin: 0 }}>{rule.themes.join("、") || "—"}</dd>
@@ -118,7 +118,7 @@ function StateTag({ state }: { state: ReviewStatus }) {
     stale: { label: "內容已改，需重新確認", color: "#f0dcae", background: "rgba(213,173,96,.2)" },
     pending: { label: "未核對", color: "var(--muted)", background: "rgba(255,255,255,.07)" }
   }[state];
-  return <span style={{ color: map.color, background: map.background, padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 800 }}>{map.label}</span>;
+  return <span style={{ color: map.color, background: map.background, padding: "3px 10px", borderRadius: 999, fontSize: 14, fontWeight: 800 }}>{map.label}</span>;
 }
 
 function Panel({ title, tone, children }: { title: string; tone: "teacher" | "member"; children: React.ReactNode }) {
@@ -129,8 +129,8 @@ function Panel({ title, tone, children }: { title: string; tone: "teacher" | "me
       borderLeft: `3px solid ${tone === "teacher" ? "#b98732" : "#7aaeb6"}`,
       background: tone === "teacher" ? "rgba(185,135,50,.09)" : "rgba(122,174,182,.09)"
     }}>
-      <strong style={{ display: "block", marginBottom: 7, color: tone === "teacher" ? "#e6d3a7" : "#b9dfe2", fontSize: 13 }}>{title}</strong>
-      <p style={{ margin: 0, color: "var(--text)", fontSize: 14, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{children}</p>
+      <strong style={{ display: "block", marginBottom: 7, color: tone === "teacher" ? "#e6d3a7" : "#b9dfe2", fontSize: 15 }}>{title}</strong>
+      <p style={{ margin: 0, color: "var(--text)", fontSize: 16, lineHeight: 1.8, whiteSpace: "pre-wrap" }}>{children}</p>
     </section>
   );
 }

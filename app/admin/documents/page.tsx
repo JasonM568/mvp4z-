@@ -205,12 +205,12 @@ export default function AdminDocumentsPage() {
             if (selected.length > 1) setTitle("");
           }}
         />
-        <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.8 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 15, lineHeight: 1.8 }}>
           可一次選多個檔案（.txt 或 .md，單檔 2MB 以內）。檔案數量沒有上限；
           下方的「分類」與「術別」只是標籤，不限制可上傳的份數。
         </p>
         {files.length > 1 ? (
-          <p style={{ margin: 0, fontSize: 13 }}>
+          <p style={{ margin: 0, fontSize: 15 }}>
             已選 {files.length} 個檔案，標題將自動取檔名：{files.map((f) => f.name).join("、")}
           </p>
         ) : (

@@ -110,8 +110,8 @@ function QuestionCard({ question, defaultName, busy, onSave }: {
       background: "rgba(0,0,0,.22)"
     }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-        <span style={{ ...tag, padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 800 }}>{tag.label}</span>
-        {question.topic && <span className="muted" style={{ fontSize: 13 }}>{question.topic}</span>}
+        <span style={{ ...tag, padding: "3px 10px", borderRadius: 999, fontSize: 14, fontWeight: 800 }}>{tag.label}</span>
+        {question.topic && <span className="muted" style={{ fontSize: 15 }}>{question.topic}</span>}
         <button
           onClick={() => setOpen((value) => !value)}
           style={{ background: "none", border: 0, color: "var(--text)", cursor: "pointer", fontSize: 16, fontWeight: 800, textAlign: "left", padding: 0, flex: "1 1 260px" }}
@@ -122,10 +122,10 @@ function QuestionCard({ question, defaultName, busy, onSave }: {
 
       {open && (
         <>
-          <p style={{ margin: "12px 0 0", color: "var(--text)", fontSize: 14, lineHeight: 1.85, whiteSpace: "pre-wrap" }}>{question.body}</p>
-          {question.source_ref && <p className="muted" style={{ margin: "10px 0 0", fontSize: 13 }}>出處：{question.source_ref}</p>}
+          <p style={{ margin: "12px 0 0", color: "var(--text)", fontSize: 16, lineHeight: 1.85, whiteSpace: "pre-wrap" }}>{question.body}</p>
+          {question.source_ref && <p className="muted" style={{ margin: "10px 0 0", fontSize: 15 }}>出處：{question.source_ref}</p>}
           {question.related_rule_ids.length > 0 && (
-            <p className="muted" style={{ margin: "6px 0 0", fontSize: 13 }}>
+            <p className="muted" style={{ margin: "6px 0 0", fontSize: 15 }}>
               相關規則：{question.related_rule_ids.join("、")}
             </p>
           )}
@@ -149,7 +149,7 @@ function QuestionCard({ question, defaultName, busy, onSave }: {
           </div>
 
           {question.answered_at && (
-            <p className="muted" style={{ margin: "10px 0 0", fontSize: 13 }}>
+            <p className="muted" style={{ margin: "10px 0 0", fontSize: 15 }}>
               上次回覆：{new Date(question.answered_at).toLocaleString("zh-TW")}
               {question.answered_by_name ? `（${question.answered_by_name}）` : ""}
             </p>

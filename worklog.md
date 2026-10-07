@@ -3055,3 +3055,7 @@ rsend CNAME 四筆全部 verified。**使用者按下後台的測試按鈕並確
 - 使用者決定：每人每日 20 份（台北日曆日、含備援稿）。`route.ts` 在搶到 slot 後檢查，429 `COUNCIL_DAILY_LIMIT`，不扣點。
 - 使用者要求測試帳號 `qa-council-b1@example.com` 保留。
 - 奇門三張盤例位置：`docs/specs/yixue-engine/SCHOOL-DECISIONS.md` 第 263–299 行；簽核欄第 261 行仍空白。
+
+### 補記｜後台字體放大；奇門盤例不在後台
+- 使用者回報後台文字偏小。`app/admin/admin.css` 與 `app/admin/**/*.tsx` 內聯樣式，所有小於 16px 的字級各加大約 2px（10/11→13、12→14、13→15、14/15→16），標題（≥16px）與 token-usage 圖表不動。未登入後台實際看畫面，版面是否擠壓待使用者肉眼確認。
+- 查證：後台「排盤流派設定」（`app/admin/school-settings/page.tsx`）只有八字／梅花／六爻／時間設定，`SchoolConfig` 沒有奇門欄位，預覽 `ChartView` 只畫八字四柱。老師在後台看不到、也沒辦法核對三張奇門盤，定局法（決策 8）只存在於 `SCHOOL-DECISIONS.md`，簽核欄沒有後台入口。

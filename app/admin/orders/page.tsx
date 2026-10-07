@@ -92,7 +92,7 @@ export default function OrdersPage() {
             )}
             {!loading && filtered.map((o) => (
               <tr key={o.id}>
-                <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
+                <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 14 }}>
                   <Link href={`/admin/orders/${o.id}`} style={{ color: "var(--green)", fontWeight: 800 }}>
                     {o.order_no}
                   </Link>

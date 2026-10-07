@@ -155,7 +155,7 @@ export default function InvoicesPage() {
                   const buyer = o.invoice_request as Record<string, unknown> | null;
                   return (
                     <tr key={o.id}>
-                      <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 12 }}>{o.order_no}</td>
+                      <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 14 }}>{o.order_no}</td>
                       <td>
                         {o.profiles?.name && <div>{o.profiles.name}</div>}
                         {o.profiles?.email && <div className="muted">{o.profiles.email}</div>}
@@ -218,11 +218,11 @@ export default function InvoicesPage() {
               )}
               {!loading && filtered.map((i) => (
                 <tr key={i.id}>
-                  <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
+                  <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 14 }}>
                     {i.invoice_number || "—"}
                     {i.random_code && <div className="muted">隨機碼 {i.random_code}</div>}
                   </td>
-                  <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 12 }}>{i.orders?.order_no || i.order_id.slice(0, 8)}</td>
+                  <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 14 }}>{i.orders?.order_no || i.order_id.slice(0, 8)}</td>
                   <td>
                     {i.profiles?.name && <div>{i.profiles.name}</div>}
                     {i.profiles?.email && <div className="muted">{i.profiles.email}</div>}
@@ -232,7 +232,7 @@ export default function InvoicesPage() {
                   <td>
                     <span className={`admin-pill ${i.status}`}>{statusLabel(i.status)}</span>
                     {i.status === "failed" && i.error_msg && (
-                      <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                      <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
                         {i.error_code} {i.error_msg}
                       </div>
                     )}

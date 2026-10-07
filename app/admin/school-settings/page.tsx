@@ -236,7 +236,7 @@ export default function SchoolSettingsPage() {
             return (
               <div className="kpi-card" key={`${field.section}.${field.path}`} style={{ marginBottom: 18 }}>
                 <div className="admin-section-title" style={{ marginTop: 0 }}>{field.title}</div>
-                <p className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 13, lineHeight: 1.8 }}>
+                <p className="muted" style={{ marginTop: -6, marginBottom: 14, fontSize: 15, lineHeight: 1.8 }}>
                   {field.why}
                 </p>
                 <div style={{ display: "grid", gap: 10 }}>
@@ -262,8 +262,8 @@ export default function SchoolSettingsPage() {
                         style={{ marginTop: 4 }}
                       />
                       <span>
-                        <strong style={{ fontSize: 14 }}>{opt.label}</strong>
-                        <span className="muted" style={{ display: "block", fontSize: 12.5, lineHeight: 1.7 }}>
+                        <strong style={{ fontSize: 16 }}>{opt.label}</strong>
+                        <span className="muted" style={{ display: "block", fontSize: 14, lineHeight: 1.7 }}>
                           {opt.hint}
                         </span>
                       </span>
@@ -315,13 +315,13 @@ export default function SchoolSettingsPage() {
             {preview.length === 0 && <p className="admin-empty">尚未試算</p>}
             {preview.map((r, i) => (
               <div key={i} style={{ marginBottom: 16, paddingBottom: 12, borderBottom: i === 0 ? "1px solid rgba(255,255,255,0.08)" : "none" }}>
-                <strong style={{ fontSize: 13 }}>{r.label}</strong>
-                {r.error && <p style={{ color: "#ff8d7a", fontSize: 13 }}>{r.error}</p>}
+                <strong style={{ fontSize: 15 }}>{r.label}</strong>
+                {r.error && <p style={{ color: "#ff8d7a", fontSize: 15 }}>{r.error}</p>}
                 {r.chart && <ChartView chart={r.chart} />}
               </div>
             ))}
             {preview.length === 2 && preview[0].chart && preview[1].chart && (
-              <p className="muted" style={{ fontSize: 12.5, lineHeight: 1.7, marginTop: 4 }}>
+              <p className="muted" style={{ fontSize: 14, lineHeight: 1.7, marginTop: 4 }}>
                 {samePillars(preview[0].chart, preview[1].chart)
                   ? "這組生辰在兩種設定下排出的四柱相同——換一個接近時辰交界或 23 點後的時間才看得出差異。"
                   : "兩種設定排出的四柱不同，差異已如上。"}
@@ -366,7 +366,7 @@ export default function SchoolSettingsPage() {
 function ChartView({ chart }: { chart: YixueChart }) {
   const p = chart.bazi?.pillars;
   return (
-    <div style={{ fontSize: 13, lineHeight: 1.9, marginTop: 6 }}>
+    <div style={{ fontSize: 15, lineHeight: 1.9, marginTop: 6 }}>
       {p && (
         <div style={{ fontSize: 20, letterSpacing: 2, margin: "6px 0" }}>
           {p.year.ganzhi.label}　{p.month.ganzhi.label}　{p.day.ganzhi.label}　{p.hour ? p.hour.ganzhi.label : "—"}

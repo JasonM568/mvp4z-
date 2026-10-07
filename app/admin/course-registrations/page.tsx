@@ -132,7 +132,7 @@ export default function CourseRegistrationsPage() {
           <div className="kpi-card">
             <div className="admin-eyebrow">已完成付款</div>
             <div className="value" style={{ fontSize: 24 }}>{summary.paid}</div>
-            <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
+            <p className="muted" style={{ margin: "4px 0 0", fontSize: 15 }}>
               以訂單實際入帳時間為準
             </p>
           </div>
@@ -147,7 +147,7 @@ export default function CourseRegistrationsPage() {
             <div className="value" style={{ fontSize: 24, color: hotLeads.length ? "#ff8d7a" : undefined }}>
               {hotLeads.length}
             </div>
-            <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
+            <p className="muted" style={{ margin: "4px 0 0", fontSize: 15 }}>
               填了動機或留了 LINE，但沒付款、也還沒被聯繫
             </p>
           </div>

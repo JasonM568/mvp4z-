@@ -159,7 +159,7 @@ const pre: React.CSSProperties = {
   borderRadius: 12,
   padding: 16,
   color: "var(--text)",
-  fontSize: 13,
+  fontSize: 15,
   lineHeight: 1.7,
   fontFamily: "ui-monospace, monospace",
   margin: 0,

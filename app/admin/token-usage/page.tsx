@@ -88,7 +88,7 @@ export default function TokenUsagePage() {
       </p>
 
       <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
-        <span style={{ fontSize: 13, color: "#9ec4ad" }}>時間範圍：</span>
+        <span style={{ fontSize: 15, color: "#9ec4ad" }}>時間範圍：</span>
         {RANGE_OPTIONS.map((opt) => (
           <button
             key={opt.value}
@@ -100,7 +100,7 @@ export default function TokenUsagePage() {
           </button>
         ))}
         {stats && (
-          <span style={{ fontSize: 12, color: "#9ec4ad", marginLeft: "auto" }}>
+          <span style={{ fontSize: 14, color: "#9ec4ad", marginLeft: "auto" }}>
             {stats.range.from} ～ {stats.range.to}
           </span>
         )}
@@ -162,7 +162,7 @@ export default function TokenUsagePage() {
                   return (
                     <tr key={model}>
                       <td>{p.label}</td>
-                      <td style={{ fontSize: 12, color: "#9ec4ad" }}>
+                      <td style={{ fontSize: 14, color: "#9ec4ad" }}>
                         in ${p.inputPerMillion.toFixed(2)} / out ${p.outputPerMillion.toFixed(2)}
                       </td>
                       <td>{m.tokens_in.toLocaleString("en-US")}</td>
@@ -217,7 +217,7 @@ export default function TokenUsagePage() {
             </table>
           </div>
 
-          <p style={{ marginTop: 24, fontSize: 12, color: "#9ec4ad" }}>
+          <p style={{ marginTop: 24, fontSize: 14, color: "#9ec4ad" }}>
             * Pricing 來源：各家 2026 年初公布價格，定義在 <code>lib/ai/pricing.ts</code>，
             匯率 USD = NT$ {USD_TO_NTD} hardcode。改價直接改該檔再 commit。
           </p>
