@@ -18,6 +18,7 @@ import { resolveTierFeatures, TierFeatures } from "@/lib/auth/tier";
 import { COUNCIL_DAILY_LIMIT, getMonthlyCouncilUsage, getTodayCouncilCount } from "@/lib/auth/council-quota";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { councilSchema, CouncilRequest } from "@/lib/ai/council/schema";
+import { buildMinimalRunRow } from "@/lib/ai/council/run-row";
 import { acquireCouncilSlot, releaseCouncilSlot } from "@/lib/ai/council/inflight";
 import { loadQimenSignoff, qimenSignatureText } from "@/lib/school-settings/qimen-signoff";
 import { loadPromptSettings } from "@/lib/ai/council/settings/load";
@@ -375,18 +376,22 @@ export async function POST(request: NextRequest) {
       // 會員付了錢，下次登入要找得到這份報告，而不是只有當下那一畫面。
       const { data: minimal, error: minimalError } = await admin
         .from("council_runs")
-        .insert({
-          user_id: profile.id,
-          entitlement_id: entitlement.id,
-          usage_log_id: usageLog?.id || null,
-          final_label: finalLabel,
-          final_text: finalText,
-          final_ok: finalOk,
-          fallback_used: fallbackUsed,
-          credits_charged: actualCharge,
-          free_quota_used: actualFreeQuotaUsed,
-          prompt_profile_id: prompt.profileId
-        })
+        .insert(
+          buildMinimalRunRow({
+            userId: profile.id,
+            entitlementId: entitlement.id,
+            usageLogId: usageLog?.id || null,
+            finalLabel,
+            finalText,
+            finalOk,
+            fallbackUsed,
+            creditsCharged: actualCharge,
+            freeQuotaUsed: actualFreeQuotaUsed,
+            promptProfileId: prompt.profileId,
+            question: councilInput.question,
+            topic: councilInput.topic
+          })
+        )
         .select("id")
         .single();
 

@@ -129,3 +129,16 @@ test("連點「開始」只能送出一次", async ({ page }) => {
 - 檢查放在搶到進行中名額之後，所以同一會員的計數不會被並行打穿。
 - `lib/auth/council-quota.ts`（`COUNCIL_DAILY_LIMIT`、`taipeiDayStartIso`）＋ `council-quota.test.ts`。
 - 注意：管理員測試帳號也受限，壓測超過 20 份要換帳號。
+
+## 每日 20 份上限：正式站實測通過（2026-10-08）
+
+QA 帳號先塞 19 筆假紀錄：第 20 份回 200 並扣 20 點；第 21 份回 429 `COUNCIL_DAILY_LIMIT`、不扣點、不呼叫 LLM；測完假紀錄已刪、無殘留名額。
+
+## QA-C4（新發現並修復）：精簡版備援寫入缺必填欄位
+
+`council_runs.request` 為 NOT NULL，route 在「完整寫入失敗」後的精簡版重試沒帶它，必定被資料庫拒絕（23502）。2026-09-23 稽核 #1 補的這條保命路徑從未真正成功過，因為從沒對真實資料庫跑過。
+修復：抽出 `lib/ai/council/run-row.ts`，並以測試讀 0004 migration 比對所有必填欄位。
+
+## 奇門校對簽核（2026-10-08，已上線）
+
+見 worklog：`/admin/qimen-review`。**待老師**：三盤比對與簽核、確認「晚子時日柱不進位＋時柱分早晚子」是否為本意。
