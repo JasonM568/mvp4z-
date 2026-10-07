@@ -15,7 +15,7 @@ import {
 } from "@/lib/auth/member";
 import { insufficientCreditsError } from "@/lib/auth/credits";
 import { resolveTierFeatures, TierFeatures } from "@/lib/auth/tier";
-import { getMonthlyCouncilUsage } from "@/lib/auth/council-quota";
+import { COUNCIL_DAILY_LIMIT, getMonthlyCouncilUsage, getTodayCouncilCount } from "@/lib/auth/council-quota";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { councilSchema, CouncilRequest } from "@/lib/ai/council/schema";
 import { acquireCouncilSlot, releaseCouncilSlot } from "@/lib/ai/council/inflight";
@@ -127,6 +127,16 @@ export async function POST(request: NextRequest) {
     }
     if (slot.degraded) console.warn("[council] inflight slot function 不存在（migration 未套用），未做並行保護");
     slotUserId = profile.id;
+
+    // 4.6 每日份數上限。放在搶到 slot 之後：同一會員一次只跑一份，所以這裡數到的就是準的，
+    // 不會有「並行同時數到 19」的問題。
+    const todayCount = await getTodayCouncilCount(profile.id);
+    if (todayCount >= COUNCIL_DAILY_LIMIT) {
+      throw Object.assign(
+        statusError(`今日報告已達上限（每日 ${COUNCIL_DAILY_LIMIT} 份），請明天再使用。本次未扣點。`, 429),
+        { code: "COUNCIL_DAILY_LIMIT" }
+      );
+    }
 
     // 5. 載入報告設定（風羿老師後台維護的內容）
     // 讀取失敗一律回退程式預設值，不讓設定問題打斷已經通過點數檢查的請求。

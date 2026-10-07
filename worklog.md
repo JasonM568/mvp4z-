@@ -3050,3 +3050,8 @@ rsend CNAME 四筆全部 verified。**使用者按下後台的測試按鈕並確
 - 我誤把 QA 帳號重設成 20 點，多燒一份測試報告，無影響真實會員。
 - 超長輸入的錯誤訊息改為中文。
 - 推送遇 GitHub `Internal Server Error`（HTTP/2），改 `git -c http.version=HTTP/1.1 push` 成功。
+
+### 補記｜每人每日 20 份上限
+- 使用者決定：每人每日 20 份（台北日曆日、含備援稿）。`route.ts` 在搶到 slot 後檢查，429 `COUNCIL_DAILY_LIMIT`，不扣點。
+- 使用者要求測試帳號 `qa-council-b1@example.com` 保留。
+- 奇門三張盤例位置：`docs/specs/yixue-engine/SCHOOL-DECISIONS.md` 第 263–299 行；簽核欄第 261 行仍空白。
