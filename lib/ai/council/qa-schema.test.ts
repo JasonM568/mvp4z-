@@ -98,6 +98,17 @@ describe("C1 迴歸：合法形狀不可被誤擋", () => {
   });
 });
 
+describe("超長輸入的錯誤訊息要是中文", () => {
+  it("place 61 字", () => {
+    const r = ok({ yixue: { birth: { place: "地".repeat(61) } } });
+    expect(!r.success && r.error.issues[0].message).toMatch(/[\u4e00-\u9fff]/);
+  });
+  it("六爻單爻過長", () => {
+    const r = ok({ yixue: { liuyao: { yao: ["x".repeat(13)] } } });
+    expect(!r.success && r.error.issues[0].message).toBe("輸入內容過長");
+  });
+});
+
 describe("未宣告欄位", () => {
   it("多餘欄位被剝除、不會流進 prompt", () => {
     const p = councilSchema.safeParse({ question: "測試問題", isAdmin: true, creditsCost: 0 });

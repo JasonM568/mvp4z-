@@ -4,7 +4,8 @@
 
 詳見 `docs/qa/council-qa-2026-10-07.md`。BLOCKER：並行請求撞 CR002 會免費送出報告（讀碼推得、未實測）。Critical：欄位上限、日期範圍、速率限制。
 B1 已修、已部署、正式站實測通過（commit `8f2f59c`）。QA 帳號 `qa-council-b1@example.com` 留在正式庫（餘額 0）。
-下次起手式：修 C1／C2／C3，再用測試帳號（餘額調成 20）跑 `node scripts/qa-council-concurrency.mjs --token=… --n=5` 確認 B1，再修。新增 `lib/ai/council/qa-schema.test.ts`（7 條 `it.fails`，修好後改回 `it`）。
+C1／C2 已修並部署，C3 判斷不加（見 QA 文件）。推送若遇 GitHub 500，用 `git -c http.version=HTTP/1.1 push`。
+下次起手式：用測試帳號（餘額調成 20）跑 `node scripts/qa-council-concurrency.mjs --token=… --n=5` 確認 B1，再修。新增 `lib/ai/council/qa-schema.test.ts`（7 條 `it.fails`，修好後改回 `it`）。
 
 ## 2026-10-07｜信用卡真實刷卡已驗證（gate 解除）
 

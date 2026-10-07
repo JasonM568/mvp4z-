@@ -39,24 +39,24 @@ export const councilSchema = z.object({
   clientProfile: z.string().trim().max(120).optional(),
   yixue: z
     .object({
-      clientName: z.string().trim().max(40).optional(),
-      gender: z.string().trim().max(20).optional(),
+      clientName: z.string().trim().max(40, "輸入內容過長").optional(),
+      gender: z.string().trim().max(20, "輸入內容過長").optional(),
       /** 身分／角色，自由填寫。不參與術數計算，只作判讀背景。 */
-      identity: z.string().trim().max(40).optional(),
+      identity: z.string().trim().max(40, "輸入內容過長").optional(),
       birth: z
         .object({
-          calendar: z.string().max(10).optional(),
-          isLeapMonth: z.string().max(10).optional(),
+          calendar: z.string().max(10, "輸入內容過長").optional(),
+          isLeapMonth: z.string().max(10, "輸入內容過長").optional(),
           year: rangedInt("出生年", 1900, YEAR_MAX),
           month: rangedInt("出生月", 1, 12),
           day: rangedInt("出生日", 1, 31),
-          hourBranch: z.string().max(10).optional(),
-          timeKnown: z.string().max(10).optional(),
+          hourBranch: z.string().max(10, "輸入內容過長").optional(),
+          timeKnown: z.string().max(10, "輸入內容過長").optional(),
           // 2026-08-09 新增的精度欄位，一律 optional：舊版前端與既有測試腳本
           // 不帶這些欄位仍須通過驗證，不可回 400。
           hour: rangedInt("出生時", 0, 23),
           minute: rangedInt("出生分", 0, 59),
-          place: z.string().trim().max(60).optional()
+          place: z.string().trim().max(60, "出生地過長（上限 60 字）").optional()
         })
         .refine((b) => b.calendar === "農曆" || isRealGregorianDate(b.year, b.month, b.day), {
           message: "出生日期不存在，請確認月份與日期"
@@ -84,31 +84,31 @@ export const councilSchema = z.object({
         .optional(),
       qimen: z
         .object({
-          mode: z.string().max(20).optional(),
-          direction: z.string().max(40).optional(),
-          time: z.string().max(40).optional()
+          mode: z.string().max(20, "輸入內容過長").optional(),
+          direction: z.string().max(40, "輸入內容過長").optional(),
+          time: z.string().max(40, "輸入內容過長").optional()
         })
         .optional(),
       liuyao: z
         .object({
-          mode: z.string().max(20).optional(),
+          mode: z.string().max(20, "輸入內容過長").optional(),
           // 2026-09-08 前端加了「現在時間」起卦並送 timeMode／time，但這裡沒宣告，
           // Zod object 預設會把未宣告欄位剝掉——那個功能因此從上線起就沒作用過，
           // 六爻一律退回事件時間起卦。2026-09-23 敵意稽核抓到。
-          timeMode: z.string().max(20).optional(),
-          time: z.string().max(40).optional(),
-          yao: z.array(z.string().max(12)).max(6).optional()
+          timeMode: z.string().max(20, "輸入內容過長").optional(),
+          time: z.string().max(40, "輸入內容過長").optional(),
+          yao: z.array(z.string().max(12, "輸入內容過長")).max(6).optional()
         })
         .optional(),
       meihua: z
         .object({
-          mode: z.string().max(20).optional(),
-          timeMode: z.string().max(20).optional(),
-          time: z.string().max(40).optional(),
-          numbers: z.array(z.union([z.number(), z.string().max(12)])).max(3).optional(),
-          upperTrigram: z.string().max(10).nullable().optional(),
-          lowerTrigram: z.string().max(10).nullable().optional(),
-          movingLine: z.string().max(10).nullable().optional()
+          mode: z.string().max(20, "輸入內容過長").optional(),
+          timeMode: z.string().max(20, "輸入內容過長").optional(),
+          time: z.string().max(40, "輸入內容過長").optional(),
+          numbers: z.array(z.union([z.number(), z.string().max(12, "輸入內容過長")])).max(3).optional(),
+          upperTrigram: z.string().max(10, "輸入內容過長").nullable().optional(),
+          lowerTrigram: z.string().max(10, "輸入內容過長").nullable().optional(),
+          movingLine: z.string().max(10, "輸入內容過長").nullable().optional()
         })
         .optional()
     })
