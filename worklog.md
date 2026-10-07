@@ -3075,4 +3075,4 @@ rsend CNAME 四筆全部 verified。**使用者按下後台的測試按鈕並確
 ### 補記｜2026-10-08 每日上限實測與 QA-C4
 - 每日 20 份上限正式站實測通過（19 假＋1 真 → 200；第 21 份 429、不扣點）。
 - QA-C4：council_runs 精簡備援寫入缺 `request`（NOT NULL）→ 備援路徑必失敗。已修（`lib/ai/council/run-row.ts`＋測試讀 migration 比對必填欄位）。
-- QA 帳號餘額 20、無殘留 slot；今日該帳號有 1 份真實測試報告。
+- QA 帳號餘額已歸 0、無殘留 slot；今日該帳號有 1 份真實測試報告。
