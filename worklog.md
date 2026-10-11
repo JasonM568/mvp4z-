@@ -3182,3 +3182,11 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - Option A 的 attempt-specific key、持久 intent 與 row-lock attach/cleanup 狀態轉換有 focused feasibility 證據；此階段不提升 M23/M22 為正式通過。
 - 真 Supabase Storage 故障／清理、HTTP transport response loss、完整 Supabase migration replay／ACL、正式 reconciler 及 lease/retry 尚未驗。`cleanup_pending`／upload-result 不確定結果仍無自動 reconciler；Storage upload 回應模糊時 pending intent 也缺回收服務。舊 M22 app 不讀新 key，回退需 forward-compatible artifact 或受控 forward-only rollout。
 - 更新 M23 spike review 與全系統矩陣；`git diff --check` 通過。QA-FS-M23 critical gate 維持，待 Tech Lead 選案與工程形成可部署候選。
+
+
+## 2026-10-12｜C21 candidate SQL／並發 contract 補強
+
+- 核對交接後確認前次 native PG scratch 仍活著且只綁本機 Unix socket；完成測試後停止並移除，profile／prompt／school／signoff／audit fixture 全為 0。
+- 候選 `/private/tmp/xunfeng-c21-policy-signoff` HEAD `1af894375ed06af34960e237cf9b25bd6c48a601` route test 10/10、tsc 通過。C21 SQL contract fault/ACL 在最小 schema 重跑 10/10；prompt 與 school 各 N=2 並發 10 輪，總 20 輪均一勝一衝突、一筆 audit，fixtures 0。
+- 將原 one-off race harness 改為 `scripts/qa-c21-policy-school-isolated-local.sh`：自建隔離 PG16 Unix-socket cluster、核對候選 SHA/tree、套 base＋C21 migration、執行 SQL 與併發測試，trap 停止及清除 cluster。腳本 `bash -n` 與完整執行通過。
+- 限制：fixture 是最小 PostgreSQL schema；沒有全序 Supabase replay、HTTP/cache/consumer 或正式站驗收。C21 critical 未結，Qimen append-only 重送規則仍待決。更新 C21 ticket、full-system matrix、route inventory、customer UAT；退款 user files 未 stage。

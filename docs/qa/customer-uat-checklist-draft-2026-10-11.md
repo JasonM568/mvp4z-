@@ -52,8 +52,8 @@
 | M01 | 一般會員直接開後台 URL／API；管理員正常登入 | 會員拒絕，管理員可用且每項寫入留具名 audit | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | M02 | 後台找會員、訂單、發票、預約、課程及 Token 用量；翻至較舊資料 | 清單總數與原始資料一致，分頁／搜尋不漏舊會員 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | M03 | 兩管理員同時編輯面相知識卡、送審／發布／封存並匯出 | 版本、修訂快照與 audit 一致，衝突保留草稿；匯出完整且會員不可取 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
-| M04 | 管理員儲存／發布 prompt、學校與面相規則；查報告實際採用版本 | 生效設定可追溯且 audit 完整；故障時不切換部分狀態 | [ ] 通過 [ ] 不合格 [ ] 未執行 | main 舊版 QA-FS-M25/C21 route＋替身曾發現 audit INSERT error 時 API 仍成功、變更已生效但 audit 0。候選 `5192e21` 有 route 3 files／27 tests、57/57 DB-only replay、SQL fault／ACL tests 與 publish race 10 輪通過；尚無 HTTP／consumer/cache／正式站回歸，故維持未執行。`ADMIN_KEY` actor 規則另待決。 |
-| M05 | 老師核對三張奇門盤與晚子時設定，具名簽核 | 盤面與老師規則一致；未簽核時報告明示待校對 | [ ] 通過 [ ] 不合格 [ ] 未執行 | QA-FS-C21 候選 SQL/route 隔離複驗通過，但無 HTTP stack、盤例計算與老師簽核；正式驗收仍未執行。 |
+| M04 | 管理員儲存／發布 prompt、學校與面相規則；查報告實際採用版本 | 生效設定可追溯且 audit 完整；故障時不切換部分狀態 | [ ] 通過 [ ] 不合格 [ ] 未執行 | main 舊版 QA-FS-M25/C21 route＋替身曾發現 audit INSERT error 時 API 仍成功、變更已生效但 audit 0。C21 候選 `1af8943` route unit 10/10；QA 最小 native PostgreSQL contract 10/10，prompt／school 並發各 10 輪通過。整合候選 `5192e21` 另有 57/57 DB-only replay；兩者均未驗 HTTP／consumer/cache／正式站，故維持未執行。`ADMIN_KEY` actor 規則另待決。 |
+| M05 | 老師核對三張奇門盤與晚子時設定，具名簽核 | 盤面與老師規則一致；未簽核時報告明示待校對 | [ ] 通過 [ ] 不合格 [ ] 未執行 | 候選 `1af8943` 的 Qimen signoff SQL fault/ACL contract 在 native PostgreSQL 最小 fixture 10/10 通過；無 HTTP stack、盤例計算與老師簽核，append-only 成功重送語義待決；正式驗收仍未執行。 |
 | M06 | 查到期權益、pending 訂單、面相照片之排程前後快照 | 到期才處理，已付款訂單與未到期圖片保留，重跑無重複副作用 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | M07 | 以過期 token、SQLi 形狀字串、非法／超長 ID 直接呼叫代表 API | 權限與輸入明確 4xx；無越權、扣點、付款或寫入副作用 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | M08 | 具名管理員對專用會員補點、扣超過餘額及雙管理員同時調整 | 餘額變化等於每筆交易 amount，無遺失／重複交易，具名 audit 完整 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |

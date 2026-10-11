@@ -42,16 +42,16 @@
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
 | `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 隔離 API/DB：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego 管理員 UI 遺失回應後同鍵重送，退款／交易／audit 各 1；正式 migration／站端待驗 |
 | `/api/admin/prompt-settings` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；草稿儲存待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/admin/prompt-settings/publish` | POST | QA-FS-C21 route＋記憶體替身：audit INSERT 回 error 仍 HTTP 200、draft 已 published／舊版 archived、audit 0；真 DB／cache 版本未驗 |
+| `/api/admin/prompt-settings/publish` | POST | 原版 audit 故障可靜默成功；候選 `1af8943` route unit 10/10，QA native PG 最小 fixture SQL fault/ACL 10/10、prompt N=2×10 每輪 1 winner/1 conflict/1 audit；HTTP／cache／正式站未驗 |
 | `/api/admin/provider-health` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；提供者實際可用性待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/provider-health/test-alert` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/qimen-review` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；盤例與簽核仍待老師確認；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/qimen-review/preview` | POST | 隔離 API 11/11：具名管理員合法時間 3×3、空／越界／SQLi／超長 400、不存在日期空盤與 error、五路並發相同盤；Auth/profile 清 0；盤面專業簽核待老師 |
-| `/api/admin/qimen-review/signoff` | POST | QA-FS-C21 route＋記憶體替身：audit INSERT 回 error 仍 HTTP 200、signoff row 已新增、audit 0；真 DB／盤例計算／cache 未驗 |
+| `/api/admin/qimen-review/signoff` | POST | 原版 audit 故障可靜默成功；候選 SQL function audit fault/ACL contract 隨 C21 SQL 10/10 通過；僅 native PG 最小 fixture，HTTP／盤例／老師簽核／cache 未驗；append-only 重送語義待決 |
 | `/api/admin/referrals` | GET, PATCH, POST | 部分已驗 C7：隔離建立／並發改率 audit 11 輪通過；正式站及 C5 歸因規則待驗 |
 | `/api/admin/school-settings` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；草稿儲存待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/school-settings/preview` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
-| `/api/admin/school-settings/publish` | POST | QA-FS-C21 route＋記憶體替身：audit INSERT 回 error 仍 HTTP 200、draft 已 published／舊版 archived 並附簽核資訊、audit 0；真 DB／consumer 未驗 |
+| `/api/admin/school-settings/publish` | POST | 原版 audit 故障可靜默成功；候選 `1af8943` route unit 10/10，QA native PG 最小 fixture SQL fault/ACL 10/10、school N=2×10 每輪 1 winner/1 conflict/1 audit；HTTP／consumer／正式站未驗 |
 | `/api/admin/site-content` | DELETE, GET, PATCH, POST | 隔離服務通過 M13：字串 false POST/PATCH 400 零發布、真布林上／下架 4/4；其餘 CMS／正式站待驗 |
 | `/api/admin/site-content/media` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/site-content/media/sign` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
