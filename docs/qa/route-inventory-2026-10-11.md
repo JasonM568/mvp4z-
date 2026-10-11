@@ -147,6 +147,6 @@
 | `/member-pricing` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/member/reports/[id]` | 待驗：未有本輪頁面互動證據 |
 | `/privacy` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
-| `/reset-password` | 不合格 C15：本機 HTTP 200 後 client-side exception，只見 Application error；`NEXT_PUBLIC_SUPABASE_URL` 動態 env 讀取失敗，重設流程不可用 |
+| `/reset-password` | 不合格 C15：本機與正式站均 client-side exception，只見 Application error；`NEXT_PUBLIC_SUPABASE_URL` 動態 env 讀取失敗，正式重設流程不可用 |
 | `/services` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/thanks` | 本機 3104 基本渲染通過（h1／main／無 Application error）；實際預約提交與正式站待驗 |
