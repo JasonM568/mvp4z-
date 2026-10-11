@@ -17,6 +17,14 @@ Command:
 
 Result: 2 test files passed, 11 tests passed, 0 failed (Vitest 4.1.10, 275 ms).
 
+Independent QA boundary rerun against the same candidate SHA:
+
+```sh
+QA_M23_SPIKE_ROOT=/private/tmp/xunfeng-m23-spike npx vitest run --config scripts/qa-m23-option-a-spike.vitest.mts
+```
+
+Result: 1 test file passed, 3 tests passed, 0 failed. The QA-owned route/storage stub confirms the double-failure state, preserves an attached object after an ambiguous RPC response, isolates stale worker A cleanup from worker B, and accepts a legacy fixed path for preview while rejecting traversal. The candidate route and storage helper in the disposable QA copy match the files at the reviewed SHA. This remains in-memory route/helper evidence; it adds no SQL, ACL, database persistence, or real Storage proof.
+
 ## Reviewed invariants and evidence
 
 | Scenario | Evidence | QA assessment |
