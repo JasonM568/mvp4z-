@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiJson } from "../../_helpers";
-import { requireAdmin, writeAdminAudit } from "@/lib/auth/admin";
+import { requireAdmin, requireNamedAdmin } from "@/lib/auth/admin";
 import { errorMessage, errorStatus } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -32,11 +32,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = await requireAdmin(request); const body = inputSchema.parse(await request.json()); const client = createSupabaseAdminClient();
+    const admin = await requireNamedAdmin(request); const body = inputSchema.parse(await request.json()); const client = createSupabaseAdminClient();
     const row = { card_id: body.cardId, title: body.title, category: body.category, school: body.school || null, technique: body.technique || null, observation: body.observation, teacher_original: body.teacherOriginal || null, editor_summary: body.editorSummary || null, rule_condition: body.ruleCondition, safety_level: body.safetyLevel, auto_report: body.autoReport, source_file: body.sourceFile || null, source_pages: body.sourcePages, status: body.status, reviewed_by: body.status === "published" ? (admin.profile?.id || null) : null, reviewed_at: body.status === "published" ? new Date().toISOString() : null, created_by: admin.profile?.id || null, updated_by: admin.profile?.id || null };
-    const { data, error } = await client.from("face_knowledge_cards").insert(row).select("*").single(); if (error) throw error;
-    await client.from("face_knowledge_revisions").insert({ knowledge_id: data.id, version: data.version, snapshot: data, changed_by: admin.profile?.id || null, change_note: body.changeNote || "建立" });
-    await writeAdminAudit({ adminUserId: admin.profile?.id, action: "face_knowledge_created", targetType: "face_knowledge", targetId: data.id });
-    return apiJson({ ok: true, item: data }, 201);
+    const { data, error } = await client.rpc("manage_face_knowledge", { p_action: "create", p_payload: { ...row, change_note: body.changeNote || null }, p_admin_user_id: admin.profile?.id || null }); if (error) throw error;
+    return apiJson({ ok: true, item: data?.items?.[0] }, 201);
   } catch (error) { return apiJson({ error: errorMessage(error) }, errorStatus(error)); }
 }
