@@ -36,6 +36,14 @@ function typeOf(value: unknown): SiteContentType {
   throw statusError("type 必須是 services / cases / courses", 400);
 }
 
+function booleanField(body: Record<string, unknown>, field: string): boolean | undefined {
+  if (body[field] === undefined) return undefined;
+  if (typeof body[field] !== "boolean") {
+    throw statusError(`${field} 必須是布林值`, 400);
+  }
+  return body[field];
+}
+
 function isMissingTable(error: unknown) {
   return Boolean(error && typeof error === "object" && String((error as { code?: string }).code) === "42P01");
 }
@@ -86,6 +94,7 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAdmin(request);
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const isPublished = booleanField(body, "is_published");
     const type = typeOf(body.type);
     const admin = createSupabaseAdminClient();
 
@@ -99,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     const insert = {
       ...pickFields(type, body, true),
-      is_published: body.is_published === undefined ? false : Boolean(body.is_published),
+      is_published: isPublished ?? false,
       sort_order: Number(last?.sort_order || 0) + 10
     };
 
@@ -127,7 +136,8 @@ export async function PATCH(request: NextRequest) {
     const auth = await requireAdmin(request);
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
 
-    if (String(body.type || "") === "promo") return patchPromo(body, auth.profile?.id);
+    if (String(body.type || "") === "promo") return await patchPromo(body, auth.profile?.id);
+    const isPublished = booleanField(body, "is_published");
 
     const type = typeOf(body.type);
     const id = String(body.id || "");
@@ -140,7 +150,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const patch = pickFields(type, body, false);
-    if (body.is_published !== undefined) patch.is_published = Boolean(body.is_published);
+    if (isPublished !== undefined) patch.is_published = isPublished;
     if (Object.keys(patch).length === 0) throw statusError("沒有要更新的欄位", 400);
 
     const { data, error } = await admin
@@ -234,7 +244,8 @@ async function patchPromo(body: Record<string, unknown>, adminId?: string) {
   for (const field of PROMO_FIELDS) {
     if (body[field] === undefined) continue;
     if (field === "active") {
-      patch.active = Boolean(body.active);
+      if (typeof body.active !== "boolean") throw statusError("active 必須是布林值", 400);
+      patch.active = body.active;
     } else if (field === "publish_start" || field === "publish_end") {
       const value = String(body[field] ?? "").trim();
       patch[field] = value || null;

@@ -173,7 +173,7 @@ const FALLBACK_FILES: Record<SiteContentType, { file: string; key: string }> = {
 
 /**
  * 前台用：只回已上架的項目，依 sort_order 排列。
- * DB 讀不到或一筆都沒有時，退回 content/*.json，讓網站永遠有東西可顯示。
+ * DB 讀取失敗時退回 content/*.json；成功查詢但沒有已上架項目時，空清單代表目前沒有公開內容。
  */
 export async function readPublishedContent<T>(type: SiteContentType): Promise<T[]> {
   try {
@@ -188,7 +188,7 @@ export async function readPublishedContent<T>(type: SiteContentType): Promise<T[
       if (!isMissingTable(error)) console.warn(`[site-content] ${type} 讀取失敗，改用 JSON fallback：`, error.message);
       throw error;
     }
-    if (data && data.length) return data as T[];
+    return (data || []) as T[];
   } catch {
     // 落到下面的 JSON fallback
   }
