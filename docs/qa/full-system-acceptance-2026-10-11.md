@@ -74,6 +74,7 @@
 - `scripts/qa-face-teaching-retention-local.mjs` 在 C4 隔離 API/DB 以具名管理員建立專用已發布面相教材規則；直接 DELETE 正確回 409，先 PATCH 封存後 DELETE 卻回 200、DB 該規則歸零，造成曾發布規則的稽核鏈可被刪除（QA-FS-C17）。**9/10 通過，預期失敗項可穩定重現**；另驗 SQLi 形狀識別碼／2,001 字正文 400、未發布草稿可刪；專用規則、audit、Auth/profile 清 0，未產生 AI 報告或呼叫提供者。
 - C16 工程分支 `d639e77` 在 QA detached worktree／3220 dev app＋C4 隔離庫複驗：更新 `scripts/qa-admin-members-cap-local.mjs` 依分頁契約驗 205 專用會員，**9/9**：預設 50 筆、真實全域總數 207、五頁含測試管理員 206 筆無重複／漏列、最舊 Email 搜尋命中；0／100 位數字頁碼、101 字搜尋與壞游標皆 400。Ego Lite 後台第 1/5 頁 50 筆、翻到第 5/5 頁 7 筆可見最舊會員；Email 搜尋後第 1/1 頁 1 筆而總數仍 207。工程規模腳本由 QA 獨立執行 **11/11**：額外 1,001 筆後總數 1,209、預設仍 50，單次本機 dev 讀取 205 筆情境 169ms、1,206 筆情境 149ms（非 p95／壓測）。所有專用 Auth/profile/entitlement/會員 fixture 清 0；分支尚未整合與正式部署。
 - `scripts/qa-face-teaching-audit-atomic-local.mjs` 在 C4 隔離庫對專用 ruleId 的 `face_teaching_rule_create` audit INSERT 注入 DB exception：具名管理員 POST 已發布面相教材仍 HTTP 200、規則 `published` 一筆、audit 0（QA-FS-C18）；**4/6**。移除故障後重試 HTTP 200、規則與具名 audit 各 1；臨時 trigger/function、規則、audit、Auth/profile 全清 0。影響面相報告引用教材的操作稽核；未呼叫 Vision／LLM。
+- `scripts/qa-qimen-preview-local.mjs` 在 C4 隔離 API/DB 以專用具名管理員驗奇門任意時間試排 **11/11**：匿名／壞 token 401、合法時間回 3×3 九宮格、空 body／月 0／時 24／年 1899／SQLi 形狀／500 字數字 400、不存在日期以空盤及 error 提示、同輸入五路並發回相同盤。Auth/profile 清 0；未呼叫 LLM／扣點。盤面與老師手工盤的一致性尚待專業簽核。
 - `scripts/qa-member-read-local.mjs` 在本機隔離 API/DB 以 A/B 測試會員自建 pending／paid 訂單與 usage，**11/11 通過**：匿名／壞 token 401，A/B 訂單及使用量互不洩漏，paid 訂單在權益未建立前 `activated=false`、建立後輪詢轉 `true`，對方以 order_no 查仍 0 筆，SQLi 形狀訂單號 0 筆。權益、使用量、訂單在 `finally` 逐筆清理核對；未呼叫真實金流。
 - `scripts/qa-site-unpublish-local.mjs` 在獨立 C4 本機隔離 DB／3102 dev API 重現 QA-FS-M12：服務表原本 9 筆已上架，先下架 1 筆，公開 API 正確由 9→8；再全部下架並核對 DB 公開筆數 0，API 卻回靜態 JSON 的 9 筆，腳本 exit 1。`finally` 恢復並核對 9 筆原發布旗標，正式內容未改；CDN 快取與其他內容型別仍待驗。
 - 獨立 QA 執行 `scripts/qa-redeem-atomic-local.mjs`（本機 3101＋隔離庫）兩輪：每輪同碼 N=10 恰 1 個 200／9 個 400，唯一權益與交易同會員且點數 37；故障注入的交易 INSERT 失敗回 500，碼仍 unused、交易／權益增量 0。每輪刪除新碼與衍生列後核對 0 殘留。**隔離環境 B2 複驗通過；正式庫 migration／部署後複驗仍未完成。**
@@ -109,7 +110,7 @@
 | 啟用碼兌換 | 未使用碼只開通一次 | 不存在、已用、void、SQLi | 空碼、超長碼、交易寫入失敗回滾 | 同碼雙送只能一成功 | **QA-FS-B2 隔離複驗通過，待部署**：QA route 4/4、QA API/DB N=10 與故障注入兩輪通過；正式站未複驗 |
 | AI 即時問答 | 有權益、有點數才生成，成功依中文字數扣點 | 無／過期 token、LLM 失敗不扣、直接 API 注入 | 空訊息、4,000 字、40 則歷史、餘額 1 | 同會員雙送只能計費交付一份 | **不合格 QA-FS-B1**：扣點衝突送免費答案，隔離測試已重現 |
 | 易學決策報告 | 所選術數成稿、扣 20、歷史可找回 | 無權益、錯日期、prompt injection、provider 失敗 | 19／20 點、每日第 20／21 份、字數上限 | 同會員 4 份只成功 1；斷線找回 | 並發、schema、每日限額有既有正式站證據；隔離 API/DB A/B 歷史與直接寫入 5/5；瀏覽器找回／備援待驗 |
-| 奇門校對與老師規則庫 | 三盤比對、版本簽核、文件選取生效 | 非管理員 403、不完整簽核 400、錯版失效 | 0 文件、150k 字總額、單份 24k 字、手機九宮格 | 同時發布／簽核版本 | 既有 API 冒煙；老師未簽核，最新規則庫未做完整 UAT |
+| 奇門校對與老師規則庫 | 三盤比對、版本簽核、文件選取生效 | 非管理員 403、不完整簽核 400、錯版失效 | 0 文件、150k 字總額、單份 24k 字、手機九宮格 | 同時發布／簽核版本 | 任意時間試排隔離 API 11/11（3×3、非法／超長／不存在日期、五路並發）；老師未簽核，最新規則庫未做完整 UAT |
 | 面相分析 | 同意、上傳、品質、分析、報告／PDF、扣點 | 非本人取圖／PDF、錯 MIME、無學理 422 不扣 | 空圖、尺寸上限、任務／保存上限、過期圖片 | 同 run 雙 analyze、重送 requestId | 隔離 API/DB A/B 報告／照片 8/8、M2 RLS 4/4；C6 同卡 N=10 單／雙管理員各 11 輪，bulk/import HTTP 14/15（含故障回滾，M14 重複碼回 500），隔離 UI 409 即時保留草稿；C17 曾發布規則封存後可刪（9/10），C18 audit 故障後無稽核仍發布（4/6）；正式部署、完整 UI／PDF／提供者端到端待驗 |
 | 顧問預約 | 送出後後台可見、狀態可更新 | 缺聯絡方式、非法 email、腳本字串、管理員越權 | 空欄、80／4,000 字、只有電話 | 雙擊、公開入口灌單 | 隔離 API 邊界 7/7；具名管理員列表／詳情／PATCH＋audit 及 limit 邊界 M6 複驗 11/11；`@@@` 電話 QA-FS-M1、雙送 QA-FS-M3；限流待驗 |
 | 課程報名與結帳 | 新生／複訓價格由後端算、報名及訂單一致 | 非法 email／發票、未知課程、偽造價格 | 空選項、超長備註、課程停用 | 雙擊結帳、同 email 同時建立 profile | 隔離 API 8/8 驗證／定價；後台未付款名單／跟進／audit、列表 limit 與摘要修補後 17/17；同 email 雙送 1 profile、2 pending 訂單／報名，QA-FS-M5 待規則；付款後待驗 |
@@ -170,6 +171,7 @@
 41. **已發布面相教材的封存／刪除（C17 9/10，expected fail）**：`node scripts/qa-face-teaching-retention-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。專用已發布規則直接刪除 409；封存後再刪卻 200 並永久移除，違反報告引文可回溯的資料保留要求。修復後目標 10/10；腳本清理專用規則、audit、Auth/profile。
 42. **四路由報告列表 limit（M17 修復分支部分通過）**：以隔離分支 app 3105 依序執行 `scripts/qa-face-list-limits-local.mjs`、`scripts/qa-council-list-limits-local.mjs`、`scripts/qa-admin-report-limits-local.mjs`，均帶 `--base-url=http://127.0.0.1:3105 --env-file=/private/c4-connection.private.env`。目前 7/8、7/8、14/16；100 位數字回 200 為唯一失敗類型。修復後目標 8/8、8/8、16/16；每輪 fixture 清 0。
 43. **面相教材發布與 audit 原子性（C18 4/6，expected fail）**：`node scripts/qa-face-teaching-audit-atomic-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。只對專用 ruleId 注入 audit INSERT 故障，預期發布失敗且無 published 規則；現實 HTTP 200／published 1／audit 0。移除故障後正常發布與具名 audit 各 1；`finally` 清 trigger/function、規則、audit、Auth/profile。修後目標 6/6。
+44. **奇門任意時間試排（11/11）**：`node scripts/qa-qimen-preview-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。隔離驗 3×3 九宮格、匿名與壞 token、空／越界／SQLi／500 字數字、不存在日期、五路並發確定性；專用 Auth/profile 清 0。盤面專業正確性待老師逐盤對照。
 
 ## 效能與壓力測試提案
 
