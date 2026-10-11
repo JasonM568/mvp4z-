@@ -102,34 +102,34 @@
 |---|---|
 | `/` | 部分已驗：桌面／手機截圖；本機 3104 基本渲染通過（h1／main／無 Application error）；內容互動與正式站仍待驗 |
 | `/about` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
-| `/admin` | 部分已驗 C12：具名管理員隔離雙分頁登出與雙 token 清除通過；總覽資料與正式站待驗 |
+| `/admin` | 部分已驗 C12：具名管理員隔離雙分頁登出與雙 token 清除通過；總覽資料與正式站待驗；本機具名管理員殼層導覽通過，資料與操作待驗 |
 | `/admin-login` | 待驗：未有本輪頁面互動證據 |
-| `/admin/bookings` | 待驗：未有本輪頁面互動證據 |
+| `/admin/bookings` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
 | `/admin/bookings/[id]` | 待驗：未有本輪頁面互動證據 |
-| `/admin/council-runs` | 待驗：未有本輪頁面互動證據 |
+| `/admin/council-runs` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
 | `/admin/council-runs/[id]` | 待驗：未有本輪頁面互動證據 |
-| `/admin/course-launch` | 待驗：未有本輪頁面互動證據 |
-| `/admin/course-registrations` | 待驗：未有本輪頁面互動證據 |
-| `/admin/documents` | 待驗：未有本輪頁面互動證據 |
-| `/admin/face-analysis` | 待驗：未有本輪頁面互動證據 |
+| `/admin/course-launch` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/course-registrations` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/documents` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/face-analysis` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
 | `/admin/face-analysis/[id]` | 待驗：未有本輪頁面互動證據 |
-| `/admin/face-knowledge` | 部分已驗 C6：隔離 UI 409 當下保留草稿；M15 刷新比對流程、正式站待驗 |
-| `/admin/face-provider` | 待驗：未有本輪頁面互動證據 |
-| `/admin/face-rules` | 待驗：未有本輪頁面互動證據 |
-| `/admin/face-teachings` | 待驗：未有本輪頁面互動證據 |
-| `/admin/gemini-provider` | 待驗：未有本輪頁面互動證據 |
-| `/admin/invoices` | 待驗：未有本輪頁面互動證據 |
-| `/admin/members` | 待驗：未有本輪頁面互動證據 |
-| `/admin/orders` | 待驗：未有本輪頁面互動證據 |
+| `/admin/face-knowledge` | 部分已驗 C6：隔離 UI 409 當下保留草稿；M15 刷新比對流程、正式站待驗；本機具名管理員殼層導覽通過，資料與操作待驗 |
+| `/admin/face-provider` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/face-rules` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/face-teachings` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/gemini-provider` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/invoices` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/members` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/orders` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
 | `/admin/orders/[id]` | 待驗：未有本輪頁面互動證據 |
-| `/admin/prompt-settings` | 待驗：未有本輪頁面互動證據 |
-| `/admin/provider-health` | 待驗：未有本輪頁面互動證據 |
-| `/admin/qimen-review` | 待驗：未有本輪頁面互動證據 |
-| `/admin/referrals` | 待驗：未有本輪頁面互動證據 |
-| `/admin/school-settings` | 待驗：未有本輪頁面互動證據 |
-| `/admin/site-cases` | 待驗：未有本輪頁面互動證據 |
-| `/admin/site-services` | 待驗：未有本輪頁面互動證據 |
-| `/admin/token-usage` | 待驗：未有本輪頁面互動證據 |
+| `/admin/prompt-settings` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/provider-health` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/qimen-review` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/referrals` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/school-settings` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/site-cases` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/site-services` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
+| `/admin/token-usage` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
 | `/booking` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/cases` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/courses` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
