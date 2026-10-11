@@ -3225,3 +3225,10 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 - 將本階段 C23 provider-success／local commit failure retry 2/2 的證據與真 EZPay 冪等契約限制同步到客戶 UAT P05 及兩條相關 API route inventory；UAT 勾選仍保持未執行。
 - 執行 `git diff --check`，通過。候選、正式 DB 與付款 provider 均未觸及。
+
+
+## 2026-10-12｜QA-FS-C2 可派工票據整理
+
+- 重新執行 `app/api/admin/credits/route.qa.test.ts`，1 個 `it.fails` 仍如預期重現 ledger amount mismatch；`scripts/qa-admin-audit-side-effects.vitest.mts` 3/3 通過，其中 C2 案例重現 audit INSERT error 時 HTTP 200、餘額／ledger 已改、audit 0。
+- 新增獨立 QA-FS-C2 ticket，記錄重現、影響、待驗並發風險與修復驗收標準；列明「拒絕超額」或「截至餘額」需產品決策，不自行改商業規則。同步全系統矩陣、route inventory、客戶 UAT M08。
+- 證據限 route＋記憶體替身，並發、真 DB transaction 與隔離 API 尚未驗；等候 X-PM 的既有票決策／工程候選。未寫資料庫，`git diff --check` 待收尾執行。
