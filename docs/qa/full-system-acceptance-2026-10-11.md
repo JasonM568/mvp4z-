@@ -6,6 +6,7 @@
 
 - [API 與頁面路由清單](route-inventory-2026-10-11.md)已按目前程式重盤 **88 個 API route 檔／50 個頁面檔**，同步 B1／C19／M18–M22／C15 等較新候選證據。清單逐路由標明已驗範圍與待驗項；候選隔離通過不等於當前 main 或正式站通過。產生器保留人工核實的狀態註記，重跑不會覆蓋為舊硬編碼結果。
 - `app/api/admin/email-domain/route.qa.test.ts` 以路由實際 GET／POST＋Resend `fetch` 替身 **11/11**：管理員拒絕、缺金鑰、空／已存在網域、建立冪等、驗證後仍 pending、非法／超長 action 與上游錯誤；`npx tsc --noEmit` 通過。測試只用假金鑰、無外網或 DNS 改動。[舊交接](../handoff-archive/handoff-until-2026-10-08.md)另記載正式 Resend 網域曾回 `verified` 且使用者已收到測試告警；本輪未重查當前正式狀態，註冊／付款／重設信的端到端寄達亦未驗。
+- 正式站公開頁唯讀 SSR 煙霧 `node scripts/qa-public-page-smoke.mjs --base-url=https://www.xunfeng.tw` **9/9**：首頁、關於、服務、案例、課程、預約、會員方案、隱私、thanks 均 HTTP 200，title／h1／main 存在且無 Application error。只檢查 SSR shell，不代表 hydration、表單／購買互動、連結正確性或手機視覺通過；未送出表單。
 - 本機：macOS / Next.js 15.5.23 / Node 專案依賴；`.env.local` 已配置。本輪無正式資料寫入、無真實付款、無 LLM 呼叫。
 - `npm run test:unit`：於 QA commit `20da8e3` 的當前 main 工作樹重跑，**74 test files passed／3 skipped；639 tests passed／2 expected fail／3 skipped**。兩個 expected fail 分別仍在 `app/api/ai/chat/route.qa.test.ts`（B1 同會員並發）與 `app/api/admin/credits/route.qa.test.ts`（C2 補扣點帳本），代表已知缺陷，不能當功能通過；候選隔離修復也不等於 main 已修。
 - `npx tsc --noEmit`：通過；`npm run build`：通過，117 靜態頁產出。
@@ -122,7 +123,7 @@
 
 | 功能 | Happy | Unhappy（含非法字元／繞過 UI） | 邊界／空狀態／超長 | 並發／重送 | 目前狀態 |
 |---|---|---|---|---|---|
-| 官網與內容 CMS | 首頁、關於、服務、案例、課程、方案及導覽正確 | CMS 缺欄位、圖片 404、HTML/XSS 文案安全顯示 | 空清單、超長標題、手機寬度、快取更新 | 同時編輯與讀取內容 | M12/M13 隔離複驗通過：服務全下架 DB/API 0，字串 `"false"` 在建立／修改均 400，真布林正常；正式站 8 頁手機寬無水平溢出，完整視覺與其他內容型別待驗 |
+| 官網與內容 CMS | 首頁、關於、服務、案例、課程、方案及導覽正確 | CMS 缺欄位、圖片 404、HTML/XSS 文案安全顯示 | 空清單、超長標題、手機寬度、快取更新 | 同時編輯與讀取內容 | 正式站公開頁 SSR 唯讀煙霧 9/9（HTTP 200、title／h1／main、無錯誤文案）；M12/M13 隔離驗證服務下架與字串布林輸入。正式站完整視覺、hydration、CMS 互動及手機尺寸待驗 |
 | 註冊與免費試用 | 新信箱建立 profile、30 點／30 天、通知 | 重複信箱、壞 email／手機、弱密碼、SQLi/XSS 字串 | 空姓名、超長欄位、同手機第二帳號不重領 | 同手機多帳號同時註冊只發一次 | 隔離 API/DB 9/9、同手機 N=3 只發 1 次已驗；通知信、UI 與效期精確邊界待驗 |
 | 登入／登出／重設 | 有效密碼取得權杖、登出、重設成功 | 錯密碼、失效／過期 token、重設連結重用 | 空欄、超長密碼、郵件限流 | 同 token 登出與刷新競爭 | **C12 隔離 API 6/6＋Ego 會員／管理員雙分頁登出通過**，舊 access／refresh 均 401、雙 token 清空；故障時保留憑證並提示重試；其餘隔離 API 正確／錯密碼 200／400、無效 refresh 401、有效 refresh 200、已知／未知信箱忘密皆 200、過期 JWT 401；**C15 補修分支 Ego 隔離改密兩輪各 11/11，正式站舊版仍 crash，真實信件待驗**；M8 錯密碼英文、M9 過期 token 假空狀態 |
 | 會員中心與資料隔離 | 只讀本人方案、點數、訂單、使用量 | A token 查 B 的 ID、直接打 API、管理員路由 403 | 無方案、0 點、到期瞬間、分頁尾頁 | 點數更新後多分頁同步 | 隔離庫 A/B 核心表讀取及會員訂單／使用量 API 11/11：付款已到但權益未開通可見、開通後輪詢更新；Ego UI 本人資料／空報告／pending 單已驗，過期 token 假 FREE/0 點 QA-FS-M9；其他表待驗 |
@@ -173,6 +174,7 @@
 18. **財務／課程／使用量 A/B 隔離（9/9）**：`node scripts/qa-finance-rls-local.mjs --env-file=/private/connection.private.env --members-file=/private/qa-members.private.json`。建立 A/B 專用訂單、發票、課程報名及 usage log，直接用各自會員 token 查本人與對方，另試跨會員 PATCH 發票；逐表清理核對。
 19. **公開推廣碼查詢（8/8）**：`node scripts/qa-referral-lookup-local.mjs --base-url=http://127.0.0.1:3101 --env-file=/private/connection.private.env`。建立專用推廣人，測正確、大小寫、空值、SQLi 形狀、LIKE wildcard、超長、停用與匿名直查表；回應不得含分潤率／聯絡資料／內部 ID，最後清理。
 20. **會員訂單推廣歸因（4/4＋一項規則待決）**：`node scripts/qa-referral-order-local.mjs --base-url=http://127.0.0.1:3101 --env-file=/private/connection.private.env --members-file=/private/qa-members.private.json`。測綁定與 cookie 優先序、停用、比例快照；觀察已綁定業務停用後是否被新 cookie 改歸（QA-FS-C5）；測試列及會員原值均清理還原。
+21. **正式站公開頁 SSR 唯讀煙霧（9/9）**：`node scripts/qa-public-page-smoke.mjs --base-url=https://www.xunfeng.tw`。逐頁 GET 首頁、關於、服務、案例、課程、預約、會員方案、隱私與 thanks，檢查 HTTP 成功、title／h1／main 及錯誤文案；不登入、不提交表單。此腳本不驗 hydration、視覺、手機版或頁面互動。
 21. **面相知識庫 RLS（4/4）**：`node scripts/qa-face-knowledge-rls-local.mjs --env-file=/private/connection.private.env --members-file=/private/qa-members.private.json`。要求隔離庫先套 M2 SQL；檢查兩表 RLS 開啟、匿名／會員拒絕、service role 讀寫及卡片刪除 cascade，最後清理核對。正式 migration history／部署另驗。
 
 22. **面相知識庫具名管理員流程（C6 隔離複驗單／雙管理員各 11 輪 15/15）**：`node scripts/qa-face-knowledge-admin-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/connection.private.env --members-file=/private/qa-members.private.json --cas=true --two-admins=true`；省略 `--two-admins=true` 驗單管理員。隔離 API/DB 自建管理員與 draft 卡，驗匿名／會員 401／403、非法與超長輸入 400 且零寫入、建立／查詢／更新／封存、revision 與具名 audit；N=10 同卡並發 PATCH 恰一成功、其餘 409，勝者具名 audit／版本／快照一致。所有列與 Auth 帳號清理核對。正式部署與 UI 衝突提示待驗。

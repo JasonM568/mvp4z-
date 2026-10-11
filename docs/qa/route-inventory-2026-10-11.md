@@ -100,8 +100,8 @@
 
 | 路由 | QA 狀態／已驗範圍 |
 |---|---|
-| `/` | 部分已驗：桌面／手機截圖；本機 3104 基本渲染通過（h1／main／無 Application error）；內容互動與正式站仍待驗 |
-| `/about` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
+| `/` | 正式站 SSR 唯讀煙霧 `qa-public-page-smoke.mjs` 200、title／h1／main 存在、無錯誤文案；內容互動與手機視覺待驗 |
+| `/about` | 正式站 SSR 唯讀煙霧 200、title／h1／main 存在、無錯誤文案；互動與手機視覺待驗 |
 | `/admin` | 部分已驗 C12：具名管理員隔離雙分頁登出與雙 token 清除通過；總覽資料與正式站待驗；本機具名管理員殼層導覽通過，資料與操作待驗 |
 | `/admin-login` | 待驗：未有本輪頁面互動證據 |
 | `/admin/bookings` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
@@ -130,9 +130,9 @@
 | `/admin/site-cases` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
 | `/admin/site-services` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
 | `/admin/token-usage` | 本機具名管理員殼層導覽通過；資料與操作待驗 |
-| `/booking` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
-| `/cases` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
-| `/courses` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
+| `/booking` | 正式站 SSR 唯讀煙霧 200、title／h1／main 存在、無錯誤文案；390px 曾驗無溢出，表單提交待驗 |
+| `/cases` | 正式站 SSR 唯讀煙霧 200、title／h1／main 存在、無錯誤文案；390px 曾驗無溢出，內容互動待驗 |
+| `/courses` | 正式站 SSR 唯讀煙霧 200、title／h1／main 存在、無錯誤文案；390px 曾驗無溢出，報名互動待驗 |
 | `/enterprise` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
 | `/login` | Ego 本機登入／錯密碼、正式站 390px；本機 3104 基本渲染通過；M8 英文錯誤待修，註冊／重設 UI 待驗 |
 | `/member` | 部分已驗：Ego 本機本人方案／空報告／pending 單；C12 隔離雙分頁登出與雙 token 清除通過，M9 過期 token 假空狀態待修 |
@@ -144,9 +144,9 @@
 | `/member-ai/face` | 部分已驗：正式站 390px 無水平溢出；完整互動待驗 |
 | `/member-ai/face/history` | 待驗：未有本輪頁面互動證據 |
 | `/member-ai/face/reports/[id]` | 待驗：未有本輪頁面互動證據 |
-| `/member-pricing` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
+| `/member-pricing` | 正式站 SSR 唯讀煙霧 200、title／h1／main 存在、無錯誤文案；390px 曾驗無溢出，購買流程待驗 |
 | `/member/reports/[id]` | 待驗：未有本輪頁面互動證據 |
-| `/privacy` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
+| `/privacy` | 正式站 SSR 唯讀煙霧 200、title／h1／main 存在、無錯誤文案；政策內容與連結逐項審核待驗 |
 | `/reset-password` | C15 最小 release `5631c7f` QA Ego Lite 隔離 hash 兩輪各 11/11、PKCE code／過期／重用與新舊密驗證通過；正式站舊版仍 client-side exception，待部署、真實收信與站端回歸 |
-| `/services` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
-| `/thanks` | 本機 3104 基本渲染通過（h1／main／無 Application error）；實際預約提交與正式站待驗 |
+| `/services` | 正式站 SSR 唯讀煙霧 200、title／h1／main 存在、無錯誤文案；390px 曾驗無溢出，內容互動待驗 |
+| `/thanks` | 正式站 SSR 唯讀煙霧 200、title／h1／main 存在、無錯誤文案；實際預約提交與狀態驗證待驗 |
