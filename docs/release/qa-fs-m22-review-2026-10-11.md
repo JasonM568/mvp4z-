@@ -10,7 +10,7 @@
 
 **Acceptance Criteria：**X-QA 對 `15631e7`：M22 **29/29**、跨模組 **108/108**；故障後 run=`created`、path 空、Storage/event 0，重試成功；匿名／會員 RPC 拒絕。工程獨立空 DB **51/51** migration 重播、版本唯一、M19→C19→M21→M22、RPC ACL f/f/t 與 SQL 故障測試通過。證據：`docs/qa/full-system-acceptance-2026-10-11.md` M22、QA commit `87188e7`。正式站未驗；執行清單見 `qa-fs-m22-production-regression-plan-2026-10-11.md`。
 
-**發布／回復：**先核正式專案與 migration drift、備份／回復演練及 B3 安全阻擋項；按核准計畫套四版 migration，再發布對應 app，最後由 QA 站端回歸。禁止盲目 `db push`。失敗先回前一已驗證 app；DB 不盲刪，依 Tech Lead 核准腳本修復。
+**發布／回復：**先核正式專案與 migration drift、備份／回復演練及 B3 安全阻擋項；按核准計畫套四版 migration，再發布對應 app，最後由 QA 站端回歸。禁止盲目 `db push`。唯讀 Vercel 快照：`www.xunfeng.tw` 指向 READY `dpl_FLG1koTbFyVZzg5z927tL2iBerby`／SHA `1935618`；發布前須重查。失敗先回核准的前一 app；DB 不盲刪，依 Tech Lead 核准腳本修復。
 
 **Risks / Open Questions：**正式 history 49 版、候選 51 版，重疊 38；八組舊版 SQL 指紋相同但歷史資料未證，退款版 SQL 衝突、兩版 CianRou 只在正式端。逐版證據見 `m22-migration-drift-review-2026-10-11.md`。M19～M22 尚未套，正式庫缺 M21 lease 欄與 M22 RPC；runtime ref、復原能力待證。Storage 補償失敗可留孤兒檔，建議人工比對 path、DB 引用、run 狀態與 lease 後逐檔處理。history 對映、安全緩衝、值班人、回復 SQL、整合順序及部署窗口待 Tech Lead 決定。未 push／部署／改正式庫；M22 critical 票仍開。
 
