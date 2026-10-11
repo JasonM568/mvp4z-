@@ -8,26 +8,27 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_PROMPT_SETTINGS } from "./defaults";
-import { DOCUMENT_CHAR_BUDGET, promptSettingsSchema, type PromptSettings } from "./schema";
+import { promptSettingsSchema, type PromptSettings } from "./schema";
+import type { TeacherDocument } from "./document-selection";
 
 export type LoadedPromptSettings = {
   settings: PromptSettings;
   /** 已發布版本的 id，寫進 council_runs.prompt_profile_id 供追溯；用預設值時為 null。 */
   profileId: string | null;
   versionLabel: string;
-  /** 老師勾選納入 prompt 的文件內容，已裁到字數上限。沒有勾選時為空字串。 */
-  documentBlock: string;
+  /** 老師勾選的完整文字庫；每份報告按當次問題選取段落。 */
+  documents: TeacherDocument[];
   /** 走了回退路徑的原因，null 表示正常讀到已發布設定。 */
   fallbackReason: string | null;
 };
 
-// documentBlock 要獨立傳進來：文件庫與設定版本是兩件事，
+// documents 要獨立傳進來：文件庫與設定版本是兩件事，
 // 老師沒發布過設定版本時，他勾選的文件仍然必須進 prompt。
-const DEFAULT_RESULT = (reason: string | null, documentBlock = ""): LoadedPromptSettings => ({
+const DEFAULT_RESULT = (reason: string | null, documents: TeacherDocument[] = []): LoadedPromptSettings => ({
   settings: DEFAULT_PROMPT_SETTINGS,
   profileId: null,
   versionLabel: "系統預設",
-  documentBlock,
+  documents,
   fallbackReason: reason
 });
 
@@ -63,7 +64,7 @@ async function readFromDatabase(): Promise<LoadedPromptSettings> {
   // 文件庫先讀，且與設定版本的成敗無關。
   // 曾經這行寫在「成功解析 published 設定」之後，導致老師上傳並勾選了文件、
   // 後台也顯示「已納入 N 字」，但因為從沒發布過設定版本，文件一次都沒進過 prompt。
-  const documentBlock = await buildDocumentBlock(admin);
+  const documents = await loadDocuments(admin);
 
   const { data, error } = await admin
     .from("ai_prompt_profiles")
@@ -73,11 +74,11 @@ async function readFromDatabase(): Promise<LoadedPromptSettings> {
 
   if (error) {
     console.warn("[prompt-settings] 讀取已發布設定失敗，改用程式預設值", error);
-    return DEFAULT_RESULT("query_failed", documentBlock);
+    return DEFAULT_RESULT("query_failed", documents);
   }
   if (!data) {
     // 後台還沒發布過任何版本。這是正常狀態，不是錯誤。
-    return DEFAULT_RESULT("no_published_profile", documentBlock);
+    return DEFAULT_RESULT("no_published_profile", documents);
   }
 
   const parsed = promptSettingsSchema.safeParse(data.settings);
@@ -86,71 +87,47 @@ async function readFromDatabase(): Promise<LoadedPromptSettings> {
       profileId: data.id,
       issue: parsed.error.issues[0]?.message
     });
-    return DEFAULT_RESULT("invalid_settings", documentBlock);
+    return DEFAULT_RESULT("invalid_settings", documents);
   }
 
   return {
     settings: parsed.data,
     profileId: data.id,
     versionLabel: data.version_label,
-    documentBlock,
+    documents,
     fallbackReason: null
   };
 }
 
 /**
- * 組出要附進 prompt 的文件內容。
- *
- * 為什麼要裁字數：這段文字會跟著 prompt 走，而一份報告的 prompt 會被送出 7 次，
- * 字數成本是七倍，過長還會擠壓每次呼叫 45 秒的視窗造成逾時。
- * 超出上限就截斷並註明，不靜默丟棄——老師要看得出來是他勾太多了。
+ * 讀取已勾選文件。取用段落由 document-selection.ts 在收到報告問題後決定。
  */
-async function buildDocumentBlock(
+async function loadDocuments(
   admin: ReturnType<typeof createSupabaseAdminClient>
-): Promise<string> {
+): Promise<TeacherDocument[]> {
   // 這個查詢現在每份報告都會跑（不再只跑在設定版本成功的路徑上），
   // 所以自己吞掉例外：文件讀不到就當作沒勾選，不可以讓報告產不出來。
-  let data: Array<{ title: string; extracted_text: string | null; char_count: number }> | null = null;
+  const documents: TeacherDocument[] = [];
   try {
-    const result = await admin
-      .from("ai_documents")
-      .select("title, extracted_text, char_count")
-      .eq("include_in_prompt", true)
-      .order("created_at", { ascending: true });
-    if (result.error) {
-      console.warn("[prompt-settings] 讀取參考文件失敗，本次報告不附文件", result.error);
-      return "";
+    for (let offset = 0; ; offset += 1000) {
+      const result = await admin
+        .from("ai_documents")
+        .select("id, title, term, extracted_text, char_count")
+        .eq("include_in_prompt", true)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + 999);
+      if (result.error) {
+        console.warn("[prompt-settings] 讀取參考文件失敗，本次報告不附文件", result.error);
+        return [];
+      }
+      documents.push(...(result.data || []));
+      if ((result.data || []).length < 1000) break;
     }
-    data = result.data;
   } catch (error) {
     console.warn("[prompt-settings] 讀取參考文件發生例外，本次報告不附文件", error);
-    return "";
+    return [];
   }
 
-  if (!data?.length) return "";
-
-  const parts: string[] = [];
-  let used = 0;
-  let truncated = 0;
-
-  for (const doc of data) {
-    const text = String(doc.extracted_text || "").trim();
-    if (!text) continue;
-    const remaining = DOCUMENT_CHAR_BUDGET - used;
-    if (remaining <= 0) {
-      truncated += 1;
-      continue;
-    }
-    const slice = text.length > remaining ? `${text.slice(0, remaining)}⋯（後略）` : text;
-    used += slice.length;
-    parts.push(`【${doc.title}】\n${slice}`);
-  }
-
-  if (!parts.length) return "";
-
-  const notice = truncated
-    ? `\n（另有 ${truncated} 份文件因超出字數上限未納入，請到後台調整勾選）`
-    : "";
-
-  return `風羿老師補充參考資料（僅作為判讀依據，不得直接照抄進報告）：\n\n${parts.join("\n\n")}${notice}`;
+  return documents;
 }

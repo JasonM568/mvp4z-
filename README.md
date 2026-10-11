@@ -34,6 +34,8 @@
 
 後台：`/admin`、`/admin/members`、`/admin/bookings`、`/admin/orders`、`/admin/invoices`、`/admin/council-runs`、`/admin/token-usage`
 
+老師文件：`/admin/documents` 可上傳並勾選最多 150,000 字；報告按問題選取相關段落，單份最多 24,000 字。詳見 `docs/SYSTEM_ARCHITECTURE.md`。
+
 ## API
 
 身分與會員：

@@ -25,8 +25,9 @@ export type EffectiveStatus = {
     draft: { version_label: string; updated_at: string } | null;
   };
   documents: {
-    block_chars: number;
     reaching_prompt: boolean;
+    available_chars: number;
+    per_report_budget: number;
     ticked_count: number;
     ticked_chars: number;
     budget: number;
@@ -172,11 +173,8 @@ export function PromptEffectiveStatus({ status, failed }: { status: EffectiveSta
 }
 
 /**
- * 老師文件（/admin/documents）用。
- *
- * 這頁是事故現場：原本的「目前納入 Prompt 的字數」是前端從勾選狀態自己加總的，
- * 所以在文件一次都沒進過 prompt 的那一個月裡，它依然顯示 3741 字。
- * 現在 block_chars 來自報告真的會拿到的那個字串。
+ * 老師文件（/admin/documents）用。後台只顯示可取用量；每份報告實際
+ * 採用的段落取決於問題，會記在該份 council_runs.request 裡。
  */
 export function DocumentsEffectiveStatus({ status, failed }: { status: EffectiveStatus | null; failed: boolean }) {
   if (failed) return <div style={CARD}><span className="muted">生效狀態讀取失敗，請重新整理頁面。</span></div>;
@@ -186,29 +184,29 @@ export function DocumentsEffectiveStatus({ status, failed }: { status: Effective
   const mismatch = documents.ticked_count > 0 && !documents.reaching_prompt;
   return (
     <div style={mismatch || documents.truncated ? WARN : CARD}>
-      <div className="label">老師文件｜現在實際進入 Prompt 的是</div>
+      <div className="label">老師文件｜報告可取用的規則庫</div>
       <Row
-        label="實際送出"
-        value={documents.reaching_prompt ? `${documents.block_chars.toLocaleString()} 字` : "沒有任何文件進入 Prompt"}
+        label="可供取用"
+        value={documents.reaching_prompt ? `${documents.available_chars.toLocaleString()} 字` : "沒有可取用的文件"}
         tone={documents.reaching_prompt ? "ok" : "warn"}
       />
       <Row
         label="目前勾選"
         value={`${documents.ticked_count} 份，共 ${documents.ticked_chars.toLocaleString()} 字（上限 ${documents.budget.toLocaleString()} 字）`}
       />
+      <Row label="每份報告" value={`按問題選取，文字最多 ${documents.per_report_budget.toLocaleString()} 字`} />
       {mismatch && (
         <p style={{ margin: "8px 0 0", color: "#e6a95c", fontWeight: 700 }}>
-          已勾選文件，但報告實際上沒有收到任何內容。請把這個狀況回報給工程，不要只依勾選狀態判斷。
+          已勾選文件，但報告管線讀不到文字。請把這個狀況回報給工程。
         </p>
       )}
       {documents.truncated && (
         <p style={{ margin: "8px 0 0", color: "#e6a95c" }}>
-          勾選字數超過上限，超出的部分不會進入 Prompt。請減少勾選份數。
+          勾選字數超過規則庫上限，請減少勾選份數。
         </p>
       )}
       <p className="muted" style={{ margin: "8px 0 0" }}>
-        「實際送出」是報告管線真的會拿到的字串長度（含文件標題與說明行），
-        與「目前勾選」的原始字數本來就不會完全相同；重點是它不能是 0。
+        每份報告實際採用哪些段落依問題而定；上方數字不代表整份文件都會送入模型。
       </p>
     </div>
   );

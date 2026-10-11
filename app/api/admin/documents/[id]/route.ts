@@ -35,16 +35,27 @@ export async function PATCH(
         .single();
       if (currentError) throw statusError("找不到文件", 404);
 
-      const { data: included, error: includedError } = await admin
-        .from("ai_documents")
-        .select("id,char_count")
-        .eq("include_in_prompt", true);
-      if (includedError) throw statusError(includedError.message, 500);
-      const nextTotal = (included || [])
+      const included = [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await admin
+          .from("ai_documents")
+          .select("id,char_count")
+          .eq("include_in_prompt", true)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(offset, offset + 999);
+        if (error) throw statusError(error.message, 500);
+        included.push(...(data || []));
+        if ((data || []).length < 1000) break;
+      }
+      const nextTotal = included
         .filter((document) => document.id !== id)
         .reduce((sum, document) => sum + document.char_count, current.char_count);
       if (nextTotal > DOCUMENT_CHAR_BUDGET) {
-        throw statusError(`納入後共 ${nextTotal} 字，超過 ${DOCUMENT_CHAR_BUDGET} 字上限`, 400);
+        throw statusError(
+          `勾選後共 ${nextTotal.toLocaleString()} 字，超過規則庫 ${DOCUMENT_CHAR_BUDGET.toLocaleString()} 字上限；檔案已保存，請依主題拆分並只勾選要啟用的部分`,
+          400
+        );
       }
     }
 

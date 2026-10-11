@@ -458,6 +458,7 @@ Email 通知
 | 點數 | `credit_transactions` | 點數增加、扣除及來源紀錄 |
 | AI 用量 | `usage_logs` | AI 提問、回覆與 Token 使用量 |
 | 決策報告 | `council_runs` | Council 各輪結果、終稿、扣點與結構化資料 |
+| 老師文件 | `ai_documents` | 原檔位於 Storage，資料列保存抽出的文字與勾選狀態 |
 | 訂單 | `orders` | 會員方案與課程訂單 |
 | 金流 | `payments` | 金流交易、交易編號與驗證結果 |
 | 發票 | `invoices` | 發票號碼、買受人、載具與開立狀態 |
@@ -518,6 +519,11 @@ course_products
 | 綠界 ECPay | 會員方案與課程付款 | `lib/payments/ecpay.ts` |
 | ezPay | 電子發票開立 | `lib/payments/ezpay-invoice.ts` |
 | Vercel | 網站、API 與排程部署 | `vercel.json`、Next.js 專案 |
+
+老師文件可勾選總量為 150,000 個非空白字，單檔上限 2 MB。報告依問題文字與啟用術數，
+從文件段落選取最多 24,000 個非空白字（另設 32,000 原始字元防護），第一輪與終稿使用同一組段落；
+完整原檔不截斷。採用的文件 ID、標題與段號保存在 `council_runs.request.teacher_document_references`，
+後台報告詳情可查。修訂版由老師取消勾選舊版後啟用；系統不自行裁決互相衝突的規則。
 
 ## 9. 核心業務流程
 

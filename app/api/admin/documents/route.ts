@@ -19,26 +19,31 @@ const TERMS = new Set(["bazi", "qimen", "liuyao", "meihua"]);
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request);
-    const { data, error } = await createSupabaseAdminClient()
-      .from("ai_documents")
-      .select(
-        "id,title,category,term,original_name,mime_type,size_bytes,char_count,include_in_prompt,created_at,updated_at"
-      )
-      .order("created_at", { ascending: false });
-
-    if (error?.code === "42P01") {
-      return apiJson({
-        ok: true,
-        documents: [],
-        char_budget: DOCUMENT_CHAR_BUDGET,
-        included_chars: 0,
-        setup_required:
-          "資料表尚未建立，請先執行 supabase/migrations/20260809141108_prompt_profiles_and_documents.sql。"
-      });
+    const admin = createSupabaseAdminClient();
+    const documents = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await admin
+        .from("ai_documents")
+        .select(
+          "id,title,category,term,original_name,mime_type,size_bytes,char_count,include_in_prompt,created_at,updated_at"
+        )
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(offset, offset + 999);
+      if (error?.code === "42P01") {
+        return apiJson({
+          ok: true,
+          documents: [],
+          char_budget: DOCUMENT_CHAR_BUDGET,
+          included_chars: 0,
+          setup_required:
+            "資料表尚未建立，請先執行 supabase/migrations/20260809141108_prompt_profiles_and_documents.sql。"
+        });
+      }
+      if (error) throw statusError(error.message, 500);
+      documents.push(...(data || []));
+      if ((data || []).length < 1000) break;
     }
-    if (error) throw statusError(error.message, 500);
-
-    const documents = data || [];
     const includedChars = documents.reduce(
       (sum, document) => sum + (document.include_in_prompt ? document.char_count : 0),
       0

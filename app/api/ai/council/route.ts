@@ -22,6 +22,7 @@ import { buildMinimalRunRow } from "@/lib/ai/council/run-row";
 import { acquireCouncilSlot, releaseCouncilSlot } from "@/lib/ai/council/inflight";
 import { loadQimenSignoff, qimenSignatureText } from "@/lib/school-settings/qimen-signoff";
 import { loadPromptSettings } from "@/lib/ai/council/settings/load";
+import { selectTeacherDocuments } from "@/lib/ai/council/settings/document-selection";
 import { buildChartForCouncil } from "@/lib/ai/council/chart";
 import { loadSchool } from "@/lib/school-settings/load";
 import { renderChartDigest, renderChartForPrompt } from "@/lib/yixue/format/prompt";
@@ -177,11 +178,12 @@ export async function POST(request: NextRequest) {
       topic: input.topic || "未指定",
       deliverableMode: input.deliverableMode || "商業決策顧問報告"
     };
+    const selectedDocuments = selectTeacherDocuments(prompt.documents, councilInput);
 
     // 8. 第一輪：三模型平行
     // 老師的參考文件只掛在第一輪與終稿。第二輪是攻擊第一輪的文字，不需要重讀原始資料，
     // 而 prompt 每多一段就要多送 6 次（三模型兩輪），成本與逾時風險都會放大。
-    const firstPrompt = buildFirstRoundPrompt(councilInput, qualityGate, prompt.documentBlock, chartBlock);
+    const firstPrompt = buildFirstRoundPrompt(councilInput, qualityGate, selectedDocuments.block, chartBlock);
     const firstRound = await Promise.all([
       callOpenAI("openaiFengYi", "巽風主判讀分身", openaiFengYiSystem(prompt.settings), firstPrompt),
       callGemini("geminiFengYi", "巽風策略推演分身", geminiFengYiSystem(prompt.settings), firstPrompt),
@@ -213,7 +215,7 @@ export async function POST(request: NextRequest) {
       debateRoundText,
       qualityGate,
       prompt.settings,
-      prompt.documentBlock,
+      selectedDocuments.block,
       chartBlock
     );
     // 終稿 prompt 最重（要讀完前兩輪上萬字再生成長報告），需要一次連續的長時間，
@@ -334,7 +336,12 @@ export async function POST(request: NextRequest) {
       user_id: profile.id,
       entitlement_id: entitlement.id,
       usage_log_id: usageLog?.id || null,
-      request: councilInput,
+      // 來源與段號供管理員追溯；完整教材仍只存在 ai_documents。
+      request: {
+        ...councilInput,
+        teacher_document_references: selectedDocuments.references,
+        teacher_document_available_chunks: selectedDocuments.availableChunks
+      },
       first_round: firstRound,
       debate_round: enableDebate ? debateRound : null,
       final_label: finalLabel,

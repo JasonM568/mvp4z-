@@ -155,24 +155,7 @@ export type RuleItem = z.infer<typeof ruleItemSchema>;
 export type Persona = z.infer<typeof personaSchema>;
 
 /**
- * 納入 prompt 的文件總字數上限。
- *
- * 2026-09-09 由 6000 調到 24000。原因與代價都算過：
- *
- * **舊註解說「會被送出 7 次」是錯的。** 文件只掛在第一輪（三模型）與終稿，
- * 第二輪攻防不帶文件（buildDebatePrompt 根本沒有 documentBlock 參數），
- * 所以是 **4 次**不是 7 次，成本被高估了 75%。
- *
- * 實際成本：每份報告 24000 字 × 4 次呼叫
- *   OpenAI 兩次 ×$0.40／Gemini ×$0.30／DeepSeek ×$0.27（每百萬 token）
- *   ≈ US$0.033 ≈ NT$1.0。一份報告收 20 點（基礎方案約 NT$185），佔 0.5%。
- *
- * 為什麼是 6000 不夠：老師手上三份判讀規則共 20,525 字，最大一份就 9,117 字——
- * 6000 的預算連**一份**都放不下，會被砍成「⋯（後略）」。他 9/8 上傳的兩份
- * 至今都還沒能納入報告。
- *
- * 為什麼不再往上加：真正的天花板是 DeepSeek 的 64K context（OpenAI 與 Gemini
- * 都是 1M）。目前平均每次呼叫約 10.9K tokens，加上 24000 字（約 24–30K tokens）
- * 後第一輪約 35–40K，還在安全範圍。要再加請先確認 DeepSeek 那一路不會爆。
+ * 可勾選的老師文件庫總字數上限。每份報告實際選取的文字量另由
+ * document-selection.ts 控制，避免教材庫增長直接撐爆模型上下文。
  */
-export const DOCUMENT_CHAR_BUDGET = 24000;
+export const DOCUMENT_CHAR_BUDGET = 150000;

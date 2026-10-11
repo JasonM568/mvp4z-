@@ -24,6 +24,14 @@ type CouncilRun = {
   profiles?: { email?: string; name?: string } | null;
 };
 
+type TeacherReference = { id: string; title: string; chunk: number; chars: number };
+
+function teacherReferences(request: unknown): TeacherReference[] {
+  if (!request || typeof request !== "object") return [];
+  const value = (request as Record<string, unknown>).teacher_document_references;
+  return Array.isArray(value) ? value as TeacherReference[] : [];
+}
+
 export default function CouncilRunDetail({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const [id, setId] = useState("");
@@ -81,6 +89,8 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
     return <div style={{ color: "var(--muted)" }}>讀取中⋯</div>;
   }
 
+  const references = teacherReferences(run.request);
+
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -112,6 +122,20 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
         <Kpi label="VIP 免費" value={run.free_quota_used ? "是" : "否"} />
         <Kpi label="Tokens in/out" value={`${run.total_tokens_in.toLocaleString()} / ${run.total_tokens_out.toLocaleString()}`} />
       </div>
+
+      <Section title="本次採用的老師規則">
+        {references.length ? (
+          <ul style={{ margin: 0, paddingLeft: 22 }}>
+            {references.map((reference) => (
+              <li key={`${reference.id}-${reference.chunk}`}>
+                {reference.title}｜第 {reference.chunk} 段｜{reference.chars.toLocaleString()} 字
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted" style={{ margin: 0 }}>本份報告沒有採用老師文件，或產生於來源紀錄上線前。</p>
+        )}
+      </Section>
 
       <Section title="一、正式報告">
         <pre style={pre}>{run.final_text || "（無內容）"}</pre>

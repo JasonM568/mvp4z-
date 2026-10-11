@@ -24,13 +24,14 @@ function mockTables(tables: Record<string, Result | (() => never)>) {
     chain.select = () => chain;
     chain.eq = () => chain;
     chain.order = () => chain;
+    chain.range = () => Promise.resolve(result);
     chain.maybeSingle = () => Promise.resolve(result);
     chain.then = (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve);
     return chain;
   });
 }
 
-const doc = { title: "綜合判讀規則", extracted_text: "老師的判讀原則。", char_count: 8 };
+const doc = { id: "doc-1", title: "綜合判讀規則", term: null, extracted_text: "老師的判讀原則。", char_count: 8 };
 
 describe("報告設定載入", () => {
   afterEach(() => {
@@ -44,8 +45,7 @@ describe("報告設定載入", () => {
 
     expect(result.fallbackReason).toBe("no_published_profile");
     expect(result.settings).toBe(DEFAULT_PROMPT_SETTINGS);
-    expect(result.documentBlock).toContain("綜合判讀規則");
-    expect(result.documentBlock).toContain("老師的判讀原則。");
+    expect(result.documents).toEqual([doc]);
   });
 
   it("設定版本驗證失敗時也要保住文件", async () => {
@@ -56,10 +56,10 @@ describe("報告設定載入", () => {
     const result = await loadPromptSettings(Date.now());
 
     expect(result.fallbackReason).toBe("invalid_settings");
-    expect(result.documentBlock).toContain("綜合判讀規則");
+    expect(result.documents).toEqual([doc]);
   });
 
-  it("文件查詢失敗只讓 documentBlock 變空字串，不讓報告產不出來", async () => {
+  it("文件查詢失敗只讓 documents 變空陣列，不讓報告產不出來", async () => {
     mockTables({
       ai_prompt_profiles: { data: null },
       ai_documents: () => {
@@ -68,12 +68,12 @@ describe("報告設定載入", () => {
     });
     const result = await loadPromptSettings(Date.now());
 
-    expect(result.documentBlock).toBe("");
+    expect(result.documents).toEqual([]);
     expect(result.settings).toBe(DEFAULT_PROMPT_SETTINGS);
   });
 
   it("沒有任何勾選文件時為空字串", async () => {
     mockTables({ ai_prompt_profiles: { data: null }, ai_documents: { data: [] } });
-    expect((await loadPromptSettings(Date.now())).documentBlock).toBe("");
+    expect((await loadPromptSettings(Date.now())).documents).toEqual([]);
   });
 });

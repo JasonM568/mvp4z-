@@ -4,9 +4,8 @@
 // 「老師勾了什麼」而不是「報告真的用了什麼」。這兩者曾經整整一個月不一致
 // （文件庫顯示已納入 3741 字，實際一次都沒進過 prompt），而畫面看起來完全正常。
 //
-// 所以這裡刻意**呼叫報告管線用的同一組 loader**（loadPromptSettings / loadSchool），
-// 而不是自己再查一次表自己判斷。UI 顯示什麼，就是報告會拿到什麼，
-// 不留任何讓兩邊各自解讀的空間。
+// 這裡呼叫報告管線用的同一組 loader（loadPromptSettings / loadSchool）。
+// 文件依每份問題選段，所以這頁顯示「可供取用」，不宣稱整庫都會進單份 Prompt。
 //
 // 讀之前先清快取：後台是要看「現在真相」，不是看這個實例 60 秒前的印象。
 
@@ -22,6 +21,7 @@ import {
 } from "@/lib/ai/council/settings/load";
 import { invalidateSchoolCache, loadSchool } from "@/lib/school-settings/load";
 import { DOCUMENT_CHAR_BUDGET } from "@/lib/ai/council/settings/schema";
+import { DOCUMENT_PROMPT_CHAR_BUDGET } from "@/lib/ai/council/settings/document-selection";
 import { diffSchool } from "@/lib/school-settings/diff";
 
 /** 回退原因轉人話。老師看不懂 no_published_profile，但看得懂「還沒發布過」。 */
@@ -80,24 +80,30 @@ export async function GET(request: NextRequest) {
       readDraft(admin, "ai_school_profiles")
     ]);
 
-    // 勾選字數：這是「老師勾了什麼」。跟下面的 block_chars 是兩件事，
-    // 兩個數字都要給，因為它們不一致正是要被看見的訊號。
+    // 勾選字數與 loader 真正讀到的可用字數分開，便於發現載入失敗。
     let tickedCount = 0;
     let tickedChars = 0;
     try {
-      const { data } = await admin
-        .from("ai_documents")
-        .select("char_count")
-        .eq("include_in_prompt", true);
-      for (const row of data || []) {
-        tickedCount += 1;
-        tickedChars += Number(row.char_count) || 0;
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await admin
+          .from("ai_documents")
+          .select("char_count")
+          .eq("include_in_prompt", true)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(offset, offset + 999);
+        if (error) throw error;
+        for (const row of data || []) {
+          tickedCount += 1;
+          tickedChars += Number(row.char_count) || 0;
+        }
+        if ((data || []).length < 1000) break;
       }
     } catch {
-      // 文件表讀不到就讓字數維持 0；block_chars 仍然是可信的那一個。
+      // 文件表讀不到就讓勾選字數維持 0；loader 的可用字數另行顯示。
     }
 
-    const blockChars = prompt.documentBlock.length;
+    const availableChars = prompt.documents.reduce((sum, doc) => sum + doc.char_count, 0);
 
     return apiJson({
       ok: true,
@@ -114,9 +120,10 @@ export async function GET(request: NextRequest) {
           : null
       },
       documents: {
-        // 真相：documentBlock 是實際串進 prompt 的字串，長度含標題與說明行。
-        block_chars: blockChars,
-        reaching_prompt: blockChars > 0,
+        // 實際取用量依每份報告的問題而異，不在後台假造一個「實際送出」值。
+        reaching_prompt: prompt.documents.some((doc) => Boolean(doc.extracted_text?.trim())),
+        available_chars: availableChars,
+        per_report_budget: DOCUMENT_PROMPT_CHAR_BUDGET,
         ticked_count: tickedCount,
         ticked_chars: tickedChars,
         budget: DOCUMENT_CHAR_BUDGET,

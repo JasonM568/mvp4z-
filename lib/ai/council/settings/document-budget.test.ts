@@ -7,15 +7,15 @@
 
 import { describe, expect, it } from "vitest";
 import { DOCUMENT_CHAR_BUDGET } from "./schema";
+import { DOCUMENT_PROMPT_CHAR_BUDGET } from "./document-selection";
 
 describe("參考文件字數預算", () => {
-  it("足夠放下老師目前的三份判讀規則（20,525 字）", () => {
-    // 若日後有人想調小，這條會先擋下來並說明代價。
-    expect(DOCUMENT_CHAR_BUDGET).toBeGreaterThanOrEqual(20525);
+  it("規則庫可勾選 15 萬字", () => {
+    expect(DOCUMENT_CHAR_BUDGET).toBe(150000);
   });
 
   it("單份最大的文件（9,117 字）不會被截斷", () => {
-    expect(DOCUMENT_CHAR_BUDGET).toBeGreaterThan(9117);
+    expect(DOCUMENT_PROMPT_CHAR_BUDGET).toBeGreaterThan(9117);
   });
 
   it("不超過 DeepSeek 64K context 的安全範圍", () => {
@@ -23,6 +23,6 @@ describe("參考文件字數預算", () => {
     // 目前每次呼叫本身約 10.9K tokens。中文約 1 字 1 token，
     // 預留一半 context 給盤面、人設與品質門檻。
     const DEEPSEEK_CONTEXT = 64_000;
-    expect(DOCUMENT_CHAR_BUDGET).toBeLessThan(DEEPSEEK_CONTEXT / 2);
+    expect(DOCUMENT_PROMPT_CHAR_BUDGET).toBeLessThan(DEEPSEEK_CONTEXT / 2);
   });
 });

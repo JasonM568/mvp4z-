@@ -28,7 +28,7 @@ const TERM_LABELS = { bazi: "八字", qimen: "奇門", liuyao: "六爻", meihua:
 
 export default function AdminDocumentsPage() {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
-  const [budget, setBudget] = useState(24000);
+  const [budget, setBudget] = useState(150000);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -55,7 +55,7 @@ export default function AdminDocumentsPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "讀取文件失敗");
       setDocuments(body.documents || []);
-      setBudget(body.char_budget || 24000);
+      setBudget(body.char_budget || 150000);
       if (body.setup_required) setError(body.setup_required);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "讀取文件失敗");
@@ -174,19 +174,21 @@ export default function AdminDocumentsPage() {
           <div style={{ width: `${percentage}%`, height: "100%", background: includedChars > budget * 0.85 ? "#e6a95c" : "var(--green)" }} />
         </div>
         <p className="muted">
-          勾選「納入」的文件會整段送進報告的 Prompt（第一輪三個模型 ＋ 終稿，共 4 次），
-          所以總字數上限為 {budget.toLocaleString()} 字。
+          勾選的文件會進入規則庫，上限 {budget.toLocaleString()} 字。每份報告依問題與術數選取相關段落，
+          最多送入 24,000 字；完整原檔仍會保留。
+        </p>
+        <p className="muted">
+          修訂版上傳後，請取消勾選舊版；系統不會自行判定互相衝突的版本。單份文件超過規則庫上限時，
+          可先上傳保存，再依主題拆分並勾選要啟用的部分。
         </p>
         {includedChars > budget ? (
           <p style={{ color: "#ff8d7a", fontWeight: 700, marginTop: 8 }}>
-            ⚠️ 已超出 {(includedChars - budget).toLocaleString()} 字。超出的部分會被截斷成
-            「⋯（後略）」，排在後面的文件甚至完全不會進入報告。請取消勾選部分文件，
-            或把內容精簡後重新上傳。
+            ⚠️ 已超出 {(includedChars - budget).toLocaleString()} 字，請取消勾選部分文件。
           </p>
         ) : (
           <p className="muted" style={{ marginTop: 6 }}>
-            可上傳的檔案<strong>數量沒有上限</strong>；真正的限制是這裡的總字數。
-            上傳後預設「未納入」，要勾選才會進入報告。
+            可上傳的檔案<strong>數量沒有上限</strong>；勾選總量最多 {budget.toLocaleString()} 字。
+            上傳後預設「未納入」，要勾選才可供報告取用。
           </p>
         )}
       </section>
