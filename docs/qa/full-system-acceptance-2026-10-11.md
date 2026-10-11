@@ -402,3 +402,16 @@ X-PM 指定的窄範圍驗證已在候選 `78dff9c` 的真實路由函式上執�
 | DELETE Storage remove 失敗 | 替身 RPC 先刪文件列並寫一筆具 path 的 audit，再讓 Storage `remove` 回錯；路由回 503，log 可盤點 path、物件仍在；同 ID 重送回 404，audit 仍只有一筆，沒有再次呼叫 Storage。 | 通過，測後人工清掉替身物件／audit，fixture 0。 |
 
 兩個 QA 案例 **2/2**，與工程既有 route unit 合跑 **9/9**，候選 `tsc --noEmit` 通過。此證據驗證路由在可控 Storage 故障下的分支與回應；DB 提交／audit 持久化和真實 Storage 孤兒盤點由替身模擬，**不等於真實 HTTP＋DB／Storage 故障注入通過**。既有 POST RPC-error 補償分支僅引用工程 unit 覆蓋，沒有宣稱 HTTP 實測。上節未做故障注入的敘述僅指先前 C4 HTTP 批次；本節補的是隔離 route 測試。正式部署、跨服務故障演練與孤兒補清程序仍是 C19 驗收風險。
+
+### M21 空照片上傳額度：候選獨立回歸
+
+工程候選 `/private/tmp/xunfeng-m21` HEAD `e821bd539fac1340bcebd9d0494ea4f5db1fa2d6`，未推送／部署。QA 用候選 Next dev `127.0.0.1:3219`、C4 本機隔離 Supabase 與新建兩個臨時 A/B 帳號驗證。C4 已有 `upload_claim_token`／`upload_claimed_at` 欄位及配對 constraint，但 `20261012030000` **沒有登記於 migration history**；本批只驗候選路由對現有隔離 schema 的行為，不宣稱 QA 完成乾淨 migration replay。沒有套正式庫。品質服務是回傳可控 face geometry 的本機 HTTP stub；合成 PNG 經真實 Sharp 解碼／正規化，DB、Storage、Auth、route 皆使用隔離服務，未呼叫付費模型。
+
+| 面向 | 獨立結果 |
+|---|---|
+| 空上傳與權限 | 既有 `qa-face-upload-empty-local.mjs` **10/10**：匿名 401、B 傳 A 任務 404、非法／未知 ID 404，連送六次空表單皆 400 且 `upload_attempts=0`、status `created`；品質服務呼叫 0。 |
+| 有效圖片與帳務 | 新 `qa-face-upload-m21-local.mjs` 用同一 A 任務先回品質拒絕，再回合格：前者 `quality_rejected`／attempt 1／Storage 0，後者 `uploaded`／attempt 2／Storage 1／claim 釋放；各一筆相應 event，B 越權 404；權益、ledger、usage 前後一致。 |
+| 同任務並發 | N=2 **10/10 輪**：每輪新 run，一個 200、一個 409；只一個 quality provider 呼叫、attempt 1、Storage 物件 1、event 1、claim 釋放，點數無變。補充腳本總計 **19/19**。 |
+| 回歸與清理 | 工程候選 route unit **6/6**、`tsc --noEmit` 通過。補充腳本連續三次完整成功（前一次 Auth 建帳暫時失敗，未產生 fixture；重跑後成功）。最後逐 run 核對 events／資料列／Storage 0，兩個 Auth/profile 與帳務 fixture 0；DB 額外查詢 `qa-m21-%@example.test` Auth/profile 均 0；3219 已停止。 |
+
+**測試總結：**M21 原 4/10 缺陷在此候選隔離 HTTP 複驗已修至 10/10，圖片品質與 CAS 帳務也通過；原票可標記「隔離複驗通過、待整合／migration 乾淨重播／正式站驗收」。合成圖片配本機品質 stub 不證明真實人臉服務的判讀品質；正式站與付費提供者未測。QA 腳本用法：先以候選程式啟動本機 app，設定 `FACE_ANALYSIS_ENABLED=true`、本機 `FACE_QUALITY_PROVIDER_URL=http://127.0.0.1:3297`，清空付費模型金鑰，再執行 `node scripts/qa-face-upload-m21-local.mjs --base-url=http://127.0.0.1:<port> --env-file=<local-private-env> --provider-port=3297`。腳本自行建／刪隔離帳號與資料，拒絕非本機 Supabase URL。
