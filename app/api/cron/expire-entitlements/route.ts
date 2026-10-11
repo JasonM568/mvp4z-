@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
   const ids = targets.map((e) => e.id);
   const { data: updated, error: updateError } = await admin
     .from("member_entitlements")
-    .update({ status: "expired", updated_at: now })
+    .update({ status: "expired" })
     .in("id", ids)
     // 競態保護：這幾毫秒內若有人續訂把它改回 active，就不要覆蓋回去。
     .eq("status", "active")
