@@ -4,7 +4,7 @@
 
 ## 重現證據
 
-範圍：`POST /api/admin/invoices/{orderId}/issue` 與真實 `issueInvoiceFromOrder` helper。QA 使用本機 EZPay provider stub、記憶體 Supabase client；沒有 EZPay 網路呼叫、真資料庫、正式訂單或發票。
+範圍：`POST /api/admin/invoices/{orderId}/issue`、`POST /api/payments/ecpay/notify` 與真實 `issueInvoiceFromOrder` helper。QA 使用本機 EZPay provider stub、記憶體 Supabase client；沒有 EZPay 網路呼叫、真資料庫、正式訂單或發票。
 
 可重複命令：
 
@@ -20,9 +20,13 @@ npx vitest run --config scripts/qa-invoice-provider-success-row-failure.vitest.m
 4. API 回 500；發票列 0、audit 0；provider 呼叫 1 次。
 5. 對同一 order 重送。因查不到 pending／issued invoice，helper 再呼叫 provider；第二次 stub 成功後才插入 1 筆 issued row，API 回 200、audit 1。
 
-**預期：**第一次外部操作結果不確定時，重試不得不帶冪等保護地再次開票；需可用 merchant order key 查回／對帳 provider 結果，並持久化可重試狀態。
+**預期：**第一次外部操作結果不確定時，不得在沒有冪等保護下再次開票；需可用 merchant order key 查回／對帳 provider 結果，並持久化可重試狀態。
 
 **實際：**相同 `merchantOrderNo=QA_ORDER_20261011` 對 provider 發出兩次呼叫；第二次得到不同 stub 發票號碼並落一筆 row。證實 helper/route 會重複呼叫 provider；**EZPay 是否會拒絕或去重相同 merchantOrderNo、正式是否可能產生兩張發票未實測**。不得將 stub 結果描述為真實重複發票。
+
+另以 `npx vitest run --config scripts/qa-invoice-notify-provider-retry-after-row-failure.vitest.mts` 驗付款通知重送 **1/1 通過（缺陷重現）**：第一次 provider success 後 invoice INSERT error，notify 仍回 HTTP 200 `1|OK` 並送管理員告警；相同通知重送再次呼叫 provider，最後才有 1 invoice row。helper 會將 `merchantOrderNo` 截至 20 字，本例兩次呼叫皆收到同一截短值。此 stub 不證明 ECPay／EZPay 遠端通知時序或 provider 去重。
+
+付款通知重現步驟：送有效簽章的隔離付款 callback（測試以 verifier stub 固定成功）；provider stub 回成功；第一次 invoice INSERT 故障。檢查 notify 仍 ACK `1|OK`、invoice row 0，接著重送相同 callback，檢查 provider call count 增至 2 且最終 invoice row 1。測試沒有真的簽署 ECPay payload。
 
 ## 影響與驗收標準
 

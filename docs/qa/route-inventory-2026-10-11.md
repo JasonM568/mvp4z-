@@ -88,7 +88,7 @@
 | `/api/member/redeem` | POST | 隔離通過：N=10 原子兌換／rollback；正式待驗 |
 | `/api/member/usage` | GET | 隔離通過：A/B 使用量 API 所有權與匿名／壞 token 拒絕 |
 | `/api/orders/create` | POST | 部分已驗：M4 邊界及內部方案 code／ID 拒絕 9/9、推廣歸因；M5／C5 待規則 |
-| `/api/payments/ecpay/notify` | POST | 隔離通過：C4 四情境×20 輪；正式待驗 |
+| `/api/payments/ecpay/notify` | POST | C4 隔離四情境×20輪；C23 本機 provider stub 證實 invoice row INSERT fault 後 notify 仍 ACK `1|OK`，相同 callback 重送再次呼叫 provider（1/1）；未呼叫真 provider，正式待驗 |
 | `/api/payments/ecpay/return` | GET, POST | 隔離 dummy stage MAC 5/5：GET 導會員頁、偽造付款 pending、合法 MAC 導 paid；僅導回，真實交易與 UI 輪詢待驗 |
 | `/api/plans` | GET | 部分已驗：公開 GET 200 與 plans 結構（安全冒煙 21/21）；內部方案顯示／排序待驗 |
 | `/api/redeem` | POST | 舊路由無權杖 401，與新路由相同；有效兌換待驗 |
