@@ -470,6 +470,8 @@ X-PM 追加指定 stale 2 分鐘 lease 與獨立 event 故障。QA 延伸同一�
 
 QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 配合 in-memory DB／Storage 替身驗證 **7/7**：未設密鑰 500、缺／錯密鑰 401 且不開 DB；空候選 0；過期圖片精確刪除並清 DB path、未到期圖片保留、重跑不重記 event；Storage remove 故障時保留原 DB path 並記失敗 event；DB 更新故障時 Storage 已刪但 DB path 暫時懸空、回 200 並報該筆 failed，替身在故障解除後重跑可清 path 並各留下失敗／成功 event；101 筆過期圖片按 100＋1 分兩批清完。重跑：`npx vitest run --config scripts/qa-face-image-cron.vitest.mts`，`npx tsc --noEmit` 通過。這是**路由與替身證據**，未連真 Supabase Storage，故「不存在物件重刪仍成功」只是假設，不能宣稱真環境可自癒；未觀察正式 scheduler，也未測與上傳／刪除並發。M23 的無 DB 引用孤兒檔不在此排程查詢範圍。fixture 僅存在測試記憶體，結束清 0；UAT 該項仍未勾選。
 
+依 X-PM 要求嘗試在 QA 自有 `/private/tmp/xunfeng-qa-face-cron-20261011` 專用 stack 驗真 Storage：乾淨 DB 套完當前 **56 migrations** 並 seed；Auth／REST 曾回 200，但 Storage API 回 502，Storage 容器 log 顯示 Started Successfully 後仍持續 `health: starting`，health probe 對容器內 `127.0.0.1:5000` 連線被拒。改為包含 `imgproxy` 的標準依賴仍相同。沒有建立 Auth／run／照片 fixture，也未安裝故障 trigger或呼叫 cron；兩次 stack 均已停止並清除，容器與測試埠查 0。故真 Storage 對不存在 key 的 remove 回應、DB path 是否能清零、HTTP／failed 計數是否符合契約仍**未驗證**，不能由替身結果推論；目前無足夠證據開產品缺陷，這是環境阻擋的驗收缺口。M23 孤兒檔仍另案。
+
 ### B1／B3 整合候選：獨立完整 HTTP 假模型複驗
 
 候選 `/private/tmp/xunfeng-b3-b1-release` 固定 SHA `d5758bb`。QA 專用 `/private/tmp/xunfeng-qa-b1-stack` 使用候選 49 份 migration 乾淨重播，history count/distinct `49/49`、最後 `20261012000000`；DB／Auth／REST／Kong 在專用 58921／58922 埠健康，App 用同一候選重建 production build 於 3215，`/api/plans`、Auth health、REST 預檢各 200。首次啟動因不必要的 Storage health check 失敗，CLI 已停止該輪；改為只啟動必要服務後重播成功。沒有共用 C4 或正式資源。
