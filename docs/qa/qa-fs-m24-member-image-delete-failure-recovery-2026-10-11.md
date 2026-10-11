@@ -38,3 +38,9 @@ QA-owned RPC harness 已建立於 `scripts/qa-m24-image-delete-recovery.test.ts`
 ## 證據限制
 
 本 QA 只在替身驗證路由控制流程；真 Storage/DB 故障注入尚未執行。全系統隔離 Storage stack 曾因 Storage health check 失敗而中止，不能把替身結果當作正式產品實測。正式 DB 不可注入故障。
+
+## 最新候選 preflight（2026-10-11）
+
+候選 worktree `/private/tmp/xunfeng-m24-face-image-delete-recovery` 現為 clean HEAD `3412b4993a354c50934f356e0396ad3dadf8b942`，含 `7d9f285` 後續版號調整。QA 以該 SHA 重跑自有 route/RPC/Storage stub harness **5/5**；另將候選 commit 匯出至一次性副本並連接既有依賴，候選 route／Storage 單元測試 **6/6**。一次性副本已清除，工程 worktree 未修改。
+
+候選 migration 檔名為 `20261012050000_face_image_delete_recovery.sql`。此 branch migration 目錄只含 M24 這份 `20261012*` migration；M19/C19/M21/M22 整合 migration 不在此候選樹內，因此本次只核對版號安排，**沒有 clean replay／整合順序證據**。依 X-PM 指示，本次未操作 C4 或任何共用 DB/Storage。工程診斷的候選隔離 stack 曾 Storage OOM exit 137；另有既存 `xunfeng-qa-isolated-20261011` stack 回報 Storage container healthy 且 GET `/storage/v1/status`=200，但目前無法證實它的 fixture 已清空、是否正供其他測試使用或其唯一 owner，故不拿它做 M24 故障寫入或停機。真 DB/Storage 10 輪仍未驗。候選 6/6 與替身 5/5 不解除 M24 critical gate。

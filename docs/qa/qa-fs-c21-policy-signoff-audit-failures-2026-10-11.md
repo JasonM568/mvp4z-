@@ -1,6 +1,6 @@
 # QA-FS-C21：提示／學校規則發布與奇門簽核缺 audit
 
-**嚴重度：critical**　**狀態：待送 X-PM 定序／派工**
+**嚴重度：critical**　**狀態：X-PM 已接受並派工程1；待候選與隔離複驗**
 
 ## 範圍與證據
 
@@ -12,7 +12,9 @@ QA route＋記憶體 DB/audit 替身腳本：`scripts/qa-admin-policy-audit-fail
 
 Prompt／school 發布可能在無 audit 時改變之後報告採用設定；Qimen 簽核列可能表示老師已核對但無管理操作紀錄。修復須使 profile mutation／簽核與 audit 成為同一交易或有等價的 durable outbox；audit 寫入失敗時不可靜默回成功，已提交狀態須可追溯及冪等重試。
 
-隔離驗收：每個 route 正常及 audit INSERT 故障各 10 輪；發布故障時 profile 版本、cache 與 audit 同步回滾；簽核故障時 signoff row 及 cache 不變；兩管理員同時發布只產生一個狀態轉換與一筆 audit，重送簽核不造重複紀錄。驗匿名 401、會員 403、無 draft／不完整簽核 4xx，所有 fixture／trigger 清 0。
+隔離驗收：每個 route 正常及 audit INSERT 故障各 10 輪；發布故障時 profile 版本、cache 與 audit 同步回滾；簽核故障時 signoff row 及 cache 不變，移除故障後重試形成一筆 signoff 與一筆 audit；兩管理員同時發布只產生一個狀態轉換與一筆 audit。驗匿名 401、會員 403、無 draft／不完整簽核 4xx，所有 fixture／trigger 清 0。
+
+⚠ **待產品規則確認：**`qimen_signoffs` 為 append-only。成功簽核後的普通重送是否視為同一操作並去重，需另決定是否引入 idempotency key；本票不預設「成功後重送必須去重」，也不擅自改簽核語義。
 
 ## 證據限制
 
