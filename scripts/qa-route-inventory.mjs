@@ -8,6 +8,10 @@ import { execFileSync } from "node:child_process";
 
 const root = process.cwd();
 const appRoot = join(root, "app");
+const output = join(root, "docs/qa/route-inventory-2026-10-11.md");
+const previous = await readFile(output, "utf8").catch(() => "");
+const priorApi = readStatuses(previous, "## API routes", "## 頁面 routes");
+const priorPages = readStatuses(previous, "## 頁面 routes");
 const files = await walk(appRoot);
 const apiFiles = files.filter((file) => file.endsWith("/route.ts") && file.includes("/api/"));
 const pageFiles = files.filter((file) => file.endsWith("/page.tsx"));
@@ -17,19 +21,19 @@ for (const file of apiFiles) {
   const source = await readFile(file, "utf8");
   const route = toRoute(file, "route.ts");
   const methods = methodsFromSource(source);
-  rows.push([route, methods.join(", ") || "需判讀", apiStatus(route)]);
+  rows.push([route, methods.join(", ") || "需判讀", priorApi.get(route) || apiStatus(route)]);
 }
 rows.sort((a, b) => a[0].localeCompare(b[0]));
 const pages = pageFiles.map((file) => {
   const route = toRoute(file, "page.tsx");
-  return [route, pageStatus(route)];
+  return [route, priorPages.get(route) || pageStatus(route)];
 }).sort((a, b) => a[0].localeCompare(b[0]));
 
 const result = [
   `# API 與頁面驗收缺口清單（自動盤點）`,
   "",
   `產生基準：本機 commit \`${commit}\`；${rows.length} 個 API route 檔、${pages.length} 個頁面檔。執行 \`node scripts/qa-route-inventory.mjs\` 重建。`,
-  "本表的「部分已驗」只指欄中列出的情境；其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。",
+  "路由與方法由程式自動盤點；QA 狀態沿用上一版註記，重建不等於重測，程式改動後須人工複核。新增路由採既有預設狀態並待人工核實。其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。",
   "",
   "## API routes",
   "",
@@ -44,7 +48,6 @@ const result = [
   ...pages.map(([route, status]) => `| \`${route}\` | ${status} |`),
   ""
 ].join("\n");
-const output = join(root, "docs/qa/route-inventory-2026-10-11.md");
 await writeFile(output, result);
 console.log(`Wrote ${relative(root, output)}: ${rows.length} API routes, ${pages.length} pages`);
 
@@ -73,6 +76,18 @@ function methodsFromSource(source) {
     }
   }
   return [...set].sort();
+}
+function readStatuses(document, startHeading, endHeading) {
+  const start = document.indexOf(startHeading);
+  if (start < 0) return new Map();
+  const end = endHeading ? document.indexOf(endHeading, start + startHeading.length) : -1;
+  const section = document.slice(start, end < 0 ? undefined : end);
+  const map = new Map();
+  for (const line of section.split("\n")) {
+    const match = line.match(/^\| `([^`]+)` \| (?:[^|]+ \| )?([^|]+) \|$/);
+    if (match) map.set(match[1], match[2].trim());
+  }
+  return map;
 }
 function apiStatus(route) {
   const known = {

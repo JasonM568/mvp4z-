@@ -4,6 +4,7 @@
 
 ## 環境、證據與狀態
 
+- [API 與頁面路由清單](route-inventory-2026-10-11.md)已按目前程式重盤 **88 個 API route 檔／50 個頁面檔**，同步 B1／C19／M18–M22／C15 等較新候選證據。清單逐路由標明已驗範圍與待驗項；候選隔離通過不等於當前 main 或正式站通過。產生器保留人工核實的狀態註記，重跑不會覆蓋為舊硬編碼結果。
 - 本機：macOS / Next.js 15.5.23 / Node 專案依賴；`.env.local` 已配置。本輪無正式資料寫入、無真實付款、無 LLM 呼叫。
 - `npm run test:unit`：於 QA commit `20da8e3` 的當前 main 工作樹重跑，**74 test files passed／3 skipped；639 tests passed／2 expected fail／3 skipped**。兩個 expected fail 分別仍在 `app/api/ai/chat/route.qa.test.ts`（B1 同會員並發）與 `app/api/admin/credits/route.qa.test.ts`（C2 補扣點帳本），代表已知缺陷，不能當功能通過；候選隔離修復也不等於 main 已修。
 - `npx tsc --noEmit`：通過；`npm run build`：通過，117 靜態頁產出。

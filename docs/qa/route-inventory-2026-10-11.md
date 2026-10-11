@@ -1,7 +1,7 @@
 # API 與頁面驗收缺口清單（自動盤點）
 
-產生基準：本機 commit `d1d3128`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
-本表的「部分已驗」只指欄中列出的情境；其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。
+產生基準：本機 commit `3bcad03`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
+路由與方法由程式自動盤點；QA 狀態沿用上一版註記，重建不等於重測，程式改動後須人工複核。新增路由採既有預設狀態並待人工核實。其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。
 
 ## API routes
 
@@ -15,13 +15,13 @@
 | `/api/admin/course-registrations/[id]` | PATCH | 隔離通過：具名管理員跟進 PATCH、時間戳與 audit；非法／超長拒絕 |
 | `/api/admin/create-code` | POST | 隔離通過：具名管理員建立、非法／邊界、N=10 唯一碼與 audit 13/13；正式待驗 |
 | `/api/admin/credits` | POST | 不合格 C2：餘額與帳本不一致 |
-| `/api/admin/documents` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；C19 POST 上傳在 audit 故障時仍 201、DB／Storage 留文件但 audit 0；正常上傳、非法檔與正式站待驗 |
-| `/api/admin/documents/[id]` | DELETE, PATCH | C19 不合格：PATCH 啟用提示詞在 audit 故障時仍 200、已啟用；DELETE 在 audit 故障時仍 200、DB／Storage 已刪，兩者 audit 0；擴充腳本兩輪各 7/13。正常 PATCH 200／具名 audit 1、匿名 401；正常刪除／其他輸入／正式站待驗 |
+| `/api/admin/documents` | GET, POST | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 隔離 HTTP 正常／audit 故障原子性與 Storage、字數邊界 22/22，加 DB 並發 1/1；Storage 故障只有替身 2/2，正式整合／部署待驗 |
+| `/api/admin/documents/[id]` | DELETE, PATCH | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 的 PATCH／DELETE 正常、audit 故障回滾、title-only 相容性列入隔離 HTTP 22/22；Storage 故障只有替身 2/2，正式整合／部署待驗 |
 | `/api/admin/effective-settings` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；設定內容正確性待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/email-domain` | GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/face-analysis` | GET | M17 補修分支 `ced1432` 隔離 GET 複驗通過；後台兩路由合計 16/16，含 100／500 位數字 400；正式站待驗 |
-| `/api/admin/face-analysis/[id]` | GET | 不合格 M18：具名合法詳情／事件／audit、授權與 no-store 通過；非法／SQLi／500 字 id 均 500；與 preview 合計隔離 13/19，正式站待驗 |
-| `/api/admin/face-analysis/[id]/preview` | POST | 不合格 M18：無照片／過期照片 410、未知合法 UUID 404、匿名401／會員403及拒絕不寫 event 通過；非法／SQLi／500 字 id 均 500；有效照片簽名 URL 待驗 |
+| `/api/admin/face-analysis/[id]` | GET | 現行 main 非法 ID 仍 500；M18 候選 `2f672f0` 與整合候選隔離 21/21：壞 ID 400、未知 UUID 404、授權與詳情、有效私有預覽；正式整合／部署待驗 |
+| `/api/admin/face-analysis/[id]/preview` | POST | 現行 main 非法 ID 仍 500；M18 候選隔離 21/21 含有效私有簽名預覽、無圖／過期 410、匿名 401／會員 403；正式整合／部署待驗 |
 | `/api/admin/face-knowledge` | GET, POST | 部分已驗：具名管理員建立／查詢與非法輸入通過；C6 並發隔離回歸通過 |
 | `/api/admin/face-knowledge/[id]` | DELETE, PATCH | 部分已驗 C6：單／雙管理員 N=10 各 11 輪隔離通過；正式站待驗 |
 | `/api/admin/face-knowledge/[id]/revisions` | GET | 部分已驗 C6：隔離並發快照一致；正式站待驗 |
@@ -40,7 +40,7 @@
 | `/api/admin/invoices/[orderId]/issue` | POST | 部分已驗 C8：隔離 paid 訂單非法 body 7/7；合法 ezPay 開票／正式站待驗 |
 | `/api/admin/members` | GET | C16 修復分支隔離 API 9/9：205 筆跨五頁無漏、最舊 Email 搜尋、全域總數及非法 page／q／cursor；Ego UI 第 5 頁／搜尋通過，1,001 筆規模 11/11；正式整合／部署待驗 |
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
-| `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 最新隔離 API/DB 複驗通過：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego Lite 管理員 UI 遺失回應後重載同鍵重送，退款／交易／audit 各 1 且清理完成；正式 migration／站端待驗 |
+| `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 隔離 API/DB：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego 管理員 UI 遺失回應後同鍵重送，退款／交易／audit 各 1；正式 migration／站端待驗 |
 | `/api/admin/prompt-settings` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；草稿儲存待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/prompt-settings/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/provider-health` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；提供者實際可用性待驗；匿名／壞 token／會員拒絕已驗 |
@@ -56,28 +56,28 @@
 | `/api/admin/site-content/media` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/site-content/media/sign` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/token-usage` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；統計對帳待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/ai/chat` | POST | 不合格 B1：現行路由並發可送免費答案。舊候選隔離 DB／無模型 API 複驗通過；整合候選 d5758bb fresh migration 後 PG N=10 得 1 租約／9 忙碌，但 Auth／REST 健康逾時，真 HTTP 假模型並發未驗；正式站待修與回歸 |
+| `/api/ai/chat` | POST | 現行 main B1 不合格；整合候選 `d5758bb` 專用 49 migration stack 的假模型真 HTTP N=10×3 輪：各 1 答覆／扣點、9 筆 409，usage／ledger 一致，fixture 清 0；真模型與正式站待驗 |
 | `/api/ai/council` | POST | 既有正式證據：並發／日限額；瀏覽器找回待驗 |
 | `/api/auth/forgot-password` | POST | 部分已驗：帳號不洩漏；重設信待驗 |
 | `/api/auth/login` | POST | 部分已驗：正確／錯密碼 |
-| `/api/auth/logout` | POST | 隔離通過 C12：舊 access／refresh 均立即 401、重複登出 200，API 6/6；故障 UI 留存憑證並提示重試；正式站待驗 |
+| `/api/auth/logout` | POST | C12 隔離 API 6/6：舊 access／refresh 均立即 401、重複登出 200，故障 UI 留存憑證並提示重試；正式站待驗 |
 | `/api/auth/refresh` | POST | 部分已驗：有效／無效 refresh |
 | `/api/auth/register` | POST | 部分已驗：註冊／同手機並發；郵件待驗 |
 | `/api/bookings` | POST | 部分已驗：欄位邊界；M1／M3 待規則 |
 | `/api/chat` | POST | 舊路由無權杖 401，與新 `/api/ai/chat` 相同；有效會話及 B1 待修 |
 | `/api/courses/checkout` | GET, POST | 部分已驗：驗證與後端定價；M5 雙送待規則 |
-| `/api/cron/cleanup-face-images` | GET, POST | 部分已驗：匿名 401；排程實際執行待驗 |
+| `/api/cron/cleanup-face-images` | GET, POST | 路由＋記憶體 DB／Storage 替身 7/7：密鑰、空批、到期、批次、Storage 與 DB 更新故障；真 Storage 重試、正式排程、上傳競爭待驗 |
 | `/api/cron/cleanup-pending-orders` | GET | 隔離通過：密鑰拒絕、dry-run、舊 pending 清理及新 pending／paid 保留；正式排程待驗 |
 | `/api/cron/expire-entitlements` | GET | 隔離通過 C11：dry-run、過期狀態與點數保留、audit／重跑 13/13；正式排程待驗 |
 | `/api/cron/pending-drafts` | GET, POST | 部分已驗：匿名 401；排程實際執行待驗 |
 | `/api/cron/provider-health` | GET | 部分已驗：匿名 401；排程實際執行待驗 |
 | `/api/face-analysis/runs` | GET, POST | A/B 歷史列表通過；M17 補修分支 `ced1432` limit 邊界隔離 8/8，abc／SQLi／100／500 位均 400；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider／正式站待驗 |
-| `/api/face-analysis/runs/[id]` | DELETE, GET | 不合格 M19：A/B 所有權、本人刪除抹除與重送部分通過；N=5 並發曾產生 `run_deleted` 2 筆，已刪列 route 同款 claim 與 redact RPC 均可再執行；隔離腳本 13/15；有效照片／PDF 實體刪除待驗 |
-| `/api/face-analysis/runs/[id]/analyze` | POST | M20 不合格：有效會員直接 API，未知 UUID 404，非法／SQLi 形狀／500 字 id 均 500；與另五路由矩陣兩輪各 15/24。有效報告分析、扣點與 provider 待驗 |
+| `/api/face-analysis/runs/[id]` | DELETE, GET | 現行 main M19 競態仍開票；M19 候選與整合 production build 隔離 16/16：A/B、N=20、PII 抹除、一次事件、私有照片／PDF 刪除、重送；正式 migration／部署待驗 |
+| `/api/face-analysis/runs/[id]/analyze` | POST | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24、非法分析無 DB／Storage／點數副作用 4/4；有效新分析另以受控 Vision／報告替身與真隔離帳務驗證，真模型及正式站待驗 |
 | `/api/face-analysis/runs/[id]/image` | DELETE | 部分已驗：越權 DELETE 404；本人照片待驗 |
-| `/api/face-analysis/runs/[id]/pdf` | GET | QA-FS-M20：C4 隔離 DB／3214 app 兩輪各 7/10；本人完成報告 PDF 位元組與重取一致、跨會員 404、未完成 409、匿名／壞 token 401；非法、SQLi 形狀及 500 字 id 均 500。六路由矩陣重現；待修與正式站複驗 |
-| `/api/face-analysis/runs/[id]/preview` | GET | M20 不合格：有效會員直接 API，未知 UUID 404，非法／SQLi 形狀／500 字 id 均 500；越權 404 已驗，有效照片待驗 |
-| `/api/face-analysis/runs/[id]/upload` | POST | M21 不合格：空 multipart 前五次 400 但 `upload_attempts` 0→5，第六次 429，兩輪各 4/10；匿名401、越權404、非法／未知 ID404 且不計次數。有效照片、品質 provider、並發待驗 |
+| `/api/face-analysis/runs/[id]/pdf` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 PDF 11/11：本人位元組與重取一致、跨會員 404、未完成 409、壞 ID 400；正式站待驗 |
+| `/api/face-analysis/runs/[id]/preview` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24，A/B 有效私有照片預覽與拒絕路徑已驗；正式站待驗 |
+| `/api/face-analysis/runs/[id]/upload` | POST | 現行 main M21／M22 原缺陷仍開票；M22 整合候選 `15631e7` 隔離 29/29：空照片不計次、品質拒絕→合格、N=2×10、lease、event 故障原子回滾；M23 雙故障孤兒檔仍為 critical，真品質與正式站待驗 |
 | `/api/login` | POST | 舊路由空 body 400，與新路由相同；正常登入待驗 |
 | `/api/logout` | POST | 舊路由空 body 冪等 200，與 C12 新路由相同；有效 session 待驗 |
 | `/api/me` | GET | 舊路由無權杖 401，與新路由相同；有效會員待驗 |
@@ -147,6 +147,6 @@
 | `/member-pricing` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/member/reports/[id]` | 待驗：未有本輪頁面互動證據 |
 | `/privacy` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
-| `/reset-password` | C15 補修分支 `6bd59cd` QA Ego Lite 隔離 E2E 兩輪各 11/11：有效連結改密成功、新密登入舊密拒絕、已用／無連結／無效 token 提示與 hash 清空；正式站舊版仍 client-side exception，待部署、真實收信與站端回歸 |
+| `/reset-password` | C15 最小 release `5631c7f` QA Ego Lite 隔離 hash 兩輪各 11/11、PKCE code／過期／重用與新舊密驗證通過；正式站舊版仍 client-side exception，待部署、真實收信與站端回歸 |
 | `/services` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/thanks` | 本機 3104 基本渲染通過（h1／main／無 Application error）；實際預約提交與正式站待驗 |
