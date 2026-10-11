@@ -14,6 +14,10 @@ import { errorMessage, errorStatus } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CONTACT_STATUSES } from "@/lib/courses/registration-followup";
 
+const DEFAULT_LIMIT = 200;
+const MAX_LIMIT = 500;
+const SUMMARY_PAGE_SIZE = 1000;
+
 const FIELDS = [
   "id",
   "order_id",
@@ -42,10 +46,20 @@ const FIELDS = [
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request);
-    const admin = createSupabaseAdminClient();
     const url = new URL(request.url);
     const contact = url.searchParams.get("contact_status");
-    const limit = Math.min(Number(url.searchParams.get("limit") || 200), 500);
+    const contactFilter = contact && (CONTACT_STATUSES as readonly string[]).includes(contact) ? contact : null;
+    const rawLimit = url.searchParams.get("limit");
+    const limit = rawLimit === null ? DEFAULT_LIMIT : Number(rawLimit);
+
+    if (
+      rawLimit !== null &&
+      (!/^\d+$/.test(rawLimit) || !Number.isSafeInteger(limit) || limit < 1 || limit > MAX_LIMIT)
+    ) {
+      return apiJson({ error: "limit 必須是 1 到 500 的整數" }, 400);
+    }
+
+    const admin = createSupabaseAdminClient();
 
     let query = admin
       .from("course_registrations")
@@ -53,29 +67,46 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (contact && (CONTACT_STATUSES as readonly string[]).includes(contact)) {
-      query = query.eq("contact_status", contact);
+    if (contactFilter) {
+      query = query.eq("contact_status", contactFilter);
     }
 
     const { data, error } = await query;
     if (error) throw error;
 
     const rows = data || [];
-
-    // 摘要在後端算，前端不自己數列表——列表有 limit，數列表會在超過上限後少算。
     const summary = {
-      total: rows.length,
-      // 付款完成：以訂單的 paid_at 為準而不是報名的 status。
-      // 報名 status 要靠 webhook 回寫，而那條路徑本週才修好，舊資料可能沒跟上。
-      paid: rows.filter((r: any) => r.paid_at || r.orders?.paid_at).length,
-      // 待聯繫：招生真正要看的數字。
-      pendingContact: rows.filter((r: any) => (r.contact_status || "new") === "new").length,
-      byContact: rows.reduce<Record<string, number>>((acc: Record<string, number>, r: any) => {
-        const key = r.contact_status || "new";
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      }, {})
+      total: 0,
+      paid: 0,
+      pendingContact: 0,
+      byContact: {} as Record<string, number>
     };
+    for (let offset = 0; ; offset += SUMMARY_PAGE_SIZE) {
+      let summaryQuery = admin
+        .from("course_registrations")
+        .select("id, paid_at, contact_status, orders(paid_at)")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + SUMMARY_PAGE_SIZE - 1);
+      if (contactFilter) {
+        summaryQuery = summaryQuery.eq("contact_status", contactFilter);
+      }
+
+      const { data: page, error: summaryError } = await summaryQuery;
+      if (summaryError) throw summaryError;
+      const pageRows = page || [];
+      for (const row of pageRows as any[]) {
+        summary.total += 1;
+        // 付款狀態以訂單的 paid_at 為準，舊報名 status 可能尚未同步。
+        if (row.paid_at || row.orders?.paid_at) summary.paid += 1;
+        const contactStatus = row.contact_status || "new";
+        // 「待聯繫」對應資料預設狀態 new。
+        if (contactStatus === "new") summary.pendingContact += 1;
+        summary.byContact[contactStatus] = (summary.byContact[contactStatus] || 0) + 1;
+      }
+      if (pageRows.length < SUMMARY_PAGE_SIZE) break;
+    }
+
+    // 摘要涵蓋完整篩選集合，與返回清單的顯示筆數無關。
 
     return apiJson({ ok: true, registrations: rows, summary });
   } catch (error) {
