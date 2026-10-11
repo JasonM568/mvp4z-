@@ -370,3 +370,9 @@
 | 程式回歸 | 候選 `route.c19.test.ts` **7/7**、`tsc --noEmit` 通過；SQL 專用 fixture、Auth/profile、Storage 與故障 trigger 查無殘留，候選工作樹未改動。 | 其他共用 `writeAdminAudit` 呼叫入口不屬本次三路由修補，仍待盤點。 |
 
 **測試總結：**本次 C19 候選沒有新 BLOCKER／critical／minor 缺陷；三路由隔離複驗通過。原 C19 critical 票保留至整合、正式 migration、部署及站端回歸完成。Storage 清理失敗的運維程序與其他共用 audit 入口列為剩餘風險，不當作已驗收通過。
+
+### C19 整合閘門：migration 版號衝突（後續唯讀核對）
+
+X-PM 發現上述舊候選 `a3c8507` 的 `20261012010000_ai_documents_atomic_audit.sql` 與 M19 `20261012010000_face_analysis_delete_once.sql` 使用同一版號。工程1更新 C19 至 `8675390c749418585ad562042326e8710909b405`，補上「只有 PATCH 明確帶 `include_in_prompt=true` 才重查字數預算」的相容性條件；QA 唯讀核對後，**新版仍保留衝突的 `20261012010000` 版號**。因此上方 13/13／19/19 僅代表舊候選在單獨暫套 SQL 的 API 行為，不代表 M19+C19 可一起 migration replay、整合或部署。此版號衝突為整合 BLOCKER，已通知 X-PM／工程1；未對新版套 migration 或宣告通過。
+
+QA 已在自有 `qa-admin-document-audit-local.mjs` 準備三項待跑案例：用專用已啟用文件模擬既有總字數超預算，驗「只改標題」仍 200 並有具名 audit；明確再次啟用仍 400 且無額外 audit。待 C19 換成唯一 migration 版號、工程完成 M19+C19 乾淨 replay 後，以新 SHA 重跑原 13 項、擴充正常流程／Storage 與這三項相容性案例，再核對並發和 fixture 清理。此段案例尚未執行，不列為通過。

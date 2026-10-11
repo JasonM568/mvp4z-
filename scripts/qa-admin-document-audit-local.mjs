@@ -117,6 +117,10 @@ try {
     signal: AbortSignal.timeout(20_000), headers: { Authorization: `Bearer ${token}` }
   });
   if (preflight.status !== 200) throw new Error(`QA admin preflight HTTP ${preflight.status}`);
+  const preflightBody = await preflight.json();
+  const charBudget = Number(preflightBody.char_budget);
+  if (!Number.isSafeInteger(charBudget) || charBudget < 2)
+    throw new Error("QA document character budget unavailable");
   await db("ai_documents", "POST", [{ id: documentId, title: `QA scoped ${tag}`,
     category: "reference", term: "qimen", storage_path: fixturePath,
     original_name: "qa.md", mime_type: "text/markdown", size_bytes: 2,
@@ -139,6 +143,30 @@ try {
   check(healthyState.row?.title === `QA updated ${tag}` && healthyState.audits.length === 1
     && healthyState.audits[0].admin_user_id === profileId, "healthy PATCH has named audit",
   `audits ${healthyState.audits.length}`);
+
+  // A legacy included document may already exceed today's budget. Editing its
+  // title must remain possible; an explicit re-enable must still hit the gate.
+  await db(`ai_documents?id=eq.${documentId}`, "PATCH", {
+    include_in_prompt: true, char_count: charBudget + 1
+  });
+  const legacyTitleStatus = await patch(token, { title: `QA legacy title ${tag}` });
+  const legacyTitleState = await state();
+  check(legacyTitleStatus === 200 && legacyTitleState.row?.title === `QA legacy title ${tag}`
+    && legacyTitleState.row.include_in_prompt === true,
+    "title-only PATCH works on pre-existing over-budget included document",
+    `HTTP ${legacyTitleStatus}`);
+  check(legacyTitleState.audits.length === 2
+    && legacyTitleState.audits.every((audit) => audit.admin_user_id === profileId),
+    "title-only legacy PATCH has named audit", `audits ${legacyTitleState.audits.length}`);
+  const explicitEnableStatus = await patch(token, { include_in_prompt: true });
+  const explicitEnableState = await state();
+  check(explicitEnableStatus === 400 && explicitEnableState.audits.length === 2
+    && explicitEnableState.row?.include_in_prompt === true,
+    "explicit re-enable still enforces character budget without extra audit",
+    `HTTP ${explicitEnableStatus}`);
+  await db(`ai_documents?id=eq.${documentId}`, "PATCH", {
+    include_in_prompt: false, char_count: 2
+  });
 
   installFault(`new.admin_user_id = '${profileId}' and new.action = 'documents.upload'`);
   const uploadStatus = await upload(token);
