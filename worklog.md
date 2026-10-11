@@ -3253,3 +3253,10 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - QA-owned `scripts/qa-m23-option-a-spike.vitest.mts` 對候選重跑 **3/3**：雙故障持久狀態、已提交但 RPC 回應遺失時保護 attached 物件、舊 worker A 僅刪 A key 而保留 B，以及 legacy path preview（合併於案例）。先前 QA 自建 PostgreSQL 16.14 minimal scratch 已記錄首輪 SQL 狀態轉換，未執行真 HTTP response loss 或 Storage 操作。
 - 新增可重複 runner `scripts/qa-m23-cleanup-reclaim-local.sh`，在自建、使用後自動停止刪除的 native PostgreSQL cluster 上執行候選原始 SQL。runtime 重複 claim 重現：首 claim `may_delete=true`；記錄 `STORAGE_REMOVE_FAILED` 後再 claim 回 `cleanup_pending / may_delete=false`，attempt 仍為 1。未使用 Supabase、Storage 或共用 DB。
 - 將已實測缺口與具體 reclaim／並發驗收標準補入 M23 spike review、QA-FS-M23 ticket 與 route inventory。M23/M22 仍非正式通過；需工程修正候選後再以隔離 DB/Storage 驗證，並保留真 Supabase Storage、clean replay、HTTP response loss 未驗的界線。
+
+
+## 2026-10-12｜C2 PostgreSQL int4 輸入邊界補驗
+
+- C2 QA route suite 新增超出 PostgreSQL int4 正／負界限案例（`2,147,483,648`、`-2,147,483,649`），兩者均要求在建立 DB client 前回 400。現行 route schema 僅 `.int()`，不能拒絕這兩個整數；使用 `it.fails` 明確保留預期失敗，不宣稱真 DB 已返回特定 HTTP 狀態。
+- `./node_modules/.bin/vitest run --config scripts/qa-c2-admin-credits-boundaries.vitest.mts` 結果 **11 passed、2 expected fail／13 tests**；`npx tsc --noEmit`、`git diff --check` 通過。Migration `0001_init.sql` 確認餘額及交易 amount 欄位均為 `integer`；實際 PostgreSQL／HTTP 超界錯誤和副作用仍未驗。
+- 更新 C2 ticket、full-system matrix、route inventory、UAT M08 與本 worklog。QA-UAT M08 保持未執行；C2 critical、產品超額扣點規則待決，未提升驗收狀態。

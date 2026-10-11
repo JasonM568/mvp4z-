@@ -12,9 +12,11 @@
 
 ### 後續 route boundary 複驗（2026-10-12）
 
-QA-owned `scripts/qa-c2-admin-credits-boundaries.test.ts` 使用 deterministic DB stub，執行 `./node_modules/.bin/vitest run --config scripts/qa-c2-admin-credits-boundaries.vitest.mts`，**11/11 通過**：非法／SQLi 形狀 UUID、amount 0／小數／非數值、days 3651、note 501 均 400 且不建立 DB client；note 500 的正常 +4 補點由 5→9、ledger／audit 各一；管理員拒絕 403 且不開 DB；無有效權益扣點 404 且無寫入；併發 lost update 如上。`npx tsc --noEmit` 通過。
+QA-owned `scripts/qa-c2-admin-credits-boundaries.test.ts` 使用 deterministic DB stub，執行 `./node_modules/.bin/vitest run --config scripts/qa-c2-admin-credits-boundaries.vitest.mts`。目前 **11 passed、2 expected fail（13 tests）**。11 個通過案例覆蓋非法／SQLi 形狀 UUID、amount 0／小數／非數值、days 3651、note 501、note 500 正常 +4 補點、管理員拒絕、無有效權益扣點及 route stub 併發。兩個明確 `it.fails` 邊界案例要求 amount 高於 `2,147,483,647` 或低於 `-2,147,483,648` 時，在建立 DB client 前回 400；現行 Zod schema 只驗 `.int()`，兩值均通過該驗證並進入 mock DB path，預期斷言失敗。
 
-以上皆為 route＋替身證據，未連真資料庫或 API stack，沒有真實會員／權益／交易資料寫入；不證明 Supabase transaction 競態。極端數字與正式端到端仍待驗。
+這兩例只證明 route/mock 的驗證缺口。`supabase/migrations/0001_init.sql` 將 `member_entitlements.credits_remaining` 與 `credit_transactions.amount` 定義為 PostgreSQL `integer`，因此欄位範圍為 int4；實際 HTTP／PostgreSQL 對超界值的錯誤狀態與是否有任何副作用**尚未實測**，不可記為已觀察到 500。修復後應加入明確 int4 範圍驗證，並在隔離 API/DB 驗證上下界及越界輸入均不產生餘額、ledger、audit 副作用。
+
+其餘邊界案例皆為 route＋替身證據，未連真資料庫或 API stack，沒有真實會員／權益／交易資料寫入；不證明 Supabase transaction 競態。int4 越界兩例是 route mock 的 expected fail，實際 DB/API 結果仍待隔離驗證；正式端到端亦未完成。
 
 ## 重現步驟
 
@@ -38,7 +40,7 @@ QA-owned `scripts/qa-c2-admin-credits-boundaries.test.ts` 使用 deterministic D
 
 帳本 amount 可能不等於餘額實際變化，使營運對帳、退款／授權計算與稽核紀錄失真；audit 故障時改帳成功但沒有操作者軌跡。並發下可能遺失一筆餘額更新；這項影響待隔離複驗。
 
-修復後須先記錄產品選定的超額規則，再於專用隔離 API／DB 驗證：正常加點與扣點；超額及零餘額邊界；audit INSERT 與 ledger INSERT fault 原子回滾；雙管理員 N=2／N=10 並發後餘額等於起始餘額加所有成功 ledger delta；管理員授權、未知會員／無有效權益、非法／小數／極端金額及 500／501 字 note；重試不得重複增減點；fixture／audit／故障 trigger 清零。每個故障和競爭案例至少 10 輪，修復後移除 `it.fails` 改正常斷言並跑完整相關回歸。
+修復後須先記錄產品選定的超額規則，再於專用隔離 API／DB 驗證：正常加點與扣點；超額及零餘額邊界；int4 `-2,147,483,648`／`2,147,483,647` 上下界與兩側越界值；audit INSERT 與 ledger INSERT fault 原子回滾；雙管理員 N=2／N=10 並發後餘額等於起始餘額加所有成功 ledger delta；管理員授權、未知會員／無有效權益、非法／小數金額及 500／501 字 note；重試不得重複增減點；fixture／audit／故障 trigger 清零。每個故障和競爭案例至少 10 輪，修復後移除 `it.fails` 改正常斷言並跑完整相關回歸。
 
 ## 待決與派工
 

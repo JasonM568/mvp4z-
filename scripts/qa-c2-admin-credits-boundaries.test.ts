@@ -128,6 +128,18 @@ describe("QA-FS-C2 admin credit adjustment boundaries (route + deterministic DB 
     expect(state.clientCalls).toBe(0);
   });
 
+  it.fails("rejects an amount above PostgreSQL integer range before opening the DB client", async () => {
+    const response = await POST(request({ user_id: userId, amount: 2_147_483_648 }));
+    expect(state.clientCalls).toBe(0);
+    expect(response.status).toBe(400);
+  });
+
+  it.fails("rejects an amount below PostgreSQL integer range before opening the DB client", async () => {
+    const response = await POST(request({ user_id: userId, amount: -2_147_483_649 }));
+    expect(state.clientCalls).toBe(0);
+    expect(response.status).toBe(400);
+  });
+
   it("rejects a debit without an active entitlement and leaves all ledgers untouched", async () => {
     state.entitlement = null;
     const response = await POST(request({ user_id: userId, amount: -1 }));
