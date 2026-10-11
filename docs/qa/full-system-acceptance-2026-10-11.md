@@ -426,3 +426,19 @@ X-PM 追加指定 stale 2 分鐘 lease 與獨立 event 故障。QA 延伸同一�
 | QA-FS-M22 event INSERT 故障 | 只對新專用 run ID 建 scoped `BEFORE INSERT` trigger，令 `face_analysis_events` 寫入拋錯；有效合成圖品質通過、Storage 上傳成功後呼叫路由。**預期**：失敗後 `storage_path` 不指向已刪物件；**實際**：HTTP 500、run `status=uploaded`、`storage_path` 非空、Storage 0、event 0、attempt 1。補償刪除物件已發生，但 DB row 更新獨立提交，會員後續可能無法預覽／分析。 | **1 項失敗，critical，新票，非 M21 空上傳修補造成。**無扣點；故障 trigger、函式、run/events/Storage/Auth/profile/帳務清 0。 |
 
 最新腳本結果為 **24/25**，唯一失敗項是 QA-FS-M22；因此腳本以非零狀態結束，不能把 25 個測項宣稱全通過。原 M21 空上傳 **10/10**、有效圖／N=2×10／stale lease 回收均通過，仍待正式整合與部署。QA-FS-M22 派工 ticket：**嚴重度 critical**；影響為 `uploaded` 任務記錄指向不存在照片，可能使預覽、分析與續作失敗。驗收標準是 event 寫入故障時，DB 任務不得留下失效 `storage_path`，或系統須保留可復原物件與一致事件；正常品質拒絕／合格、CAS 與重送仍須通過。複驗方式：在專用 run 上重跑腳本 scoped trigger 案例，檢查回應、DB row/event、Storage 與清理；不使用正式資料。此票已送 X-PM 排序，待工程1獲派修復。
+
+### M18／M20／M19／C19／M21 整合候選 production build 回歸
+
+整合分支 `/private/tmp/xunfeng-face-release-m21` HEAD `b04b08e33e5d10533937d920f29446b965ad9e2f`，基底 `origin/main 1935618`，精選六個工程提交；QA 確認分支工作樹乾淨。候選 production build 在 `127.0.0.1:3231`，連 C4 本機隔離 API。QA 用自有腳本直接打 3231；腳本只建專用 fixture，使用工程保留的 repo 外 local-only A/B 憑證檔時沒有輸出或修改內容。未觸碰正式庫或付費模型。
+
+| Slice | 整合端點代表案例 | 結果 |
+|---|---|---|
+| M18 | `qa-admin-face-detail-local.mjs`：具名管理員詳情／預覽、匿名／會員拒絕、壞 ID／SQLi／超長 ID、未知 UUID、無照片／過期 410、有效私有預覽、隱藏 Storage path。 | **21/21** |
+| M20 | `qa-face-run-id-routes-local.mjs` 六路由 ID 矩陣；`qa-face-pdf-local.mjs` A/B、PDF 位元組與重取、完成分析重送；`qa-face-analyze-invalid-side-effects-local.mjs` 直接非法 analyze 與 DB／Storage／點數零副作用。 | **24/24＋11/11＋4/4** |
+| M19 | `qa-face-delete-local.mjs`：A/B、會員直呼 RPC 拒絕、同 run DELETE N=20、PII redaction、一次事件、照片與 PDF 刪除、重送及已刪 claim 防重入。 | **16/16** |
+| C19 | `qa-admin-document-audit-local.mjs`：三路由 audit 故障原子性、正常文件與 Storage 生命週期、超預算舊文件 title-only 相容；字數預算 DB 並發腳本。 | **22/22＋1/1** |
+| M21 | `qa-face-upload-empty-local.mjs`：A/B、非法／未知 ID、六次空 multipart 均 400 且 attempt 0。 | **10/10** |
+
+合計 **108/108 個整合端點代表檢查通過**，另 C19 DB 並發 **1/1**。整合候選 M21＋C19 route unit **13/13**、`tsc --noEmit`、`git diff --check` 通過。各腳本回報 run／event／Storage／audit／Auth／profile 清理；QA 額外查 `qa-face-detail-*`、`qa-face-delete-*`、`qa-document-audit-*`、`qa-m21-*` 的 Auth/profile、故障 trigger、文件皆 **0**。工程另回報獨立 DB 從 origin/main 乾淨 replay **50/50** 且最後 M19→C19→M21 migration 依序存在；QA **沒有獨立重播**，C4 migration history 仍為 0，不能用這批 HTTP 結果代替正式 migration gate。
+
+**測試總結：**整合候選五個 slice 的代表 API 回歸通過，沒有新 BLOCKER；既有 **critical QA-FS-M22**（event INSERT 故障使 `uploaded` row 指向已刪 Storage）仍開票，這批 3231 代表腳本未重新故障注入，不把它列為通過。正式站、完整 UI、真品質提供者與 M20 有效新分析主流程在這個 production build 尚未重跑；先前各分支隔離證據仍有效，但不替代整合驗收。
