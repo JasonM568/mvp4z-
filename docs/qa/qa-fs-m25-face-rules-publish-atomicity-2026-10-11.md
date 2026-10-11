@@ -1,6 +1,6 @@
 # QA-FS-M25：面相規則草稿／發布非原子與 audit 遺失
 
-**嚴重度：critical**　**狀態：X-PM 已接受並派工程1；⚠ 是否要求具名管理員待決，不納入本票驗收**
+**嚴重度：critical**　**狀態：候選 `5192e21ca64ba86f0e27e8d5b4f5c84c79e80940` 隔離複驗通過；main／正式站未修復部署，critical gate 未結。⚠ 是否要求具名管理員待決，不納入本票驗收**
 
 ## 範圍與證據
 
@@ -17,6 +17,15 @@ QA route＋記憶體 DB/audit 替身腳本：`scripts/qa-face-rules-publish-audi
 | audit INSERT 回 `{ error }` | 發布不可回報成功；變更須回滾或保留待補記狀態 | HTTP 200；舊版已 archived、新版已 published、cache 已清，audit 0 |
 | publish UPDATE 故障（舊版封存已提交） | 發布交易原子回滾，舊版仍 published、draft 仍 draft | HTTP 500；舊版 archived、draft 尚為 draft，暫無 published profile |
 | 共用 `ADMIN_KEY` 成功發布 | 依現行授權允許發布，audit 的 `admin_user_id` 維持 null | HTTP 200，audit row actor 為 null |
+
+## 整合候選獨立複驗
+
+- 候選：`/private/tmp/xunfeng-m25-face-rules`，HEAD `5192e21ca64ba86f0e27e8d5b4f5c84c79e80940`，worktree clean；候選含 M19/C19/M21/M22/M24/C20/C23/C21/C22/M25 變更。未修改候選或共用 QA 檔，未使用 C4／正式資料。
+- QA disposable Supabase **DB-only** stack 由候選 Supabase 專案自動全新套用 **57/57 migrations**；`schema_migrations` count/distinct 均 `57/57`，尾端版本為 C22 `20261012080000`、C21 `20261012090000`、M25 `20261012100000`。
+- 一次性 source copy 中執行候選 M25、C21 prompt settings、C22 provider approval route tests：**3 files／27 tests passed**；`npx tsc --noEmit` 通過。未修改工程 worktree。
+- 在同一 57 migration QA DB 上，M25、C21、C22、M19、C19、M22、C20、C23 的 SQL transaction／fault／ACL contract tests 全部通過。M24 SQL contract **本輪未重跑**：該原始測試固定最小 scratch DB guard／fixture，無法直接對此完整 schema 執行；不得把本輪列為 M24 複驗。
+- 另以獨立資料庫 session 對同 draft 做 publish race **10 輪**；每輪恰好一個成功、一個衝突，最終只有一筆 published profile，audit 對應成功轉換。專用 profile、face_rule_profiles 與 publish audit fixture 清理後查得 0；SQL tests 均使用 rollback。DB-only stack 已停止，未使用 Auth／REST／Storage service。
+- 此證據能支持候選 DB 原子性與競態行為；不等於 HTTP + Supabase API 整合、consumer/cache、真 Storage 或正式站通過。主線原缺陷仍存在，需在整合 build 部署後做指定 SHA 的 API／UI 回歸。
 
 ## 影響與驗收標準
 

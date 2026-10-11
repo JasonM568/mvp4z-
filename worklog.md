@@ -3142,6 +3142,18 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 確認兩個 expected fail 是 Chat 1 點並發只交付一份回覆的 B1 BLOCKER，以及管理員扣點 ledger amount 必須等於實際餘額變化的 C2 critical。主線仍保留這兩項未結 gates；候選隔離測試不替代 main 通過狀態。
 - 已在 `docs/qa/full-system-acceptance-2026-10-11.md` 更新當前 baseline 與失敗案例名稱。
 
+## 2026-10-12｜M25 整合候選獨立複驗收尾與隔離清理
+
+### 範圍與結果
+- 獨立檢視 `/private/tmp/xunfeng-m25-face-rules` HEAD `5192e21ca64ba86f0e27e8d5b4f5c84c79e80940`；未修改工程 worktree。候選 route suites（M25、C21 prompt settings、C22 provider approval）3 files／27 tests 通過，`npx tsc --noEmit` 通過。
+- 在 QA 自有 Supabase DB-only disposable project 全新 replay 57/57 migrations；history count/distinct 均 57/57，尾端順序 C22 `20261012080000` → C21 `20261012090000` → M25 `20261012100000`。
+- M25、C21、C22、M19、C19、M22、C20、C23 SQL fault／transaction／ACL tests 通過。M25 publish 同 draft DB 競態 10 輪，逐輪 1 success／1 conflict；最終單一 QA draft published 並有對應 audit。
+- SQL 與併發 fixture 清 0；只停止自己的 `qa-m25-independent-20261011` DB-only project，未停止 SSH listener 或其他 Supabase stack。工程候選與既有兩個 user-owned refund scripts 均未修改。
+
+### 限制與待辦
+- 原始 M24 SQL test 限定最小 scratch DB guard／fixture，本輪未在完整 57 schema 執行；不得計為 M24 複驗。未啟 Auth／REST／Storage，也未跑 HTTP、瀏覽器、consumer/cache 或正式站回歸。
+- 更新全系統矩陣、M25 ticket、route inventory、UAT M04/M05，記錄候選通過範圍並保留正式 gate。最終 `git diff --check` 通過；QA 文件待提交，使用者退款腳本不 stage。
+
 ### 票務狀態對齊
 - 清理全系統文件的舊派工狀態：C20/C23 已有整合候選隔離複驗結果，改為候選通過、正式 gate 未結；C21 維持已派工程1；C22 更新為已送 X-PM 定序／派工。
 - 補記 C20/C23 ticket 對 `3f3eec5` 的候選 route/SQL 證據及真 EZPay 限制；保留原始缺陷重現與正式發布風險。
