@@ -104,7 +104,7 @@ function apiStatus(route) {
     "/api/admin/course-registrations/[id]": "隔離通過：具名管理員跟進 PATCH、時間戳與 audit；非法／超長拒絕",
     "/api/admin/referrals": "部分已驗 C7：隔離建立／並發改率 audit 11 輪通過；正式站及 C5 歸因規則待驗",
     "/api/admin/orders": "不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500",
-    "/api/admin/orders/[id]/refund": "部分已驗 C10：最新 SQL 與具名管理員 API 核心帳務一致；不合格 C13 序列／N=10 並發重送多記退款／扣點，M16 超額／全退後再送 500；正式站待驗",
+    "/api/admin/orders/[id]/refund": "部分已驗 C10：最新 SQL 與具名管理員 API 核心帳務一致；不合格 C13 重送多記、C14 audit 故障退款仍成功、M16 錯誤碼 500；正式站待驗",
     "/api/admin/invoices": "部分已驗：具名管理員 pending 發票列表與訂單連結；開票／退款待驗",
     "/api/admin/invoices/[orderId]/issue": "部分已驗 C8：隔離 paid 訂單非法 body 7/7；合法 ezPay 開票／正式站待驗",
     "/api/admin/face-knowledge": "部分已驗：具名管理員建立／查詢與非法輸入通過；C6 並發隔離回歸通過",

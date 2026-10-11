@@ -2,6 +2,7 @@
 // Local-only named-admin refund HTTP/DB regression; never contacts ECPay.
 import { readFile } from "node:fs/promises";
 import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 
 const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
@@ -10,6 +11,7 @@ const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
 const baseUrl = args["base-url"]?.replace(/\/$/, "");
 const replay = args.replay === "true";
 const concurrentReplay = args.replay === "concurrent";
+const auditFault = args["audit-fault"] === "true";
 if (!args["env-file"] || !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(baseUrl || "")) {
   throw new Error("Provide local --base-url and --env-file");
 }
@@ -20,6 +22,9 @@ const env = Object.fromEntries((await readFile(args["env-file"], "utf8"))
 if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(env.API_URL || "")
   || !/^http:\/\/(localhost|127\.0\.0\.1):\d+\/rest\/v1$/.test(env.REST_URL || "")
   || !env.SERVICE_ROLE_KEY || !env.ANON_KEY) throw new Error("Refusing non-local Supabase");
+if (auditFault && !/^postgres(ql)?:\/\/[^@]*@(localhost|127\.0\.0\.1):\d+\//.test(env.DB_URL || "")) {
+  throw new Error("Audit fault injection requires local DB_URL");
+}
 
 const service = createClient(env.API_URL, env.SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const anon = createClient(env.API_URL, env.ANON_KEY, { auth: { persistSession: false } });
@@ -30,6 +35,8 @@ const users = [
   { email: `qa-refund-member-${suffix}@example.test`, role: "member" }
 ];
 let orderId, entitlementId, passed = 0;
+let faultInstalled = false;
+const faultName = `qa_refund_fault_${suffix}`;
 function check(ok, label, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"} ${label}${detail ? `: ${detail}` : ""}`);
   if (ok) passed++;
@@ -49,6 +56,12 @@ async function api(path, method = "GET", token = "", body, shared = false) {
     "Content-Type": "application/json"
   }, body: body === undefined ? undefined : JSON.stringify(body) });
   return { status: response.status, body: await response.json().catch(() => ({})) };
+}
+function sql(statement) {
+  const result = spawnSync("psql", [env.DB_URL, "-v", "ON_ERROR_STOP=1", "-q"], {
+    input: statement, encoding: "utf8", maxBuffer: 1024 * 1024
+  });
+  if (result.status !== 0) throw new Error(`Local SQL fault setup failed: ${(result.stderr || "").slice(0, 180)}`);
 }
 try {
   for (const user of users) {
@@ -108,7 +121,36 @@ try {
   check((await db(`refunds?select=id&order_id=eq.${orderId}`)).length === 0,
     "invalid requests leave no refund rows");
 
-  if (concurrentReplay) {
+  if (auditFault) {
+    sql(`begin;
+      create function public.${faultName}() returns trigger language plpgsql as $$
+      begin
+        if new.target_id = '${orderId}' and new.action = 'order_refund_manual' then
+          raise exception 'QA_REFUND_AUDIT_FAILURE';
+        end if;
+        return new;
+      end $$;
+      create trigger ${faultName} before insert on public.admin_audit_logs
+        for each row execute function public.${faultName}();
+      commit;`);
+    faultInstalled = true;
+    const result = await api(path, "POST", admin.token, payload(99));
+    const [refunds, transactions, audits, [entitlement], [currentOrder]] = await Promise.all([
+      db(`refunds?select=id&order_id=eq.${orderId}`),
+      db(`credit_transactions?select=id,source&ref_id=eq.${orderNo}`),
+      db(`admin_audit_logs?select=id&target_id=eq.${orderId}`),
+      db(`member_entitlements?select=id,credits_remaining&id=eq.${entitlementId}`),
+      db(`orders?select=id,status&id=eq.${orderId}`)
+    ]);
+    check(result.status === 500 && refunds.length === 0
+      && transactions.filter((row) => row.source === "order_refund").length === 0
+      && audits.length === 0 && entitlement.credits_remaining === 20
+      && currentOrder.status === "paid",
+      "audit failure rolls back refund, credits and order together",
+      `HTTP ${result.status}, refunds ${refunds.length}, refundTx ${transactions.filter((row) => row.source === "order_refund").length}, audits ${audits.length}, balance ${entitlement.credits_remaining}, status ${currentOrder.status}`);
+    sql(`drop trigger ${faultName} on public.admin_audit_logs; drop function public.${faultName}();`);
+    faultInstalled = false;
+  } else if (concurrentReplay) {
     const responses = await Promise.all(Array.from({ length: 10 }, () =>
       api(path, "POST", admin.token, payload(99))));
     const [rows, transactions, audits, [entitlement], [currentOrder]] = await Promise.all([
@@ -183,6 +225,9 @@ try {
   }
   }
 } finally {
+  if (faultInstalled) {
+    sql(`drop trigger if exists ${faultName} on public.admin_audit_logs; drop function if exists public.${faultName}();`);
+  }
   if (orderId) {
     await db(`admin_audit_logs?target_id=eq.${orderId}`, "DELETE");
     await db(`refunds?order_id=eq.${orderId}`, "DELETE");
@@ -203,6 +248,6 @@ for (const [table, filter] of [
   ["member_entitlements", `id=eq.${entitlementId}`], ["credit_transactions", `ref_id=eq.${orderNo}`],
   ["admin_audit_logs", `target_id=eq.${orderId}`]
 ]) if ((await db(`${table}?select=id&${filter}`)).length) throw new Error(`QA ${table} fixture remains`);
-const total = concurrentReplay ? 14 : replay ? 15 : 19;
+const total = auditFault || concurrentReplay ? 14 : replay ? 15 : 19;
 console.log(`${passed}/${total} named-admin refund HTTP/DB checks passed; fixtures cleaned`);
 if (passed !== total) process.exitCode = 1;
