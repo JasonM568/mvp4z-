@@ -59,3 +59,18 @@ npx vitest run --config scripts/qa-invoice-provider-success-row-failure.vitest.m
 | 全序 migration replay | QA 自有 Supabase DB-only + Storage-schema stack；`supabase migration list --local` 與 `supabase_migrations.schema_migrations` aggregate | 此候選 worktree **58/58** 唯一版本 replay，`0001` 到 `20261012070000`；候選 SQL contract test 在該 DB 再通過。Storage 容器 health 一直停在 `starting`，未驗 Storage/API 服務。QA fixture 已刪，volume 以 `--no-backup` 移除，臨時 project 與埠已清除。 |
 
 **整合範圍限制：**該 58 migration worktree 基底 `1935618` 中沒有 M19/C19/M21/M22/M24 的 `20261012010000` 至 `20261012050000`。因此 58/58 是 C20/C23 分支自身乾淨 replay，不能當作包含上述五個 slice 的整合 replay；整合 SHA 的 migration 數量須從實際合併後 migration tree 重新計數並全序 replay（M23 尚未採納，不含 migration）。本次 SQL／ACL／併發與管理員 HTTP stub 通過可支持碰撞修補的隔離證據，但尚未在整合 release SHA 複驗，也未呼叫真 EZPay。原 C23 provider 重試／真實 EZPay 冪等契約風險仍是 critical gate；不得因碰撞案例通過而關閉 C23。
+
+## Provider-success / local commit failure retry boundary (2026-10-12)
+
+QA-owned isolated test command:
+
+```sh
+./node_modules/.bin/vitest run --config scripts/qa-c23-provider-row-failure-retry.vitest.mts
+```
+
+Against clean candidate `/private/tmp/xunfeng-m24-c20-c23` HEAD `3f3eec5652dfb58280d19e53c99b6bbd4d63811f`, the test injects the first `complete_ezpay_invoice_issue` transaction failure after a successful local provider stub response, then retries the same order:
+
+- Provider search returns the matching invoice: retry reuses it; total issue calls **1**, search calls **1**, local invoice is recovered.
+- Provider search explicitly returns `INV20006`: helper sends a second request using the exact persisted `encrypted_post_data`; total issue calls **2**, search calls **1**. This verifies the code reuses the same encrypted body, but does not establish that EZPay actually applies the documented idempotency contract or that a real provider will not create a duplicate.
+
+Result: **2/2 passed** in a disposable archive copy of the candidate; archive and test copy were removed. No real EZPay request, invoice, or database was used. The exact-request retry branch is conditional on provider `INV20006`; timeout, malformed lookup, and provider contract remain separate unresolved release risks. Candidate worktree remained clean.

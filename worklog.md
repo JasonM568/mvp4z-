@@ -3199,3 +3199,11 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - QA route/RPC stub harness 5/5；候選一次性 source archive 的 `tsc --noEmit` 通過。候選／正式 DB／C4 未修改。
 - 限制：全 migration SQL 在 native PostgreSQL 上 replay，使用手動記錄 history 與最小 Auth/Storage schema shim；不是 Supabase CLI／Auth／Storage stack。沒有真 HTTP、Storage fault、正式部署回歸。QA-FS-M24 critical 與 UAT F03 維持未通過。
 - 新增 QA runner `scripts/qa-m24-full-schema-local.sh`；更新 M24 ticket、full-system matrix、route inventory、UAT；`bash -n`、`git diff --check` 通過。
+
+
+## 2026-10-12｜C23 provider-success 重送分支補驗
+
+- 唯讀核對整合候選 `/private/tmp/xunfeng-m24-c20-c23` HEAD `3f3eec5652dfb58280d19e53c99b6bbd4d63811f`，候選 worktree clean；未使用 EZPay 真服務或正式／C4 資料。
+- 在一次性 `git archive` 副本中以本機 provider、RPC 替身注入首次 `complete_ezpay_invoice_issue` 交易失敗後重送。新增可重複 QA 測試 `scripts/qa-c23-provider-row-failure-retry.test.ts` 與 Vitest config：查到原 provider 發票時總 issue=1；查詢明確回 `INV20006` 時重送使用同一 `encrypted_post_data`，總 issue=2；**2/2 通過**。副本已清除。
+- 確認並記錄 provider 契約限制：stub 只證明程式查詢與重用原封裝 payload；未證明 EZPay 對重複 PostData 的實際冪等效果。C23 critical／正式 gate 維持，需 stage provider 契約或可查詢結果驗證。
+- 更新 C23 ticket 與全系統矩陣；候選 worktree 未變。待執行 TypeScript／diff 驗證及 QA 檔案定向提交；兩個 refund user scripts 保持原狀、不 stage。
