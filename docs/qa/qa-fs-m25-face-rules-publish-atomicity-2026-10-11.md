@@ -19,7 +19,7 @@ QA route＋記憶體 DB/audit 替身腳本：`scripts/qa-face-rules-publish-audi
 
 規則可能在沒有稽核紀錄時切換；若第二次更新失敗，系統可能暫時沒有 published profile。這影響面相規則的可追溯性與服務可用性。替身只證明路由控制流；真實 DB constraints、交易狀態、並發與實際 consumer/cache 行為尚未複驗。
 
-修復須以單一 DB transaction/RPC 完成舊版封存、新版發布與具名 audit；任何資料庫步驟失敗時，三者保持原狀且 cache 不失效。隔離驗收：正常發布、無 draft、audit INSERT 故障、publish update 故障各 10 輪；同時兩個管理員競爭發布 10 輪，只允許一個合法完成、始終最多一筆 published 且 audit 恰一筆。匿名 401、會員 403；成功後 consumer 讀到新 profile，所有 fixture／故障 trigger 清 0。
+修復須以單一 DB transaction/RPC 完成舊版封存、新版發布與具名 audit；任何資料庫步驟失敗時，三者保持原狀且 cache 不失效。隔離驗收：正常發布、無 draft、audit INSERT 故障、publish update 故障各 10 輪；兩管理員同時發布同一 draft 共 10 輪，最後最多一筆 published 且只有一筆「狀態轉換」audit，第二請求可明確回 409 或冪等 200（不得重複轉換／重複 audit）。匿名 401、會員 403；成功後 consumer 讀到新 profile，所有 fixture／故障 trigger 清 0。
 
 ## 商業規則與安全界線
 
