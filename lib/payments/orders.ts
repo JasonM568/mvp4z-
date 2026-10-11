@@ -25,7 +25,7 @@ export type InvoiceRequest = z.infer<typeof invoiceRequestSchema>;
 
 export const createOrderSchema = z.object({
   plan_id: z.string().uuid("方案格式錯誤").optional(),
-  plan_code: z.string().trim().min(1, "請選擇方案").optional(),
+  plan_code: z.string().trim().min(1, "請選擇方案").max(64, "方案代碼不可超過 64 字").optional(),
   invoice_request: invoiceRequestSchema.optional()
 }).refine((value) => value.plan_id || value.plan_code, {
   message: "請選擇方案"
