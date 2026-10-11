@@ -28,7 +28,7 @@
 | `/api/admin/face-knowledge/bulk` | POST | 隔離通過 C6：具名送審／發布／封存各唯一版本、revision、audit；共用 key 403，正式待驗 |
 | `/api/admin/face-knowledge/export` | GET | 隔離 API 8/8：匿名／壞 token 401、會員 403、具名管理員 JSON 200＋attachment/no-store；28 卡 ID 與 DB 全數同序、重取一致，Auth/profile 清 0。大量卡片與正式站待驗 |
 | `/api/admin/face-knowledge/import` | POST | 部分已驗 C6：新卡／upsert 版本與 audit 正確；M14 同批重複 card_id 回 500，正式待驗 |
-| `/api/admin/face-provider-approval` | DELETE, GET, POST | QA-FS-C22 POST/DELETE route＋替身各重現 audit INSERT error 後仍 200 且狀態 active/revoked、audit 0；真 DB／OpenAI provider 未驗；具名管理員授權程式檢查待動態確認 |
+| `/api/admin/face-provider-approval` | DELETE, GET, POST | main 舊版 POST/DELETE route 替身曾重現 audit INSERT error 後仍 200 且狀態已變、audit 0。候選 `a98d7ad` route 8/8；55/55 DB-only replay；C22 SQL fault/ACL 10/10、N=2 race 10/10，fixture 0。無 HTTP stack／OpenAI／正式站驗收；critical gate 維持 |
 | `/api/admin/face-review-questions` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-rules` | GET, POST | main QA-FS-M25 route＋記憶體 DB/audit 替身：draft audit INSERT error 後仍 HTTP 200、audit 0；81 字版本標籤 400 零寫入。候選 `5192e21` route test、M25 SQL fault／ACL 通過；尚無 HTTP＋真 DB stack 證據；⚠ 是否將現行 ADMIN_KEY 改為具名管理員待決 |
 | `/api/admin/face-rules/publish` | POST | main 舊版 QA-FS-M25 替身 7/7 重現 audit error 時 profile 已切換但 audit=0、publish UPDATE 故障可暫無 published profile。候選 `5192e21` route＋SQL 通過；QA disposable DB 同 draft併發 10 輪各 1 成功／1 衝突；HTTP／consumer/cache／正式站未驗；critical gate 維持 |

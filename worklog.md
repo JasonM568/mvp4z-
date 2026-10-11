@@ -3152,7 +3152,19 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 ### 限制與待辦
 - 原始 M24 SQL test 限定最小 scratch DB guard／fixture，本輪未在完整 57 schema 執行；不得計為 M24 複驗。未啟 Auth／REST／Storage，也未跑 HTTP、瀏覽器、consumer/cache 或正式站回歸。
-- 更新全系統矩陣、M25 ticket、route inventory、UAT M04/M05，記錄候選通過範圍並保留正式 gate。最終 `git diff --check` 通過；QA 文件待提交，使用者退款腳本不 stage。
+- 更新全系統矩陣、M25 ticket、route inventory、UAT M04/M05，記錄候選通過範圍並保留正式 gate。`git diff --check` 通過，QA 文件已於 commit `16f459f` 提交；使用者退款腳本未 stage。
+
+## 2026-10-12｜QA-FS-C22 候選獨立 DB／並發複驗
+
+### 範圍與證據
+- 對 `/private/tmp/xunfeng-c22-provider-approval` HEAD `a98d7ad66a05a7098f27e46afdc7e324583f372e` 的一次性來源副本執行 `route.c22.test.ts` **8/8**，`npx tsc --noEmit` 通過；工程 worktree 未修改。
+- QA 自有 Supabase DB-only stack 從空 DB replay **55/55** migrations，history count/distinct 均 55/55，最後 migration `20261012080000`。`face_provider_approval_atomic_audit.sql` **10/10** 通過，覆蓋 transaction audit fault rollback、approve/revoke/reapprove/update、冪等 no-op、admin actor 與 ACL/RLS。
+- 新增 QA script `scripts/qa-face-provider-approval-c22-concurrency-local.sh`；專用 DB 上雙管理員同一 approval N=2 競態 **10/10**，每輪一個 changed、一個 no-op、approval/audit 各 1，輪後清除；最終 approval/profile/audit count 均 0。腳本限定 QA project marker 與 `127.0.0.1:59841/postgres`。
+- 僅本機 DB function 測試；未啟用／呼叫真 API HTTP、未呼叫 OpenAI。隔離 stack 與一次性來源副本已停止／刪除，無專用容器、volume、listener 殘留。首次 start exclusion alias 使用錯誤，意外啟動了本 project 的 API/Auth/Storage containers；測試開始前已停止並以 CLI 回報的正確名稱重啟為 DB-only，未向服務送出請求或建立 fixture。
+
+### 待驗與文件
+- 候選 HTTP + Supabase Auth/PostgREST end-to-end、正式站部署後核准／撤銷流程及供應商設定行為仍未驗；不呼叫 OpenAI 是本輪既定邊界。
+- 更新 C22 ticket、全系統矩陣、route inventory 與客戶 UAT M10；`bash -n scripts/qa-face-provider-approval-c22-concurrency-local.sh` 與 `git diff --check` 通過。QA 文件與腳本待指定檔 staging/commit；退款 scripts 保持未 stage。
 
 ### 票務狀態對齊
 - 清理全系統文件的舊派工狀態：C20/C23 已有整合候選隔離複驗結果，改為候選通過、正式 gate 未結；C21 維持已派工程1；C22 更新為已送 X-PM 定序／派工。
