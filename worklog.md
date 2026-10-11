@@ -3213,3 +3213,9 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 - 於 main HEAD `9807c84` 重跑 `npx vitest run`：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）。兩個預期失敗仍為 B1 同會員並發問答與 C2 補扣點帳本金額一致性，必須維持阻擋功能通過的狀態。
 - C23 新增的 2 個獨立 boundary tests 以專用 Vitest config 執行，不包含在預設 test include；避免把兩套結果混為單一總數。
+
+
+## 2026-10-12｜API／頁面功能盤點基準刷新
+
+- 於 main HEAD `79a45eb` 執行 `node scripts/qa-route-inventory.mjs`，從 app tree 重算 88 個 API route 檔與 50 個頁面檔，與既有矩陣基準數量一致；未發現新增路由或頁面缺少 QA 狀態列。
+- 更新 route inventory 的生成基準至 `79a45eb`。此為來源盤點，不代表重測；逐路由待驗項與正式站 gate 保持原狀。`git diff --check` 通過。

@@ -1,6 +1,6 @@
 # API 與頁面驗收缺口清單（自動盤點）
 
-產生基準：本機 commit `3bcad03`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
+產生基準：本機 commit `79a45eb`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
 路由與方法由程式自動盤點；QA 狀態沿用上一版註記，重建不等於重測，程式改動後須人工複核。新增路由採既有預設狀態並待人工核實。其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。
 
 ## API routes
