@@ -68,6 +68,7 @@
 - 同腳本 `--replay=concurrent` 以完全相同的 99 元請求 N=10 同時打 API，C4 隔離庫連續 **4/4 輪**都出現 2 筆 200、8 筆 500、2 筆退款／扣點交易／audit、餘額 20→1；每輪 12/14（另一失敗為 M16 超退 500），專用資料逐輪清 0。QA-FS-C13 在序列與並發重送皆可穩定重現。
 - 同腳本 `--audit-fault=true` 對專用訂單的 `order_refund_manual` audit INSERT 注入 DB exception：API 仍回 200，退款 1 筆、扣點交易 1 筆、權益 20→11、訂單 partially_refunded，audit 0（QA-FS-C14）；整輪 12/14，另一失敗為 M16。`lib/auth/admin.ts` 的 `writeAdminAudit` 忽略 insert error，退款 RPC 與 audit 分兩次提交。臨時 trigger/function、QA Auth/profile/order/refund/ledger 均清 0。
 - 工程 `6e6f4a4` 以 `20261011200000_refund_idempotency_atomic_audit.sql` 將 UUID 冪等鍵、退款、點數、訂單與具名 audit 放入同一 RPC 交易。QA **僅在 C4 本機隔離庫直接套 SQL，未寫 migration history、非正式部署**；Next clone 3104 更新至該 commit。QA 腳本加入冪等鍵：正常 99＋100、超額 400／全退後新請求 409、ledger/audit 對帳 **20/20**；同鍵序列重送只 1 筆效果、同鍵不同金額 409 **17/17**；同鍵 N=10 並發 **4/4 輪各 15/15**，十請求均 200、退款／扣點交易／audit 各 1；audit INSERT 故障 **15/15**，HTTP 500 且退款／扣點／audit 0、餘額 20、訂單仍 paid。工程整合腳本另 20 輪 N=10 及故障後同鍵重試 **6/6**，route 單元 **4/4**。Ego Lite 管理員 UI 另以隔離訂單模擬「伺服器已回 200、瀏覽器遺失回應」：重新整理仍保留同一 UUID 與表單，重送後提示沿用原退款紀錄；DB 恰 1 筆 99 元退款、1 筆 -9 點交易、1 筆具名 audit，餘額 11、訂單 partially_refunded，UI 僅 1 列；logout 後 auth token 0、所有 fixture 清 0。臨時 trigger、QA profile/order 均額外核對 0；正式 migration、外部退款與發票回歸仍待。
+- `scripts/qa-admin-reads-local.mjs` 以 C4 隔離 API/DB 自建具名管理員，對 23 個後台讀取路由逐一 GET，**23/23 均 HTTP 200 JSON、無 error 欄**；涵蓋課程產品、文件、有效設定、面相規則／教學／審核、prompt、提供者狀態、奇門校對、Token 用量等空／既存資料狀態。未呼叫 Resend 寄件網域或任何外部付費測試端點。Auth/profile 清 0；這是讀取冒煙，不證明資料內容與寫入流程正確。
 - `scripts/qa-member-read-local.mjs` 在本機隔離 API/DB 以 A/B 測試會員自建 pending／paid 訂單與 usage，**11/11 通過**：匿名／壞 token 401，A/B 訂單及使用量互不洩漏，paid 訂單在權益未建立前 `activated=false`、建立後輪詢轉 `true`，對方以 order_no 查仍 0 筆，SQLi 形狀訂單號 0 筆。權益、使用量、訂單在 `finally` 逐筆清理核對；未呼叫真實金流。
 - `scripts/qa-site-unpublish-local.mjs` 在獨立 C4 本機隔離 DB／3102 dev API 重現 QA-FS-M12：服務表原本 9 筆已上架，先下架 1 筆，公開 API 正確由 9→8；再全部下架並核對 DB 公開筆數 0，API 卻回靜態 JSON 的 9 筆，腳本 exit 1。`finally` 恢復並核對 9 筆原發布旗標，正式內容未改；CDN 快取與其他內容型別仍待驗。
 - 獨立 QA 執行 `scripts/qa-redeem-atomic-local.mjs`（本機 3101＋隔離庫）兩輪：每輪同碼 N=10 恰 1 個 200／9 個 400，唯一權益與交易同會員且點數 37；故障注入的交易 INSERT 失敗回 500，碼仍 unused、交易／權益增量 0。每輪刪除新碼與衍生列後核對 0 殘留。**隔離環境 B2 複驗通過；正式庫 migration／部署後複驗仍未完成。**
@@ -110,7 +111,7 @@
 | 發票與退款 | 付款後開票、失敗可重試、退款帳務一致 | ezPay 失敗／重送、錯統編、未退款卻登錄 | B2C／B2B、載具、捐贈碼、部分退款 | 重試開票／雙重退款 | A/B 發票 RLS 已驗；C8 非法補開票 7/7；C10 分次退款核心帳務通過；C13/C14/M16 最新 migration 隔離 HTTP/DB 複驗：正常 20/20、同鍵重送與異金額 17/17、N=10 並發 4 輪各 15/15、audit 故障回滾 15/15；Ego Lite 後台斷線重送只留 1 筆退款／交易／audit。正式 migration、外部開票／退款、作廢／折讓未驗 |
 | 通知與忘記密碼信 | 註冊／付款／警報郵件寄達 | provider 429／失敗不阻主交易 | 空收件人、退信、模板超長 | webhook 重送不重寄 | 待驗；Supabase custom SMTP 未接 |
 | 推廣歸因／分潤 | 有效碼綁定，訂單可追溯 | 無效碼、停用碼、猜碼不洩資料 | 空碼、大小寫、特殊字元 | 註冊與下單同時／重送 | 隔離庫公開查碼 8/8、會員建單歸因／比例快照 4/4；C7 具名管理員建立／改率／停用及 N=10 audit 11 輪隔離複驗通過；C5 停用後帶他人 cookie 轉歸他人待規則決策；註冊當下與正式資料待驗 |
-| 後台營運與 CMS | 具名管理員可管理會員、訂單、預約、課程、內容與 audit | 無 token／會員 token 403；未授權直接 API | 空表、分頁、上傳 2MB、超長內容 | 雙管理員編輯同一資料 | 73 個 handler × 匿名／無效 bearer／有效會員，共 219/219；具名管理員後台 23/23 靜態路由殼層導航、預約 11/11、建碼 13/13、課程跟進與列表修補後 17/17；會員清單 205 筆隔離資料時漏 5 筆且總數誤顯 200（C16，3/4）；其他後台寫入待驗 |
+| 後台營運與 CMS | 具名管理員可管理會員、訂單、預約、課程、內容與 audit | 無 token／會員 token 403；未授權直接 API | 空表、分頁、上傳 2MB、超長內容 | 雙管理員編輯同一資料 | 73 個 handler × 匿名／無效 bearer／有效會員，共 219/219；具名管理員 23 個 GET 路由 23/23 冒煙、後台 23/23 靜態路由殼層導航、預約 11/11、建碼 13/13、課程跟進與列表修補後 17/17；會員清單 205 筆隔離資料時漏 5 筆且總數誤顯 200（C16，3/4）；各 GET 內容對帳及其他寫入待驗 |
 | 排程與清理 | 到期權益、pending 訂單、面相圖片按時清理 | 無 CRON_SECRET 或偽造 token 拒絕 | 空候選、批次上限、剛付款競爭 | cron 重入與付款 webhook 同時 | **C11 隔離複驗 13/13 通過**：權益／舊 pending 清理、保留點數、audit 與重跑正常；正式排程、面相圖片及付款競爭待驗 |
 | RLS／資料安全 | 本人可讀、其他會員不可讀，service role 不外露 | 直接打 Supabase／API 越權、SQL injection 嘗試 | 空資料、異常 UUID、超長篩選字串 | 權限撤銷後舊 token | 匿名對 11 張有資料表的樣本讀取已驗；隔離庫 A/B 核心會員、財務、課程、使用量與報告跨會員讀取及直接寫入封鎖已驗；其他表／RPC 待驗 |
 
@@ -160,6 +161,7 @@
 37. **登出與 refresh 撤銷（C12 隔離 4/4）**：`node scripts/qa-logout-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。本機隔離帳號登入、讀會員 API、呼叫登出，原 refresh token 再換發 401；逐筆刪 Auth/profile。Ego Lite 另驗會員與管理員雙分頁、兩顆本機 token 清除，正式站待驗。
 38. **具名管理員退款與故障回滾（C10/C13/C14/M16 隔離複驗通過）**：`node scripts/qa-refund-admin-api-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env` 驗角色、非法輸入、試算、99＋100 元、帳本與具名 audit，最新 migration 下 20/20；加 `--replay=true` 驗同鍵序列重送及異金額 409（17/17），`--replay=concurrent` 驗 N=10 並發（4 輪各 15/15），`--audit-fault=true` 驗 audit INSERT 故障全回滾（15/15）。只接受 localhost API/DB，專用帳號與訂單均清理；本機 app 設 `ADMIN_KEY=qa-face-shared-only`。正式 migration／站端仍待。
 39. **管理員會員列表容量邊界（C16 3/4，expected fail）**：`node scripts/qa-admin-members-cap-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。自建具名管理員與 205 筆專用會員，預期清單、搜尋及摘要可涵蓋所有 205 筆；實際 `/api/admin/members` 僅回 200、5 筆不可見、summary.total 200。腳本 `finally` 批次刪除專用 profile/Auth 並核對 0；修復後目標 4/4。
+40. **具名管理員後台讀取冒煙（23/23）**：`node scripts/qa-admin-reads-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。逐一 GET 23 個不呼叫外部服務的後台 API，均為 200 JSON 且無 error；專用 Auth/profile 清 0。僅驗路由正常讀取；資料內容、寫入及正式站待驗。
 
 ## 效能與壓力測試提案
 
@@ -172,6 +174,7 @@
 | 預約／課程／訂單建立 | 2 QPS、p95 < 3 秒，無重複權益 | DB 多表寫入、外部金流參數 | 僅隔離庫／沙箱；每請求唯一 key，核對訂單與報名列 |
 | AI 問答／報告／面相 | 每會員最多 1 進行中；報告 p95 < 240 秒 | LLM 429、300 秒 function 上限、寫入與扣點競爭 | 先 mock provider 壓 API，再用小批專用帳號真實提供者；設成本上限 |
 | 綠界通知重送 | 同單 10 並發，開通／交易／通知各恰 1 | `commit_paid_entitlement`、課程報名狀態競爭 | 合法測試 MAC＋隔離訂單，逐表快照；不碰真實會員訂單 |
+| 後台會員搜尋／分頁 | 5 QPS、p95 < 2 秒；1,000 會員全可找回 | 固定 200 上限、深分頁與權益關聯查詢 | 隔離庫 1,000 專用會員，按 Email 查首／中／尾頁，核對真實總數與跨頁唯一性；結束清 0 |
 
 ## 客戶 UAT 清單（逐項勾選）
 
