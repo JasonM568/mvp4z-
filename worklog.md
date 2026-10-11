@@ -3291,3 +3291,9 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 64 ASCII octets 正常 dispatch；65／260 octets 回 400、Auth call=0；合成 email/token/action link/provider message 均未出現在候選 logger arguments。沒有真 Supabase Auth、寄信、rate limit 或正式日誌管線驗證。
 - C24 候選隔離 route 驗收通過，整合／真 Auth／寄信／正式站仍待驗。C25 隱私斷言通過；X-PM 接受固定 event/error type/safe code 為足夠的隱私最低記錄，correlation ID 改列後續診斷改善，候選隱私修補通過、正式日誌管線待部署後核查。已同步兩票、全系統矩陣、route inventory、A03 UAT；UAT 未執行。
 - `npx tsc --noEmit`、`git diff --check` 通過；不觸及正式資料、Auth、郵件或退款 user scripts。
+
+
+## 2026-10-12｜main 全套 Vitest 基線重跑
+
+- main HEAD `408134d` 執行 `npx vitest run`：**75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）**。兩個 expected-fail 仍為 B1 同會員問答並發與 C2 ledger amount mismatch。
+- `npx tsc --noEmit` 與 `git diff --check` 通過。忘記密碼修復候選專用 suite 不在預設 include，獨立結果為 C25 2/2、C24 7/7；main route 對照仍有兩個缺陷失敗。退款 QA user scripts 保持未提交。

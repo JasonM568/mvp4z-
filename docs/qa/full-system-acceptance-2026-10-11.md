@@ -581,3 +581,7 @@ Ego Lite 對正式站 10 個公開頁面以 390px、320px CSS viewport 唯讀檢
 ### current main QA baseline refresh（2026-10-12）
 
 於 main HEAD `ab602fa` 重跑 `npx vitest run`：**75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）**；`npx tsc --noEmit` 及 `git diff --check` 通過。兩個 expected-fail 仍是 B1 同會員問答並發及 C2 ledger amount mismatch，維持 BLOCKER／critical gate。M23 Option A 獨立 suite 另計 3/3；cleanup retry reclaim 缺口仍可由 QA native PostgreSQL runner 重現，不能由全套 Vitest 綠色退出碼視為解除。工作樹中既存兩個退款 QA 腳本修改未納入本次基線或提交。
+
+### current main full-suite baseline refresh（2026-10-12）
+
+於 main HEAD `408134d` 執行 `npx vitest run`：**75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）**。預期失敗仍為 B1 同會員問答並發與 C2 ledger amount mismatch，不能視為通過。另有 QA 專用 forgot-password suite：main 對照 **5 passed、2 failed**，重現 C24/C25；固定候選 C25 `bed10dc7` 2/2、C24 `e856c3f` 7/7。`npx tsc --noEmit`、`git diff --check` 通過；使用者退款腳本未納入。
