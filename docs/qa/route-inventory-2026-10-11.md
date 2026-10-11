@@ -61,7 +61,7 @@
 | `/api/auth/forgot-password` | POST | 既有隔離 Auth API 9/9 含 known／unknown email 均 HTTP 200；QA route/Auth stub 6 passed、3 expected fail／9：Auth success/provider error 對外一致，格式錯誤在 Auth 前拒絕，64-octet local-part 邊界可用；65／260-octet local-part 仍送 Auth、provider error log 含原始 email（QA-FS-C24/C25）；N=10 均 dispatch 至 Auth stub，真 Auth rate limit／寄信與正式站待驗 |
 | `/api/auth/login` | POST | 部分已驗：正確／錯密碼 |
 | `/api/auth/logout` | POST | C12 隔離 API 6/6：舊 access／refresh 均立即 401、重複登出 200，故障 UI 留存憑證並提示重試；正式站待驗 |
-| `/api/auth/refresh` | POST | 部分已驗：有效／無效 refresh |
+| `/api/auth/refresh` | POST | 既有隔離 Auth API `qa-register-local.mjs` 驗有效／無效 refresh；新 route/Auth stub suite 5/5：missing／blank／null／malformed 400、不呼叫 Auth，expired／revoked／incomplete response 統一 401，成功回傳 rotated credentials；同 token N=2 只驗 route 各 dispatch 一次，真 Supabase rotation/reuse 行為及正式站待驗 |
 | `/api/auth/register` | POST | 部分已驗：註冊／同手機並發；郵件待驗 |
 | `/api/bookings` | POST | 部分已驗：欄位邊界；M1／M3 待規則 |
 | `/api/chat` | POST | 舊路由無權杖 401，與新 `/api/ai/chat` 相同；有效會話及 B1 待修 |

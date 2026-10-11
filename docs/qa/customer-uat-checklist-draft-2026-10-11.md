@@ -13,7 +13,7 @@
 | W01 | 桌機及 320／375px 手機依導覽開首頁、服務、案例、課程、方案、預約、隱私頁 | 頁面可讀，連結正確，無遮擋或水平溢出 | [ ] 通過 [ ] 不合格 [ ] 未執行 | QA Ego Lite：390px 10/10 無溢出；320px 8/10，`/courses`、`/member-pricing` 超欄（QA-FS-UI1 minor）；自動重跑 `scripts/qa-public-mobile-layout.ego.sh` 為 18/20。客戶仍須於目標裝置確認導覽與可讀性後填結果。 |
 | W02 | 管理員建立服務／案例／課程草稿、上架、下架，客戶重整公開頁 | 只有上架內容公開；全數下架時不殘留舊資料 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | A01 | 專用會員 A 註冊、同手機另註冊 B；核對方案及點數 | A 試用點數／到期日正確，同手機不重複給點 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
-| A02 | A 正確／錯誤密碼登入、登出後重整並在第二分頁操作 | 錯誤提示清楚；登出後舊 access／refresh 失效，另一分頁不能恢復登入 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
+| A02 | A 正確／錯誤密碼登入、登入逾期後 refresh、登出後重整並在第二分頁操作 | 失效 token 要求重新登入；有效 refresh 更新 session；登出後舊 access／refresh 失效，另一分頁不能恢復登入 | [ ] 通過 [ ] 不合格 [ ] 未執行 | 隔離 API 已驗有效／無效 refresh、登出 C12 6/6；新 refresh route stub 5/5，含 malformed／空值、過期／撤銷與 N=2 route dispatch。真 Auth rotation/reuse、多分頁與正式站待驗。 |
 | A03 | A 忘記密碼、使用有效連結改密，再試舊密與新密；重用連結 | 新密可登入、舊密與重用連結拒絕；無連結頁不崩潰，不透露帳號是否存在 | [ ] 通過 [ ] 不合格 [ ] 未執行 | 既有隔離 Auth API known／unknown 9/9 均 HTTP 200；新 route/Auth stub 6 passed、3 expected fail：65/260 octet local-part 未拒絕（C24）、Auth error log 含完整 email（C25）。N=10 均進入 Auth stub；真 Auth rate limit／郵件及正式站未驗，UAT 未執行。 |
 | A04 | A 開會員中心、訂單、報告；以 B 登入嘗試同網址 | 各人只見自己的資料；過期權杖要求重新登入，不顯示假餘額 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | A05 | QA 直接以 A token 打 B 的會員 API／Supabase 表與舊扣點 RPC | 跨會員讀寫及扣 B 點數均拒絕，B 的資料與帳本不變 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |

@@ -3275,3 +3275,9 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 新增自有 `scripts/qa-forgot-password-boundaries.test.ts` 與 Vitest config，Auth 用替身，不寄信、不寫資料。`./node_modules/.bin/vitest run --config scripts/qa-forgot-password-boundaries.vitest.mts`：6 passed、3 expected fail／9；`npx tsc --noEmit`、`git diff --check` 通過。
 - 正常／未知地址及 provider error 對外一致回 200；非法／SQLi／空／畸形／非字串輸入在 Auth 前拒絕；ASCII local-part 64 octets 通過。65 與 260 octets local-part 未被 Zod email schema 拒絕，已呼叫 Auth stub、回 200（QA-FS-C24）。RFC 5321 §4.5.3.1.1 local-part 上限為 64 octets。N=10 重送在替身下皆呼叫 Auth，真 Supabase rate limit 未驗。
 - Auth provider error 時 `console.warn` 將完整 email 放入 server log（QA-FS-C25）。建立兩張 minor ticket，補入 route inventory、full-system matrix 與 A03 UAT 證據；未讀取真實日誌、未用正式帳號或郵件。
+
+
+## 2026-10-12｜Refresh token route 邊界與狀態回歸
+
+- 新增 `scripts/qa-refresh-token-boundaries.test.ts` 專用 Auth 替身 suite；`./node_modules/.bin/vitest run --config scripts/qa-refresh-token-boundaries.vitest.mts` **5/5 通過**。涵蓋 missing／blank／null／malformed 不建 Auth client；invalid／expired／revoked 統一 401 且不建立 profile；incomplete session/user 拒絕；成功回傳 rotated session fields 並使用刷新 user metadata；同 token N=2 兩個 request 都交 Auth wrapper。
+- 這只驗 route contract；N=2 沒有連真 Supabase Auth，不能證明真實 refresh-token rotation/reuse 行為。既有 `qa-register-local.mjs` 隔離 API 有效／無效 refresh 已驗，正式站與多分頁 UAT 仍待驗。同步 route inventory、全系統矩陣、UAT A02；無 Auth／DB／郵件 fixture。
