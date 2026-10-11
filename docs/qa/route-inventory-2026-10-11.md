@@ -26,7 +26,7 @@
 | `/api/admin/face-knowledge/[id]` | DELETE, PATCH | 部分已驗 C6：單／雙管理員 N=10 各 11 輪隔離通過；正式站待驗 |
 | `/api/admin/face-knowledge/[id]/revisions` | GET | 部分已驗 C6：隔離並發快照一致；正式站待驗 |
 | `/api/admin/face-knowledge/bulk` | POST | 隔離通過 C6：具名送審／發布／封存各唯一版本、revision、audit；共用 key 403，正式待驗 |
-| `/api/admin/face-knowledge/export` | GET | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/face-knowledge/export` | GET | 隔離 API 8/8：匿名／壞 token 401、會員 403、具名管理員 JSON 200＋attachment/no-store；28 卡 ID 與 DB 全數同序、重取一致，Auth/profile 清 0。大量卡片與正式站待驗 |
 | `/api/admin/face-knowledge/import` | POST | 部分已驗 C6：新卡／upsert 版本與 audit 正確；M14 同批重複 card_id 回 500，正式待驗 |
 | `/api/admin/face-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-review-questions` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
