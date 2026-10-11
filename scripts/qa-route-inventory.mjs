@@ -108,6 +108,8 @@ function apiStatus(route) {
     "/api/admin/face-knowledge": "部分已驗：具名管理員建立／查詢與非法輸入通過；C6 並發隔離回歸通過",
     "/api/admin/face-knowledge/[id]": "部分已驗 C6：單／雙管理員 N=10 各 11 輪隔離通過；正式站待驗",
     "/api/admin/face-knowledge/[id]/revisions": "部分已驗 C6：隔離並發快照一致；正式站待驗",
+    "/api/admin/face-knowledge/bulk": "隔離通過 C6：具名送審／發布／封存各唯一版本、revision、audit；共用 key 403，正式待驗",
+    "/api/admin/face-knowledge/import": "部分已驗 C6：新卡／upsert 版本與 audit 正確；M14 同批重複 card_id 回 500，正式待驗",
     "/api/admin/credits": "不合格 C2：餘額與帳本不一致",
     "/api/admin/site-content": "不合格 M13：is_published 字串 false 在 POST/PATCH 被當 true、意外上架；其餘 CMS 管理流程待驗",
     "/api/cron/cleanup-pending-orders": "隔離通過：密鑰拒絕、dry-run、舊 pending 清理及新 pending／paid 保留；正式排程待驗",
