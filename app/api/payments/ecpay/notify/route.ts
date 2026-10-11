@@ -32,15 +32,33 @@ export async function POST(request: NextRequest) {
     if (!order) return ecpayText("0|Order not found", 404);
 
     const currentOrder = normalizeOrderWithPlan(order);
-    await recordPayment({
+    const paymentRecord = await recordPayment({
       orderId: currentOrder.id,
       merchantTradeNo,
       providerTradeNo,
       paidAmount,
       status: rtnCode === "1" ? "paid" : isAsyncAllocation ? "allocated" : "failed",
+      amountMatches: paidAmount === Number(currentOrder.amount),
       checkMacValid,
       rawPayload: params
     });
+
+    // Keep the notification as an audit event, but reject a mismatched paid amount
+    // before it can become the canonical payment or affect the order/entitlement.
+    if (paymentRecord.amountMismatch) return ecpayText("0|Amount mismatch", 400);
+
+    // The signed callback is retained as an event, but a provider trade number
+    // already attached to a different canonical payment cannot pay this order.
+    if (paymentRecord.paymentStatus === "trade_conflict") {
+      return ecpayText("0|Provider trade number conflict", 409);
+    }
+
+    // A failed/allocation callback can race with a paid callback after the payment
+    // row is committed but before the order update. Do not let that stale callback
+    // move the order back to failed while a successful payment is already recorded.
+    if (rtnCode !== "1" && ["paid", "refunded"].includes(paymentRecord.paymentStatus || "")) {
+      return ecpayText("1|OK");
+    }
 
     if (rtnCode !== "1") {
       if (isAsyncAllocation) {
@@ -54,8 +72,6 @@ export async function POST(request: NextRequest) {
       }
       return ecpayText("1|OK");
     }
-
-    if (paidAmount !== Number(currentOrder.amount)) return ecpayText("0|Amount mismatch", 400);
 
     // 這裡刻意不因為「訂單已是 paid」就早退。
     // 訂單標記與開通是兩段寫入，中間失敗會留下「已付款、沒開通」，
@@ -254,27 +270,28 @@ async function recordPayment(input: {
   providerTradeNo: string;
   paidAmount: number;
   status: string;
+  amountMatches: boolean;
   checkMacValid: boolean;
   rawPayload: Record<string, unknown>;
-}) {
+}): Promise<{ amountMismatch: boolean; paymentStatus: string | null }> {
   const admin = createSupabaseAdminClient();
-  const payload = {
-    order_id: input.orderId,
-    provider: "ecpay",
-    provider_trade_no: input.providerTradeNo || null,
-    merchant_trade_no: input.merchantTradeNo,
-    amount: input.paidAmount,
-    status: input.status,
-    raw_payload: input.rawPayload,
-    check_mac_valid: input.checkMacValid,
-    received_at: new Date().toISOString()
-  };
-
-  const { error } = await admin.from("payments").upsert(payload, {
-    onConflict: "provider,merchant_trade_no"
+  const { data, error } = await admin.rpc("record_ecpay_payment_notification", {
+    p_order_id: input.orderId,
+    p_provider_trade_no: input.providerTradeNo || null,
+    p_merchant_trade_no: input.merchantTradeNo,
+    p_amount: input.paidAmount,
+    p_status: input.status,
+    p_amount_matches: input.amountMatches,
+    p_check_mac_valid: input.checkMacValid,
+    p_raw_payload: input.rawPayload
   });
 
   if (error) throw error;
+  const result = (Array.isArray(data) ? data[0] : data) as
+    | { amount_mismatch: boolean; payment_status: string | null }
+    | undefined;
+  if (!result) throw new Error("record_ecpay_payment_notification 沒有回傳結果");
+  return { amountMismatch: result.amount_mismatch, paymentStatus: result.payment_status };
 }
 
 function ecpayText(body: string, status = 200) {
