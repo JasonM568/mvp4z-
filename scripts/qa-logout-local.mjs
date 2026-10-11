@@ -61,6 +61,12 @@ try {
 
   const logout = await post("/api/auth/logout", { refresh_token: login.body.refresh_token });
   check(logout.status === 200 && logout.body.ok === true, "logout endpoint reports success", `HTTP ${logout.status}`);
+  const oldAccessAfter = await fetch(`${baseUrl}/api/member/me`, {
+    headers: { Authorization: `Bearer ${login.body.token}` }
+  });
+  await oldAccessAfter.arrayBuffer();
+  check(oldAccessAfter.status === 401, "logout rejects old access token immediately",
+    `member HTTP ${oldAccessAfter.status}`);
 
   const refreshed = await post("/api/auth/refresh", { refresh_token: login.body.refresh_token });
   const after = refreshed.body.token ? await fetch(`${baseUrl}/api/member/me`, {
@@ -69,8 +75,11 @@ try {
   if (after) await after.arrayBuffer();
   check(refreshed.status === 401 && !refreshed.body.token && after === null,
     "logout revokes refresh token", `refresh HTTP ${refreshed.status}; member HTTP ${after?.status ?? "not called"}`);
-  console.log(`${passed}/4 logout/session checks passed`);
-  if (passed !== 4) process.exitCode = 1;
+  const repeated = await post("/api/auth/logout", { refresh_token: login.body.refresh_token });
+  check(repeated.status === 200 && repeated.body.ok === true,
+    "repeated logout with revoked refresh token is idempotent", `HTTP ${repeated.status}`);
+  console.log(`${passed}/6 logout/session checks passed`);
+  if (passed !== 6) process.exitCode = 1;
 } finally {
   if (profileId) await db(`profiles?id=eq.${profileId}`, "DELETE");
   if (authId) {

@@ -60,7 +60,7 @@
 | `/api/ai/council` | POST | 既有正式證據：並發／日限額；瀏覽器找回待驗 |
 | `/api/auth/forgot-password` | POST | 部分已驗：帳號不洩漏；重設信待驗 |
 | `/api/auth/login` | POST | 部分已驗：正確／錯密碼 |
-| `/api/auth/logout` | POST | 隔離通過 C12：登出後原 refresh 換發 401，API 4/4；正式站待驗 |
+| `/api/auth/logout` | POST | 隔離通過 C12：舊 access／refresh 均立即 401、重複登出 200，API 6/6；故障 UI 留存憑證並提示重試；正式站待驗 |
 | `/api/auth/refresh` | POST | 部分已驗：有效／無效 refresh |
 | `/api/auth/register` | POST | 部分已驗：註冊／同手機並發；郵件待驗 |
 | `/api/bookings` | POST | 部分已驗：欄位邊界；M1／M3 待規則 |
