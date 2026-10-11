@@ -79,6 +79,7 @@ function apiStatus(route) {
     "/api/auth/register": "部分已驗：註冊／同手機並發；郵件待驗",
     "/api/auth/login": "部分已驗：正確／錯密碼",
     "/api/auth/refresh": "部分已驗：有效／無效 refresh",
+    "/api/auth/logout": "不合格 C12：登出回 200 後原 refresh token 仍可換新 access；隔離 3/4",
     "/api/auth/forgot-password": "部分已驗：帳號不洩漏；重設信待驗",
     "/api/member/me": "C9 條件通過：已套現回退 migration 的隔離庫 VIP/20；現行 fresh DB 加購仍不合格",
     "/api/member/orders": "隔離通過：A/B 訂單所有權、付款開通輪詢與 SQLi 形狀查詢 11/11",
@@ -86,6 +87,7 @@ function apiStatus(route) {
     "/api/plans": "部分已驗：公開 GET 200 與 plans 結構（安全冒煙 21/21）；內部方案顯示／排序待驗",
     "/api/site-content": "不合格 M12：DB 全部下架服務後仍回靜態 JSON 9 筆；故障備援待驗",
     "/api/member/redeem": "隔離通過：N=10 原子兌換／rollback；正式待驗",
+    "/api/logout": "不合格 C12：舊路由轉接無撤銷的 /api/auth/logout",
     "/api/member/council-runs": "隔離通過：A/B 列表所有權",
     "/api/member/council-runs/[id]": "隔離通過：A/B 詳情所有權",
     "/api/ai/chat": "不合格 B1：並發免費答案",
@@ -126,7 +128,7 @@ function apiStatus(route) {
 }
 function pageStatus(route) {
   if (route === "/login") return "部分已驗：Ego 本機登入／錯密碼、正式站 390px；M8 英文錯誤待修，註冊／重設 UI 待驗";
-  if (route === "/member") return "部分已驗：Ego 本機本人方案／空報告／pending 單、登出；M9 過期 token 假空狀態待修";
+  if (route === "/member") return "部分已驗：Ego 本機本人方案／空報告／pending 單；M9 過期 token 假空狀態、C12 登出後 refresh 可恢復待修";
   const mobile = new Set(["/services", "/cases", "/courses", "/booking", "/member-pricing",
     "/member-ai/decision", "/member-ai/face"]);
   if (mobile.has(route)) return "部分已驗：正式站 390px 無水平溢出；完整互動待驗";

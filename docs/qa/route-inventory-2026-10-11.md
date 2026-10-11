@@ -1,6 +1,6 @@
 # API 與頁面驗收缺口清單（自動盤點）
 
-產生基準：本機 commit `358704d`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
+產生基準：本機 commit `7b55449`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
 本表的「部分已驗」只指欄中列出的情境；其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。
 
 ## API routes
@@ -60,7 +60,7 @@
 | `/api/ai/council` | POST | 既有正式證據：並發／日限額；瀏覽器找回待驗 |
 | `/api/auth/forgot-password` | POST | 部分已驗：帳號不洩漏；重設信待驗 |
 | `/api/auth/login` | POST | 部分已驗：正確／錯密碼 |
-| `/api/auth/logout` | POST | 待驗：缺可重跑的正常與異常流程證據 |
+| `/api/auth/logout` | POST | 不合格 C12：登出回 200 後原 refresh token 仍可換新 access；隔離 3/4 |
 | `/api/auth/refresh` | POST | 部分已驗：有效／無效 refresh |
 | `/api/auth/register` | POST | 部分已驗：註冊／同手機並發；郵件待驗 |
 | `/api/bookings` | POST | 部分已驗：欄位邊界；M1／M3 待規則 |
@@ -79,7 +79,7 @@
 | `/api/face-analysis/runs/[id]/preview` | GET | 部分已驗：越權 404；有效照片待驗 |
 | `/api/face-analysis/runs/[id]/upload` | POST | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/login` | POST | 待驗：缺可重跑的正常與異常流程證據 |
-| `/api/logout` | POST | 待驗：缺可重跑的正常與異常流程證據 |
+| `/api/logout` | POST | 不合格 C12：舊路由轉接無撤銷的 /api/auth/logout |
 | `/api/me` | GET | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/member/council-runs` | GET | 隔離通過：A/B 列表所有權 |
 | `/api/member/council-runs/[id]` | GET | 隔離通過：A/B 詳情所有權 |
@@ -135,7 +135,7 @@
 | `/courses` | 部分已驗：正式站 390px 無水平溢出；完整互動待驗 |
 | `/enterprise` | 待驗：未有本輪頁面互動證據 |
 | `/login` | 部分已驗：Ego 本機登入／錯密碼、正式站 390px；M8 英文錯誤待修，註冊／重設 UI 待驗 |
-| `/member` | 部分已驗：Ego 本機本人方案／空報告／pending 單、登出；M9 過期 token 假空狀態待修 |
+| `/member` | 部分已驗：Ego 本機本人方案／空報告／pending 單；M9 過期 token 假空狀態、C12 登出後 refresh 可恢復待修 |
 | `/member-admin` | 待驗：未有本輪頁面互動證據 |
 | `/member-admin/council-runs` | 待驗：未有本輪頁面互動證據 |
 | `/member-admin/council-runs/[id]` | 待驗：未有本輪頁面互動證據 |
