@@ -71,7 +71,7 @@
 | `/api/cron/expire-entitlements` | GET | 隔離通過 C11：dry-run、過期狀態與點數保留、audit／重跑 13/13；正式排程待驗 |
 | `/api/cron/pending-drafts` | GET, POST | 部分已驗：匿名 401；排程實際執行待驗 |
 | `/api/cron/provider-health` | GET | 部分已驗：匿名 401；排程實際執行待驗 |
-| `/api/face-analysis/runs` | GET, POST | 部分已驗：A/B 歷史列表；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider 待驗 |
+| `/api/face-analysis/runs` | GET, POST | A/B 歷史列表通過；M17 非法 limit 200 且未限筆數，隔離 4/7；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider 待驗 |
 | `/api/face-analysis/runs/[id]` | DELETE, GET | 部分已驗：A/B 詳情與越權 DELETE；本人刪除待驗 |
 | `/api/face-analysis/runs/[id]/analyze` | POST | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/face-analysis/runs/[id]/image` | DELETE | 部分已驗：越權 DELETE 404；本人照片待驗 |
