@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { listenForBrowserLogout, logoutBrowserSession } from "@/lib/auth/browser-session";
 
 type Member = {
   name: string | null;
@@ -53,6 +54,10 @@ export default function MemberPage() {
   const [pendingCouncil, setPendingCouncil] = useState(false);
   const [payment, setPayment] = useState<{ state: "checking" | "activated" | "waiting" | "failed"; orderNo: string; message: string } | null>(null);
   const [openOrders, setOpenOrders] = useState<MemberOrder[]>([]);
+
+  useEffect(() => listenForBrowserLogout(() => {
+    window.location.href = "/login?next=/member";
+  }), []);
 
   const load = useCallback(async () => {
     const token = window.localStorage.getItem("xunfeng_member_token") || "";
@@ -170,8 +175,8 @@ export default function MemberPage() {
     } catch {}
   }, []);
 
-  function logout() {
-    window.localStorage.removeItem("xunfeng_member_token");
+  async function logout() {
+    await logoutBrowserSession();
     window.location.href = "/";
   }
 

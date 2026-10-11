@@ -4,6 +4,7 @@ import "./admin.css";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { listenForBrowserLogout, logoutBrowserSession } from "@/lib/auth/browser-session";
 
 type AdminMember = {
   id: string;
@@ -78,6 +79,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
+  useEffect(() => listenForBrowserLogout(() => router.replace("/admin-login")), [router]);
+
   // 側邊欄預設收合，只展開「目前所在的那一區」，其餘依使用者上次的選擇。
   // 全部攤開會讓 20 幾個連結一次擠在畫面上，找東西反而更慢。
   useEffect(() => {
@@ -126,8 +129,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       .catch(() => router.replace("/admin-login?error=session"));
   }, [router]);
 
-  function logout() {
-    window.localStorage.removeItem("xunfeng_member_token");
+  async function logout() {
+    await logoutBrowserSession();
     router.replace("/admin-login");
   }
 
