@@ -137,7 +137,7 @@
 | 易學決策報告 | 所選術數成稿、扣 20、歷史可找回 | 無權益、錯日期、prompt injection、provider 失敗 | 19／20 點、每日第 20／21 份、字數上限 | 同會員 4 份只成功 1；斷線找回 | 並發、schema、每日限額有既有正式站證據；隔離 API/DB A/B 歷史與直接寫入 5/5；瀏覽器找回／備援待驗 |
 | 奇門校對與老師規則庫 | 三盤比對、版本簽核、文件選取生效 | 非管理員 403、不完整簽核 400、錯版失效 | 0 文件、150k 字總額、單份 24k 字、手機九宮格 | 同時發布／簽核版本 | 任意時間試排隔離 API 11/11（3×3、非法／超長／不存在日期、五路並發）；老師未簽核，最新規則庫未做完整 UAT |
 | 老師文件與提示詞設定 | 具名管理員上傳、編輯、啟用文件並留下 audit；總字數一致 | 非管理員拒絕、稽核故障時不得悄悄生效、無效檔案拒絕 | 空檔、2MB／150k 字、超長標題、0 文件 | 同文件同時編輯／發布、稽核故障回滾 | **QA-FS-C19 不合格**：文件上傳／PATCH／刪除的稽核注入失敗後 API 仍分別 201／200／200，資料變動已生效但無對應 audit；隔離擴充腳本兩輪各 7/13。正常上傳／刪除、並發及正式站仍待驗 |
-| 面相分析 | 同意、上傳、品質、分析、報告／PDF、扣點 | 非本人取圖／PDF、錯 MIME、無學理 422 不扣 | 空圖、尺寸上限、任務／保存上限、過期圖片；M20 三條 run 路由非法 ID 回 500；M21 空上傳耗盡五次品質檢查額度 | 同 run 雙 analyze、重送 requestId；同報告 N=20 DELETE 只抹一次 | 隔離 API/DB A/B 報告／照片 8/8、M2 RLS 4/4；C6 同卡 N=10 單／雙管理員各 11 輪，bulk/import HTTP 14/15（含故障回滾，M14 重複碼回 500），隔離 UI 409 即時保留草稿；C17 修復分支保留 10/10、並發／回滾 5/5 且 10 輪通過，C18 audit 故障後無稽核仍發布（4/6）；M19 刪除 stale claim/RPC 可重入（13/15）；PDF 隔離下載本人／跨會員／重取正常，run ID 六路由矩陣兩輪各 15/24（M20）、空上傳兩輪各 4/10（M21）；後台知識卡匯出 28 卡 8/8；正式部署、完整 UI／提供者端到端待驗 |
+| 面相分析 | 同意、上傳、品質、分析、報告／PDF、扣點 | 非本人取圖／PDF、錯 MIME、無學理 422 不扣 | 空圖、尺寸上限、任務／保存上限、過期圖片；M20 三條 run 路由非法 ID 回 500；M21 空上傳耗盡五次品質檢查額度 | 同 run 雙 analyze、重送 requestId；同報告 N=20 DELETE 只抹一次 | 隔離 API/DB A/B 報告／照片 8/8、M2 RLS 4/4；C6 同卡 N=10 單／雙管理員各 11 輪，bulk/import HTTP 14/15（含故障回滾，M14 重複碼回 500），隔離 UI 409 即時保留草稿；C17 修復分支保留 10/10、並發／回滾 5/5 且 10 輪通過，C18 audit 故障後無稽核仍發布（4/6）；M19 刪除 stale claim/RPC 可重入（13/15）；PDF 隔離下載本人／跨會員／重取正常，run ID 六路由矩陣兩輪各 15/24（M20）、空上傳兩輪各 4/10（M21）；M24 本人照片 DELETE 失敗注入 route＋替身 8/8，DB／Storage 持久狀態未驗；後台知識卡匯出 28 卡 8/8；正式部署、完整 UI／提供者端到端待驗 |
 | 顧問預約 | 送出後後台可見、狀態可更新 | 缺聯絡方式、非法 email、腳本字串、管理員越權 | 空欄、80／4,000 字、只有電話 | 雙擊、公開入口灌單 | 隔離 API 邊界 7/7；具名管理員列表／詳情／PATCH＋audit 及 limit 邊界 M6 複驗 11/11；`@@@` 電話 QA-FS-M1、雙送 QA-FS-M3；限流待驗 |
 | 課程報名與結帳 | 新生／複訓價格由後端算、報名及訂單一致 | 非法 email／發票、未知課程、偽造價格 | 空選項、超長備註、課程停用 | 雙擊結帳、同 email 同時建立 profile | 隔離 API 8/8 驗證／定價；後台未付款名單／跟進／audit、列表 limit 與摘要修補後 17/17；同 email 雙送 1 profile、2 pending 訂單／報名，QA-FS-M5 待規則；付款後待驗 |
 | 發票與退款 | 付款後開票、失敗可重試、退款帳務一致 | ezPay 失敗／重送、錯統編、未退款卻登錄 | B2C／B2B、載具、捐贈碼、部分退款 | 重試開票／雙重退款 | A/B 發票 RLS 已驗；C8 非法補開票 7/7；C10 分次退款核心帳務通過；C13/C14/M16 最新 migration 隔離 HTTP/DB 複驗：正常 20/20、同鍵重送與異金額 17/17、N=10 並發 4 輪各 15/15、audit 故障回滾 15/15；Ego Lite 後台斷線重送只留 1 筆退款／交易／audit。正式 migration、外部開票／退款、作廢／折讓未驗 |
@@ -483,3 +483,9 @@ QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 
 | 收尾核對 | SQL 計數：QA Auth、profile、chat slot、`ai_chat`／`ai_council` ledger、chat usage 均 0；App 與本機假模型無真實提供者費用。 |
 
 **證據邊界與測試總結：**B1 的「真 HTTP、假模型」並發交付在整合候選隔離環境已補足，不再列為未測；真付費模型可靠性與正文品質仍未驗。B3 整合候選的 A/B 直接 RPC 權限已動態複驗，不代表正式庫已撤權。當前 main 的 `route.qa.test.ts` 兩個 expected fail 仍在，候選未合併／正式站未部署；B1、B3 均保持 BLOCKER 直到 Tech Lead 整合、正式遷移與站端回歸。QA 專用 app 與 stack 已停止，`3215`／`3291`／`58921`／`58922` listener 與專用容器均查 0。
+
+### QA-FS-M24：會員照片刪除跨 DB／Storage 故障窗口
+
+`scripts/qa-face-member-image-delete.test.ts` 以實際 DELETE route 搭配隔離 in-memory DB／Storage 替身驗證 **8/8**，`npx tsc --noEmit` 通過。越權／無 token、非法與跨會員 ID、analyzing／claim 衝突、已刪冪等、正常刪除均有覆蓋。兩個 critical 故障窗口已重現：Storage remove 成功但 DB finalize 失敗後，照片已不存在、DB path 懸空且 `deletion_pending=true`，重送 409；DB 與 Storage 已清後 event INSERT 失敗，首次回 500、重送 200 仍無 event。派工稿見 [QA-FS-M24](qa-fs-m24-member-image-delete-failure-recovery-2026-10-11.md)，待 X-PM 排序；**真 Supabase DB／Storage 故障尚未驗**，先前自有 Storage stack health check 失敗，不把替身結果當產品服務實測。尚無 M24 修復候選可複驗。
+
+**本次階段測試總結：**本階段沒有 BLOCKER 新增；critical QA-FS-M22／M23 既有票維持，新增 QA-FS-M24 critical（route＋替身重現，等待隔離真 DB／Storage 驗證與 X-PM 派工）；minor 無新增。已通過 M23 Option A prototype focused suite 11/11，但只代表可行性與記憶體 Storage key 隔離，不代表 migration／RPC／真 Storage 通過。功能驗收清單與正式站回歸仍未完成，M24 也未經 X-PM 派工，不能簽核全系統 UAT。

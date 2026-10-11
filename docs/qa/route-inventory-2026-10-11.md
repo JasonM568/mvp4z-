@@ -74,7 +74,7 @@
 | `/api/face-analysis/runs` | GET, POST | A/B 歷史列表通過；M17 補修分支 `ced1432` limit 邊界隔離 8/8，abc／SQLi／100／500 位均 400；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider／正式站待驗 |
 | `/api/face-analysis/runs/[id]` | DELETE, GET | 現行 main M19 競態仍開票；M19 候選與整合 production build 隔離 16/16：A/B、N=20、PII 抹除、一次事件、私有照片／PDF 刪除、重送；正式 migration／部署待驗 |
 | `/api/face-analysis/runs/[id]/analyze` | POST | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24、非法分析無 DB／Storage／點數副作用 4/4；有效新分析另以受控 Vision／報告替身與真隔離帳務驗證，真模型及正式站待驗 |
-| `/api/face-analysis/runs/[id]/image` | DELETE | 部分已驗：越權 DELETE 404；本人照片待驗 |
+| `/api/face-analysis/runs/[id]/image` | DELETE | 原有隔離：越權 DELETE 404；QA-FS-M24 route＋記憶體 DB/Storage 替身 8/8，重現 Storage 刪除後 DB finalize 失敗會卡 `deletion_pending`、audit INSERT 失敗會永久漏事件；真 Supabase DB/Storage 故障尚未驗，critical 派工待確認 |
 | `/api/face-analysis/runs/[id]/pdf` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 PDF 11/11：本人位元組與重取一致、跨會員 404、未完成 409、壞 ID 400；正式站待驗 |
 | `/api/face-analysis/runs/[id]/preview` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24，A/B 有效私有照片預覽與拒絕路徑已驗；正式站待驗 |
 | `/api/face-analysis/runs/[id]/upload` | POST | 現行 main M21／M22 原缺陷仍開票；M22 整合候選 `15631e7` 隔離 29/29：空照片不計次、品質拒絕→合格、N=2×10、lease、event 故障原子回滾；M23 雙故障孤兒檔仍為 critical，真品質與正式站待驗 |
