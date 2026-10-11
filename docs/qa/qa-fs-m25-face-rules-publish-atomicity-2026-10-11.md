@@ -26,3 +26,7 @@ QA route＋記憶體 DB/audit 替身腳本：`scripts/qa-face-rules-publish-audi
 ## 商業規則與安全界線
 
 未觀察到商業規則取捨；不更動既定規則版本流程。所有故障注入只允許專用隔離資料庫，不在正式 DB 執行。尚未宣稱 HTTP＋真 DB 複驗通過。
+
+## 共用 helper 影響範圍
+
+靜態搜尋 `rg -l "writeAdminAudit" app/api/admin -g 'route.ts'` 得到 **26 個 production route files**（包含本票的草稿與發布 routes）。這只表示引用共用 helper，不代表其餘 24 個 route 都已動態重現 audit 遺失；修復 gate 應依資料風險盤點其他 callsites，不能把本票的 6/6 擴大宣稱為全體驗收。
