@@ -49,10 +49,11 @@ BEGIN
   SELECT plan_id INTO v_new_plan FROM public.member_entitlements WHERE id = v_new;
   SELECT count(*) INTO v_active_count
     FROM public.member_entitlements WHERE user_id = v_user AND status = 'active';
-  -- Mirrors getPublicMember() and the AI route's expires_at-descending selection.
+  -- Effective-entitlement contract shared by member/AI/face consumers.
   SELECT id, credits_remaining, plan_id INTO v_selected, v_selected_credits, v_selected_plan
-    FROM public.member_entitlements WHERE user_id = v_user
-    ORDER BY expires_at DESC LIMIT 1;
+    FROM public.member_entitlements
+    WHERE user_id = v_user AND status = 'active' AND expires_at >= now()
+    ORDER BY expires_at DESC, created_at DESC, id DESC LIMIT 1;
   RAISE NOTICE 'active_count=%, old_active=%, purchased_credits=%, new_vip=%, selected_old=%, selected_credits=%, selected_vip=%',
     v_active_count,
     (SELECT status = 'active' FROM public.member_entitlements WHERE id = v_old),
