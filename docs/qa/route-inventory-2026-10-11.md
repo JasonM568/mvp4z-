@@ -28,7 +28,7 @@
 | `/api/admin/face-knowledge/bulk` | POST | 隔離通過 C6：具名送審／發布／封存各唯一版本、revision、audit；共用 key 403，正式待驗 |
 | `/api/admin/face-knowledge/export` | GET | 隔離 API 8/8：匿名／壞 token 401、會員 403、具名管理員 JSON 200＋attachment/no-store；28 卡 ID 與 DB 全數同序、重取一致，Auth/profile 清 0。大量卡片與正式站待驗 |
 | `/api/admin/face-knowledge/import` | POST | 部分已驗 C6：新卡／upsert 版本與 audit 正確；M14 同批重複 card_id 回 500，正式待驗 |
-| `/api/admin/face-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
+| `/api/admin/face-provider-approval` | DELETE, GET, POST | QA-FS-C22 POST/DELETE route＋替身各重現 audit INSERT error 後仍 200 且狀態 active/revoked、audit 0；真 DB／OpenAI provider 未驗；具名管理員授權程式檢查待動態確認 |
 | `/api/admin/face-review-questions` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-rules` | GET, POST | QA-FS-M25 route＋記憶體 DB/audit 替身：draft 建立後 audit INSERT 回 error 仍 HTTP 200、audit 0；81 字版本標籤 400 零寫入；真 DB／舊 draft update 未驗；⚠ 是否將現行 ADMIN_KEY 改為具名管理員待決 |
 | `/api/admin/face-rules/publish` | POST | QA-FS-M25 route＋記憶體 DB/audit 替身 7/7：正常／無 draft、ADMIN_KEY null actor 通過；audit INSERT 回 error 仍 HTTP 200 且 profile 已切換、無 audit；publish UPDATE 故障可造成無 published profile並回退 built-in rules；真 DB／並發未驗；critical |
@@ -42,16 +42,16 @@
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
 | `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 隔離 API/DB：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego 管理員 UI 遺失回應後同鍵重送，退款／交易／audit 各 1；正式 migration／站端待驗 |
 | `/api/admin/prompt-settings` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；草稿儲存待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/admin/prompt-settings/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/prompt-settings/publish` | POST | QA-FS-C21 route＋記憶體替身：audit INSERT 回 error 仍 HTTP 200、draft 已 published／舊版 archived、audit 0；真 DB／cache 版本未驗 |
 | `/api/admin/provider-health` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；提供者實際可用性待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/provider-health/test-alert` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/qimen-review` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；盤例與簽核仍待老師確認；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/qimen-review/preview` | POST | 隔離 API 11/11：具名管理員合法時間 3×3、空／越界／SQLi／超長 400、不存在日期空盤與 error、五路並發相同盤；Auth/profile 清 0；盤面專業簽核待老師 |
-| `/api/admin/qimen-review/signoff` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/qimen-review/signoff` | POST | QA-FS-C21 route＋記憶體替身：audit INSERT 回 error 仍 HTTP 200、signoff row 已新增、audit 0；真 DB／盤例計算／cache 未驗 |
 | `/api/admin/referrals` | GET, PATCH, POST | 部分已驗 C7：隔離建立／並發改率 audit 11 輪通過；正式站及 C5 歸因規則待驗 |
 | `/api/admin/school-settings` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；草稿儲存待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/school-settings/preview` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
-| `/api/admin/school-settings/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/school-settings/publish` | POST | QA-FS-C21 route＋記憶體替身：audit INSERT 回 error 仍 HTTP 200、draft 已 published／舊版 archived 並附簽核資訊、audit 0；真 DB／consumer 未驗 |
 | `/api/admin/site-content` | DELETE, GET, PATCH, POST | 隔離服務通過 M13：字串 false POST/PATCH 400 零發布、真布林上／下架 4/4；其餘 CMS／正式站待驗 |
 | `/api/admin/site-content/media` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/site-content/media/sign` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
