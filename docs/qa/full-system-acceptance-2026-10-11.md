@@ -391,3 +391,14 @@ QA 已在自有 `qa-admin-document-audit-local.mjs` 準備三項待跑案例：�
 **最新測試總結：**先前 migration 版號衝突的整合 BLOCKER 已在候選檔案層解除，C19 新候選隔離複驗通過；正式 migration／站端回歸與其他共用 audit helper 入口仍待驗，C19 critical 票暫不關閉。DELETE 的 Storage 清理失敗會回 503 並留待盤點物件，須有營運補清程序；本輪無新增產品缺陷。
 
 **Storage 故障狀態碼核對：**候選 `78dff9c` 的 POST 在 RPC audit 失敗後，若暫存檔補償刪除也失敗，回 **HTTP 500**；工程 route unit 有此案例與斷言。POST 外層 catch 的另一條補償刪除失敗路徑亦由程式碼核對為 **500**，本輪未另做故障注入。DELETE 已先完成 DB／audit，但 Storage 刪除失敗時回 **HTTP 503**，工程 route unit 有斷言。C4 HTTP 腳本測的是 audit 故障、補償成功及正常 Storage 刪除，沒有把 Storage 服務本身故障宣告為實際 HTTP 通過。相應孤兒檔需依 audit 路徑盤點並補清。
+
+### C19 Storage 自身故障：隔離 route／Storage stub 注入
+
+X-PM 指定的窄範圍驗證已在候選 `78dff9c` 的真實路由函式上執行，使用 QA 專用 `scripts/qa-c19-storage-fault.test.ts` 及 `scripts/qa-c19-storage-fault.vitest.mts`。命令：`npx vitest run --config scripts/qa-c19-storage-fault.vitest.mts`。測試把 Auth、RPC、Storage 換成具狀態的隔離替身；不連共用 C4 Storage、正式服務或付費模型。候選工作樹只暫放 QA 腳本以執行，工程提交未改動。
+
+| 案例 | 注入及觀察 | 結果 |
+|---|---|---|
+| POST 外層 catch 補償失敗 | upload 成功後讓 create RPC **拋出例外**，Storage `remove` 回錯；路由回 500，錯誤訊息指出暫存檔清理失敗，log 含上傳 path 與 Storage 錯誤名；替身文件列／audit 均 0，孤兒掃描可列出唯一 path。 | 通過，測後人工清掉替身物件，fixture 0。 |
+| DELETE Storage remove 失敗 | 替身 RPC 先刪文件列並寫一筆具 path 的 audit，再讓 Storage `remove` 回錯；路由回 503，log 可盤點 path、物件仍在；同 ID 重送回 404，audit 仍只有一筆，沒有再次呼叫 Storage。 | 通過，測後人工清掉替身物件／audit，fixture 0。 |
+
+兩個 QA 案例 **2/2**，與工程既有 route unit 合跑 **9/9**，候選 `tsc --noEmit` 通過。此證據驗證路由在可控 Storage 故障下的分支與回應；DB 提交／audit 持久化和真實 Storage 孤兒盤點由替身模擬，**不等於真實 HTTP＋DB／Storage 故障注入通過**。既有 POST RPC-error 補償分支僅引用工程 unit 覆蓋，沒有宣稱 HTTP 實測。上節未做故障注入的敘述僅指先前 C4 HTTP 批次；本節補的是隔離 route 測試。正式部署、跨服務故障演練與孤兒補清程序仍是 C19 驗收風險。
