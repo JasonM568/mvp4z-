@@ -12,7 +12,7 @@ const routes = [
   "/booking", "/enterprise", "/member-pricing", "/privacy", "/thanks"
 ];
 const results = [];
-let navMenuPassed = false;
+const navMenu = { services: false, casesCourses: false };
 
 for (const width of [390, 320]) {
   await page.cdp("Emulation.setDeviceMetricsOverride", {
@@ -47,8 +47,14 @@ const menuButton = await page.evaluate(() =>
 if (menuButton) {
   await page.click('button[aria-label="開啟主選單"]', { label: "open mobile menu" });
   await page.click("text=老師服務", { label: "expand service submenu" });
-  navMenuPassed = await page.evaluate(() =>
+  navMenu.services = await page.evaluate(() =>
     ["/services", "/enterprise", "/booking", "/about"].every((href) =>
+      [...document.querySelectorAll("a[href]")].some((anchor) => anchor.getAttribute("href") === href)
+    )
+  );
+  await page.click("text=案例與課程", { label: "expand case and course submenu" });
+  navMenu.casesCourses = await page.evaluate(() =>
+    ["/cases", "/courses"].every((href) =>
       [...document.querySelectorAll("a[href]")].some((anchor) => anchor.getAttribute("href") === href)
     )
   );
@@ -62,8 +68,11 @@ console.log(JSON.stringify({
   viewportWidths: [390, 320],
   passed: results.length - failed.length,
   failed,
-  mobileServiceMenu: navMenuPassed ? "pass" : "fail",
+  mobileMenus: {
+    services: navMenu.services ? "pass" : "fail",
+    casesCourses: navMenu.casesCourses ? "pass" : "fail"
+  },
   results
 }, null, 2));
-if (failed.length || !navMenuPassed) process.exitCode = 1;
+if (failed.length || !navMenu.services || !navMenu.casesCourses) process.exitCode = 1;
 EGO
