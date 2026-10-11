@@ -100,8 +100,8 @@
 
 | 路由 | QA 狀態／已驗範圍 |
 |---|---|
-| `/` | 部分已驗：桌面／手機截圖；內容與互動待驗 |
-| `/about` | 待驗：未有本輪頁面互動證據 |
+| `/` | 部分已驗：桌面／手機截圖；本機 3104 基本渲染通過（h1／main／無 Application error）；內容互動與正式站仍待驗 |
+| `/about` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
 | `/admin` | 部分已驗 C12：具名管理員隔離雙分頁登出與雙 token 清除通過；總覽資料與正式站待驗 |
 | `/admin-login` | 待驗：未有本輪頁面互動證據 |
 | `/admin/bookings` | 待驗：未有本輪頁面互動證據 |
@@ -130,11 +130,11 @@
 | `/admin/site-cases` | 待驗：未有本輪頁面互動證據 |
 | `/admin/site-services` | 待驗：未有本輪頁面互動證據 |
 | `/admin/token-usage` | 待驗：未有本輪頁面互動證據 |
-| `/booking` | 部分已驗：正式站 390px 無水平溢出；完整互動待驗 |
-| `/cases` | 部分已驗：正式站 390px 無水平溢出；完整互動待驗 |
-| `/courses` | 部分已驗：正式站 390px 無水平溢出；完整互動待驗 |
-| `/enterprise` | 待驗：未有本輪頁面互動證據 |
-| `/login` | 部分已驗：Ego 本機登入／錯密碼、正式站 390px；M8 英文錯誤待修，註冊／重設 UI 待驗 |
+| `/booking` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
+| `/cases` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
+| `/courses` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
+| `/enterprise` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
+| `/login` | Ego 本機登入／錯密碼、正式站 390px；本機 3104 基本渲染通過；M8 英文錯誤待修，註冊／重設 UI 待驗 |
 | `/member` | 部分已驗：Ego 本機本人方案／空報告／pending 單；C12 隔離雙分頁登出與雙 token 清除通過，M9 過期 token 假空狀態待修 |
 | `/member-admin` | 待驗：未有本輪頁面互動證據 |
 | `/member-admin/council-runs` | 待驗：未有本輪頁面互動證據 |
@@ -144,9 +144,9 @@
 | `/member-ai/face` | 部分已驗：正式站 390px 無水平溢出；完整互動待驗 |
 | `/member-ai/face/history` | 待驗：未有本輪頁面互動證據 |
 | `/member-ai/face/reports/[id]` | 待驗：未有本輪頁面互動證據 |
-| `/member-pricing` | 部分已驗：正式站 390px 無水平溢出；完整互動待驗 |
+| `/member-pricing` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/member/reports/[id]` | 待驗：未有本輪頁面互動證據 |
-| `/privacy` | 待驗：未有本輪頁面互動證據 |
-| `/reset-password` | 待驗：未有本輪頁面互動證據 |
-| `/services` | 部分已驗：正式站 390px 無水平溢出；完整互動待驗 |
-| `/thanks` | 待驗：未有本輪頁面互動證據 |
+| `/privacy` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
+| `/reset-password` | 不合格 C15：本機 HTTP 200 後 client-side exception，只見 Application error；`NEXT_PUBLIC_SUPABASE_URL` 動態 env 讀取失敗，重設流程不可用 |
+| `/services` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
+| `/thanks` | 本機 3104 基本渲染通過（h1／main／無 Application error）；實際預約提交與正式站待驗 |
