@@ -3129,3 +3129,9 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 ### 未結風險與下一步
 - 尚無真 Storage 故障／恢復、完整 HTTP+DB+Storage 流程、EZPay 真 provider 冪等、notify HTTP N=10 或正式站部署回歸。M24、C20、C23 候選證據不關閉正式發布 gate；P05/P07/F03 客戶 UAT 未通過。
 - 更新 `docs/qa/full-system-acceptance-2026-10-11.md`、`docs/qa/route-inventory-2026-10-11.md` 與 `docs/qa/customer-uat-checklist-draft-2026-10-11.md`；不 stage `scripts/qa-refund-boundaries-local.sh`、`scripts/qa-refund-rounding-local.sh` 等既有使用者檔案。
+
+## 2026-10-11｜QA-FS-C22 重現與派工
+
+- 重跑 `npx vitest run --config scripts/qa-admin-policy-audit-failures.vitest.mts`：5/5 通過（缺陷重現），包括 C22 POST 核准與 DELETE 撤銷在 audit INSERT error 後仍 HTTP 200、狀態已變更、audit 0。證據僅限 route＋記憶體替身；未連真 DB，未呼叫 OpenAI。
+- 將 QA-FS-C22 critical ticket 與 repro、預期／實際、影響、10 輪隔離驗收標準、fixtures 清理要求及「不涉及商業規則」送 X-PM 定序／派工；正式庫不得故障注入。
+- 更新 `docs/qa/qa-fs-c22-provider-approval-audit-failures-2026-10-11.md` 與全系統驗收票狀態；等待工程候選 SHA 後獨立複驗。

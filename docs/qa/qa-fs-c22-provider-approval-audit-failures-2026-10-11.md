@@ -1,12 +1,12 @@
 # QA-FS-C22：面相 provider approval／撤銷缺 audit
 
-**嚴重度：critical**　**狀態：待送 X-PM 定序／派工**
+**嚴重度：critical**　**狀態：已送 X-PM 定序／派工；待候選與隔離複驗**
 
 ## 範圍與證據
 
 路由：`POST`／`DELETE /api/admin/face-provider-approval`（OpenAI 零資料保留核准）。兩個 handler 先 upsert active attestation 或更新為 revoked，再呼叫共用 `writeAdminAudit`；該 helper 忽略 Supabase insert 回傳的 error。
 
-QA route＋記憶體 DB/audit 替身腳本 `scripts/qa-admin-policy-audit-failures.test.ts` 中的兩案例通過；注入 audit INSERT error 後，POST 仍 HTTP 200、approval active 且 `verified_by` 已寫但 audit 0；DELETE 仍 HTTP 200、approval 已 revoked 但 audit 0。這是**route／替身證據**，沒有連真 DB，也沒有呼叫 OpenAI 或驗證實際供應商保留設定。
+QA route＋記憶體 DB/audit 替身腳本 `scripts/qa-admin-policy-audit-failures.test.ts` 中的兩案例通過；最新重跑整體 C21/C22 suite **5/5**。注入 audit INSERT error 後，POST 仍 HTTP 200、approval active 且 `verified_by` 已寫但 audit 0；DELETE 仍 HTTP 200、approval 已 revoked 但 audit 0。這是**route／替身證據**，沒有連真 DB，也沒有呼叫 OpenAI 或驗證實際供應商保留設定。
 
 ## 影響與驗收
 
