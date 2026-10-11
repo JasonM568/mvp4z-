@@ -16,7 +16,7 @@
 | `/api/admin/create-code` | POST | 隔離通過：具名管理員建立、非法／邊界、N=10 唯一碼與 audit 13/13；正式待驗 |
 | `/api/admin/credits` | POST | 不合格 C2：餘額與帳本不一致 |
 | `/api/admin/documents` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；上傳待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/admin/documents/[id]` | DELETE, PATCH | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/documents/[id]` | DELETE, PATCH | C19 不合格：PATCH 啟用提示詞時 audit 故障仍 HTTP 200、文件已啟用而 audit 0，兩輪各 5/7；正常 PATCH 200／具名 audit 1、匿名 401。DELETE／其他輸入及正式站待驗 |
 | `/api/admin/effective-settings` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；設定內容正確性待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/email-domain` | GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/face-analysis` | GET | M17 補修分支 `ced1432` 隔離 GET 複驗通過；後台兩路由合計 16/16，含 100／500 位數字 400；正式站待驗 |
