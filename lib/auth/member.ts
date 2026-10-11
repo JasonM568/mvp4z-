@@ -237,15 +237,40 @@ export async function getPublicMember(profileId: string) {
 
   if (profileError) throw profileError;
 
-  const { data: entitlement, error: entitlementError } = await admin
+  // Prefer a currently effective row over a newer-expiry historical row. Add-on
+  // renewal may expire the old entitlement while keeping the same expires_at;
+  // querying only the latest expiry lets that old row hide the new balance.
+  const { data: activeEntitlement, error: activeEntitlementError } = await admin
     .from("member_entitlements")
-    .select("id, status, credits_remaining, expires_at, tier_features, plans(code, name)")
+    .select("id, status, credits_remaining, expires_at, created_at, tier_features, plans(code, name)")
     .eq("user_id", profileId)
+    .eq("status", "active")
+    .gte("expires_at", new Date().toISOString())
     .order("expires_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (entitlementError) throw entitlementError;
+  if (activeEntitlementError) throw activeEntitlementError;
+
+  // Preserve the old display behavior when no entitlement is currently active:
+  // show the latest-expiring row as expired instead of hiding its plan/history.
+  let entitlement = activeEntitlement;
+  if (!entitlement) {
+    const { data: latestEntitlement, error: latestEntitlementError } = await admin
+      .from("member_entitlements")
+      .select("id, status, credits_remaining, expires_at, created_at, tier_features, plans(code, name)")
+      .eq("user_id", profileId)
+      .order("expires_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestEntitlementError) throw latestEntitlementError;
+    entitlement = latestEntitlement;
+  }
+
   return toPublicMember(profile as Profile, entitlement as Entitlement | null);
 }
 

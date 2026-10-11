@@ -111,8 +111,8 @@ begin
     raise exception 'C9 carry: grant/carryover transaction evidence mismatch';
   end if;
 
-  -- When legacy data has several valid rows, choose the highest tier and merge
-  -- all balances into that one row instead of letting an equal expiry hide credits.
+  -- Different concurrently valid tiers have no approved precedence. Fail safe
+  -- before writing so the add-on can be reviewed without losing paid access.
   select id into strict v_old_plan from public.plans where code = 'basic';
   insert into public.profiles(email, name)
     values ('qa-c9-mixed-' || v_tag || '@example.test', 'C9 mixed tiers') returning id into v_user;
@@ -124,15 +124,18 @@ begin
        '{"council_cost":5,"council_free_quota_monthly":3}'::jsonb);
   insert into public.orders(order_no, user_id, plan_id, amount, status)
     values ('QAC9-MIXED-' || v_tag, v_user, v_addon_plan, 199, 'paid') returning id into v_order;
-  select * into strict v_row from public.commit_paid_entitlement(
-    v_order, v_user, v_addon_plan, 20, 30, 'QAC9-MIXED-' || v_tag, true
-  );
-  if v_row.carried_credits <> 9 or v_row.total_credits <> 29
-     or (select p.code from public.member_entitlements e join public.plans p on p.id=e.plan_id where e.id=v_row.entitlement_id) <> 'vip'
-     or (select tier_features from public.member_entitlements where id=v_row.entitlement_id)
-       <> '{"council_cost":5,"council_free_quota_monthly":3}'::jsonb
-     or (select count(*) from public.member_entitlements where user_id=v_user and status='active' and expires_at>=now()) <> 1 then
-    raise exception 'C9 mixed: failed to preserve highest existing tier and merge balance';
+  begin
+    perform * from public.commit_paid_entitlement(
+      v_order, v_user, v_addon_plan, 20, 30, 'QAC9-MIXED-' || v_tag, true
+    );
+    raise exception 'C9 mixed: expected ambiguous active tier to fail safe';
+  exception when raise_exception then
+    if sqlerrm not like 'commit_paid_entitlement:%manual review required' then raise; end if;
+  end;
+  if (select count(*) from public.member_entitlements where user_id=v_user and status='active' and expires_at>=now()) <> 2
+     or exists (select 1 from public.member_entitlements where source_order_id=v_order)
+     or exists (select 1 from public.credit_transactions where ref_id='QAC9-MIXED-' || v_tag) then
+    raise exception 'C9 mixed: ambiguous tier failure wrote or changed entitlement/transactions';
   end if;
 
   -- A first-time add-on still receives its documented 30-day validity.

@@ -260,11 +260,13 @@ async function findEligibleEntitlement(profileId: string) {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("member_entitlements")
-    .select("id, credits_remaining, expires_at, plans(code)")
+    .select("id, credits_remaining, expires_at, created_at, plans(code)")
     .eq("user_id", profileId)
     .eq("status", "active")
     .gte("expires_at", new Date().toISOString())
-    .order("expires_at", { ascending: false });
+    .order("expires_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
   if (error) throw error;
   for (const entitlement of data || []) {
     const plan = Array.isArray(entitlement.plans) ? entitlement.plans[0] : entitlement.plans;

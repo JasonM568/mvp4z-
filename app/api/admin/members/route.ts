@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const admin = createSupabaseAdminClient();
     const { data: profiles, error } = await admin
       .from("profiles")
-      .select("id, name, email, phone, role, created_at, member_entitlements(status, credits_remaining, expires_at, plans(code, name))")
+      .select("id, name, email, phone, role, created_at, member_entitlements(id, status, credits_remaining, expires_at, created_at, plans(code, name))")
       .order("created_at", { ascending: false })
       .limit(200);
 
@@ -24,11 +24,14 @@ export async function GET(request: NextRequest) {
           ? [profile.member_entitlements]
           : [];
       const now = new Date().toISOString();
-      const entitlement =
-        entitlements.find((item) => item.status === "active" && item.expires_at && item.expires_at >= now) ||
-        entitlements
-          .slice()
-          .sort((a, b) => String(b.expires_at || "").localeCompare(String(a.expires_at || "")))[0];
+      const stableEntitlementOrder = (a: (typeof entitlements)[number], b: (typeof entitlements)[number]) =>
+        String(b.expires_at || "").localeCompare(String(a.expires_at || "")) ||
+        String(b.created_at || "").localeCompare(String(a.created_at || "")) ||
+        String(b.id || "").localeCompare(String(a.id || ""));
+      const activeEntitlement = entitlements
+        .filter((item) => item.status === "active" && item.expires_at && item.expires_at >= now)
+        .sort(stableEntitlementOrder)[0];
+      const entitlement = activeEntitlement || entitlements.slice().sort(stableEntitlementOrder)[0];
       const plan = Array.isArray(entitlement?.plans) ? entitlement?.plans[0] : entitlement?.plans;
       return {
         id: profile.id,

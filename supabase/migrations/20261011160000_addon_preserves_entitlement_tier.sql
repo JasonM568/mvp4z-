@@ -33,6 +33,7 @@ declare
   v_now timestamptz := now();
   v_effective_plan_id uuid := p_plan_id;
   v_effective_tier_features jsonb := '{}'::jsonb;
+  v_active_access_count integer := 0;
 begin
   if p_order_id is null or p_user_id is null then
     raise exception 'commit_paid_entitlement: order_id 與 user_id 不得為 null';
@@ -65,26 +66,26 @@ begin
   v_base := greatest(coalesce(v_base, v_now), v_now);
 
   if p_is_addon and v_has_active then
-    -- Keep the highest currently active plan and its per-entitlement overrides.
-    -- The explicit order reflects the app's tier names; single_report is basic-equivalent.
+    -- Do not invent a precedence if legacy active rows grant different plans or
+    -- tier overrides. A single effective plan/tier can be consolidated safely.
+    select count(distinct (coalesce(e.plan_id::text, '') || ':' || coalesce(e.tier_features, '{}'::jsonb)::text))
+      into v_active_access_count
+    from public.member_entitlements e
+    where e.user_id = p_user_id
+      and e.status = 'active'
+      and e.expires_at >= v_now;
+
+    if v_active_access_count > 1 then
+      raise exception 'commit_paid_entitlement: multiple active entitlements have different plan/tier features; manual review required';
+    end if;
+
     select coalesce(e.plan_id, p_plan_id), coalesce(e.tier_features, '{}'::jsonb)
       into v_effective_plan_id, v_effective_tier_features
     from public.member_entitlements e
-    left join public.plans pl on pl.id = e.plan_id
     where e.user_id = p_user_id
       and e.status = 'active'
       and e.expires_at >= v_now
-    order by case lower(coalesce(pl.code, ''))
-      when 'vip' then 50
-      when 'pro' then 40
-      when 'basic' then 30
-      when 'single_report' then 30
-      when 'trial' then 20
-      else 0
-    end desc,
-    e.expires_at desc,
-    e.created_at desc,
-    e.id desc
+    order by e.expires_at desc, e.created_at desc, e.id desc
     limit 1;
     v_expires := v_base;
   else

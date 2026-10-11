@@ -7,6 +7,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 import {
+  getPublicMember,
   grantTrialIfEligible,
   normalizeTaiwanMobile,
   TRIAL_CREDITS,
@@ -33,6 +34,78 @@ function wireRpc(reply: { granted: boolean; reason: string | null; entitlement_i
 
 beforeEach(() => {
   adminClientFactory.mockReset();
+});
+
+function wireMemberQueries(entitlements: Array<Record<string, unknown>>) {
+  const queries: Array<{ table: string; filters: Array<[string, string, unknown]>; orders: Array<[string, boolean]> }> = [];
+  const profile = {
+    id: "profile-1",
+    auth_user_id: "auth-1",
+    name: "QA",
+    email: "qa@example.test",
+    phone: null,
+    role: "member",
+    created_at: "2026-01-01T00:00:00.000Z"
+  };
+  adminClientFactory.mockReturnValue({
+    from(table: string) {
+      const query = { table, filters: [] as Array<[string, string, unknown]>, orders: [] as Array<[string, boolean]>, limit: Infinity };
+      queries.push(query);
+      const builder = {
+        select: () => builder,
+        eq: (column: string, value: unknown) => { query.filters.push(["eq", column, value]); return builder; },
+        gte: (column: string, value: unknown) => { query.filters.push(["gte", column, value]); return builder; },
+        order: (column: string, options: { ascending: boolean }) => { query.orders.push([column, options.ascending]); return builder; },
+        limit: (value: number) => { query.limit = value; return builder; },
+        single: async () => ({ data: profile, error: null }),
+        maybeSingle: async () => {
+          const matching = entitlements.filter((row) => query.filters.every(([op, column, value]) => {
+            const actual = row[column];
+            if (op === "eq") return actual === value;
+            return String(actual || "") >= String(value);
+          }));
+          matching.sort((a, b) => {
+            for (const [column, ascending] of query.orders) {
+              const compared = String(a[column] || "").localeCompare(String(b[column] || ""));
+              if (compared) return ascending ? compared : -compared;
+            }
+            return 0;
+          });
+          return { data: matching[0] || null, error: null };
+        }
+      };
+      return builder;
+    }
+  });
+  return queries;
+}
+
+describe("getPublicMember entitlement selection", () => {
+  it("prefers the current active balance when an expired zero row has the same expiry", async () => {
+    const queries = wireMemberQueries([
+      { user_id: "profile-1", id: "old", status: "expired", credits_remaining: 0, expires_at: "2099-01-01T00:00:00.000Z", created_at: "2026-10-01T00:00:00.000Z", plans: { code: "pro", name: "Pro" } },
+      { user_id: "profile-1", id: "new", status: "active", credits_remaining: 20, expires_at: "2099-01-01T00:00:00.000Z", created_at: "2026-10-02T00:00:00.000Z", plans: { code: "pro", name: "Pro" } }
+    ]);
+
+    const member = await getPublicMember("profile-1");
+
+    expect(member).toMatchObject({ entitlement_id: "new", status: "active", credits_remaining: 20, plan: "pro" });
+    expect(queries[1].filters).toContainEqual(["eq", "status", "active"]);
+    expect(queries[1].orders).toEqual([["expires_at", false], ["created_at", false], ["id", false]]);
+    expect(queries).toHaveLength(2);
+  });
+
+  it("falls back to the latest expired row when no current active entitlement exists", async () => {
+    const queries = wireMemberQueries([
+      { user_id: "profile-1", id: "older", status: "expired", credits_remaining: 0, expires_at: "2025-01-01T00:00:00.000Z", created_at: "2025-01-01T00:00:00.000Z", plans: { code: "basic", name: "Basic" } },
+      { user_id: "profile-1", id: "latest", status: "expired", credits_remaining: 0, expires_at: "2025-05-01T00:00:00.000Z", created_at: "2025-05-01T00:00:00.000Z", plans: { code: "single_report", name: "Single report" } }
+    ]);
+
+    const member = await getPublicMember("profile-1");
+
+    expect(member).toMatchObject({ entitlement_id: "latest", status: "expired", credits_remaining: 0, plan: "single_report" });
+    expect(queries).toHaveLength(3);
+  });
 });
 
 describe("normalizeTaiwanMobile", () => {

@@ -82,6 +82,8 @@ export async function POST(request: NextRequest) {
       .eq("status", "active")
       .gte("expires_at", now)
       .order("expires_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(10);
 
     if (entitlementError) throw entitlementError;
