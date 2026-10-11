@@ -92,6 +92,12 @@ try {
     && ents.find((row) => row.id === entitlementRows[0].id)?.credits_remaining === 7
     && ents.find((row) => row.id === entitlementRows[1].id)?.status === "active",
   "cron preserves credits and future entitlement");
+  const newAudits = (await db("admin_audit_logs?select=id,action,metadata&action=in.(orders_auto_cancel,entitlements_expired_by_cron)"))
+    .filter((row) => !auditIds.has(row.id));
+  check(newAudits.length === 2
+    && newAudits.some((row) => row.action === "orders_auto_cancel" && row.metadata?.cleaned_count === 1)
+    && newAudits.some((row) => row.action === "entitlements_expired_by_cron" && row.metadata?.expired_count === 1),
+  "successful cron changes produce one matching audit entry each");
   const rerun = await Promise.all([api("cleanup-pending-orders", secret, false), api("expire-entitlements", secret, false)]);
   check(rerun.every((item) => item.status === 200 && item.body.candidate_count === 0),
     "repeated cron calls have no candidates");
@@ -108,7 +114,7 @@ for (const [table, ids] of [["orders", created.orders], ["member_entitlements", 
 if (created.profile && (await db(`profiles?select=id&id=eq.${created.profile}`)).length) {
   throw new Error("profile fixture remains");
 }
-console.log(`${passed}/12 cron cleanup checks passed; fixtures and audit cleaned`);
+console.log(`${passed}/13 cron cleanup checks passed; fixtures and audit cleaned`);
 
 async function db(path, method = "GET", body) {
   const response = await fetch(`${restUrl}/${path}`, { method, headers: {
