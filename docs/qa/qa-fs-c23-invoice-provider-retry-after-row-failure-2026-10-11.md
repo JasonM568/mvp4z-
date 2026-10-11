@@ -12,7 +12,7 @@
 npx vitest run --config scripts/qa-invoice-provider-success-row-failure.vitest.mts
 ```
 
-結果 **1/1 通過（缺陷重現）**；`npx tsc --noEmit` 通過。
+結果 **2/2 通過（缺陷重現）**；`npx tsc --noEmit` 通過。
 
 1. 以隔離 paid order 送出開票請求。
 2. provider stub 回傳成功及發票號碼。
@@ -24,6 +24,8 @@ npx vitest run --config scripts/qa-invoice-provider-success-row-failure.vitest.m
 
 **實際：**相同 `merchantOrderNo=QA_ORDER_20261011` 對 provider 發出兩次呼叫；第二次得到不同 stub 發票號碼並落一筆 row。證實 helper/route 會重複呼叫 provider；**EZPay 是否會拒絕或去重相同 merchantOrderNo、正式是否可能產生兩張發票未實測**。不得將 stub 結果描述為真實重複發票。
 
+同一測試設定 provider barrier，令 N=10 個同單請求都先完成「查無 active invoice」並呼叫 provider，再同時回傳 provider success。結果為 provider calls **10**；DB unique index `idx_invoices_order_provider_active` 在 stub 中只允許一筆本地 active invoice row，其餘 9 次 INSERT 回 500。這證明唯一索引只能保護本地列，無法阻止外部 provider 被重複呼叫；10 次遠端呼叫是否會簽發多張仍取決於 EZPay 契約，尚未測。
+
 另以 `npx vitest run --config scripts/qa-invoice-notify-provider-retry-after-row-failure.vitest.mts` 驗付款通知重送 **1/1 通過（缺陷重現）**：第一次 provider success 後 invoice INSERT error，notify 仍回 HTTP 200 `1|OK` 並送管理員告警；相同通知重送再次呼叫 provider，最後才有 1 invoice row。helper 會將 `merchantOrderNo` 截至 20 字，本例兩次呼叫皆收到同一截短值。此 stub 不證明 ECPay／EZPay 遠端通知時序或 provider 去重。
 
 付款通知重現步驟：送有效簽章的隔離付款 callback（測試以 verifier stub 固定成功）；provider stub 回成功；第一次 invoice INSERT 故障。檢查 notify 仍 ACK `1|OK`、invoice row 0，接著重送相同 callback，檢查 provider call count 增至 2 且最終 invoice row 1。測試沒有真的簽署 ECPay payload。
@@ -32,7 +34,7 @@ npx vitest run --config scripts/qa-invoice-provider-success-row-failure.vitest.m
 
 若 provider 對相同訂單號不保證冪等，網路／DB 故障後的人工重送可能重複開立稅務發票；即使 provider 去重，也會造成不確定的結果、500 與人工對帳成本。這與 QA-FS-C20 的 audit INSERT 遺失情境相關，但根因是 provider 成功與本地 invoice row 持久化之間的跨系統原子性缺口，故獨立追蹤。
 
-修復候選須在本機 provider stub 驗證：provider 成功後首次 invoice row INSERT 故障，再重送同 order，provider 發出請求總數不增加；透過 provider idempotency/reference 查詢並恢復同一發票結果，invoice/outbox/audit 最終各恰一筆。另驗 provider 明確拒絕、超時結果不明、DB 故障持續、併發重送 N=10；無法確認結果時須回傳可追蹤狀態，不可直接宣告成功或再盲目開票。正常付款單與補開流程需回歸；fixture、stub journal 清 0。
+修復候選須在本機 provider stub 驗證：provider 成功後首次 invoice row INSERT 故障，再以人工 retry 或 webhook redelivery 重試同 order，provider 不得再次盲目簽發；透過 provider idempotency/reference 查詢並恢復同一發票結果，invoice/outbox/audit 最終各恰一筆。N=10 同單併發時須只有受控的一次 issue request或一次 provider reference；另驗 provider 明確拒絕、超時結果不明、DB 故障持續。無法確認結果時須回傳可追蹤狀態，不可直接宣告成功或再盲目開票。正常付款單與補開流程需回歸；fixture、stub journal 清 0。
 
 ## 證據限制
 

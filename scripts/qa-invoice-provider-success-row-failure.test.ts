@@ -5,7 +5,10 @@ const state = vi.hoisted(() => ({
   providerCalls: [] as Array<Record<string, unknown>>,
   invoiceRows: [] as Array<Record<string, unknown>>,
   auditRows: [] as Array<Record<string, unknown>>,
-  failFirstInvoiceInsert: true
+  failFirstInvoiceInsert: true,
+  expectedProviderCalls: 0,
+  providerGate: null as null | Promise<void>,
+  releaseProvider: null as null | (() => void)
 }));
 
 vi.mock("@/lib/auth/admin", () => ({
@@ -21,6 +24,10 @@ vi.mock("@/lib/supabase/admin", () => ({ createSupabaseAdminClient: () => makeAd
 vi.mock("@/lib/payments/ezpay-invoice", () => ({
   issueInvoice: async (input: Record<string, unknown>) => {
     state.providerCalls.push(input);
+    if (state.expectedProviderCalls > 0 && state.providerCalls.length >= state.expectedProviderCalls) {
+      state.releaseProvider?.();
+    }
+    if (state.providerGate) await state.providerGate;
     return {
       ok: true,
       status: "SUCCESS",
@@ -69,6 +76,10 @@ function makeAdminClient() {
             state.failFirstInvoiceInsert = false;
             return { data: null, error: new Error("injected invoices row INSERT failure after provider success") };
           }
+          if (state.invoiceRows.some((row) => row.order_id === insertPayload?.order_id &&
+            row.provider === insertPayload?.provider && ["pending", "issued"].includes(String(row.status)))) {
+            return { data: null, error: new Error("duplicate key violates idx_invoices_order_provider_active") };
+          }
           const inserted = { id: "qa-invoice-row", ...insertPayload };
           state.invoiceRows.push(inserted);
           return { data: inserted, error: null };
@@ -93,6 +104,9 @@ describe("QA-FS-C23 invoice provider success followed by invoice-row insert fail
     state.invoiceRows = [];
     state.auditRows = [];
     state.failFirstInvoiceInsert = true;
+    state.expectedProviderCalls = 0;
+    state.providerGate = null;
+    state.releaseProvider = null;
   });
 
   it("calls the provider again on retry because the first success has no persisted invoice row", async () => {
@@ -110,6 +124,23 @@ describe("QA-FS-C23 invoice provider success followed by invoice-row insert fail
     expect(state.providerCalls).toHaveLength(2);
     expect(state.providerCalls[0]).toMatchObject({ merchantOrderNo: "QA_ORDER_20261011" });
     expect(state.providerCalls[1]).toMatchObject({ merchantOrderNo: "QA_ORDER_20261011" });
+    expect(state.invoiceRows).toHaveLength(1);
+    expect(state.auditRows).toHaveLength(1);
+  });
+
+  it("can call the provider N times before the active-invoice unique index permits only one local row", async () => {
+    state.failFirstInvoiceInsert = false;
+    state.expectedProviderCalls = 10;
+    state.providerGate = new Promise<void>((resolve) => { state.releaseProvider = resolve; });
+    const context = { params: Promise.resolve({ orderId: order.id }) };
+
+    const responses = await Promise.all(Array.from({ length: 10 }, () =>
+      POST(request(), context)));
+    const statuses = await Promise.all(responses.map(async (response) => response.status));
+
+    expect(statuses.filter((status) => status === 200)).toHaveLength(1);
+    expect(statuses.filter((status) => status === 500)).toHaveLength(9);
+    expect(state.providerCalls).toHaveLength(10);
     expect(state.invoiceRows).toHaveLength(1);
     expect(state.auditRows).toHaveLength(1);
   });
