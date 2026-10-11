@@ -33,7 +33,7 @@
 | `/api/admin/face-rules` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；POST 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-rules/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/face-teachings` | GET, POST | 不合格 C18：專用 audit INSERT 故障仍 POST 200、規則 published／audit 0，隔離 4/6；C17 已發布規則建立及 SQLi／超長驗證部分通過；其他 kind 待驗 |
-| `/api/admin/face-teachings/[id]` | DELETE, PATCH | 不合格 C17：已發布直接刪 409，PATCH 封存後 DELETE 200 並移除規則，舊引文可能無法追溯；隔離腳本 9/10（SQLi／超長 400、草稿可刪）、fixture 清 0 |
+| `/api/admin/face-teachings/[id]` | DELETE, PATCH | C17 修復分支 `7cae2cd`＋migration 獨立 DB 複驗：曾發布保留／舊引文可追溯 10/10，雙管理員發布／刪除、RPC 403、刪除 audit 故障回滾 5/5 且 10 輪通過；正式整合／部署待驗。C18 建立發布 audit 故障仍不合格 |
 | `/api/admin/face-teachings/import-builtin` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/gemini-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/invoices` | GET | 部分已驗：具名管理員 pending 發票列表與訂單連結；開票／退款待驗 |
