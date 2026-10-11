@@ -1,5 +1,5 @@
--- Allocate credit reclaim by cumulative refunded amount so integer rounding
--- across multiple partial refunds sums to the original grant exactly.
+-- Allocate credit reclaim from the cumulative target minus all credits_expected
+-- already recorded. This also repairs under-allocation from legacy rounding.
 create or replace function public.commit_manual_refund(
   p_order_id uuid,
   p_admin_profile_id uuid,
@@ -22,9 +22,9 @@ as $$
 declare
   v_order public.orders%rowtype;
   v_already integer;
+  v_already_expected integer;
   v_granted integer;
   v_expected integer;
-  v_previous_target integer;
   v_new_target integer;
   v_available integer;
   v_reclaimed integer;
@@ -68,11 +68,14 @@ begin
   from public.credit_transactions t
   where t.ref_id = v_order.order_no and t.source = 'ecpay_payment' and t.type = 'grant';
 
-  -- Use cumulative rounded targets, then reclaim only the incremental target
-  -- for this refund. This avoids floor(20*99/199)+floor(20*100/199)=19.
-  v_previous_target := floor(v_granted::numeric * v_already / nullif(v_order.amount, 0))::integer;
+  -- Historical refunds may have individually floored credits_expected and
+  -- under-collected compared with the cumulative target. Subtract their actual
+  -- recorded total so this refund repairs any old rounding gap as well.
+  select coalesce(sum(r.credits_expected), 0) into v_already_expected
+  from public.refunds r
+  where r.order_id = v_order.id;
   v_new_target := floor(v_granted::numeric * (v_already + p_amount) / nullif(v_order.amount, 0))::integer;
-  v_expected := greatest(coalesce(v_new_target - v_previous_target, 0), 0);
+  v_expected := greatest(coalesce(v_new_target - v_already_expected, 0), 0);
 
   select e.id, e.credits_remaining into v_ent_id, v_ent_balance
   from public.member_entitlements e
