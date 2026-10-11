@@ -18,7 +18,7 @@
 | `/api/admin/documents` | GET, POST | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 隔離 HTTP 正常／audit 故障原子性與 Storage、字數邊界 22/22，加 DB 並發 1/1；Storage 故障只有替身 2/2，正式整合／部署待驗 |
 | `/api/admin/documents/[id]` | DELETE, PATCH | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 的 PATCH／DELETE 正常、audit 故障回滾、title-only 相容性列入隔離 HTTP 22/22；Storage 故障只有替身 2/2，正式整合／部署待驗 |
 | `/api/admin/effective-settings` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；設定內容正確性待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/admin/email-domain` | GET, POST | QA 路由＋Resend 網路替身 11/11：拒絕非管理員、缺 key 503、空／已驗證網域 GET、create 冪等、verify 尚 pending、無網域 404、非法／超長 action 400、上游 403→502 且不洩 key；真 Resend、DNS 與正式環境待驗 |
+| `/api/admin/email-domain` | GET, POST | QA 路由＋Resend 網路替身 11/11：拒絕非管理員、缺 key 503、空／已驗證網域 GET、create 冪等、verify 尚 pending、無網域 404、非法／超長 action 400、上游 403→502 且不洩 key；舊交接記載正式 Resend 網域曾 verified 且測試告警已收，當前狀態與本輪正式流程未重驗 |
 | `/api/admin/face-analysis` | GET | M17 補修分支 `ced1432` 隔離 GET 複驗通過；後台兩路由合計 16/16，含 100／500 位數字 400；正式站待驗 |
 | `/api/admin/face-analysis/[id]` | GET | 現行 main 非法 ID 仍 500；M18 候選 `2f672f0` 與整合候選隔離 21/21：壞 ID 400、未知 UUID 404、授權與詳情、有效私有預覽；正式整合／部署待驗 |
 | `/api/admin/face-analysis/[id]/preview` | POST | 現行 main 非法 ID 仍 500；M18 候選隔離 21/21 含有效私有簽名預覽、無圖／過期 410、匿名 401／會員 403；正式整合／部署待驗 |

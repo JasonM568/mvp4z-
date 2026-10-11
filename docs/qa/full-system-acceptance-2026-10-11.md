@@ -5,7 +5,7 @@
 ## 環境、證據與狀態
 
 - [API 與頁面路由清單](route-inventory-2026-10-11.md)已按目前程式重盤 **88 個 API route 檔／50 個頁面檔**，同步 B1／C19／M18–M22／C15 等較新候選證據。清單逐路由標明已驗範圍與待驗項；候選隔離通過不等於當前 main 或正式站通過。產生器保留人工核實的狀態註記，重跑不會覆蓋為舊硬編碼結果。
-- `app/api/admin/email-domain/route.qa.test.ts` 以路由實際 GET／POST＋Resend `fetch` 替身 **11/11**：管理員拒絕、缺金鑰、空／已存在網域、建立冪等、驗證後仍 pending、非法／超長 action 與上游錯誤；`npx tsc --noEmit` 通過。測試只用假金鑰、無外網或 DNS 改動；真 Resend 驗證與正式寄信仍待驗。
+- `app/api/admin/email-domain/route.qa.test.ts` 以路由實際 GET／POST＋Resend `fetch` 替身 **11/11**：管理員拒絕、缺金鑰、空／已存在網域、建立冪等、驗證後仍 pending、非法／超長 action 與上游錯誤；`npx tsc --noEmit` 通過。測試只用假金鑰、無外網或 DNS 改動。[舊交接](../handoff-archive/handoff-until-2026-10-08.md)另記載正式 Resend 網域曾回 `verified` 且使用者已收到測試告警；本輪未重查當前正式狀態，註冊／付款／重設信的端到端寄達亦未驗。
 - 本機：macOS / Next.js 15.5.23 / Node 專案依賴；`.env.local` 已配置。本輪無正式資料寫入、無真實付款、無 LLM 呼叫。
 - `npm run test:unit`：於 QA commit `20da8e3` 的當前 main 工作樹重跑，**74 test files passed／3 skipped；639 tests passed／2 expected fail／3 skipped**。兩個 expected fail 分別仍在 `app/api/ai/chat/route.qa.test.ts`（B1 同會員並發）與 `app/api/admin/credits/route.qa.test.ts`（C2 補扣點帳本），代表已知缺陷，不能當功能通過；候選隔離修復也不等於 main 已修。
 - `npx tsc --noEmit`：通過；`npm run build`：通過，117 靜態頁產出。
@@ -140,7 +140,7 @@
 | 顧問預約 | 送出後後台可見、狀態可更新 | 缺聯絡方式、非法 email、腳本字串、管理員越權 | 空欄、80／4,000 字、只有電話 | 雙擊、公開入口灌單 | 隔離 API 邊界 7/7；具名管理員列表／詳情／PATCH＋audit 及 limit 邊界 M6 複驗 11/11；`@@@` 電話 QA-FS-M1、雙送 QA-FS-M3；限流待驗 |
 | 課程報名與結帳 | 新生／複訓價格由後端算、報名及訂單一致 | 非法 email／發票、未知課程、偽造價格 | 空選項、超長備註、課程停用 | 雙擊結帳、同 email 同時建立 profile | 隔離 API 8/8 驗證／定價；後台未付款名單／跟進／audit、列表 limit 與摘要修補後 17/17；同 email 雙送 1 profile、2 pending 訂單／報名，QA-FS-M5 待規則；付款後待驗 |
 | 發票與退款 | 付款後開票、失敗可重試、退款帳務一致 | ezPay 失敗／重送、錯統編、未退款卻登錄 | B2C／B2B、載具、捐贈碼、部分退款 | 重試開票／雙重退款 | A/B 發票 RLS 已驗；C8 非法補開票 7/7；C10 分次退款核心帳務通過；C13/C14/M16 最新 migration 隔離 HTTP/DB 複驗：正常 20/20、同鍵重送與異金額 17/17、N=10 並發 4 輪各 15/15、audit 故障回滾 15/15；Ego Lite 後台斷線重送只留 1 筆退款／交易／audit。正式 migration、外部開票／退款、作廢／折讓未驗 |
-| 寄件網域管理 | 管理員查 DNS 狀態、建立並請求驗證 | 未授權、缺 key、上游 403 | 空網域、重複建立、非法／超長 action | 重複請求不建立第二網域 | 路由＋Resend 替身 11/11；真 DNS、Resend 與正式環境待驗 |
+| 寄件網域管理 | 管理員查 DNS 狀態、建立並請求驗證 | 未授權、缺 key、上游 403 | 空網域、重複建立、非法／超長 action | 重複請求不建立第二網域 | 路由＋Resend 替身 11/11；舊交接有正式網域 verified／測試告警寄達紀錄，當前狀態與本輪正式流程未重驗 |
 | 通知與忘記密碼信 | 註冊／付款／警報郵件寄達 | provider 429／失敗不阻主交易 | 空收件人、退信、模板超長 | webhook 重送不重寄 | 待驗；Supabase custom SMTP 未接 |
 | 推廣歸因／分潤 | 有效碼綁定，訂單可追溯 | 無效碼、停用碼、猜碼不洩資料 | 空碼、大小寫、特殊字元 | 註冊與下單同時／重送 | 隔離庫公開查碼 8/8、會員建單歸因／比例快照 4/4；C7 具名管理員建立／改率／停用及 N=10 audit 11 輪隔離複驗通過；C5 停用後帶他人 cookie 轉歸他人待規則決策；註冊當下與正式資料待驗 |
 | 後台營運與 CMS | 具名管理員可管理會員、訂單、預約、課程、內容與 audit | 無 token／會員 token 403；未授權直接 API | 空表、分頁、上傳 2MB、超長內容 | 雙管理員編輯同一資料 | 73 個 handler × 匿名／無效 bearer／有效會員，共 219/219；具名管理員 23 個 GET 路由 23/23 冒煙、後台 23/23 靜態路由殼層導航、預約 11/11、建碼 13/13、課程跟進與列表修補後 17/17；C16 分支 205 筆分頁／搜尋 9/9＋Ego UI、1,001 筆規模 11/11，正式站待驗；各 GET 內容對帳及其他寫入待驗 |
