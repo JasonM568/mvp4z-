@@ -111,7 +111,7 @@ function apiStatus(route) {
     "/api/admin/credits": "不合格 C2：餘額與帳本不一致",
     "/api/admin/site-content": "不合格 M13：is_published 字串 false 在 POST/PATCH 被當 true、意外上架；其餘 CMS 管理流程待驗",
     "/api/cron/cleanup-pending-orders": "隔離通過：密鑰拒絕、dry-run、舊 pending 清理及新 pending／paid 保留；正式排程待驗",
-    "/api/cron/expire-entitlements": "不合格 C11：dry-run 候選 1，正式執行因 updated_at 欄位不存在回 500",
+    "/api/cron/expire-entitlements": "隔離通過 C11：dry-run、過期狀態與點數保留、audit／重跑 13/13；正式排程待驗",
     "/api/face-analysis/runs": "部分已驗：A/B 歷史列表；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider 待驗",
     "/api/face-analysis/runs/[id]": "部分已驗：A/B 詳情與越權 DELETE；本人刪除待驗",
     "/api/face-analysis/runs/[id]/preview": "部分已驗：越權 404；有效照片待驗",
