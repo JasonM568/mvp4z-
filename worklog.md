@@ -3303,3 +3303,10 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 - 執行 `node scripts/qa-route-inventory.mjs`，由目前 app tree 刷新自動盤點文件：**88 個 API route 檔、50 個 page 檔**，未發現新增／遺漏路由；QA 狀態欄沿用既有逐項證據，沒有把生成動作視為重測。
 - 忘記密碼路由狀態保留 C24/C25 固定 SHA 的獨立複驗結果；route inventory 基準更新至 `48a4384`。`git diff --check` 通過。
+
+
+## 2026-10-12｜QA-FS-M8 login route 邊界與錯誤語系
+
+- 新增 `scripts/qa-login-boundaries.test.ts` 與專用 Vitest 設定。實際 login route 配 Auth/profile helper 替身，涵蓋成功 session/member、malformed／空／SQLi 形狀／非字串欄位拒絕、known／unknown 錯密碼同回 400、不完整 session 不建 profile。
+- `./node_modules/.bin/vitest run --config scripts/qa-login-boundaries.vitest.mts`：**4 passed、1 expected fail／5**。expected fail 重現 response 仍含英文 `Invalid login credentials`；輸入拒絕在 Auth 前、known／unknown 對外內容相同。
+- `npx tsc --noEmit`、`git diff --check` 通過。使用合成帳密與 stub，未連真 Auth／DB、未建立 fixture。新增 QA-FS-M8 可派工 ticket，更新 full-system matrix、route inventory 與客戶 UAT A02；等待 X-PM 排序／工程候選。
