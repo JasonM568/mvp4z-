@@ -30,8 +30,8 @@
 | `/api/admin/face-knowledge/import` | POST | 部分已驗 C6：新卡／upsert 版本與 audit 正確；M14 同批重複 card_id 回 500，正式待驗 |
 | `/api/admin/face-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-review-questions` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/admin/face-rules` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；POST 待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/admin/face-rules/publish` | POST | route＋記憶體 DB/audit 替身 4/4：正常／無 draft 通過；audit INSERT 回 error 仍 HTTP 200 且 profile 已切換、無 audit；publish UPDATE 故障可造成暫時無 published profile（QA-FS-M25 critical）；真 DB／並發未驗 |
+| `/api/admin/face-rules` | GET, POST | QA-FS-M25 route＋記憶體 DB/audit 替身：draft 建立後 audit INSERT 回 error 仍 HTTP 200、audit 0；81 字版本標籤 400 零寫入；真 DB／舊 draft update 未驗 |
+| `/api/admin/face-rules/publish` | POST | QA-FS-M25 route＋記憶體 DB/audit 替身：正常／無 draft 通過；audit INSERT 回 error 仍 HTTP 200 且 profile 已切換、無 audit；publish UPDATE 故障可造成暫時無 published profile；真 DB／並發未驗；critical |
 | `/api/admin/face-teachings` | GET, POST | C18 候選 `461f213`＋migration：X-QA 全新隔離 stack 建立／audit 故障原腳本 6/6；其他 kind、正式整合／部署待驗 |
 | `/api/admin/face-teachings/[id]` | DELETE, PATCH | C17 候選曾發布保留／雙管理員競爭／刪除 audit 回滾隔離通過；C18 候選 PATCH 發布 audit 故障回滾與正常具名 audit 連續兩輪各通過；舊報告 v1 正文還原未證，正式整合／部署待驗 |
 | `/api/admin/face-teachings/import-builtin` | POST | C18 候選 X-QA 隔離兩輪通過：audit 故障 500／新增 0、正常匯入 67 筆、重跑冪等且具名 audit；正式整合／部署待驗 |

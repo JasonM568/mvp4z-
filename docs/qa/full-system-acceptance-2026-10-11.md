@@ -488,8 +488,8 @@ QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 
 
 `scripts/qa-face-member-image-delete.test.ts` 以實際 DELETE route 搭配隔離 in-memory DB／Storage 替身驗證 **8/8**，`npx tsc --noEmit` 通過。越權／無 token、非法與跨會員 ID、analyzing／claim 衝突、已刪冪等、正常刪除均有覆蓋。兩個 critical 故障窗口已重現：Storage remove 成功但 DB finalize 失敗後，照片已不存在、DB path 懸空且 `deletion_pending=true`，重送 409；DB 與 Storage 已清後 event INSERT 失敗，首次回 500、重送 200 仍無 event。派工稿見 [QA-FS-M24](qa-fs-m24-member-image-delete-failure-recovery-2026-10-11.md)，X-PM 已接受並派工程1；**真 Supabase DB／Storage 故障尚未驗**，先前自有 Storage stack health check 失敗，不把替身結果當產品服務實測。待 M24 修復候選供隔離複驗。
 
-**本次階段測試總結：**本階段沒有 BLOCKER 新增；critical QA-FS-M22／M23 既有票維持，QA-FS-M24 已由 X-PM 接受並派工程1，新增 QA-FS-M25（面相規則發布與 audit 非原子）；M24/M25 均只有 route＋替身證據，真 DB／Storage 尚未驗；minor 無新增。M23 Option A prototype focused suite 11/11；最新全套 Vitest：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped。另本階段 M24 8/8、M25 4/4，`npx tsc --noEmit` 通過。功能驗收清單與正式站回歸仍未完成，不可簽核全系統 UAT。
+**本次階段測試總結：**本階段沒有 BLOCKER 新增；critical QA-FS-M22／M23 既有票維持，QA-FS-M24 已由 X-PM 接受並派工程1，新增 QA-FS-M25（面相規則草稿／發布與 audit 非原子）；M24/M25 均只有 route＋替身證據，真 DB／Storage 尚未驗；minor 無新增。M23 Option A prototype focused suite 11/11；最新全套 Vitest：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped。另本階段 M24 8/8、M25 6/6，`npx tsc --noEmit` 通過。功能驗收清單與正式站回歸仍未完成，不可簽核全系統 UAT。
 
-### QA-FS-M25：面相規則發布原子性與 audit
+### QA-FS-M25：面相規則草稿／發布原子性與 audit
 
-針對管理員 `POST /api/admin/face-rules/publish` 的 route＋替身腳本 `scripts/qa-face-rules-publish-audit.test.ts` **4/4**；`npx tsc --noEmit` 通過。正常發布與無 draft 400 通過。按共用 helper 的實際實作模擬 audit insert 回 `{ error }`：helper 不檢查 error，故 API 仍 200、profile 已切換但 audit 0；另注入 publish UPDATE 失敗，舊版先被 archived、API 500，暫時沒有 published profile。派工稿見 [QA-FS-M25](qa-fs-m25-face-rules-publish-atomicity-2026-10-11.md)，待 X-PM 排序。證據是 route 控制流與記憶體替身，真 DB／transaction／雙管理員並發尚未驗；只在隔離環境故障注入。
+針對管理員 draft save 與 `POST /api/admin/face-rules/publish` 的 route＋替身腳本 `scripts/qa-face-rules-publish-audit.test.ts` **6/6**；`npx tsc --noEmit` 通過。正常發布、無 draft 400、81 字版本標籤 400 零寫入通過。按共用 helper 實作模擬 audit insert 回 `{ error }`：draft 已新增仍 HTTP 200、audit 0；發布時 profile 已切換仍 HTTP 200、audit 0。另注入 publish UPDATE 失敗，舊版先被 archived、API 500，暫時沒有 published profile。派工稿見 [QA-FS-M25](qa-fs-m25-face-rules-publish-atomicity-2026-10-11.md)，待 X-PM 排序。證據是 route 控制流與記憶體替身，真 DB／transaction／雙管理員並發尚未驗；只在隔離環境故障注入。

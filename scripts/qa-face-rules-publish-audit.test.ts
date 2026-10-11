@@ -23,7 +23,8 @@ vi.mock("@/lib/face-analysis/rule-profiles", () => ({
   invalidateFaceRuleProfileCache: mocks.invalidateFaceRuleProfileCache
 }));
 
-import { POST } from "../app/api/admin/face-rules/publish/route";
+import { POST as publishPOST } from "../app/api/admin/face-rules/publish/route";
+import { POST as saveDraftPOST } from "../app/api/admin/face-rules/route";
 
 const existingPublished = {
   id: "current-profile",
@@ -60,6 +61,7 @@ function makeAdminClient() {
       if (table !== "face_rule_profiles") throw new Error(`Unexpected table ${table}`);
       let filters: Record<string, unknown> = {};
       let updatePayload: Record<string, unknown> | null = null;
+      let insertPayload: Record<string, unknown> | null = null;
       const query = {
         select: () => query,
         eq: (column: string, value: unknown) => {
@@ -70,6 +72,16 @@ function makeAdminClient() {
           data: mocks.rows.find((row) => Object.entries(filters).every(([key, value]) => row[key] === value)) || null,
           error: null
         }),
+        insert: (payload: Record<string, unknown>) => {
+          insertPayload = payload;
+          return query;
+        },
+        single: async () => {
+          if (!insertPayload) return { data: null, error: new Error("expected insert payload") };
+          const row = { ...insertPayload, id: "new-draft" };
+          mocks.rows.push(row);
+          return { data: { id: row.id }, error: null };
+        },
         update: (payload: Record<string, unknown>) => {
           updatePayload = payload;
           return query;
@@ -94,6 +106,25 @@ function request() {
   return new NextRequest("http://localhost/api/admin/face-rules/publish", { method: "POST" });
 }
 
+const savePayload = {
+  versionLabel: "v3",
+  note: "QA draft",
+  decidedBy: "QA",
+  settings: {
+    schemaVersion: "1.0",
+    palaces: ["命宮", "官祿宮", "父母宮", "福德宮", "遷移宮", "兄弟宮", "夫妻宮", "子女宮", "疾厄宮", "財帛宮", "奴僕宮", "田宅宮"]
+      .map((name) => ({ name, primary: ["eyes"], auxiliary: [] }))
+  }
+};
+
+function saveRequest(payload: unknown = savePayload) {
+  return new NextRequest("http://localhost/api/admin/face-rules", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
 describe("QA: admin face-rule publish audit boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -116,7 +147,7 @@ describe("QA: admin face-rule publish audit boundary", () => {
   });
 
   it("publishes the draft, archives the previous profile, and writes named audit on success", async () => {
-    const response = await POST(request());
+    const response = await publishPOST(request());
 
     expect(response.status).toBe(200);
     expect(mocks.rows).toEqual([
@@ -132,7 +163,7 @@ describe("QA: admin face-rule publish audit boundary", () => {
   it("returns 400 without writing when no draft exists", async () => {
     mocks.rows = [{ ...existingPublished }];
 
-    const response = await POST(request());
+    const response = await publishPOST(request());
 
     expect(response.status).toBe(400);
     expect(mocks.rows).toEqual([expect.objectContaining({ id: "current-profile", status: "published" })]);
@@ -142,7 +173,7 @@ describe("QA: admin face-rule publish audit boundary", () => {
   it("reproduces a false-success response when audit insert returns an error", async () => {
     mocks.auditInsertFails = true;
 
-    const response = await POST(request());
+    const response = await publishPOST(request());
 
     expect(response.status).toBe(200);
     expect(mocks.rows).toEqual([
@@ -156,7 +187,7 @@ describe("QA: admin face-rule publish audit boundary", () => {
   it("reproduces a no-published-profile gap when publishing fails after archiving", async () => {
     mocks.updateFailureStatus = "published";
 
-    const response = await POST(request());
+    const response = await publishPOST(request());
 
     expect(response.status).toBe(500);
     expect(mocks.rows).toEqual([
@@ -164,5 +195,29 @@ describe("QA: admin face-rule publish audit boundary", () => {
       expect.objectContaining({ id: "draft-profile", status: "draft" })
     ]);
     expect(mocks.writeAdminAudit).not.toHaveBeenCalled();
+  });
+
+  it("also returns success when draft insert commits but its audit insert fails", async () => {
+    mocks.rows = [{ ...existingPublished }];
+    mocks.auditInsertFails = true;
+
+    const response = await saveDraftPOST(saveRequest());
+
+    expect(response.status).toBe(200);
+    expect(mocks.rows).toEqual([
+      expect.objectContaining({ id: "current-profile", status: "published" }),
+      expect.objectContaining({ id: "new-draft", status: "draft", version_label: "v3" })
+    ]);
+    expect(mocks.auditRows).toEqual([]);
+  });
+
+  it("rejects an oversized version label before writing a draft", async () => {
+    mocks.rows = [{ ...existingPublished }];
+
+    const response = await saveDraftPOST(saveRequest({ ...savePayload, versionLabel: "v".repeat(81) }));
+
+    expect(response.status).toBe(400);
+    expect(mocks.rows).toEqual([expect.objectContaining({ id: "current-profile", status: "published" })]);
+    expect(mocks.auditRows).toEqual([]);
   });
 });
