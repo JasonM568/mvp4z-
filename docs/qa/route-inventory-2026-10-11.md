@@ -147,6 +147,6 @@
 | `/member-pricing` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/member/reports/[id]` | 待驗：未有本輪頁面互動證據 |
 | `/privacy` | 本機 3104 基本渲染通過（h1／main／無 Application error）；互動與正式站待驗 |
-| `/reset-password` | 不合格 C15：正式站仍 client-side exception；修復分支本機無連結頁不崩潰，但有效 recovery hash token（Auth `/user` 200）仍顯「找不到重設 session」，不可改密；正式重設流程不可用 |
+| `/reset-password` | C15 補修分支 `6bd59cd` QA Ego Lite 隔離 E2E 兩輪各 11/11：有效連結改密成功、新密登入舊密拒絕、已用／無連結／無效 token 提示與 hash 清空；正式站舊版仍 client-side exception，待部署、真實收信與站端回歸 |
 | `/services` | 正式站 390px 無水平溢出；本機 3104 基本渲染通過；完整互動待驗 |
 | `/thanks` | 本機 3104 基本渲染通過（h1／main／無 Application error）；實際預約提交與正式站待驗 |
