@@ -3169,3 +3169,16 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 ### 票務狀態對齊
 - 清理全系統文件的舊派工狀態：C20/C23 已有整合候選隔離複驗結果，改為候選通過、正式 gate 未結；C21 維持已派工程1；C22 更新為已送 X-PM 定序／派工。
 - 補記 C20/C23 ticket 對 `3f3eec5` 的候選 route/SQL 證據及真 EZPay 限制；保留原始缺陷重現與正式發布風險。
+
+
+## 2026-10-12｜M23 Option A 獨立可行性複核
+
+### 範圍與結果
+- 唯讀檢視 `/private/tmp/xunfeng-m23-spike` HEAD `42175c1e00e3d8f12de4ee4e413852961de544b1` 的設計、route、RPC 草稿及 Storage validator；工程 worktree clean，未改候選、正式庫或 C4 共用 stack。
+- 從新的 `git archive` QA 副本重跑 route 與 Storage 套件：Vitest 4.1.10，2 files／11 tests passed；覆蓋雙故障 route state、attached 保護、A/B 精確 key 隔離與舊 path preview/traversal。
+- 建立隔離 native PostgreSQL 16.14 Unix-socket cluster，使用最小 fixture schema 套用未版本化 SQL 草稿。event INSERT trigger fault 令 upload-result RPC 失敗後確認 run/event 交易回滾；cleanup RPC 將 intent 轉為 `cleanup_pending` 並記錄 sanitized Storage error。另驗成功提交後 cleanup 回 `attached/may_delete=false`、舊固定 key 可由 upload-result RPC 接受、本機 fixture role ACL 設定。測試 cluster 與一次性來源副本已清除。
+
+### 結論與限制
+- Option A 的 attempt-specific key、持久 intent 與 row-lock attach/cleanup 狀態轉換有 focused feasibility 證據；此階段不提升 M23/M22 為正式通過。
+- 真 Supabase Storage 故障／清理、HTTP transport response loss、完整 Supabase migration replay／ACL、正式 reconciler 及 lease/retry 尚未驗。`cleanup_pending`／upload-result 不確定結果仍無自動 reconciler；Storage upload 回應模糊時 pending intent 也缺回收服務。舊 M22 app 不讀新 key，回退需 forward-compatible artifact 或受控 forward-only rollout。
+- 更新 M23 spike review 與全系統矩陣；`git diff --check` 通過。QA-FS-M23 critical gate 維持，待 Tech Lead 選案與工程形成可部署候選。

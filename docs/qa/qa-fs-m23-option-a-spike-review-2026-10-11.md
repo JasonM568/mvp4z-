@@ -39,14 +39,20 @@ Result: **2 files / 11 tests passed**. Then created a disposable native PostgreS
 - After `record_face_upload_result` committed and attached the intent, a subsequent cleanup claim returned `attached` and `may_delete = false` (the simulated lost-response case).
 - After A's intent became cleanup-pending, B's distinct attempt key attached to the run; A's cleanup response remained scoped to A's exact key.
 
-The temporary PostgreSQL cluster and data directory were stopped and removed. This is independent SQL-function/state evidence, but the minimal fixture schema is not a clean replay of the real Supabase schema. It does not inject a real event failure, model a real HTTP response loss, test ACL under real Supabase roles, or call Storage. Legacy path compatibility and traversal rejection remain covered by the focused route/Storage tests only.
+The temporary PostgreSQL cluster and data directory were stopped and removed. This is independent SQL-function/state evidence, but the minimal fixture schema is not a clean replay of the real Supabase schema. It does not model a real HTTP response loss, test ACL under real Supabase roles, or call Storage. Legacy path compatibility and traversal rejection remain covered by the focused route/Storage tests only.
+
+### 2026-10-12 independent recheck
+
+- Re-ran the two focused candidate suites from a new one-time `git archive` copy of the same SHA: **2 files / 11 tests passed** (Vitest 4.1.10). The candidate worktree remained clean.
+- Started a separate native PostgreSQL **16.14** cluster on a private Unix socket and applied the unversioned draft to a minimal fixture schema. A scoped event-insert trigger made `record_face_upload_result` fail; the function transaction rolled back the run update and event, then the cleanup RPC persisted `cleanup_pending` and the sanitized `STORAGE_REMOVE_FAILED` code. A successful result RPC followed by cleanup returned `attached / may_delete=false`. A no-intent legacy fixed-key upload result was accepted, and local fixture-role grants confirmed anon/authenticated lacked intent-table access while service_role had the required access.
+- The earlier route/Storage stub test still supplies A/B exact-key isolation and legacy preview/traversal coverage. This recheck did not call Supabase or Storage, test an actual HTTP response loss, run a complete migration replay, or verify ACL behavior in Supabase. It does not change the feasibility-only disposition.
 
 ## Reviewed invariants and evidence
 
 | Scenario | Evidence | QA assessment |
 |---|---|---|
 | Event/result write and intent attachment are atomic | SQL draft orders run update, event insert, and intent `pending → attached` in one RPC transaction; scratch success path committed run/event/intent together | Function success path ran on a minimal PostgreSQL fixture; event-insert fault rollback and real Supabase transaction behavior were not injected |
-| Double failure leaves cleanup discoverable | Route test injects result RPC failure and Storage remove failure; independent PostgreSQL scratch verifies persistent `cleanup_pending`, attempt count, and error code | Route + SQL-state evidence passes. No real Storage remove fault or future reconciliation is exercised |
+| Double failure leaves cleanup discoverable | Route test injects result RPC failure and Storage remove failure; independent PostgreSQL 16.14 scratch injects event-insert failure and verifies transaction rollback plus persistent `cleanup_pending` and error code | Route + SQL-state evidence passes. No real Storage remove fault or future reconciliation is exercised |
 | RPC committed but HTTP response was lost does not delete attached image | Route test simulates committed state; PostgreSQL scratch runs the real result RPC followed by cleanup claim | Route + SQL-state evidence passes. No real network response loss or concurrent transaction timing is exercised |
 | Old worker A cannot remove new worker B key | Storage test uploads attempt-specific A/B paths; PostgreSQL scratch claims A cleanup and attaches B's key | Exact-key separation is supported by stub and SQL-state evidence; real Storage behavior is not exercised |
 | Existing fixed path remains readable | Storage test signs a legacy `{profile}/{run}/source.jpg` path and rejects traversal | Preview compatibility passes in a stub. Independent download and delete compatibility were not exercised |
