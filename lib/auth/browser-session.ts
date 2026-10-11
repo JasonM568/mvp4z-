@@ -8,20 +8,21 @@ export async function logoutBrowserSession() {
   const refreshToken = window.localStorage.getItem(MEMBER_REFRESH_TOKEN_KEY);
   try {
     if (refreshToken) {
-      await fetch("/api/auth/logout", {
+      const response = await fetch("/api/auth/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken }),
         keepalive: true,
         signal: AbortSignal.timeout(5000)
       });
+      if (!response.ok) return false;
     }
   } catch {
-    // Local credentials must still be cleared if the browser is offline.
-  } finally {
-    window.localStorage.removeItem(MEMBER_ACCESS_TOKEN_KEY);
-    window.localStorage.removeItem(MEMBER_REFRESH_TOKEN_KEY);
+    return false;
   }
+  window.localStorage.removeItem(MEMBER_ACCESS_TOKEN_KEY);
+  window.localStorage.removeItem(MEMBER_REFRESH_TOKEN_KEY);
+  return true;
 }
 
 /** localStorage removals are broadcast to sibling tabs on the same origin. */

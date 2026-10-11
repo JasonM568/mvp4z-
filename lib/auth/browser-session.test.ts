@@ -48,13 +48,13 @@ describe("browser session logout", () => {
     expect(state.localStorage.removeItem).toHaveBeenCalledWith(MEMBER_REFRESH_TOKEN_KEY);
   });
 
-  it("clears credentials even if the logout request fails", async () => {
+  it("preserves credentials and reports failure if session revocation fails", async () => {
     const state = setWindow({ [MEMBER_ACCESS_TOKEN_KEY]: "access", [MEMBER_REFRESH_TOKEN_KEY]: "refresh" });
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
 
-    await logoutBrowserSession();
+    await expect(logoutBrowserSession()).resolves.toBe(false);
 
-    expect(state.localStorage.removeItem).toHaveBeenCalledTimes(2);
+    expect(state.localStorage.removeItem).not.toHaveBeenCalled();
   });
 
   it("notifies sibling tabs when the access token is removed", () => {

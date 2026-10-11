@@ -78,6 +78,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<AdminMember | null>(null);
   const [checking, setChecking] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => listenForBrowserLogout(() => router.replace("/admin-login")), [router]);
 
@@ -130,7 +131,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   async function logout() {
-    await logoutBrowserSession();
+    setLogoutError("");
+    if (!(await logoutBrowserSession())) {
+      setLogoutError("登出服務暫時無法確認，登入狀態尚未清除，請稍後重試。");
+      return;
+    }
     router.replace("/admin-login");
   }
 
@@ -193,6 +198,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="me">{me?.name || me?.email}</div>
           <div>{me?.email}</div>
           <div>角色：{me?.role}</div>
+          {logoutError && <div role="alert">{logoutError}</div>}
           <button onClick={logout}>登出</button>
         </div>
       </aside>

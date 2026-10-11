@@ -54,6 +54,7 @@ export default function MemberPage() {
   const [pendingCouncil, setPendingCouncil] = useState(false);
   const [payment, setPayment] = useState<{ state: "checking" | "activated" | "waiting" | "failed"; orderNo: string; message: string } | null>(null);
   const [openOrders, setOpenOrders] = useState<MemberOrder[]>([]);
+  const [logoutError, setLogoutError] = useState("");
 
   useEffect(() => listenForBrowserLogout(() => {
     window.location.href = "/login?next=/member";
@@ -176,7 +177,11 @@ export default function MemberPage() {
   }, []);
 
   async function logout() {
-    await logoutBrowserSession();
+    setLogoutError("");
+    if (!(await logoutBrowserSession())) {
+      setLogoutError("登出服務暫時無法確認，登入狀態尚未清除，請稍後重試。");
+      return;
+    }
     window.location.href = "/";
   }
 
@@ -187,6 +192,7 @@ export default function MemberPage() {
       <section className="my-xunfeng-hero">
         <div className="wrap">
           <div className="tag">MY XUNFENG</div>
+          {logoutError && <p className="status" role="alert">{logoutError}</p>}
           <div className="my-xunfeng-head">
             <div><h1>我的巽風</h1><p>{member?.name || member?.email}，從這裡開始問事、看報告與管理點數。</p></div>
             <button type="button" onClick={logout}>登出</button>
