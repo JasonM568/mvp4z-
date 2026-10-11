@@ -1,6 +1,6 @@
 # API 與頁面驗收缺口清單（自動盤點）
 
-產生基準：本機 commit `8d7b73b`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
+產生基準：本機 commit `b3bb295`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
 本表的「部分已驗」只指欄中列出的情境；其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。
 
 ## API routes
@@ -52,7 +52,7 @@
 | `/api/admin/school-settings` | GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/school-settings/preview` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/school-settings/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
-| `/api/admin/site-content` | DELETE, GET, PATCH, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/site-content` | DELETE, GET, PATCH, POST | 不合格 M13：is_published 字串 false 在 POST/PATCH 被當 true、意外上架；其餘 CMS 管理流程待驗 |
 | `/api/admin/site-content/media` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/site-content/media/sign` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/token-usage` | GET | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |

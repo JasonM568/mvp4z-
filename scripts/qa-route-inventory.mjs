@@ -109,6 +109,7 @@ function apiStatus(route) {
     "/api/admin/face-knowledge/[id]": "部分已驗 C6：單／雙管理員 N=10 各 11 輪隔離通過；正式站待驗",
     "/api/admin/face-knowledge/[id]/revisions": "部分已驗 C6：隔離並發快照一致；正式站待驗",
     "/api/admin/credits": "不合格 C2：餘額與帳本不一致",
+    "/api/admin/site-content": "不合格 M13：is_published 字串 false 在 POST/PATCH 被當 true、意外上架；其餘 CMS 管理流程待驗",
     "/api/cron/cleanup-pending-orders": "隔離通過：密鑰拒絕、dry-run、舊 pending 清理及新 pending／paid 保留；正式排程待驗",
     "/api/cron/expire-entitlements": "不合格 C11：dry-run 候選 1，正式執行因 updated_at 欄位不存在回 500",
     "/api/face-analysis/runs": "部分已驗：A/B 歷史列表；建立／provider 待驗",
