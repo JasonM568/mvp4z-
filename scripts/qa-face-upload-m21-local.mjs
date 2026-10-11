@@ -40,6 +40,9 @@ let passed = 0;
 let providerCalls = 0;
 let providerMode = "pass";
 let providerDelay = 0;
+let holdNextProviderCall = false;
+const heldProviderCalls = [];
+let faultTriggerName = null;
 
 function check(value, name, details = "") {
   checks++;
@@ -94,6 +97,26 @@ async function storagePaths(profileId, runId) {
   assertNoError(result, "Storage list");
   return (result.data || []).map((entry) => `${profileId}/${runId}/${entry.name}`);
 }
+async function sql(command) {
+  const database = new URL(env.DB_URL || "");
+  if (!["localhost", "127.0.0.1"].includes(database.hostname)) throw new Error("Refusing non-local DB");
+  return new Promise((resolve, reject) => {
+    const child = spawn("psql", [env.DB_URL, "-v", "ON_ERROR_STOP=1", "-Atc", command],
+      { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => code ? reject(new Error(`local SQL failed: ${stderr.slice(0, 300)}`)) : resolve(stdout));
+  });
+}
+async function waitForHeldProviderCall() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (heldProviderCalls.length) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error("provider request was not held");
+}
 async function createMember(label) {
   const email = `${prefix}-${label}@example.test`;
   const password = crypto.randomBytes(24).toString("hex");
@@ -133,12 +156,17 @@ function runEmptyScript(membersFile) {
 }
 const provider = createServer(async (request, response) => {
   providerCalls++;
+  const mode = providerMode;
   for await (const _chunk of request) { /* consume synthetic image */ }
+  if (holdNextProviderCall) {
+    holdNextProviderCall = false;
+    await new Promise((resolve) => heldProviderCalls.push(resolve));
+  }
   if (providerDelay) await new Promise((resolve) => setTimeout(resolve, providerDelay));
   response.setHeader("content-type", "application/json");
   response.end(JSON.stringify({
-    faceCount: providerMode === "reject" ? 0 : 1,
-    faceCoverage: providerMode === "reject" ? 0 : 0.5,
+    faceCount: mode === "reject" ? 0 : 1,
+    faceCoverage: mode === "reject" ? 0 : 0.5,
     pose: { yaw: 0, pitch: 0, roll: 0 },
     occlusion: { eyes: false, nose: false, mouth: false }
   }));
@@ -204,8 +232,64 @@ try {
   }
   check(await balanceFootprint(a.profileId) === baseline,
     "all concurrent uploads preserve credit footprint");
+
+  // First request holds an old lease at the provider. A newer request recovers
+  // the deliberately aged lease and commits; the stale token must lose.
+  providerDelay = 0;
+  const staleId = await makeRun(a.profileId);
+  providerMode = "reject";
+  holdNextProviderCall = true;
+  const staleUpload = upload(staleId, a.token, image);
+  await waitForHeldProviderCall();
+  const oldClaim = await row(staleId);
+  check(Boolean(oldClaim.upload_claim_token) && oldClaim.upload_attempts === 1,
+    "first request acquired upload lease");
+  assertNoError(await admin.from("face_analysis_runs")
+    .update({ upload_claimed_at: new Date(Date.now() - 3 * 60_000).toISOString() })
+    .eq("id", staleId), "age upload lease");
+  providerMode = "pass";
+  const recovered = await upload(staleId, a.token, image);
+  const newResult = await row(staleId);
+  check(recovered.status === 200 && newResult.status === "uploaded"
+    && newResult.upload_attempts === 2 && !newResult.upload_claim_token,
+    "stale two-minute lease recovered by new request", `HTTP ${recovered.status}`);
+  heldProviderCalls.shift()?.();
+  const oldResponse = await staleUpload;
+  const finalResult = await row(staleId);
+  check(oldResponse.status >= 400 && finalResult.status === "uploaded"
+    && finalResult.upload_attempts === 2 && (await events(staleId)).length === 1
+    && (await storagePaths(a.profileId, staleId)).length === 1,
+    "old claim token cannot overwrite new result", `old HTTP ${oldResponse.status}`);
+  check(await balanceFootprint(a.profileId) === baseline,
+    "stale recovery preserves credit footprint");
+
+  // The trigger is scoped to one fresh run ID. It proves whether the DB update
+  // and event INSERT form one transaction across the current route boundary.
+  const faultId = await makeRun(a.profileId);
+  faultTriggerName = `qa_m21_event_fault_${crypto.randomBytes(5).toString("hex")}`;
+  await sql(`create function public.${faultTriggerName}() returns trigger language plpgsql as $$
+    begin
+      if new.run_id = '${faultId}'::uuid then raise exception 'QA_M21_EVENT_INSERT_FAULT'; end if;
+      return new;
+    end $$;
+    create trigger ${faultTriggerName} before insert on public.face_analysis_events
+    for each row execute function public.${faultTriggerName}();`);
+  const faultResponse = await upload(faultId, a.token, image);
+  const faultRow = await row(faultId);
+  const faultStorage = await storagePaths(a.profileId, faultId);
+  check(faultResponse.status >= 500
+    && (!faultRow.storage_path || faultStorage.includes(faultRow.storage_path)),
+  "event INSERT fault never leaves a DB path pointing to a missing object",
+  `HTTP ${faultResponse.status}, DB ${faultRow.status}, DB path ${Boolean(faultRow.storage_path)}, objects ${faultStorage.length}, events ${(await events(faultId)).length}`);
+  check(await balanceFootprint(a.profileId) === baseline,
+    "event INSERT failure does not charge credits");
 } finally {
+  while (heldProviderCalls.length) heldProviderCalls.shift()?.();
   provider.close();
+  if (faultTriggerName) {
+    await sql(`drop trigger if exists ${faultTriggerName} on public.face_analysis_events;
+      drop function if exists public.${faultTriggerName}();`);
+  }
   for (const run of runs) {
     const paths = await storagePaths(run.profileId, run.id).catch(() => []);
     if (paths.length) assertNoError(await admin.storage.from("face-analysis-uploads").remove(paths), "Storage cleanup");
@@ -237,5 +321,5 @@ try {
   }
   console.log(`QA fixtures cleaned: runs/events ${runs.length}, Auth/profile ${users.length}, Storage/accounting 0`);
 }
-console.log(`${passed}/${checks} M21 supplemental checks passed`);
+console.log(`${passed}/${checks} face-upload checks passed (includes independent event-fault gate)`);
 if (passed !== checks) process.exitCode = 1;

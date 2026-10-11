@@ -415,3 +415,14 @@ X-PM 指定的窄範圍驗證已在候選 `78dff9c` 的真實路由函式上執�
 | 回歸與清理 | 工程候選 route unit **6/6**、`tsc --noEmit` 通過。補充腳本連續三次完整成功（前一次 Auth 建帳暫時失敗，未產生 fixture；重跑後成功）。最後逐 run 核對 events／資料列／Storage 0，兩個 Auth/profile 與帳務 fixture 0；DB 額外查詢 `qa-m21-%@example.test` Auth/profile 均 0；3219 已停止。 |
 
 **測試總結：**M21 原 4/10 缺陷在此候選隔離 HTTP 複驗已修至 10/10，圖片品質與 CAS 帳務也通過；原票可標記「隔離複驗通過、待整合／migration 乾淨重播／正式站驗收」。合成圖片配本機品質 stub 不證明真實人臉服務的判讀品質；正式站與付費提供者未測。QA 腳本用法：先以候選程式啟動本機 app，設定 `FACE_ANALYSIS_ENABLED=true`、本機 `FACE_QUALITY_PROVIDER_URL=http://127.0.0.1:3297`，清空付費模型金鑰，再執行 `node scripts/qa-face-upload-m21-local.mjs --base-url=http://127.0.0.1:<port> --env-file=<local-private-env> --provider-port=3297`。腳本自行建／刪隔離帳號與資料，拒絕非本機 Supabase URL。
+
+### M21 lease 回收與 QA-FS-M22 event 故障：追加獨立驗收
+
+X-PM 追加指定 stale 2 分鐘 lease 與獨立 event 故障。QA 延伸同一腳本，以候選 `e821bd5`、全新 A/B/run、C4 隔離 DB／Storage、3219 候選路由與本機品質 stub 再跑。工程1另回報其獨立臨時 stack 已由 origin/main 乾淨重播 50 migrations，含 M19 `12010000`→C19 `12020000`→M21 `12030000`；QA **未獨立重置該 stack**，C4 的 M21 migration history 仍為 0，正式整合 gate 保留。
+
+| 測項 | 步驟、預期與實際 | 結果 |
+|---|---|---|
+| stale lease 舊 token | 暫停第一個有效圖請求於本機品質 provider，讀取 claim token，將該 run 的 `upload_claimed_at` 回撥 3 分鐘；第二請求回收 lease、200 完成 `uploaded`、attempt 2、Storage 1、event 1。釋放第一請求後舊 token 回 500，無法覆寫新結果；帳務不變。 | **4/4 通過**；這是時間欄位故障注入，未真的等待 2 分鐘。 |
+| QA-FS-M22 event INSERT 故障 | 只對新專用 run ID 建 scoped `BEFORE INSERT` trigger，令 `face_analysis_events` 寫入拋錯；有效合成圖品質通過、Storage 上傳成功後呼叫路由。**預期**：失敗後 `storage_path` 不指向已刪物件；**實際**：HTTP 500、run `status=uploaded`、`storage_path` 非空、Storage 0、event 0、attempt 1。補償刪除物件已發生，但 DB row 更新獨立提交，會員後續可能無法預覽／分析。 | **1 項失敗，critical，新票，非 M21 空上傳修補造成。**無扣點；故障 trigger、函式、run/events/Storage/Auth/profile/帳務清 0。 |
+
+最新腳本結果為 **24/25**，唯一失敗項是 QA-FS-M22；因此腳本以非零狀態結束，不能把 25 個測項宣稱全通過。原 M21 空上傳 **10/10**、有效圖／N=2×10／stale lease 回收均通過，仍待正式整合與部署。QA-FS-M22 派工 ticket：**嚴重度 critical**；影響為 `uploaded` 任務記錄指向不存在照片，可能使預覽、分析與續作失敗。驗收標準是 event 寫入故障時，DB 任務不得留下失效 `storage_path`，或系統須保留可復原物件與一致事件；正常品質拒絕／合格、CAS 與重送仍須通過。複驗方式：在專用 run 上重跑腳本 scoped trigger 案例，檢查回應、DB row/event、Storage 與清理；不使用正式資料。此票已送 X-PM 排序，待工程1獲派修復。
