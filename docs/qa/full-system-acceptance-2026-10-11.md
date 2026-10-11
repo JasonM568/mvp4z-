@@ -376,3 +376,16 @@
 X-PM 發現上述舊候選 `a3c8507` 的 `20261012010000_ai_documents_atomic_audit.sql` 與 M19 `20261012010000_face_analysis_delete_once.sql` 使用同一版號。工程1更新 C19 至 `8675390c749418585ad562042326e8710909b405`，補上「只有 PATCH 明確帶 `include_in_prompt=true` 才重查字數預算」的相容性條件；QA 唯讀核對後，**新版仍保留衝突的 `20261012010000` 版號**。因此上方 13/13／19/19 僅代表舊候選在單獨暫套 SQL 的 API 行為，不代表 M19+C19 可一起 migration replay、整合或部署。此版號衝突為整合 BLOCKER，已通知 X-PM／工程1；未對新版套 migration 或宣告通過。
 
 QA 已在自有 `qa-admin-document-audit-local.mjs` 準備三項待跑案例：用專用已啟用文件模擬既有總字數超預算，驗「只改標題」仍 200 並有具名 audit；明確再次啟用仍 400 且無額外 audit。待 C19 換成唯一 migration 版號、工程完成 M19+C19 乾淨 replay 後，以新 SHA 重跑原 13 項、擴充正常流程／Storage 與這三項相容性案例，再核對並發和 fixture 清理。此段案例尚未執行，不列為通過。
+
+### C19 新版號與相容性修正：最新獨立複驗
+
+工程候選已更新至 `/private/tmp/xunfeng-c19` HEAD `78dff9c0d836d5b6b3f373bbdc6445c39a2d479f`；C19 migration 改為 `20261012020000_ai_documents_atomic_audit.sql`，M19 仍為 `20261012010000_face_analysis_delete_once.sql`，檔名版號不再衝突。工程1回報其獨立 stack 做 origin/main 47 版＋M19＋C19 共 49 migrations 乾淨重播；**QA 沒有重置該 stack**，改在 C4 隔離庫依序暫套兩個 SQL，完成複驗後移除 C19 三 RPC、還原 M19 原函式，兩版 migration history 前後皆 0。
+
+| 項目 | QA 獨立結果 |
+|---|---|
+| 候選 HTTP／Storage | `qa-admin-document-audit-local.mjs` **22/22**：原三路由 audit 故障原子性、正常 POST／PATCH／DELETE、故障與正常生命週期後 Storage 孤兒檔為 0；新增已啟用但超預算的舊文件只改標題 200 且具名 audit，明確重新啟用 400 且 audit 不增加。 |
+| 兩 migration 相容 | M19 SQL 後接 C19 SQL 均成功；C19 `ai_documents_atomic_audit.sql` 與 M19 `face_analysis_delete_once.sql` 專用 SQL 測試均在交易內通過並 rollback。QA 並未獨立執行 49 版乾淨 reset。 |
+| 字數並發 | QA 自有 `qa-admin-document-budget-concurrency-local.sh` **1/1**：兩份各 80,000 字同時啟用、預算餘額 150,000 字，只一份成功、另一份被拒且僅一筆 audit；專用文件／audit 清 0。 |
+| 程式與清理 | 候選 `route.c19.test.ts` **7/7**、`tsc --noEmit`、`git diff --check` 通過；C4 專用 Auth/profile/document/trigger/Storage 查 0，候選分支乾淨。 |
+
+**最新測試總結：**先前 migration 版號衝突的整合 BLOCKER 已在候選檔案層解除，C19 新候選隔離複驗通過；正式 migration／站端回歸與其他共用 audit helper 入口仍待驗，C19 critical 票暫不關閉。Storage 自身清理失敗仍可能回 503 並留待盤點物件，須有營運補清程序；本輪無新增產品缺陷。
