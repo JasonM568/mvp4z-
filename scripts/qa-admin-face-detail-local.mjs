@@ -55,6 +55,12 @@ async function get(id, token) {
   return { status: response.status, body: await response.json().catch(() => ({})),
     cache: response.headers.get("cache-control") || "" };
 }
+async function preview(id, token) {
+  const response = await fetch(`${baseUrl}/api/admin/face-analysis/${encodeURIComponent(id)}/preview`, {
+    method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}
+  });
+  return { status: response.status, body: await response.json().catch(() => ({})) };
+}
 try {
   const admin = await makeUser("admin");
   const member = await makeUser("member");
@@ -82,6 +88,22 @@ try {
     const result = await get(id, admin.token);
     check(result.status === 400, `${label} rejected`, `HTTP ${result.status}`);
   }
+  check((await preview(ids.run, "")).status === 401, "preview anonymous denied");
+  check((await preview(ids.run, member.token)).status === 403, "preview member denied");
+  check((await preview(ids.run, admin.token)).status === 410, "preview with no image returns 410");
+  check((await preview(crypto.randomUUID(), admin.token)).status === 404, "preview unknown UUID returns 404");
+  for (const [label, id] of [["malformed ID", "not-a-uuid"],
+    ["SQLi shaped ID", "' OR 1=1 --"], ["overlong ID", "9".repeat(500)]]) {
+    const result = await preview(id, admin.token);
+    check(result.status === 400, `preview ${label} rejected`, `HTTP ${result.status}`);
+  }
+  await db(`face_analysis_runs?id=eq.${ids.run}`, "PATCH", {
+    storage_path: `qa/face-detail/${tag}.png`, image_expires_at: new Date(Date.now() - 60000).toISOString()
+  });
+  check((await preview(ids.run, admin.token)).status === 410, "preview expired image returns 410");
+  const previewEvents = await db(`face_analysis_events?select=id,event_type&run_id=eq.${ids.run}`);
+  check(previewEvents.length === 1 && previewEvents[0].event_type === "qa_detail_probe",
+    "denied previews create no request event", `events ${previewEvents.length}`);
 } finally {
   await db(`face_analysis_events?run_id=eq.${ids.run}`, "DELETE");
   await db(`face_analysis_runs?id=eq.${ids.run}`, "DELETE");

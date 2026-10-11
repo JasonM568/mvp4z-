@@ -20,8 +20,8 @@
 | `/api/admin/effective-settings` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；設定內容正確性待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/email-domain` | GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/face-analysis` | GET | M17 補修分支 `ced1432` 隔離 GET 複驗通過；後台兩路由合計 16/16，含 100／500 位數字 400；正式站待驗 |
-| `/api/admin/face-analysis/[id]` | GET | 不合格 M18：具名合法詳情／事件／audit、授權與 no-store 通過；非法／SQLi／500 字 id 均 500，隔離 7/10；正式站待驗 |
-| `/api/admin/face-analysis/[id]/preview` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/face-analysis/[id]` | GET | 不合格 M18：具名合法詳情／事件／audit、授權與 no-store 通過；非法／SQLi／500 字 id 均 500；與 preview 合計隔離 13/19，正式站待驗 |
+| `/api/admin/face-analysis/[id]/preview` | POST | 不合格 M18：無照片／過期照片 410、未知合法 UUID 404、匿名401／會員403及拒絕不寫 event 通過；非法／SQLi／500 字 id 均 500；有效照片簽名 URL 待驗 |
 | `/api/admin/face-knowledge` | GET, POST | 部分已驗：具名管理員建立／查詢與非法輸入通過；C6 並發隔離回歸通過 |
 | `/api/admin/face-knowledge/[id]` | DELETE, PATCH | 部分已驗 C6：單／雙管理員 N=10 各 11 輪隔離通過；正式站待驗 |
 | `/api/admin/face-knowledge/[id]/revisions` | GET | 部分已驗 C6：隔離並發快照一致；正式站待驗 |
