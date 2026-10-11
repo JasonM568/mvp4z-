@@ -92,7 +92,7 @@ function apiStatus(route) {
     "/api/ai/council": "既有正式證據：並發／日限額；瀏覽器找回待驗",
     "/api/bookings": "部分已驗：欄位邊界；M1／M3 待規則",
     "/api/courses/checkout": "部分已驗：驗證與後端定價；M5 雙送待規則",
-    "/api/orders/create": "部分已驗：M4 邊界 7/7、推廣歸因；M5／C5 待規則",
+    "/api/orders/create": "部分已驗：M4 邊界及內部方案 code／ID 拒絕 9/9、推廣歸因；M5／C5 待規則",
     "/api/referral/lookup": "隔離通過：公開查碼 8/8；註冊歸因待驗",
     "/api/payments/ecpay/notify": "隔離通過：C4 四情境×20 輪；正式待驗",
     "/api/admin/bookings": "隔離通過：具名管理員列表與 limit 邊界 M6 11/11；正式待驗",

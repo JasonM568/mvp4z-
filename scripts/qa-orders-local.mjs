@@ -4,6 +4,7 @@
 //   --env-file=/private/connection.private.env --members-file=/private/qa-members.private.json
 
 import { readFile } from "node:fs/promises";
+import crypto from "node:crypto";
 
 const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
   const split = arg.indexOf("=");
@@ -29,19 +30,27 @@ const plan = plans.find((p) => p.price > 0 && p.currency === "TWD" && !p.code.st
 if (!plan) throw new Error("No purchasable local QA plan");
 
 const created = [];
+let internalPlanId;
 const invoice = { buyer_type: "personal", buyer_name: "QA", buyer_email: "qa-order@example.test", carrier_type: "none" };
 let passed = 0;
 try {
+  const internalCode = `e2e_qa_${crypto.randomBytes(5).toString("hex")}`;
+  const [internalPlan] = await db("plans", "POST", [{ code: internalCode, name: "QA Internal Plan",
+    price: 1, currency: "TWD", credits: 1, duration_days: 1, is_active: true }]);
+  internalPlanId = internalPlan.id;
   for (const [label, input, expected] of [
     ["empty plan", {}, 400],
     ["SQLi-shaped plan code", { plan_code: "' OR 1=1 --" }, 404],
     ["64-char unknown plan code", { plan_code: "x".repeat(64) }, 404],
     ["65-char plan code", { plan_code: "x".repeat(65) }, 400],
     ["10000-char plan code", { plan_code: "x".repeat(10000) }, 400],
-    ["invalid company ID", { plan_code: plan.code, invoice_request: { buyer_type: "company", buyer_name: "QA", buyer_id: "1234567" } }, 400]
+    ["invalid company ID", { plan_code: plan.code, invoice_request: { buyer_type: "company", buyer_name: "QA", buyer_id: "1234567" } }, 400],
+    ["internal plan code", { plan_code: internalCode }, 404],
+    ["internal plan ID", { plan_id: internalPlanId }, 404]
   ]) {
     const before = await db(`orders?select=id&user_id=eq.${member.profile_id}`, "GET");
     const response = await create(input);
+    if (response.body?.order?.id) created.push(response.body.order.id);
     const after = await db(`orders?select=id&user_id=eq.${member.profile_id}`, "GET");
     const ok = response.status === expected && after.length === before.length;
     console.log(`${ok ? "PASS" : "FAIL"} ${label}: HTTP ${response.status}, order delta=${after.length - before.length}`);
@@ -61,13 +70,17 @@ try {
   if (pricesCorrect) passed++;
   const distinct = valid && new Set(created).size === 2;
   console.log(`${distinct ? "OBSERVED" : "UNEXPECTED"} double checkout: HTTP ${responses.map((r) => r.status).join("/")}, pending orders=${rows.length}`);
-  console.log(`${passed}/7 membership order checks passed`);
-  if (!pricesCorrect || !distinct || passed !== 7) process.exitCode = 1;
+  console.log(`${passed}/9 membership order checks passed`);
+  if (!pricesCorrect || !distinct || passed !== 9) process.exitCode = 1;
 } finally {
   for (const id of created) await db(`orders?id=eq.${id}`, "DELETE");
+  if (internalPlanId) await db(`plans?id=eq.${internalPlanId}`, "DELETE");
   if (created.length) {
     const remaining = await db(`orders?select=id&id=in.(${created.join(",")})`, "GET");
     if (remaining.length) throw new Error("Local order cleanup incomplete");
+  }
+  if (internalPlanId && (await db(`plans?select=id&id=eq.${internalPlanId}`, "GET")).length) {
+    throw new Error("Local internal plan cleanup incomplete");
   }
 }
 
@@ -80,10 +93,12 @@ async function create(input) {
   return { status: response.status, body };
 }
 
-async function db(path, method) {
+async function db(path, method, body) {
   const response = await fetch(`${restUrl}/${path}`, {
     method,
-    headers: { apikey: env.SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SERVICE_ROLE_KEY}`, Prefer: "return=representation" }
+    headers: { apikey: env.SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json", Prefer: "return=representation" },
+    body: body === undefined ? undefined : JSON.stringify(body)
   });
   if (!response.ok) throw new Error(`Local DB ${method} returned ${response.status}`);
   const result = await response.text();
