@@ -57,6 +57,15 @@ describe("browser session logout", () => {
     expect(state.localStorage.removeItem).not.toHaveBeenCalled();
   });
 
+  it("preserves credentials when the logout endpoint returns HTTP 500", async () => {
+    const state = setWindow({ [MEMBER_ACCESS_TOKEN_KEY]: "access", [MEMBER_REFRESH_TOKEN_KEY]: "refresh" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 500 }));
+
+    await expect(logoutBrowserSession()).resolves.toBe(false);
+
+    expect(state.localStorage.removeItem).not.toHaveBeenCalled();
+  });
+
   it("notifies sibling tabs when the access token is removed", () => {
     const { listeners } = setWindow({});
     const onLogout = vi.fn();
