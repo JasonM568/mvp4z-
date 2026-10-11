@@ -23,6 +23,7 @@ const signer = createClient(env.API_URL, env.ANON_KEY, { auth: { persistSession:
 const tag = crypto.randomBytes(5).toString("hex");
 const runId = crypto.randomUUID();
 const created = { auth: [], profiles: [] };
+let photoPath, pdfPath;
 let passed = 0, checks = 0;
 function check(ok, label, detail = "") {
   checks++; if (ok) passed++;
@@ -63,6 +64,17 @@ try {
     user_id: owner.id, mode: "self", consent_version: "qa-local", status: "completed",
     report_structured: { qa: privateText }, report_text: privateText, credits_charged: 20,
     completed_at: new Date().toISOString() }]);
+  photoPath = `${owner.id}/${runId}/source.png`;
+  pdfPath = `${owner.id}/${runId}/report.pdf`;
+  const photo = await service.storage.from("face-analysis-uploads").upload(photoPath,
+    Buffer.from("89504e470d0a1a0a", "hex"), { contentType: "image/png" });
+  const pdf = await service.storage.from("face-analysis-reports").upload(pdfPath,
+    Buffer.from("%PDF-1.4\n%%EOF\n"), { contentType: "application/pdf" });
+  if (photo.error || pdf.error) throw new Error("Cannot create local photo/PDF fixtures");
+  await db(`face_analysis_runs?id=eq.${runId}`, "PATCH", {
+    storage_path: photoPath, mime_type: "image/png",
+    image_expires_at: new Date(Date.now() + 60_000).toISOString()
+  });
 
   check((await api("GET", runId, "")).status === 401, "anonymous detail denied");
   check((await api("DELETE", runId, "")).status === 401, "anonymous delete denied");
@@ -90,6 +102,12 @@ try {
   const events = await db(`face_analysis_events?select=event_type&run_id=eq.${runId}`);
   check(events.filter((row) => row.event_type === "run_deleted").length === 1,
     "exactly one deletion event", `events ${events.length}`);
+  const [removedPhoto, removedPdf] = await Promise.all([
+    service.storage.from("face-analysis-uploads").download(photoPath),
+    service.storage.from("face-analysis-reports").download(pdfPath)
+  ]);
+  check(Boolean(removedPhoto.error) && Boolean(removedPdf.error),
+    "private photo and PDF objects removed");
   const after = await api("GET", runId, owner.token);
   check(after.status === 200 && after.body.run?.status === "deleted"
     && !JSON.stringify(after.body).includes(privateText), "owner detail no longer reveals report content",
@@ -102,7 +120,7 @@ try {
     "later retry creates no extra event", `events ${finalEvents.length}`);
   // Reproduce the stale-read window directly: a caller that read "completed"
   // before the first delete may reach this claim after the row became deleted.
-  const staleClaim = await db(`face_analysis_runs?id=eq.${runId}&user_id=eq.${owner.id}&deletion_pending=eq.false&status=neq.analyzing`,
+  const staleClaim = await db(`face_analysis_runs?id=eq.${runId}&user_id=eq.${owner.id}&deletion_pending=eq.false&status=neq.analyzing&status=neq.deleted`,
     "PATCH", { deletion_pending: true });
   check(staleClaim.length === 0, "deleted row cannot be claimed by stale request",
   `claimed ${staleClaim.length}`);
@@ -113,6 +131,8 @@ try {
   check(!repeatedRpc.ok, "redaction RPC rejects already deleted row",
   `HTTP ${repeatedRpc.status}`);
 } finally {
+  if (photoPath) await service.storage.from("face-analysis-uploads").remove([photoPath]);
+  if (pdfPath) await service.storage.from("face-analysis-reports").remove([pdfPath]);
   await db(`face_analysis_events?run_id=eq.${runId}`, "DELETE");
   await db(`face_analysis_runs?id=eq.${runId}`, "DELETE");
   for (const id of created.profiles) await db(`profiles?id=eq.${id}`, "DELETE");

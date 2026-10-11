@@ -49,7 +49,8 @@ for (const [label, method, path] of routes) {
       signal: AbortSignal.timeout(15_000), headers: {
         Authorization: `Bearer ${token}`, ...(method === "POST" ? { "Content-Type": "application/json" } : {})
       }, body: method === "POST" ? "{}" : undefined });
-    const expected = kind === "unknown UUID" ? [404] : [400, 404];
+    const expected = kind === "unknown UUID" ? [404]
+      : ["preview GET", "PDF GET", "analyze POST"].includes(label) ? [400] : [404];
     const ok = expected.includes(response.status);
     checks++; if (ok) passed++;
     console.log(`${ok ? "PASS" : "FAIL"} ${label} ${kind}: HTTP ${response.status}`);

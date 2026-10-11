@@ -22,6 +22,7 @@ const service = createClient(env.API_URL, env.SERVICE_ROLE_KEY, { auth: { persis
 const signer = createClient(env.API_URL, env.ANON_KEY, { auth: { persistSession: false } });
 const tag = crypto.randomBytes(5).toString("hex");
 const ids = { auth: [], profiles: [], run: crypto.randomUUID() };
+let imagePath;
 let passed = 0, checks = 0;
 function check(ok, label, detail = "") {
   checks++; if (ok) passed++;
@@ -104,7 +105,27 @@ try {
   const previewEvents = await db(`face_analysis_events?select=id,event_type&run_id=eq.${ids.run}`);
   check(previewEvents.length === 1 && previewEvents[0].event_type === "qa_detail_probe",
     "denied previews create no request event", `events ${previewEvents.length}`);
+  imagePath = `${member.id}/${ids.run}/source.png`;
+  const uploaded = await service.storage.from("face-analysis-uploads").upload(imagePath,
+    Buffer.from("89504e470d0a1a0a", "hex"), { contentType: "image/png" });
+  if (uploaded.error) throw new Error("Cannot create QA image fixture");
+  await db(`face_analysis_runs?id=eq.${ids.run}`, "PATCH", {
+    storage_path: imagePath, image_expires_at: new Date(Date.now() + 60_000).toISOString()
+  });
+  const adminValid = await preview(ids.run, admin.token);
+  check(adminValid.status === 200 && adminValid.body.ok === true
+    && adminValid.body.expiresIn === 300 && Boolean(adminValid.body.url),
+    "named admin obtains valid private preview", `HTTP ${adminValid.status}`);
+  const memberValid = await fetch(`${baseUrl}/api/face-analysis/runs/${ids.run}/preview`, {
+    headers: { Authorization: `Bearer ${member.token}` }
+  });
+  const memberBody = await memberValid.json().catch(() => ({}));
+  check(memberValid.status === 200 && memberBody.ok === true
+    && memberBody.expiresIn === 300 && Boolean(memberBody.url),
+    "owner obtains valid private preview", `HTTP ${memberValid.status}`);
 } finally {
+  if (imagePath) await service.storage.from("face-analysis-uploads").remove([imagePath]);
+  await db(`admin_audit_logs?target_id=eq.${ids.run}`, "DELETE");
   await db(`face_analysis_events?run_id=eq.${ids.run}`, "DELETE");
   await db(`face_analysis_runs?id=eq.${ids.run}`, "DELETE");
   for (const id of ids.profiles) await db(`profiles?id=eq.${id}`, "DELETE");

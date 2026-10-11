@@ -77,7 +77,7 @@ try {
     ["overlong report ID", "a".repeat(500)]
   ]) {
     const malformed = await pdf(id, aToken);
-    check(malformed.status === 404, `${label} rejected`, `HTTP ${malformed.status}`);
+    check(malformed.status === 400, `${label} rejected`, `HTTP ${malformed.status}`);
   }
   const own = await pdf(completed.id, aToken);
   const bytes = Buffer.from(await own.arrayBuffer());
@@ -91,6 +91,14 @@ try {
   const againBytes = Buffer.from(await again.arrayBuffer());
   check(again.status === 200 && againBytes.equals(bytes), "repeat PDF download stable",
     `HTTP ${again.status}, bytes ${againBytes.length}`);
+  const analyzeAgain = await fetch(`${baseUrl}/api/face-analysis/runs/${completed.id}/analyze`, {
+    method: "POST", signal: AbortSignal.timeout(30_000),
+    headers: { Authorization: `Bearer ${aToken}`, "Content-Type": "application/json" }, body: "{}"
+  });
+  const analyzeBody = await analyzeAgain.json().catch(() => ({}));
+  check(analyzeAgain.status === 200 && analyzeBody.ok === true
+    && analyzeBody.run?.id === completed.id && analyzeBody.run?.status === "completed",
+    "completed analyze retry returns existing report", `HTTP ${analyzeAgain.status}`);
 } finally {
   await rest(`face_analysis_runs?id=in.(${completed.id},${pending.id})`, "DELETE");
   // The PDF route may cache in private Storage. Delete only this unique QA path.
