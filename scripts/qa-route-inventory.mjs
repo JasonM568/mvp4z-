@@ -81,6 +81,8 @@ function apiStatus(route) {
     "/api/auth/refresh": "部分已驗：有效／無效 refresh",
     "/api/auth/forgot-password": "部分已驗：帳號不洩漏；重設信待驗",
     "/api/member/me": "部分已驗：有效會員／失效 token",
+    "/api/member/orders": "隔離通過：A/B 訂單所有權、付款開通輪詢與 SQLi 形狀查詢 11/11",
+    "/api/member/usage": "隔離通過：A/B 使用量 API 所有權與匿名／壞 token 拒絕",
     "/api/member/redeem": "隔離通過：N=10 原子兌換／rollback；正式待驗",
     "/api/member/council-runs": "隔離通過：A/B 列表所有權",
     "/api/member/council-runs/[id]": "隔離通過：A/B 詳情所有權",
