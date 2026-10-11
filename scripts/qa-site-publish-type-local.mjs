@@ -64,6 +64,18 @@ try {
   const [stored] = await db(`site_services?select=id,is_published&id=eq.${itemId}`);
   check(badPatch.status === 400 && stored?.is_published === false,
     `string false on PATCH must be 400 and remain unpublished (HTTP ${badPatch.status}, stored=${stored?.is_published})`);
+  const publish = await api("PATCH", "/api/admin/site-content", {
+    type: "services", id: itemId, is_published: true
+  });
+  const [published] = await db(`site_services?select=id,is_published&id=eq.${itemId}`);
+  check(publish.status === 200 && published?.is_published === true,
+    "boolean true publishes service");
+  const unpublish = await api("PATCH", "/api/admin/site-content", {
+    type: "services", id: itemId, is_published: false
+  });
+  const [unpublished] = await db(`site_services?select=id,is_published&id=eq.${itemId}`);
+  check(unpublish.status === 200 && unpublished?.is_published === false,
+    "boolean false unpublishes service");
 } finally {
   if (itemId) {
     await db(`admin_audit_logs?target_id=eq.${itemId}`, "DELETE");
@@ -77,8 +89,8 @@ try {
 }
 if (itemId && (await db(`site_services?select=id&id=eq.${itemId}`)).length) throw new Error("CMS fixture remains");
 if (profileId && (await db(`profiles?select=id&id=eq.${profileId}`)).length) throw new Error("Profile fixture remains");
-console.log(`${passed}/2 publish type checks passed; fixtures cleaned`);
-if (passed !== 2) process.exitCode = 1;
+console.log(`${passed}/4 publish type checks passed; fixtures cleaned`);
+if (passed !== 4) process.exitCode = 1;
 
 async function db(path, method = "GET", body) {
   const response = await fetch(`${restUrl}/${path}`, { method, headers: {

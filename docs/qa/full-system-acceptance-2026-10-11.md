@@ -42,7 +42,7 @@
 - C9 已提交修補 `fbcb6bc` 後，QA 使用 `bash scripts/qa-addon-zero-balance-local.sh /private/connection.private.env --migration-preview` 在單一交易載入正式提交的 migration 並複驗。結果 exit 3：`active_count=1`、`old_active=f`、`purchased_credits=20`、`new_vip=t`，但 `selected_old=t`、`selected_credits=0`。同到期日的失效舊列仍可被 `getPublicMember()` 無 status 條件的排序選中；交易失敗自動回滾，本機庫沒有套用 migration。已將剩餘缺口交 X-PM；會員 API／畫面與 AI 成功回應的會員摘要須修復後複驗。
 - M7／M11 工程修補 `48cd357` 後，QA 在本機隔離 DB／3104 dev API 重跑 `scripts/qa-admin-course-followup-local.mjs`，**17/17 通過**：`limit=-1/abc/0/501` 均 400，`limit=1/500` 均 200；兩筆報名時 `limit=1` 的 API `summary.total/pendingContact=2/2` 與 DB `2/2` 一致，具名管理員跟進／audit、匿名與會員拒絕也通過，fixtures 全清。工程 route 單元測試另有 **12/12 通過**；正式部署及後台畫面仍待驗。
 - `scripts/qa-cron-cleanup-local.mjs` 在獨立 C4 本機 DB／3104 API 建逾 24 小時 pending 訂單、近 24 小時 pending、舊 paid，及過期／未到期 active 權益。兩路由匿名／錯密鑰皆 401、dry-run 均報 1 候選且不寫入；舊 pending 訂單正式清理成功。過期權益正式清理卻 HTTP 500：`member_entitlements` 沒有 `updated_at` 欄位；QA-FS-C11。`finally` 清理後 profile、訂單與 cron audit 均 0；此腳本須待修復後跑滿 12/12。
-- `scripts/qa-site-publish-type-local.mjs` 在獨立 C4 本機 DB／3104 API 以具名管理員直打 CMS：POST 服務 `is_published:"false"` 回 201 且 DB `true`；先把測試服務重設為未上架，再 PATCH 同值回 200 且 DB 由 `false` 變 `true`，**0/2 通過**（QA-FS-M13）。測後 QA profile、服務與 audit 均 0；非前端輸入可能誤上架。
+- `scripts/qa-site-publish-type-local.mjs` 在獨立 C4 本機 DB／3104 API 以具名管理員直打 CMS：POST 服務 `is_published:"false"` 回 201 且 DB `true`；先把測試服務重設為未上架，再 PATCH 同值回 200 且 DB 由 `false` 變 `true`。真正布林 `true/false` 的上架／下架正常，合計 **2/4 通過**（QA-FS-M13）。測後 QA profile、服務與 audit 均 0；非前端輸入可能誤上架。
 - `scripts/qa-refund-rounding-local.sh` 在隔離 DB 以單一交易重現 QA-FS-C10：paid 199 元／20 點加購訂單依序退款 99＋100 元，訂單轉 `refunded`，但兩次只收回 9＋10＝19 點，權益仍有 1 點；腳本 exit 3。連線關閉自動回滾，QA profile 殘留 0，沒有綠界操作或正式資料寫入。
 - `scripts/qa-member-read-local.mjs` 在本機隔離 API/DB 以 A/B 測試會員自建 pending／paid 訂單與 usage，**11/11 通過**：匿名／壞 token 401，A/B 訂單及使用量互不洩漏，paid 訂單在權益未建立前 `activated=false`、建立後輪詢轉 `true`，對方以 order_no 查仍 0 筆，SQLi 形狀訂單號 0 筆。權益、使用量、訂單在 `finally` 逐筆清理核對；未呼叫真實金流。
 - `scripts/qa-site-unpublish-local.mjs` 在獨立 C4 本機隔離 DB／3102 dev API 重現 QA-FS-M12：服務表原本 9 筆已上架，先下架 1 筆，公開 API 正確由 9→8；再全部下架並核對 DB 公開筆數 0，API 卻回靜態 JSON 的 9 筆，腳本 exit 1。`finally` 恢復並核對 9 筆原發布旗標，正式內容未改；CDN 快取與其他內容型別仍待驗。
@@ -130,7 +130,7 @@
 31. **會員訂單／使用量 API（11/11）**：`node scripts/qa-member-read-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/connection.private.env --members-file=/private/qa-members.private.json`。只接受 localhost API/DB；A/B 各建測試訂單及 usage，驗身份、跨會員隔離、paid 尚未開通／開通後輪詢、SQLi 形狀訂單號，最後逐筆清理。
 32. **公開 CMS 全下架空狀態（M12，預期失敗）**：`node scripts/qa-site-unpublish-local.mjs --base-url=http://127.0.0.1:3102 --env-file=/private/c4-connection.private.env`。只接受 localhost API/DB；暫把本機服務全部下架，要求公開 `services=[]`，目前回靜態 9 筆而 exit 1；`finally` 還原並核對原旗標。須在獨立內容庫執行，避免共享資源受短暫下架影響。
 33. **排程正向清理（C11，預期失敗）**：`node scripts/qa-cron-cleanup-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`，本機 app 需 `CRON_SECRET=qa-cron-isolated-only` 並指向獨立 C4 庫。腳本先確認無既有待清候選，再建專用舊／新訂單與權益；驗匿名／錯密鑰、dry-run、真正清理、重跑與點數保留，最後刪除 fixtures/audit。目前過期權益更新因不存在 `updated_at` 回 500，修後目標 12/12。
-34. **CMS 發布型別直打 API（M13，預期失敗）**：`node scripts/qa-site-publish-type-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。獨立庫自建具名管理員與服務；要求 `is_published:"false"` 在 POST/PATCH 都 400 且不發布，目前 201/200 並上架，0/2。`finally` 清除服務、audit、Auth/profile；修後再驗真布林 `false/true` 正常路徑。
+34. **CMS 發布型別直打 API（M13，2/4）**：`node scripts/qa-site-publish-type-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。獨立庫自建具名管理員與服務；要求 `is_published:"false"` 在 POST/PATCH 都 400 且不發布，目前 201/200 並上架；真正布林上架／下架兩項通過。`finally` 清除服務、audit、Auth/profile；修後目標 4/4。
 
 ## 效能與壓力測試提案
 
@@ -224,7 +224,7 @@
 | QA-FS-M10／minor | 具名管理員 GET `/api/admin/orders?id=` 後接非 UUID、SQLi 形狀或 10,000 字，三者均 500；合法未知 UUID 404，隔離帳務唯讀腳本 8/11，資料全清理 | 先驗 UUID 格式與長度，非法值 400 或一致 404，不查 DB、不回 500；重跑同腳本 11/11，確認清單與詳情未受影響 | 已送 X-PM；不涉及商業規則 |
 | QA-FS-M11／minor | 原缺陷：兩筆報名、`limit=1` 時摘要誤為 1。修補 `48cd357` 後隔離 API summary.total/pendingContact=2/2，DB=2/2；全腳本 17/17，資料清理 | 正式部署後驗 `limit=1`／預設／500 及 contact_status filter，摘要與完整篩選集合一致 | **隔離複驗通過；正式站／UI 待驗**，已回報 X-PM；摘要範圍已由程式註明 |
 | QA-FS-M12／minor | 獨立本機 DB 9 筆服務先下架 1 筆，API 正確由 9→8；全部 `is_published=false` 後 DB 公開筆數 0，API 卻從 `content/services.json` 回 9 筆；腳本 exit 1、原旗標已還原 | 成功查庫但全部下架時公開清單應空；僅 DB 故障／表未建時 fallback。驗部分下架、全下架、空資料與故障備援，腳本轉綠且旗標清理 | 已送 X-PM 排工；不涉商業規則取捨，正式內容未改 |
-| QA-FS-M13／minor | 隔離 CMS 管理 API：POST `is_published:"false"` 回 201、DB true；測試列重設未上架後，PATCH 同值回 200、DB false→true。`Boolean(string)` 將非法型別當上架，腳本 0/2，fixtures/audit 清 0 | 僅接受 JSON 布林 true/false；字串／數字／null 等錯型 400、無發布副作用，正常布林與具名 audit 仍正確；同腳本 2/2 並擴驗 promo.active | 已送 X-PM 排工；不涉及商業規則，正式內容未改 |
+| QA-FS-M13／minor | 隔離 CMS 管理 API：POST `is_published:"false"` 回 201、DB true；測試列重設未上架後，PATCH 同值回 200、DB false→true。真正布林上架／下架通過，腳本 2/4，fixtures/audit 清 0 | 僅接受 JSON 布林 true/false；字串／數字／null 等錯型 400、無發布副作用，正常布林與具名 audit 仍正確；同腳本 4/4 並擴驗 promo.active | 已送 X-PM 排工；不涉及商業規則，正式內容未改 |
 
 另有待驗限制：Supabase Auth custom SMTP 未接；奇門老師未簽核且晚子時規則待確認；Council 備援真實失敗、AI 提示遵循與瀏覽器斷線找回未實測；後台字級及手機版未看實際畫面。這些不應被「build 通過」取代。
 
