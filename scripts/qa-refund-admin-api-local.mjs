@@ -9,6 +9,7 @@ const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
 }));
 const baseUrl = args["base-url"]?.replace(/\/$/, "");
 const replay = args.replay === "true";
+const concurrentReplay = args.replay === "concurrent";
 if (!args["env-file"] || !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(baseUrl || "")) {
   throw new Error("Provide local --base-url and --env-file");
 }
@@ -107,6 +108,25 @@ try {
   check((await db(`refunds?select=id&order_id=eq.${orderId}`)).length === 0,
     "invalid requests leave no refund rows");
 
+  if (concurrentReplay) {
+    const responses = await Promise.all(Array.from({ length: 10 }, () =>
+      api(path, "POST", admin.token, payload(99))));
+    const [rows, transactions, audits, [entitlement], [currentOrder]] = await Promise.all([
+      db(`refunds?select=id,amount&order_id=eq.${orderId}`),
+      db(`credit_transactions?select=id,amount,source&ref_id=eq.${orderNo}`),
+      db(`admin_audit_logs?select=id,action&target_id=eq.${orderId}`),
+      db(`member_entitlements?select=id,credits_remaining&id=eq.${entitlementId}`),
+      db(`orders?select=id,status&id=eq.${orderId}`)
+    ]);
+    const refundTx = transactions.filter((row) => row.source === "order_refund");
+    check(responses.every((response) => [200, 409].includes(response.status))
+      && rows.length === 1 && rows[0].amount === 99
+      && refundTx.length === 1 && refundTx[0].amount === -9
+      && audits.filter((row) => row.action === "order_refund_manual").length === 1
+      && entitlement.credits_remaining === 11 && currentOrder.status === "partially_refunded",
+      "concurrent identical refund N=10 has one financial effect",
+      `statuses ${JSON.stringify(responses.map((response) => response.status))}, refunds ${rows.length}, refundTx ${refundTx.length}, audits ${audits.length}, balance ${entitlement.credits_remaining}`);
+  } else {
   const first = await api(path, "POST", admin.token, payload(99));
   check(first.status === 200 && first.body.order_status === "partially_refunded"
     && first.body.credits_expected === 9 && first.body.credits_reclaimed === 9,
@@ -161,6 +181,7 @@ try {
     && audits.some((row) => row.metadata?.creditsReclaimed === 11),
     "two refund audits name the admin and match reclaimed credits");
   }
+  }
 } finally {
   if (orderId) {
     await db(`admin_audit_logs?target_id=eq.${orderId}`, "DELETE");
@@ -182,6 +203,6 @@ for (const [table, filter] of [
   ["member_entitlements", `id=eq.${entitlementId}`], ["credit_transactions", `ref_id=eq.${orderNo}`],
   ["admin_audit_logs", `target_id=eq.${orderId}`]
 ]) if ((await db(`${table}?select=id&${filter}`)).length) throw new Error(`QA ${table} fixture remains`);
-const total = replay ? 15 : 19;
+const total = concurrentReplay ? 14 : replay ? 15 : 19;
 console.log(`${passed}/${total} named-admin refund HTTP/DB checks passed; fixtures cleaned`);
 if (passed !== total) process.exitCode = 1;

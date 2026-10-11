@@ -1,6 +1,6 @@
 # API 與頁面驗收缺口清單（自動盤點）
 
-產生基準：本機 commit `005caf4`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
+產生基準：本機 commit `dad455d`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
 本表的「部分已驗」只指欄中列出的情境；其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。
 
 ## API routes
@@ -40,7 +40,7 @@
 | `/api/admin/invoices/[orderId]/issue` | POST | 部分已驗 C8：隔離 paid 訂單非法 body 7/7；合法 ezPay 開票／正式站待驗 |
 | `/api/admin/members` | GET | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
-| `/api/admin/orders/[id]/refund` | GET, POST | 部分已驗 C10：最新 SQL 與具名管理員 API 核心帳務一致；不合格 C13 重送多記退款／扣點、M16 超額／全退後再送 500（17/19、重送 13/15）；正式站待驗 |
+| `/api/admin/orders/[id]/refund` | GET, POST | 部分已驗 C10：最新 SQL 與具名管理員 API 核心帳務一致；不合格 C13 序列／N=10 並發重送多記退款／扣點，M16 超額／全退後再送 500；正式站待驗 |
 | `/api/admin/prompt-settings` | GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/prompt-settings/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/provider-health` | GET | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
