@@ -9,6 +9,7 @@
 - 正式站公開頁唯讀 SSR 煙霧 `node scripts/qa-public-page-smoke.mjs --base-url=https://www.xunfeng.tw` **9/9**：首頁、關於、服務、案例、課程、預約、會員方案、隱私、thanks 均 HTTP 200，title／h1／main 存在且無 Application error。只檢查 SSR shell，不代表 hydration、表單／購買互動、連結正確性或手機視覺通過；未送出表單。
 - 本機：macOS / Next.js 15.5.23 / Node 專案依賴；`.env.local` 已配置。本輪無正式資料寫入、無真實付款、無 LLM 呼叫。
 - `npm run test:unit`：在納入寄件網域與面相圖片 cron 測試的目前 main 重跑，**75 test files passed／3 skipped；650 tests passed／2 expected fail／3 skipped**。兩個 `it.fails` 仍在 `app/api/ai/chat/route.qa.test.ts`（B1 同會員並發）與 `app/api/admin/credits/route.qa.test.ts`（C2 補扣點帳本），代表已知缺陷，不能當功能通過；候選隔離修復也不等於 main 已修。
+- 2026-10-12 以 main HEAD `9807c84` 再執行 `npx vitest run`，結果維持 **75 files passed／3 skipped；650 passed／2 expected fail／3 skipped**；兩個 expected-fail 仍是 B1 同會員並發與 C2 補扣點帳本。新增的 C23 retry boundary 需以獨立 QA 設定執行（2/2），不屬預設 include，已另列於 C23 ticket。
 - `npx tsc --noEmit`：通過；`npm run build`：通過，117 靜態頁產出。
 - `node scripts/qa-safe-api-smoke.mjs --base-url=http://localhost:3100`：21/21 通過。涵蓋公開 GET、失效 token、SQLi 形狀字串、超長輸入、未授權或必定在寫入前被拒絕的 POST。
 - `node scripts/qa-admin-authz-smoke.mjs --base-url=http://127.0.0.1:3101 --members-file=/private/qa-members.private.json`：**219/219 通過**。29 個 GET、44 個寫入方法，各以匿名、無效 bearer、有效一般會員 bearer 發送空請求；前兩者 401、一般會員 403。先對 `/api/member/me` 預檢有效 token 為 200，避免把失效 token 當會員角色測試；在 repo 外獨立 Next clone 執行，避開共用 `.next`。此結果不涵蓋具名管理員正常寫入。

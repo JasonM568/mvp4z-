@@ -3206,4 +3206,10 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 唯讀核對整合候選 `/private/tmp/xunfeng-m24-c20-c23` HEAD `3f3eec5652dfb58280d19e53c99b6bbd4d63811f`，候選 worktree clean；未使用 EZPay 真服務或正式／C4 資料。
 - 在一次性 `git archive` 副本中以本機 provider、RPC 替身注入首次 `complete_ezpay_invoice_issue` 交易失敗後重送。新增可重複 QA 測試 `scripts/qa-c23-provider-row-failure-retry.test.ts` 與 Vitest config：查到原 provider 發票時總 issue=1；查詢明確回 `INV20006` 時重送使用同一 `encrypted_post_data`，總 issue=2；**2/2 通過**。副本已清除。
 - 確認並記錄 provider 契約限制：stub 只證明程式查詢與重用原封裝 payload；未證明 EZPay 對重複 PostData 的實際冪等效果。C23 critical／正式 gate 維持，需 stage provider 契約或可查詢結果驗證。
-- 更新 C23 ticket 與全系統矩陣；候選 worktree 未變。待執行 TypeScript／diff 驗證及 QA 檔案定向提交；兩個 refund user scripts 保持原狀、不 stage。
+- 更新 C23 ticket 與全系統矩陣；候選 worktree 未變。`npx tsc --noEmit`、專用 boundary suite 2/2 與 `git diff --check` 通過，QA 文件／腳本定向提交為 `9807c84`；兩個 refund user scripts 保持原狀、不 stage。
+
+
+## 2026-10-12｜全套 Vitest baseline 重跑
+
+- 於 main HEAD `9807c84` 重跑 `npx vitest run`：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）。兩個預期失敗仍為 B1 同會員並發問答與 C2 補扣點帳本金額一致性，必須維持阻擋功能通過的狀態。
+- C23 新增的 2 個獨立 boundary tests 以專用 Vitest config 執行，不包含在預設 test include；避免把兩套結果混為單一總數。
