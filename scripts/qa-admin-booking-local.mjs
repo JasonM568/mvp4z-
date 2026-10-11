@@ -79,6 +79,14 @@ try {
   assert(denied.status === 403 && last?.status === "contacted", "Member changed admin booking");
   console.log("PASS member PATCH: 403, DB unchanged"); passed++;
 
+  const [beforeLimits] = await db(`consultation_bookings?select=*&id=eq.${bookingId}`, "GET");
+  const defaultList = await api("/api/admin/bookings", token);
+  assert(defaultList.status === 200 && Array.isArray(defaultList.body.bookings)
+    && defaultList.body.bookings.length <= 100
+    && defaultList.body.bookings.some((row) => row.id === bookingId)
+    && Number.isInteger(defaultList.body.summary?.contacted), "Default booking limit or summary failed");
+  console.log("PASS default list limit: HTTP 200, at most 100 rows and summary visible"); passed++;
+
   for (const value of ["-1", "abc", "0", "501"]) {
     const response = await api(`/api/admin/bookings?limit=${value}`, token);
     console.log(`${response.status === 400 ? "PASS" : "FAIL"} invalid list limit ${value}: HTTP ${response.status}`);
@@ -93,6 +101,9 @@ try {
     console.log(`${valid ? "PASS" : "FAIL"} valid list limit ${value}: HTTP ${response.status}`);
     if (valid) passed++;
   }
+  const [afterLimits] = await db(`consultation_bookings?select=*&id=eq.${bookingId}`, "GET");
+  assert(JSON.stringify(afterLimits) === JSON.stringify(beforeLimits), "GET limit checks changed booking data");
+  console.log("PASS list limit requests: booking DB row unchanged"); passed++;
 } finally {
   if (bookingId) {
     await db(`admin_audit_logs?target_id=eq.${bookingId}`, "DELETE");
@@ -109,8 +120,8 @@ for (const [table, query] of [["consultation_bookings", `id=eq.${bookingId}`],
   const rows = await db(`${table}?select=id&${query}`, "GET");
   assert(rows.length === 0, `${table} QA row remains`);
 }
-console.log(`${passed}/11 named-admin booking checks passed; fixtures cleaned`);
-if (passed !== 11) process.exitCode = 1;
+console.log(`${passed}/13 named-admin booking checks passed; fixtures cleaned`);
+if (passed !== 13) process.exitCode = 1;
 
 function assert(ok, message) { if (!ok) throw new Error(message); }
 async function db(path, method, body) {
