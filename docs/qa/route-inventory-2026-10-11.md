@@ -14,7 +14,7 @@
 | `/api/admin/course-registrations` | GET | 隔離通過 M7/M11：非法 limit 400、完整摘要與 DB 一致，跟進流程 17/17；正式站待驗 |
 | `/api/admin/course-registrations/[id]` | PATCH | 隔離通過：具名管理員跟進 PATCH、時間戳與 audit；非法／超長拒絕 |
 | `/api/admin/create-code` | POST | 現行 main 的 C20 audit 缺陷仍開票；整合候選 `3f3eec5` route suite 2/2、獨立 C20 audit RPC SQL fault/rollback/ACL 通過，建立 code＋audit 同交易；只有 route-in-process／DB SQL 證據，正式 runtime 與站端待驗 |
-| `/api/admin/credits` | POST | 不合格 QA-FS-C2：5→0 超額扣點記 ledger -10；audit INSERT 替身故障仍回 200、餘額／ledger 已變但 audit=0。並發 lost update 為待驗程式風險；詳見 [C2 ticket](qa-fs-c2-admin-credit-ledger-mismatch-2026-10-12.md) |
+| `/api/admin/credits` | POST | 不合格 QA-FS-C2：5→0 超額扣點記 ledger -10；audit 故障替身仍回 200／audit=0；route stub 併發 +1/+2 重現餘額7、ledger +3 lost update。邊界 suite 11/11（非法輸入、權限、無權益 debit、正常加點）；真 DB/API 未驗，詳見 [C2 ticket](qa-fs-c2-admin-credit-ledger-mismatch-2026-10-12.md) |
 | `/api/admin/documents` | GET, POST | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 隔離 HTTP 正常／audit 故障原子性與 Storage、字數邊界 22/22，加 DB 並發 1/1；Storage 故障只有替身 2/2，正式整合／部署待驗 |
 | `/api/admin/documents/[id]` | DELETE, PATCH | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 的 PATCH／DELETE 正常、audit 故障回滾、title-only 相容性列入隔離 HTTP 22/22；Storage 故障只有替身 2/2，正式整合／部署待驗 |
 | `/api/admin/effective-settings` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；設定內容正確性待驗；匿名／壞 token／會員拒絕已驗 |

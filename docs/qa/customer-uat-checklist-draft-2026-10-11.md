@@ -56,7 +56,7 @@
 | M05 | 老師核對三張奇門盤與晚子時設定，具名簽核 | 盤面與老師規則一致；未簽核時報告明示待校對 | [ ] 通過 [ ] 不合格 [ ] 未執行 | 候選 `1af8943` 的 Qimen signoff SQL fault/ACL contract 在 native PostgreSQL 最小 fixture 10/10 通過；無 HTTP stack、盤例計算與老師簽核，append-only 成功重送語義待決；正式驗收仍未執行。 |
 | M06 | 查到期權益、pending 訂單、面相照片之排程前後快照 | 到期才處理，已付款訂單與未到期圖片保留，重跑無重複副作用 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | M07 | 以過期 token、SQLi 形狀字串、非法／超長 ID 直接呼叫代表 API | 權限與輸入明確 4xx；無越權、扣點、付款或寫入副作用 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
-| M08 | 具名管理員對專用會員補點、扣超過餘額及雙管理員同時調整 | 餘額變化等於每筆交易 amount，無遺失／重複交易，具名 audit 完整 | [ ] 通過 [ ] 不合格 [ ] 未執行 | QA-FS-C2：route expected-fail 重現 5→0、ledger -10；audit INSERT route 替身重現 HTTP 200 但 audit 0。超額規則及真 DB 併發／故障未驗，故 UAT 不可勾通過；詳見 [C2 ticket](qa-fs-c2-admin-credit-ledger-mismatch-2026-10-12.md)。 |
+| M08 | 具名管理員對專用會員補點、扣超過餘額及雙管理員同時調整 | 餘額變化等於每筆交易 amount，無遺失／重複交易，具名 audit 完整 | [ ] 通過 [ ] 不合格 [ ] 未執行 | QA-FS-C2：route boundary suite 11/11（正常補點、非法輸入、403、無有效權益拒絕）；route/mock 仍重現超額 ledger -10、audit 故障 HTTP 200／audit 0、併發 +1/+2 lost update。真 DB／API／正式站未驗，規則待產品決定，UAT 不可勾通過；詳見 [C2 ticket](qa-fs-c2-admin-credit-ledger-mismatch-2026-10-12.md)。 |
 | M09 | 管理員查寄件網域狀態與 DNS 記錄；已有網域時重按建立、要求驗證後重查 | 不重建相同網域；畫面顯示 Resend 回傳的實際狀態，未驗證時不誤報通過 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | M10 | 具名管理員核准及撤回面相 AI 供應商資料保留設定 | 只接受具名管理員；有效核准／撤回狀態與 audit 一致，API key/token 不可存入備註 | [ ] 通過 [ ] 不合格 [ ] 未執行 | main 舊版 QA-FS-C22 已重現 audit 故障。候選 `a98d7ad` route 8/8、55/55 DB-only replay、SQL fault/ACL 10/10、N=2 併發 10 輪通過；無 API HTTP／真 OpenAI／正式站驗收，方框維持未執行。 |
 

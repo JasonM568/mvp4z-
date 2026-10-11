@@ -3232,3 +3232,10 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 重新執行 `app/api/admin/credits/route.qa.test.ts`，1 個 `it.fails` 仍如預期重現 ledger amount mismatch；`scripts/qa-admin-audit-side-effects.vitest.mts` 3/3 通過，其中 C2 案例重現 audit INSERT error 時 HTTP 200、餘額／ledger 已改、audit 0。
 - 新增獨立 QA-FS-C2 ticket，記錄重現、影響、待驗並發風險與修復驗收標準；列明「拒絕超額」或「截至餘額」需產品決策，不自行改商業規則。同步全系統矩陣、route inventory、客戶 UAT M08。
 - 證據限 route＋記憶體替身，並發、真 DB transaction 與隔離 API 尚未驗；等候 X-PM 的既有票決策／工程候選。未寫資料庫，`git diff --check` 待收尾執行。
+
+
+## 2026-10-12｜QA-FS-C2 邊界與 mock 併發補驗
+
+- 新增可重跑 C2 route boundary suite：11/11 通過，涵蓋非法／SQLi 形狀 UUID、amount 0／小數／字串、days 3651、note 500／501、具名管理員拒絕、無有效權益 debit、正常 +4 加點。
+- Deterministic DB stub barrier 令 +1／+2 兩請求都讀餘額 5，觀察到兩筆 ledger delta +3、兩筆 audit，但最終餘額 7 而非 8，將先前控制流風險提升為可重複 route/mock 併發重現；仍未證明真 Postgres 競態。
+- `npx tsc --noEmit` 與 `git diff --check` 通過；同步 C2 ticket、full-system matrix、route inventory、UAT M08。沒有真 DB／API 寫入，正式驗收未通過。

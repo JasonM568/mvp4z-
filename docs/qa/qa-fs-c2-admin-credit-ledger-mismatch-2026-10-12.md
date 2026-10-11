@@ -1,6 +1,6 @@
 # QA-FS-C2｜管理員補扣點帳務不一致與 audit 遺失
 
-**嚴重度：critical**　**狀態：已證實兩個 route/mock 缺陷；等待 X-PM／產品確認超額扣點規則及工程修復。**
+**嚴重度：critical**　**狀態：route/mock 已證實帳本不符、audit 遺失及併發 lost update；等待 X-PM／產品確認超額扣點規則及工程修復。**
 
 ## 範圍與證據
 
@@ -8,9 +8,13 @@
 
 1. **超額扣點帳本不符（route 替身證據）**：`app/api/admin/credits/route.qa.test.ts` 建立 5 點有效權益，提交 `amount=-10`。測試要求餘額被截為 0，交易 `amount=-5` 反映實際變化；現行 route 寫餘額 0，卻將原請求 `-10` 寫入交易。測試以 `it.fails` 保留預期失敗，修復前不能算通過。重跑 `npx vitest run app/api/admin/credits/route.qa.test.ts`：1 個 expected-fail，代表缺陷斷言仍失敗。
 2. **audit INSERT 故障仍成功（route＋記憶體替身）**：`scripts/qa-admin-audit-side-effects.test.ts` 對 5 點會員扣 5 點，注入 audit INSERT error。結果 HTTP 200、餘額 5→0、ledger `amount=-5`、audit 0。`npx vitest run --config scripts/qa-admin-audit-side-effects.vitest.mts`：3/3 通過，其中 C2 案例是成功重現缺陷。
-3. **並發 lost update**：route 先讀餘額、再獨立 update 與 insert，程式控制流存在競爭風險；本票尚無雙請求實際重現結果，列為待驗，不宣稱已證實。
+3. **並發 lost update（route＋deterministic DB stub）**：QA barrier 強制兩個請求都讀到餘額 5，再併發補點 +1 與 +2。兩個交易與 audit 都寫入，但最終餘額為 7、ledger delta 合計 +3；序列化後應為 8。
 
-上述均為路由替身證據，未連資料庫或 API stack，沒有真實會員／權益／交易資料寫入。尚未驗非管理員、無有效權益、零／小數／極端金額、超長 note、SQLi 形狀輸入及正常加點端到端行為。
+### 後續 route boundary 複驗（2026-10-12）
+
+QA-owned `scripts/qa-c2-admin-credits-boundaries.test.ts` 使用 deterministic DB stub，執行 `./node_modules/.bin/vitest run --config scripts/qa-c2-admin-credits-boundaries.vitest.mts`，**11/11 通過**：非法／SQLi 形狀 UUID、amount 0／小數／非數值、days 3651、note 501 均 400 且不建立 DB client；note 500 的正常 +4 補點由 5→9、ledger／audit 各一；管理員拒絕 403 且不開 DB；無有效權益扣點 404 且無寫入；併發 lost update 如上。`npx tsc --noEmit` 通過。
+
+以上皆為 route＋替身證據，未連真資料庫或 API stack，沒有真實會員／權益／交易資料寫入；不證明 Supabase transaction 競態。極端數字與正式端到端仍待驗。
 
 ## 重現步驟
 
