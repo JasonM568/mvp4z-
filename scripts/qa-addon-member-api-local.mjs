@@ -29,7 +29,7 @@ const password = `QA-${crypto.randomBytes(12).toString("hex")}`;
 const orderNo = `QAADDAPI${suffix.toUpperCase()}`;
 const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
 const tierFeatures = { qa_marker: suffix };
-let authUserId, profileId, orderId, token;
+let authUserId, profileId, orderId, faceRunId, token;
 let passed = 0;
 function check(ok, label) { if (!ok) throw new Error(label); console.log(`PASS ${label}`); passed++; }
 
@@ -90,6 +90,14 @@ try {
       && member.body.member?.entitlement_id === granted.entitlement_id,
     `member API repeat ${i + 1} selects active VIP/20 (HTTP ${member.status}, status=${member.body.member?.status}, credits=${member.body.member?.credits_remaining}, new_id=${member.body.member?.entitlement_id === granted.entitlement_id})`);
   }
+  const face = await api("/api/face-analysis/runs", token, "POST", {
+    requestId: crypto.randomUUID(), mode: "self", consentVersion: "2026-08-01"
+  });
+  faceRunId = face.body.runId;
+  const [faceRow] = faceRunId ? await db(`face_analysis_runs?select=id,entitlement_id,status&id=eq.${faceRunId}`) : [];
+  check(face.status === 201 && faceRow?.status === "created"
+    && faceRow?.entitlement_id === granted.entitlement_id,
+  `face-analysis creation uses new active VIP entitlement (HTTP ${face.status})`);
   const repeatGrant = await db("rpc/commit_paid_entitlement", "POST", {
     p_order_id: orderId, p_user_id: profileId, p_plan_id: addon.id,
     p_credits: 20, p_duration_days: 30, p_ref_id: orderNo, p_is_addon: true
@@ -99,6 +107,10 @@ try {
     && transactions.length === 1 && transactions[0].amount === 20,
   "duplicate grant is idempotent and credit ledger has one 20-point grant");
 } finally {
+  if (faceRunId) {
+    await db(`face_analysis_events?run_id=eq.${faceRunId}`, "DELETE");
+    await db(`face_analysis_runs?id=eq.${faceRunId}`, "DELETE");
+  }
   if (profileId) {
     await db(`credit_transactions?user_id=eq.${profileId}`, "DELETE");
     await db(`member_entitlements?user_id=eq.${profileId}`, "DELETE");
@@ -110,14 +122,15 @@ try {
     if (removed.error) throw new Error("Local QA Auth cleanup failed");
   }
 }
-for (const table of ["credit_transactions", "member_entitlements", "orders", "profiles"]) {
+for (const table of ["face_analysis_runs", "credit_transactions", "member_entitlements", "orders", "profiles"]) {
   const path = table === "orders" ? `orders?select=id&id=eq.${orderId}`
     : table === "profiles" ? `profiles?select=id&id=eq.${profileId}`
+      : table === "face_analysis_runs" ? `face_analysis_runs?select=id&id=eq.${faceRunId}`
       : `${table}?select=id&user_id=eq.${profileId}`;
   if ((await db(path)).length) throw new Error(`${table} QA fixture remains`);
 }
-console.log(`${passed}/10 add-on member API checks passed; fixtures cleaned`);
-if (passed !== 10) process.exitCode = 1;
+console.log(`${passed}/11 add-on member/face API checks passed; fixtures cleaned`);
+if (passed !== 11) process.exitCode = 1;
 
 async function db(path, method = "GET", body) {
   const response = await fetch(`${apiUrl}/rest/v1/${path}`, { method, headers: {
@@ -127,7 +140,9 @@ async function db(path, method = "GET", body) {
   if (!response.ok) throw new Error(`Local DB ${method} ${path.split("?")[0]} returned ${response.status}: ${(await response.text()).slice(0, 180)}`);
   return response.json().catch(() => []);
 }
-async function api(path, bearer) {
-  const response = await fetch(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${bearer}` } });
+async function api(path, bearer, method = "GET", body) {
+  const response = await fetch(`${baseUrl}${path}`, { method, headers: {
+    Authorization: `Bearer ${bearer}`, "Content-Type": "application/json"
+  }, body: body === undefined ? undefined : JSON.stringify(body) });
   return { status: response.status, body: await response.json().catch(() => ({})) };
 }

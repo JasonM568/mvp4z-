@@ -1,6 +1,6 @@
 # API 與頁面驗收缺口清單（自動盤點）
 
-產生基準：本機 commit `b3bb295`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
+產生基準：本機 commit `f0ae9b0`；88 個 API route 檔、50 個頁面檔。執行 `node scripts/qa-route-inventory.mjs` 重建。
 本表的「部分已驗」只指欄中列出的情境；其餘正常、異常、空狀態、邊界、超長與並發仍以 [全系統 Test Matrix](full-system-acceptance-2026-10-11.md) 逐項追蹤。`待驗` 是明確未有執行證據，不能推定通過。動態參數路由以模板名稱表示。
 
 ## API routes
@@ -71,7 +71,7 @@
 | `/api/cron/expire-entitlements` | GET | 不合格 C11：dry-run 候選 1，正式執行因 updated_at 欄位不存在回 500 |
 | `/api/cron/pending-drafts` | GET, POST | 部分已驗：匿名 401；排程實際執行待驗 |
 | `/api/cron/provider-health` | GET | 部分已驗：匿名 401；排程實際執行待驗 |
-| `/api/face-analysis/runs` | GET, POST | 部分已驗：A/B 歷史列表；建立／provider 待驗 |
+| `/api/face-analysis/runs` | GET, POST | 部分已驗：A/B 歷史列表；C9 加購後建立綁新有效 VIP 權益；provider 待驗 |
 | `/api/face-analysis/runs/[id]` | DELETE, GET | 部分已驗：A/B 詳情與越權 DELETE；本人刪除待驗 |
 | `/api/face-analysis/runs/[id]/analyze` | POST | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/face-analysis/runs/[id]/image` | DELETE | 部分已驗：越權 DELETE 404；本人照片待驗 |
@@ -83,7 +83,7 @@
 | `/api/me` | GET | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/member/council-runs` | GET | 隔離通過：A/B 列表所有權 |
 | `/api/member/council-runs/[id]` | GET | 隔離通過：A/B 詳情所有權 |
-| `/api/member/me` | GET | 部分已驗：有效會員／失效 token |
+| `/api/member/me` | GET | 隔離通過 C9：加購後有效 VIP/20、失效歷史列不遮蔽；有效會員／失效 token，正式待驗 |
 | `/api/member/orders` | GET | 隔離通過：A/B 訂單所有權、付款開通輪詢與 SQLi 形狀查詢 11/11 |
 | `/api/member/redeem` | POST | 隔離通過：N=10 原子兌換／rollback；正式待驗 |
 | `/api/member/usage` | GET | 隔離通過：A/B 使用量 API 所有權與匿名／壞 token 拒絕 |
