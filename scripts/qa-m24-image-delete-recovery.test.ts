@@ -13,6 +13,8 @@ const fixture = vi.hoisted(() => ({
   storageFails: false,
   finalizeFails: false,
   storageCalls: 0,
+  creditBalance: 7,
+  creditLedger: [] as Array<Record<string, unknown>>,
   rpcCalls: [] as string[]
 }));
 
@@ -110,6 +112,8 @@ describe("QA-owned M24 RPC route fault harness (stub only)", () => {
     fixture.storageFails = false;
     fixture.finalizeFails = false;
     fixture.storageCalls = 0;
+    fixture.creditBalance = 7;
+    fixture.creditLedger = [];
     fixture.rpcCalls = [];
   });
 
@@ -125,6 +129,8 @@ describe("QA-owned M24 RPC route fault harness (stub only)", () => {
     expect(fixture.run).toMatchObject({ storage_path: null, image_deleted_at: expect.any(String), deletion_pending: false });
     expect(fixture.events).toHaveLength(1);
     expect(fixture.storageCalls).toBe(2); // removal of a missing key must be idempotent
+    expect(fixture.creditBalance).toBe(7);
+    expect(fixture.creditLedger).toHaveLength(0);
   });
 
   it("rolls back row/event together on injected finalization failure and emits once after retry", async () => {
@@ -137,6 +143,8 @@ describe("QA-owned M24 RPC route fault harness (stub only)", () => {
     expect(fixture.run).toMatchObject({ storage_path: null, image_deleted_at: expect.any(String), deletion_pending: false });
     expect(fixture.events).toHaveLength(1);
     expect(fixture.events[0]).toMatchObject({ type: "image_deleted_by_member", operationId: "qa-delete-operation-1" });
+    expect(fixture.creditBalance).toBe(7);
+    expect(fixture.creditLedger).toHaveLength(0);
   });
 
   it("converges concurrent requests and repeated delete to one event", async () => {
@@ -146,6 +154,8 @@ describe("QA-owned M24 RPC route fault harness (stub only)", () => {
     expect(fixture.events).toHaveLength(1);
     expect((await deleteImage()).status).toBe(200);
     expect(fixture.events).toHaveLength(1);
+    expect(fixture.creditBalance).toBe(7);
+    expect(fixture.creditLedger).toHaveLength(0);
   });
 
   it("releases a failed Storage claim and keeps the object and path intact", async () => {

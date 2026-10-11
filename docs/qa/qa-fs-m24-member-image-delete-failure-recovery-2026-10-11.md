@@ -4,7 +4,7 @@
 
 ## 獨立複驗準備
 
-QA-owned RPC harness 已建立於 `scripts/qa-m24-image-delete-recovery.test.ts`，設定為 `scripts/qa-m24-image-delete-recovery.vitest.mts`。它以 `QA_M24_ROOT` 指向候選，經實際 DELETE route 呼叫 RPC／Storage stub，覆蓋 finalize fault 後同 operation retry、row/event 原子失敗後 retry、N=20＋重送僅一 event、Storage fault 釋放 claim，以及 401／跨會員404／analyzing409／已刪200。對目前有版號衝突的候選 `7d9f2856d4116b60d2e576293d55fb861595eca8`，stub harness **5/5**，TypeScript 通過；此為 mock contract/preflight，**不列為候選正式複驗或 DB/Storage 通過**。等 migration 版號修正及 M19/C19/M21/M22/M24 clean replay 後，以新 SHA 重跑此腳本與工程 SQL test；真 Storage 健康前不啟動 stack、不做 Storage 10 輪。
+QA-owned RPC harness 已建立於 `scripts/qa-m24-image-delete-recovery.test.ts`，設定為 `scripts/qa-m24-image-delete-recovery.vitest.mts`。它以 `QA_M24_ROOT` 指向候選，經實際 DELETE route 呼叫 RPC／Storage stub，覆蓋 finalize fault 後同 operation retry、row/event 原子失敗後 retry、N=20＋重送僅一 event、Storage fault 釋放 claim、credits／ledger 不變，以及 401／跨會員404／analyzing409／已刪200。新版候選 `3412b4993a354c50934f356e0396ad3dadf8b942` 將 migration 改為唯一版號 `20261012050000`；stub harness 對此 SHA **5/5**，TypeScript 通過。這是 route/mock preflight，**不列為 SQL/ACL、正式 DB 或 Storage 通過**。尚待工程提供 M19/C19/M21/M22/M24 clean replay 證據；真 Storage 健康前不做 Storage 10 輪。
 
 ## 重現範圍
 
