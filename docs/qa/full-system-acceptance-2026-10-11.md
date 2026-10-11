@@ -388,4 +388,6 @@ QA 已在自有 `qa-admin-document-audit-local.mjs` 準備三項待跑案例：�
 | 字數並發 | QA 自有 `qa-admin-document-budget-concurrency-local.sh` **1/1**：兩份各 80,000 字同時啟用、預算餘額 150,000 字，只一份成功、另一份被拒且僅一筆 audit；專用文件／audit 清 0。 |
 | 程式與清理 | 候選 `route.c19.test.ts` **7/7**、`tsc --noEmit`、`git diff --check` 通過；C4 專用 Auth/profile/document/trigger/Storage 查 0，候選分支乾淨。 |
 
-**最新測試總結：**先前 migration 版號衝突的整合 BLOCKER 已在候選檔案層解除，C19 新候選隔離複驗通過；正式 migration／站端回歸與其他共用 audit helper 入口仍待驗，C19 critical 票暫不關閉。Storage 自身清理失敗仍可能回 503 並留待盤點物件，須有營運補清程序；本輪無新增產品缺陷。
+**最新測試總結：**先前 migration 版號衝突的整合 BLOCKER 已在候選檔案層解除，C19 新候選隔離複驗通過；正式 migration／站端回歸與其他共用 audit helper 入口仍待驗，C19 critical 票暫不關閉。DELETE 的 Storage 清理失敗會回 503 並留待盤點物件，須有營運補清程序；本輪無新增產品缺陷。
+
+**Storage 故障狀態碼核對：**候選 `78dff9c` 的 POST 在 RPC audit 失敗後，若暫存檔補償刪除也失敗，回 **HTTP 500**；工程 route unit 有此案例與斷言。POST 外層 catch 的另一條補償刪除失敗路徑亦由程式碼核對為 **500**，本輪未另做故障注入。DELETE 已先完成 DB／audit，但 Storage 刪除失敗時回 **HTTP 503**，工程 route unit 有斷言。C4 HTTP 腳本測的是 audit 故障、補償成功及正常 Storage 刪除，沒有把 Storage 服務本身故障宣告為實際 HTTP 通過。相應孤兒檔需依 audit 路徑盤點並補清。
