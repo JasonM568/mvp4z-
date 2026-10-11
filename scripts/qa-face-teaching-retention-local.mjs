@@ -23,7 +23,8 @@ const anon = createClient(env.API_URL, env.ANON_KEY, { auth: { persistSession: f
 const tag = crypto.randomBytes(6).toString("hex");
 const email = `qa-face-retain-${tag}@example.test`;
 const ruleId = `QA_FACE_RETAIN_${tag.toUpperCase()}`;
-let authId, profileId, ruleUuid, passed = 0;
+const draftRuleId = `QA_FACE_DRAFT_${tag.toUpperCase()}`;
+let authId, profileId, ruleUuid, draftUuid, passed = 0;
 function check(ok, label, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"} ${label}${detail ? `: ${detail}` : ""}`);
   if (ok) passed++;
@@ -58,6 +59,10 @@ try {
   const input = { kind: "surface", ruleId, target: "forehead", memberText: "QA isolated teaching",
     teacherText: "QA traceability", status: "published" };
   check((await api(createPath, "POST", "", input)).status === 401, "anonymous create rejected 401");
+  check((await api(createPath, "POST", token, { ...input, ruleId: "x'; DROP TABLE face_teaching_rules;--" })).status === 400,
+    "SQLi-shaped rule ID rejected 400");
+  check((await api(createPath, "POST", token, { ...input, memberText: "x".repeat(2001) })).status === 400,
+    "overlong member text rejected 400");
   const createdRule = await api(createPath, "POST", token, input);
   ruleUuid = createdRule.body.rule?.id;
   check(createdRule.status === 200 && ruleUuid, "named admin publishes isolated rule", `HTTP ${createdRule.status}`);
@@ -74,18 +79,27 @@ try {
   check(deleteAfterArchive.status === 409 && after.length === 1,
     "once-published rule remains traceable after archive and DELETE attempt",
     `HTTP ${deleteAfterArchive.status}, rows ${after.length}`);
+  const draft = await api(createPath, "POST", token, { ...input, ruleId: draftRuleId, status: "draft" });
+  draftUuid = draft.body.rule?.id;
+  check(draft.status === 200 && draftUuid, "unpublished draft can be created", `HTTP ${draft.status}`);
+  if (!draftUuid) throw new Error("Draft rule fixture missing");
+  const draftDelete = await api(`${createPath}/${draftUuid}`, "DELETE", token);
+  const draftAfter = await db(`face_teaching_rules?select=id&rule_id=eq.${draftRuleId}`);
+  check(draftDelete.status === 200 && draftAfter.length === 0, "unpublished draft DELETE still works",
+    `HTTP ${draftDelete.status}, rows ${draftAfter.length}`);
 } finally {
   if (ruleUuid) await db(`face_teaching_rules?id=eq.${ruleUuid}`, "DELETE");
-  await db(`admin_audit_logs?target_id=eq.${ruleId}`, "DELETE");
+  if (draftUuid) await db(`face_teaching_rules?id=eq.${draftUuid}`, "DELETE");
+  for (const id of [ruleId, draftRuleId]) await db(`admin_audit_logs?target_id=eq.${id}`, "DELETE");
   if (profileId) await db(`profiles?id=eq.${profileId}`, "DELETE");
   if (authId) {
     const removed = await service.auth.admin.deleteUser(authId);
     if (removed.error) throw new Error(`Local Auth cleanup failed: ${removed.error.message}`);
   }
-  if ((await db(`face_teaching_rules?select=id&rule_id=eq.${ruleId}`)).length
-    || (await db(`admin_audit_logs?select=id&target_id=eq.${ruleId}`)).length
+  if ((await db(`face_teaching_rules?select=id&rule_id=in.(${ruleId},${draftRuleId})`)).length
+    || (await db(`admin_audit_logs?select=id&target_id=in.(${ruleId},${draftRuleId})`)).length
     || (await db(`profiles?select=id&email=eq.${email}`)).length) throw new Error("QA fixture remains");
   console.log("QA rule/audit/Auth/profile fixtures cleaned");
 }
-console.log(`${passed}/6 face teaching retention checks passed`);
-if (passed !== 6) process.exitCode = 1;
+console.log(`${passed}/10 face teaching retention checks passed`);
+if (passed !== 10) process.exitCode = 1;
