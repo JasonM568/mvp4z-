@@ -3289,5 +3289,5 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - main route 對照仍紅：7 tests 中 5 pass、2 fail，分別重現 65-octet local-part 回 200（且被送 Auth）及 provider error log 含 email/token/action link/provider 原文。
 - C25 固定 SHA `bed10dc7a068eef91737888385282529791af455`：known/unknown response 與隱私兩案例 **2/2**；C24 固定 SHA `e856c3f0fb6797d3c5aae4c4f48216bd4d107197`：完整 route/Auth stub suite **7/7**。來源為一次性 `git archive`，工程 worktree clean。
 - 64 ASCII octets 正常 dispatch；65／260 octets 回 400、Auth call=0；合成 email/token/action link/provider message 均未出現在候選 logger arguments。沒有真 Supabase Auth、寄信、rate limit 或正式日誌管線驗證。
-- C24 候選隔離 route 驗收通過，整合／真 Auth／寄信／正式站仍待驗。C25 隱私斷言通過，但原 ticket 要求的 request/correlation ID 或安全計數欄位未出現在候選固定 log event；已保留為待 X-PM 確認的診斷可追蹤性差異，不宣稱完整 ticket close。已同步兩票、全系統矩陣、route inventory、A03 UAT；UAT 未執行。
+- C24 候選隔離 route 驗收通過，整合／真 Auth／寄信／正式站仍待驗。C25 隱私斷言通過；X-PM 接受固定 event/error type/safe code 為足夠的隱私最低記錄，correlation ID 改列後續診斷改善，候選隱私修補通過、正式日誌管線待部署後核查。已同步兩票、全系統矩陣、route inventory、A03 UAT；UAT 未執行。
 - `npx tsc --noEmit`、`git diff --check` 通過；不觸及正式資料、Auth、郵件或退款 user scripts。
