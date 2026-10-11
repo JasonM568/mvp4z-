@@ -74,7 +74,7 @@
 | `/api/face-analysis/runs` | GET, POST | A/B 歷史列表通過；M17 補修分支 `ced1432` limit 邊界隔離 8/8，abc／SQLi／100／500 位均 400；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider／正式站待驗 |
 | `/api/face-analysis/runs/[id]` | DELETE, GET | 現行 main M19 競態仍開票；M19 候選與整合 production build 隔離 16/16：A/B、N=20、PII 抹除、一次事件、私有照片／PDF 刪除、重送；正式 migration／部署待驗 |
 | `/api/face-analysis/runs/[id]/analyze` | POST | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24、非法分析無 DB／Storage／點數副作用 4/4；有效新分析另以受控 Vision／報告替身與真隔離帳務驗證，真模型及正式站待驗 |
-| `/api/face-analysis/runs/[id]/image` | DELETE | QA route＋記憶體 DB/Storage 替身 8/8，重現 finalize／event 故障窗口；整合候選 `3f3eec5` M24 route/RPC harness 5/5，M24 SQL atomic fault/ACL test 通過，並由 QA 自有 DB-only stack 54/54 clean replay（history 54/54，M19→C19→M21→M22→M24→C20→C23 順序）。全程無 Storage/API 服務，真 DB＋Storage 故障與正式部署仍待驗 |
+| `/api/face-analysis/runs/[id]/image` | DELETE | QA route＋記憶體 DB/Storage 替身 8/8，重現 finalize／event 故障窗口；整合候選 `3f3eec5` route/RPC harness 5/5、QA DB-only stack 54/54；候選 `85ba785` 加入 full-schema guarded test，QA native PG16.14 schema shim 54/54 replay、fault/ACL/retry/event-once 通過。無 Supabase CLI／真 Storage/API service；真 Storage 故障與正式部署仍待驗 |
 | `/api/face-analysis/runs/[id]/pdf` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 PDF 11/11：本人位元組與重取一致、跨會員 404、未完成 409、壞 ID 400；正式站待驗 |
 | `/api/face-analysis/runs/[id]/preview` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24，A/B 有效私有照片預覽與拒絕路徑已驗；正式站待驗 |
 | `/api/face-analysis/runs/[id]/upload` | POST | 現行 main M21／M22 原缺陷仍開票；M22 整合候選 `15631e7` 隔離 29/29：空照片不計次、品質拒絕→合格、N=2×10、lease、event 故障原子回滾；M23 Option A `42175c1` focused 11/11、QA route/storage stub 3/3、最小 PostgreSQL scratch 驗 cleanup_pending／attached 不刪／A-B key 分離；尚無 reconciler、完整 replay、真 Supabase Storage 故障與正式站驗收，critical gate 維持 |

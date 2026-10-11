@@ -1,6 +1,6 @@
 # QA-FS-M24：會員刪除面相照片的跨儲存失敗復原
 
-**嚴重度：critical**　**狀態：X-PM 已接受並派工程1；待候選與隔離真 Storage／DB 複驗**
+**嚴重度：critical**　**狀態：X-PM 已接受並派工程1；候選 full-schema SQL 隔離複驗通過，真 Supabase Storage／HTTP 與正式站仍待驗**
 
 ## 獨立複驗準備
 
@@ -44,3 +44,12 @@ QA-owned RPC harness 已建立於 `scripts/qa-m24-image-delete-recovery.test.ts`
 候選 worktree `/private/tmp/xunfeng-m24-face-image-delete-recovery` 現為 clean HEAD `3412b4993a354c50934f356e0396ad3dadf8b942`，含 `7d9f285` 後續版號調整。QA 以該 SHA 重跑自有 route/RPC/Storage stub harness **5/5**；另將候選 commit 匯出至一次性副本並連接既有依賴，候選 route／Storage 單元測試 **6/6**。一次性副本已清除，工程 worktree 未修改。
 
 候選 migration 檔名為 `20261012050000_face_image_delete_recovery.sql`。此 branch migration 目錄只含 M24 這份 `20261012*` migration；M19/C19/M21/M22 整合 migration 不在此候選樹內，因此本次只核對版號安排，**沒有 clean replay／整合順序證據**。依 X-PM 指示，本次未操作 C4 或任何共用 DB/Storage。工程診斷的候選隔離 stack 曾 Storage OOM exit 137；另有既存 `xunfeng-qa-isolated-20261011` stack 回報 Storage container healthy 且 GET `/storage/v1/status`=200，但目前無法證實它的 fixture 已清空、是否正供其他測試使用或其唯一 owner，故不拿它做 M24 故障寫入或停機。真 DB/Storage 10 輪仍未驗。候選 6/6 與替身 5/5 不解除 M24 critical gate。
+
+
+## 2026-10-12｜M24 full-schema SQL 候選獨立複驗
+
+候選 `/private/tmp/xunfeng-m24-full-schema-test` HEAD `85ba785ae7c971654cb17e38c846ff52beba3b62`，clean worktree；本 SHA 新增 guarded test，未改 M24 route／migration。QA 自有 `scripts/qa-m24-full-schema-local.sh` 以 native PostgreSQL 16.14 建兩個全新 disposable cluster，Unix socket／停用 TCP；每次依序執行候選 54 個 migration SQL，並記錄 54/54 unique versions。為原生 PG 補最小 `auth`／`storage` schema 與 Supabase API roles；這不是 Supabase CLI stack，也不是實際 Auth／Storage service。兩個 fresh DB 均通過 guarded `face_image_delete_recovery_full_schema.sql`：history 與 M19→C23 尾序 guard、anon/authenticated/service_role RPC ACL、RLS/grants、event INSERT 與 finalize UPDATE 故障各自原子回滾、解除故障後 retry `deleted`、重送 `already_deleted`、event 恰 1。QA run/event/profile fixtures 0；one-use marker 1，整個 DB 隨 cluster 刪除。
+
+另以 `QA_M24_ROOT=/private/tmp/xunfeng-m24-full-schema-test` 執行 QA route/RPC stub harness **5/5**；候選副本 `tsc --noEmit` 通過。工程候選、正式 DB 與 C4 未修改。
+
+**證據邊界：**這是 native PG 上全 migration SQL replay 與 Supabase schema/role compatibility shim，不是 Supabase CLI migration replay；沒有 HTTP、真 Storage object／remove fault、Auth 或部署後回歸。既有 route 替身的「Storage/DB 故障」仍非真服務故障。M24 保持 critical，不能由本輪 SQL 結果單獨結案；Storage service 可安全重現且健康後，仍需獨立執行票上的 A/B 故障、權限、冪等和 fixture 清理驗收。

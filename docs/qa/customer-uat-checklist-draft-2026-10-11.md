@@ -43,7 +43,7 @@
 | S05 | 測試無權益、點數不足、非法日期／超長輸入與每日上限 | 明確拒絕且不扣點；備援報告按規則不扣點 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | F01 | 專用帳號以合成照片走同意、品質拒絕→重試→合格 | 不合格可重拍且不扣點；空照片不耗額度；合格照片只有本人可預覽 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
 | F02 | 用已核准模型測試額度產面相報告，查歷史與 PDF | 報告、扣點、usage／ledger、PDF 一致；B 無法存取 A 報告 | [ ] 通過 [ ] 不合格 [ ] 未執行 | ___ |
-| F03 | 刪專用照片／報告、查過期照片，重複提交刪除 | 圖片與 PDF 依保存政策清除，PII 抹除且 `run_deleted` 只一筆 | [ ] 通過 [ ] 不合格 [ ] 未執行 | M24 整合候選 `3f3eec5` route/RPC 5/5、atomic SQL fault/ACL、54/54 DB-only clean replay 通過；QA-FS-M24 原替身曾重現 Storage/DB finalize 故障卡住及 event 遺失。沒有真 Storage/API 故障或正式站驗證；部署後隔離回歸前不得勾「通過」。 |
+| F03 | 刪專用照片／報告、查過期照片，重複提交刪除 | 圖片與 PDF 依保存政策清除，PII 抹除且 `run_deleted` 只一筆 | [ ] 通過 [ ] 不合格 [ ] 未執行 | M24 整合候選 `3f3eec5` route/RPC 5/5、atomic SQL fault/ACL、54/54 DB-only clean replay 通過；QA-FS-M24 原替身曾重現 Storage/DB finalize 故障卡住及 event 遺失。候選 `85ba785` 新增 full-schema SQL test，QA native PostgreSQL 16.14 相容 schema shim replay 54/54；事件／finalize 故障原子性、retry/event-once、ACL 通過。仍沒有 Supabase Storage/API 故障或正式站驗證；部署後隔離回歸前不得勾「通過」。 |
 
 ## 後台、排程與安全
 

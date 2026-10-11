@@ -3190,3 +3190,12 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 候選 `/private/tmp/xunfeng-c21-policy-signoff` HEAD `1af894375ed06af34960e237cf9b25bd6c48a601` route test 10/10、tsc 通過。C21 SQL contract fault/ACL 在最小 schema 重跑 10/10；prompt 與 school 各 N=2 並發 10 輪，總 20 輪均一勝一衝突、一筆 audit，fixtures 0。
 - 將原 one-off race harness 改為 `scripts/qa-c21-policy-school-isolated-local.sh`：自建隔離 PG16 Unix-socket cluster、核對候選 SHA/tree、套 base＋C21 migration、執行 SQL 與併發測試，trap 停止及清除 cluster。腳本 `bash -n` 與完整執行通過。
 - 限制：fixture 是最小 PostgreSQL schema；沒有全序 Supabase replay、HTTP/cache/consumer 或正式站驗收。C21 critical 未結，Qimen append-only 重送規則仍待決。更新 C21 ticket、full-system matrix、route inventory、customer UAT；退款 user files 未 stage。
+
+
+## 2026-10-12｜M24 full-schema candidate 獨立複驗
+
+- 唯讀檢查 `/private/tmp/xunfeng-m24-full-schema-test` HEAD `85ba785ae7c971654cb17e38c846ff52beba3b62`；新增僅為 guarded full-schema SQL test，候選 worktree clean。
+- QA 自有 `scripts/qa-m24-full-schema-local.sh` 以兩個全新 PostgreSQL 16.14 Unix-socket cluster 各從空 DB 執行候選 54 個 migration SQL，history count/distinct 均 54/54，M19→C23 尾序與 test guard 通過。新 test 兩次均 psql exit 0：event INSERT fault、finalize UPDATE fault rollback，解除故障後 retry=deleted、duplicate=already_deleted、event 恰 1；RPC ACL/RLS/grants 通過。run/event/profile fixture 0，marker 一次使用，cluster 自動停止刪除。
+- QA route/RPC stub harness 5/5；候選一次性 source archive 的 `tsc --noEmit` 通過。候選／正式 DB／C4 未修改。
+- 限制：全 migration SQL 在 native PostgreSQL 上 replay，使用手動記錄 history 與最小 Auth/Storage schema shim；不是 Supabase CLI／Auth／Storage stack。沒有真 HTTP、Storage fault、正式部署回歸。QA-FS-M24 critical 與 UAT F03 維持未通過。
+- 新增 QA runner `scripts/qa-m24-full-schema-local.sh`；更新 M24 ticket、full-system matrix、route inventory、UAT；`bash -n`、`git diff --check` 通過。
