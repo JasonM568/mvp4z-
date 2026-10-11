@@ -77,7 +77,7 @@
 | `/api/face-analysis/runs/[id]/image` | DELETE | QA route＋記憶體 DB/Storage 替身 8/8，重現 finalize／event 故障窗口；M24 HEAD `3412b49` 候選 tests 6/6、QA RPC mock harness 5/5；版號 `20261012050000`，但候選樹未含 M19/C19/M21/M22 migration，未做 clean replay；真 DB/Storage health 待驗 |
 | `/api/face-analysis/runs/[id]/pdf` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 PDF 11/11：本人位元組與重取一致、跨會員 404、未完成 409、壞 ID 400；正式站待驗 |
 | `/api/face-analysis/runs/[id]/preview` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24，A/B 有效私有照片預覽與拒絕路徑已驗；正式站待驗 |
-| `/api/face-analysis/runs/[id]/upload` | POST | 現行 main M21／M22 原缺陷仍開票；M22 整合候選 `15631e7` 隔離 29/29：空照片不計次、品質拒絕→合格、N=2×10、lease、event 故障原子回滾；M23 雙故障孤兒檔仍為 critical，真品質與正式站待驗 |
+| `/api/face-analysis/runs/[id]/upload` | POST | 現行 main M21／M22 原缺陷仍開票；M22 整合候選 `15631e7` 隔離 29/29：空照片不計次、品質拒絕→合格、N=2×10、lease、event 故障原子回滾；M23 Option A `42175c1` focused 11/11、QA route/storage stub 3/3、最小 PostgreSQL scratch 驗 cleanup_pending／attached 不刪／A-B key 分離；尚無 reconciler、完整 replay、真 Supabase Storage 故障與正式站驗收，critical gate 維持 |
 | `/api/login` | POST | 舊路由空 body 400，與新路由相同；正常登入待驗 |
 | `/api/logout` | POST | 舊路由空 body 冪等 200，與 C12 新路由相同；有效 session 待驗 |
 | `/api/me` | GET | 舊路由無權杖 401，與新路由相同；有效會員待驗 |

@@ -25,26 +25,43 @@ QA_M23_SPIKE_ROOT=/private/tmp/xunfeng-m23-spike npx vitest run --config scripts
 
 Result: 1 test file passed, 3 tests passed, 0 failed. The QA-owned route/storage stub confirms the double-failure state, preserves an attached object after an ambiguous RPC response, isolates stale worker A cleanup from worker B, and accepts a legacy fixed path for preview while rejecting traversal. The candidate route and storage helper in the disposable QA copy match the files at the reviewed SHA. This remains in-memory route/helper evidence; it adds no SQL, ACL, database persistence, or real Storage proof.
 
+### Additional independent verification
+
+Re-ran both candidate focused suites from a one-time `git archive` source copy, linked to the existing repository `node_modules` without editing the engineering worktree:
+
+```sh
+vitest run --config vitest.config.mts 'app/api/face-analysis/runs/[id]/upload/route.m21.test.ts' 'lib/face-analysis/storage.m23.test.ts'
+```
+
+Result: **2 files / 11 tests passed**. Then created a disposable native PostgreSQL cluster under `/private/tmp`, applied the unversioned M23 SQL draft against a minimal fixture schema, and exercised its real PL/pgSQL functions with fixture roles:
+
+- `claim_face_upload_intent_cleanup` changed a pending intent to `cleanup_pending`; `note_face_upload_cleanup_failure` retained `STORAGE_REMOVE_FAILED`, one attempt, and the run remained `created` with `storage_path = NULL`.
+- After `record_face_upload_result` committed and attached the intent, a subsequent cleanup claim returned `attached` and `may_delete = false` (the simulated lost-response case).
+- After A's intent became cleanup-pending, B's distinct attempt key attached to the run; A's cleanup response remained scoped to A's exact key.
+
+The temporary PostgreSQL cluster and data directory were stopped and removed. This is independent SQL-function/state evidence, but the minimal fixture schema is not a clean replay of the real Supabase schema. It does not inject a real event failure, model a real HTTP response loss, test ACL under real Supabase roles, or call Storage. Legacy path compatibility and traversal rejection remain covered by the focused route/Storage tests only.
+
 ## Reviewed invariants and evidence
 
 | Scenario | Evidence | QA assessment |
 |---|---|---|
-| Event/result write and intent attachment are atomic | SQL draft orders run update, event insert, and intent `pending → attached` in one RPC transaction; missing matching intent raises an exception | Plausible by PostgreSQL transaction semantics; not executed against PostgreSQL in this independent run |
-| Double failure leaves cleanup discoverable | Route test injects result RPC failure and Storage remove failure; cleanup helper is configured to return `cleanup_pending`; route records a sanitized failure code and returns 500 | Route branch passes. Test mocks the durable intent state and does not prove a persisted row or later reconciliation |
-| RPC committed but HTTP response was lost does not delete attached image | Route test injects RPC rejection followed by cleanup RPC response `attached`; expects 200 and no Storage deletion | Route branch passes. The mock does not simulate a real committed transaction or locking race |
-| Old worker A cannot remove new worker B key | Storage test uploads attempt-specific A/B paths, removes A, and confirms B remains and can be previewed | Object-key isolation passes in an in-memory Storage stub; claim-token rejection and real Storage semantics are not exercised |
+| Event/result write and intent attachment are atomic | SQL draft orders run update, event insert, and intent `pending → attached` in one RPC transaction; scratch success path committed run/event/intent together | Function success path ran on a minimal PostgreSQL fixture; event-insert fault rollback and real Supabase transaction behavior were not injected |
+| Double failure leaves cleanup discoverable | Route test injects result RPC failure and Storage remove failure; independent PostgreSQL scratch verifies persistent `cleanup_pending`, attempt count, and error code | Route + SQL-state evidence passes. No real Storage remove fault or future reconciliation is exercised |
+| RPC committed but HTTP response was lost does not delete attached image | Route test simulates committed state; PostgreSQL scratch runs the real result RPC followed by cleanup claim | Route + SQL-state evidence passes. No real network response loss or concurrent transaction timing is exercised |
+| Old worker A cannot remove new worker B key | Storage test uploads attempt-specific A/B paths; PostgreSQL scratch claims A cleanup and attaches B's key | Exact-key separation is supported by stub and SQL-state evidence; real Storage behavior is not exercised |
 | Existing fixed path remains readable | Storage test signs a legacy `{profile}/{run}/source.jpg` path and rejects traversal | Preview compatibility passes in a stub. Independent download and delete compatibility were not exercised |
 
 ## Design review and remaining gaps
 
 - The attempt-specific object key and intent-before-upload record give compensation a narrow, exact object identity. The result RPC serializes intent attachment with cleanup through the row lock, which is the right shape for the ambiguous-response race.
-- The candidate is not release-ready. The SQL is intentionally a draft outside `supabase/migrations`, has no version, and received no clean replay or independent ACL/transaction test in this run.
+- The candidate is not release-ready. The SQL is intentionally a draft outside `supabase/migrations` and has no version. The new scratch run exercises selected function state transitions on a minimal schema; it is not a clean migration replay or independent Supabase ACL test.
 - A production reconciler and its CAS cleanup lease are absent. Until that exists, an intent left `cleanup_pending` is durable evidence but not automatic recovery. Adoption needs an audited, exact-key worker, retry/age metrics, bounded retention for attached rows, and tests for concurrent workers.
+- If Storage upload can persist an object but the client receives an ambiguous error, `storePrivateImage` throws before the result-RPC compensation block; the route releases the claim but leaves the intent pending. A reconciler must account for both `pending` and `cleanup_pending`, with a grace/lease policy and a check that no run references the exact path.
 - The design itself records the stale-worker termination boundary: a Storage request that completes after the reconciler's grace window could create a late orphan. The proposed grace is not validated against platform termination behavior.
-- The route tests stub both the RPC outcome and Storage. The test named “committed but response lost” does not itself commit a database transaction; the double-failure test does not persist/query an intent row. Real Storage failure modes and real cleanup recovery remain unverified.
+- The candidate route tests stub RPC outcomes and Storage. Their “committed but response lost” case is a route-state simulation; the QA scratch separately exercised persisted attached state but did not simulate an HTTP transport loss. The double-failure scratch persisted cleanup state but did not inject a real Storage remove failure. Real Storage failure modes and real cleanup recovery remain unverified.
 - The candidate explicitly changes photo keys to `attempts/{claim}/source.ext`. The old M22 reader rejects this format, so rollback to the unmodified M22 binary after a successful M23 upload would break preview/download/delete. A forward-compatible rollback artifact or a forward-only rollout gate is required.
 - QA did not verify attempt-counter effects, helper authorization under actual `anon`/`authenticated` roles, run deletion behavior without the documented no-FK intent, or full route consumers (member/admin preview, analyze, PDF-related flows, cron expiry) against a database and Storage stack.
 
 ## Exit recommendation
 
-Treat Option A as feasible at route/key-prototype level, with 11/11 focused tests passing. Keep deployment and formal acceptance blocked pending Tech Lead design selection, versioned migration, clean replay and ACL checks, persisted ambiguous-commit/double-failure tests, a reconciler with exact-key lease/retry behavior, rollback compatibility, and isolated real Supabase Storage recovery tests. This evidence does not establish formal M22 or M23 pass status.
+Treat Option A as feasible at route/key-prototype level, with focused unit/stub tests and selected PostgreSQL state transitions passing. Keep deployment and formal acceptance blocked pending Tech Lead design selection, versioned migration, full clean replay and ACL checks, persisted event-failure/ambiguous-commit tests, a reconciler covering ambiguous upload and exact-key cleanup with lease/retry behavior, rollback compatibility, and isolated real Supabase Storage recovery tests. This evidence does not establish formal M22 or M23 pass status.

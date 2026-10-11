@@ -3100,3 +3100,19 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 ### 遺留事項
 見 `handoff.md` 第 5、6 節。
+
+## 2026-10-11｜M23 Option A 自有 PostgreSQL scratch 補驗
+
+### 內容與證據
+- 依 X-PM 要求唯讀審核 `/private/tmp/xunfeng-m23-spike` HEAD `42175c1e00e3d8f12de4ee4e413852961de544b1`；未修改工程 worktree、正式庫、C4 或共用 Supabase stack。
+- 從一次性 `git archive` 副本重跑候選上傳路由與 Storage tests：2 files／11 tests 通過；QA 自有 route/storage harness 既有 3/3 證據仍屬 in-memory stub。
+- 在 `/private/tmp` 啟動一次性 native PostgreSQL cluster，套用未版本化 M23 SQL 草稿與最小 fixture schema；實際 RPC 驗證：雙故障模擬後 intent 留在 `cleanup_pending` 並保留 cleanup error／attempt；成功提交後 cleanup claim 回 `attached/may_delete=false`；A intent cleanup 不阻止 B 使用其獨立 key attach。資料目錄已停止並刪除。
+- 工程分支與候選均未改動。沒有真 Storage 故障、完整 Supabase migration replay、真 HTTP response loss、ACL 或完整整合測試。
+
+### 重要缺口
+- 若 Storage upload 已成功落地但 client 收到模糊錯誤，路由目前在 `storePrivateImage` 拋錯後不會進入 result-RPC compensation；會釋放 claim、留下 `pending` intent。候選沒有 reconciler，pending／cleanup_pending 都尚未有自動回收路徑。
+- M23/M22 保持 critical／未正式通過；採納仍需 Tech Lead 選案、版本化 migration、全序 clean replay、ACL、exact-key reconciler／lease 與隔離真 Storage 故障驗收、舊版回退相容策略。
+
+### 文件更新
+- 更新 `docs/qa/qa-fs-m23-option-a-spike-review-2026-10-11.md`、`docs/qa/route-inventory-2026-10-11.md` 與 `docs/qa/full-system-acceptance-2026-10-11.md`，同步 scratch 證據與恢復缺口。
+- `git diff --check` 通過。全系統其他 BLOCKER／critical、正式站回歸與客戶 UAT 尚未完成。
