@@ -575,3 +575,7 @@ Ego Lite 對正式站 10 個公開頁面以 390px、320px CSS viewport 唯讀檢
 ### current main 完整 Vitest baseline（2026-10-12）
 
 於 main HEAD `141f370` 執行 `./node_modules/.bin/vitest run`：**75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）**。兩個 expected-fail 分別是 B1 同會員並發問答與 C2 超額扣點 ledger amount 不符；C2 專用 int4 boundary suite 不在預設 include，另計 **11 passed、2 expected fail／13 tests**。因此全套綠色退出碼不能代表這兩個 critical gate 或 C2 int4 guard 已通過。
+
+### current main QA baseline refresh（2026-10-12）
+
+於 main HEAD `ab602fa` 重跑 `npx vitest run`：**75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）**；`npx tsc --noEmit` 及 `git diff --check` 通過。兩個 expected-fail 仍是 B1 同會員問答並發及 C2 ledger amount mismatch，維持 BLOCKER／critical gate。M23 Option A 獨立 suite 另計 3/3；cleanup retry reclaim 缺口仍可由 QA native PostgreSQL runner 重現，不能由全套 Vitest 綠色退出碼視為解除。工作樹中既存兩個退款 QA 腳本修改未納入本次基線或提交。

@@ -3261,3 +3261,10 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - `./node_modules/.bin/vitest run --config scripts/qa-c2-admin-credits-boundaries.vitest.mts` 結果 **11 passed、2 expected fail／13 tests**；`npx tsc --noEmit`、`git diff --check` 通過。Migration `0001_init.sql` 確認餘額及交易 amount 欄位均為 `integer`；實際 PostgreSQL／HTTP 超界錯誤和副作用仍未驗。
 - 更新 C2 ticket、full-system matrix、route inventory、UAT M08 與本 worklog。QA-UAT M08 保持未執行；C2 critical、產品超額扣點規則待決，未提升驗收狀態。
 - main HEAD `141f370` 完整 `vitest run` 重跑：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）。預期失敗仍是 B1 與 C2 ledger mismatch；C2 int4 boundary suite 使用獨立 config，不併入預設總數。baseline 已記入 full-system acceptance。
+
+
+## 2026-10-12｜全系統 QA baseline 再驗
+
+- main HEAD `ab602fa` 重跑 `npx vitest run`：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）。兩個 expected-fail 是 B1 同會員問答並發與 C2 ledger amount mismatch，仍是未結 BLOCKER／critical。
+- `npx tsc --noEmit`、`git diff --check` 通過。M23 Option A route/Storage stub 3/3 及 native PostgreSQL cleanup reclaim gap 同步複驗；真 Supabase Storage、HTTP transport response loss 未驗，M23 維持 feasibility only。
+- 更新全系統 QA baseline；既存 `scripts/qa-refund-boundaries-local.sh`、`scripts/qa-refund-rounding-local.sh` 使用者修改未改動、未 stage。
