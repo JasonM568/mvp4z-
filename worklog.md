@@ -3281,3 +3281,13 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 - 新增 `scripts/qa-refresh-token-boundaries.test.ts` 專用 Auth 替身 suite；`./node_modules/.bin/vitest run --config scripts/qa-refresh-token-boundaries.vitest.mts` **5/5 通過**。涵蓋 missing／blank／null／malformed 不建 Auth client；invalid／expired／revoked 統一 401 且不建立 profile；incomplete session/user 拒絕；成功回傳 rotated session fields 並使用刷新 user metadata；同 token N=2 兩個 request 都交 Auth wrapper。
 - 這只驗 route contract；N=2 沒有連真 Supabase Auth，不能證明真實 refresh-token rotation/reuse 行為。既有 `qa-register-local.mjs` 隔離 API 有效／無效 refresh 已驗，正式站與多分頁 UAT 仍待驗。同步 route inventory、全系統矩陣、UAT A02；無 Auth／DB／郵件 fixture。
+
+
+## 2026-10-12｜QA-FS-C24/C25 忘記密碼候選獨立複驗
+
+- 將 QA-owned `qa-forgot-password-boundaries` suite 由缺陷重現預期改為修復驗收預期，移除舊「260 octets 仍送 Auth」斷言，新增 provider 原始錯誤／token/action link 隱私斷言；Vitest config 可指定候選 root。使用合成地址與 Auth/console stub。
+- main route 對照仍紅：7 tests 中 5 pass、2 fail，分別重現 65-octet local-part 回 200（且被送 Auth）及 provider error log 含 email/token/action link/provider 原文。
+- C25 固定 SHA `bed10dc7a068eef91737888385282529791af455`：known/unknown response 與隱私兩案例 **2/2**；C24 固定 SHA `e856c3f0fb6797d3c5aae4c4f48216bd4d107197`：完整 route/Auth stub suite **7/7**。來源為一次性 `git archive`，工程 worktree clean。
+- 64 ASCII octets 正常 dispatch；65／260 octets 回 400、Auth call=0；合成 email/token/action link/provider message 均未出現在候選 logger arguments。沒有真 Supabase Auth、寄信、rate limit 或正式日誌管線驗證。
+- C24 候選隔離 route 驗收通過，整合／真 Auth／寄信／正式站仍待驗。C25 隱私斷言通過，但原 ticket 要求的 request/correlation ID 或安全計數欄位未出現在候選固定 log event；已保留為待 X-PM 確認的診斷可追蹤性差異，不宣稱完整 ticket close。已同步兩票、全系統矩陣、route inventory、A03 UAT；UAT 未執行。
+- `npx tsc --noEmit`、`git diff --check` 通過；不觸及正式資料、Auth、郵件或退款 user scripts。

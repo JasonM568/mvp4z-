@@ -64,12 +64,6 @@ describe("QA-FS forgot-password route boundaries", () => {
     expect(state.calls).toHaveLength(0);
   });
 
-  it.fails("rejects a 260-octet local-part before Auth", async () => {
-    const response = await POST(request(JSON.stringify({ email: `${"a".repeat(260)}@example.test` })));
-    expect(response.status).toBe(400);
-    expect(state.calls).toHaveLength(0);
-  });
-
   it("accepts the 64-octet ASCII local-part SMTP boundary", async () => {
     const email = `${"a".repeat(64)}@example.test`;
     const response = await POST(request(JSON.stringify({ email })));
@@ -77,17 +71,12 @@ describe("QA-FS forgot-password route boundaries", () => {
     expect(state.calls[0]?.email).toBe(email);
   });
 
-  it.fails("rejects a 65-octet ASCII local-part before calling Auth", async () => {
-    const response = await POST(request(JSON.stringify({ email: `${"a".repeat(65)}@example.test` })));
-    expect(response.status).toBe(400);
+  it("rejects 65- and 260-octet local-parts before calling Auth", async () => {
+    for (const length of [65, 260]) {
+      const response = await POST(request(JSON.stringify({ email: `${"a".repeat(length)}@example.test` })));
+      expect(response.status, `${length}-octet local-part`).toBe(400);
+    }
     expect(state.calls).toHaveLength(0);
-  });
-
-  it("observes that an overlong address is currently forwarded to Auth", async () => {
-    const email = `${"a".repeat(260)}@example.test`;
-    const response = await POST(request(JSON.stringify({ email })));
-    expect(response.status).toBe(200);
-    expect(state.calls).toEqual([{ email, redirectTo: "https://qa.example.test/reset-password" }]);
   });
 
   it("dispatches repeated submissions to Auth without creating local state", async () => {
@@ -97,12 +86,18 @@ describe("QA-FS forgot-password route boundaries", () => {
     expect(state.calls).toHaveLength(10);
   });
 
-  it.fails("does not write the submitted email to server logs on provider error", async () => {
+  it("does not write submitted email or provider-controlled secrets to logs", async () => {
     const log = vi.spyOn(console, "warn").mockImplementation(() => {});
-    state.nextError = { message: "provider unavailable" };
+    state.nextError = {
+      message: "provider failure synthetic-privacy@example.test token=synthetic-token action_link=https://qa.example.test/recovery?token=secret"
+    };
     try {
       await POST(request(JSON.stringify({ email: "synthetic-privacy@example.test" })));
-      expect(JSON.stringify(log.mock.calls)).not.toContain("synthetic-privacy@example.test");
+      const output = JSON.stringify(log.mock.calls);
+      expect(output).not.toContain("synthetic-privacy@example.test");
+      expect(output).not.toContain("synthetic-token");
+      expect(output).not.toContain("https://qa.example.test/recovery");
+      expect(output).not.toContain("provider failure");
     } finally {
       log.mockRestore();
     }

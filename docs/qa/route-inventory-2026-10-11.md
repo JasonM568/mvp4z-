@@ -58,7 +58,7 @@
 | `/api/admin/token-usage` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；統計對帳待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/ai/chat` | POST | 現行 main B1 不合格；整合候選 `d5758bb` 專用 49 migration stack 的假模型真 HTTP N=10×3 輪：各 1 答覆／扣點、9 筆 409，usage／ledger 一致，fixture 清 0；真模型與正式站待驗 |
 | `/api/ai/council` | POST | 既有正式證據：並發／日限額；瀏覽器找回待驗 |
-| `/api/auth/forgot-password` | POST | 既有隔離 Auth API 9/9 含 known／unknown email 均 HTTP 200；QA route/Auth stub 6 passed、3 expected fail／9：Auth success/provider error 對外一致，格式錯誤在 Auth 前拒絕，64-octet local-part 邊界可用；65／260-octet local-part 仍送 Auth、provider error log 含原始 email（QA-FS-C24/C25）；N=10 均 dispatch 至 Auth stub，真 Auth rate limit／寄信與正式站待驗 |
+| `/api/auth/forgot-password` | POST | 既有隔離 Auth API 9/9；候選 C25 `bed10dc7` 隱私／公開回應 2/2，C24 `e856c3f` QA route/Auth stub suite 7/7：64-octet local-part dispatch、65/260 octets 400 且 Auth 呼叫 0；provider error log 不含合成 email/token/action link/provider 原始訊息。真 Auth、寄信、rate limit、正式站待驗；C25 correlation ID 診斷要求待 X-PM 確認 |
 | `/api/auth/login` | POST | 部分已驗：正確／錯密碼 |
 | `/api/auth/logout` | POST | C12 隔離 API 6/6：舊 access／refresh 均立即 401、重複登出 200，故障 UI 留存憑證並提示重試；正式站待驗 |
 | `/api/auth/refresh` | POST | 既有隔離 Auth API `qa-register-local.mjs` 驗有效／無效 refresh；新 route/Auth stub suite 5/5：missing／blank／null／malformed 400、不呼叫 Auth，expired／revoked／incomplete response 統一 401，成功回傳 rotated credentials；同 token N=2 只驗 route 各 dispatch 一次，真 Supabase rotation/reuse 行為及正式站待驗 |

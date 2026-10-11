@@ -1,6 +1,6 @@
 # QA-FS-C25｜忘記密碼 provider error 日誌包含原始 email
 
-**嚴重度：minor（隱私資料最小化）**　**狀態：route 替身已重現；待 X-PM 排序／工程修復與隔離複驗。**
+**嚴重度：minor（隱私資料最小化）**　**狀態：候選隱私斷言獨立複驗通過；記錄關聯性要求待 X-PM 確認；真日誌管線與正式站未驗。**
 
 ## 重現與證據
 
@@ -10,12 +10,12 @@
 ./node_modules/.bin/vitest run --config scripts/qa-forgot-password-boundaries.vitest.mts
 ```
 
-測試令 Auth stub 回 `provider unavailable`，並用合成地址 `synthetic-privacy@example.test` 呼叫 route。專用 suite 結果 **6 passed、3 expected fail／9 tests**；實際 `console.warn` 內容包含完整 email，亦輸出 provider error message；隱私斷言為 expected fail。這是 route／console 替身證據，沒有讀取任何正式服務日誌，也未證明日誌的存取權限或保存期限。
+初始缺陷以 Auth stub 和合成地址 `synthetic-privacy@example.test` 重現：舊 route 的 `console.warn` 含完整 email 與 provider error message。候選 C25 commit `bed10dc7a068eef91737888385282529791af455` 上，QA 專用 known/unknown response 與日誌隱私案例 **2/2** 通過。再於 C24 SHA `e856c3f0fb6797d3c5aae4c4f48216bd4d107197` 執行全 suite **7/7**。測試注入的 provider message 含合成 email、token、action link；候選 log 不含這些字串或原始錯誤內容。這只驗 route／console stub，未讀取正式服務日誌或證明其存取權限與保存期限。
 
 ## 影響與驗收標準
 
-重設密碼路由的 provider error 會把會員 email 寫入應用程式日誌。即使日誌受管理員權限保護，仍擴大敏感識別資料的保留面。修復後錯誤紀錄不得包含原始 email、token、action link 或 provider 原始個資；只記錄 request/correlation ID、錯誤類型與安全的計數指標。route test 注入 provider error 並檢查 console/logger arguments 不含合成 email；確認 API 仍維持已知／未知帳號不可枚舉的相同公開回應。
+重設密碼路由的 provider error 曾把會員 email 寫入應用程式日誌。候選 log 現只包含固定事件、錯誤類型與安全錯誤碼，通過敏感字串斷言；但沒有 request/correlation ID 或安全計數指標。此診斷關聯性是否為必要驗收條件交 X-PM 確認，不把未覆蓋的欄位算作通過。已知／未知地址的公開回應一致。
 
 ## 複驗與清理
 
-只用合成地址與 Auth stub；修復後移除 expected-fail，執行本 suite、auth route regression、typecheck。沒有真帳號、郵件或正式日誌資料需要清理。
+只用合成地址與 Auth stub；QA suite 已移除缺陷預期並通過固定候選。真 Auth、郵件與正式日誌管線仍待後續驗收。沒有真帳號、郵件或正式日誌資料需要清理。
