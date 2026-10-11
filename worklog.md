@@ -3136,6 +3136,12 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 將 QA-FS-C22 critical ticket 與 repro、預期／實際、影響、10 輪隔離驗收標準、fixtures 清理要求及「不涉及商業規則」送 X-PM 定序／派工；正式庫不得故障注入。
 - 更新 `docs/qa/qa-fs-c22-provider-approval-audit-failures-2026-10-11.md` 與全系統驗收票狀態；等待工程候選 SHA 後獨立複驗。
 
+## 2026-10-11｜main 完整 Vitest baseline 刷新
+
+- 在 main HEAD `2c8b1d2` 執行 `npx vitest run`：75 files passed／3 skipped；650 passed／2 expected fail／3 skipped，655 tests。
+- 確認兩個 expected fail 是 Chat 1 點並發只交付一份回覆的 B1 BLOCKER，以及管理員扣點 ledger amount 必須等於實際餘額變化的 C2 critical。主線仍保留這兩項未結 gates；候選隔離測試不替代 main 通過狀態。
+- 已在 `docs/qa/full-system-acceptance-2026-10-11.md` 更新當前 baseline 與失敗案例名稱。
+
 ### 票務狀態對齊
 - 清理全系統文件的舊派工狀態：C20/C23 已有整合候選隔離複驗結果，改為候選通過、正式 gate 未結；C21 維持已派工程1；C22 更新為已送 X-PM 定序／派工。
 - 補記 C20/C23 ticket 對 `3f3eec5` 的候選 route/SQL 證據及真 EZPay 限制；保留原始缺陷重現與正式發布風險。

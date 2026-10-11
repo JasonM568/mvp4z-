@@ -547,3 +547,7 @@ Ego Lite 對正式站 10 個公開頁面以 390px、320px CSS viewport 唯讀檢
 測試結束後 DB-only project 已停止並刪除，history/fixture、專案容器、DB 測試埠與一次性 source copy 均清理；未使用 C4/其他共用 stack、Storage API/object、正式資料或真 EZPay。**仍未驗：**Supabase Storage 真故障／恢復、完整 HTTP＋DB＋Storage 整合、真 provider 冪等契約、notify HTTP N=10、部署 SHA 與正式站回歸。M24/C20/C23 的正式發布 gate 與客戶 P05/P07/F03 UAT 均維持未通過；此證據只支持候選隔離驗證。
 
 **本階段測試總結補記：**候選 DB replay 與上述 SQL、route/helper 隔離案例通過，沒有新增已證實的 BLOCKER；現行 main 的既有 BLOCKER／critical、M22/M23/M24/M25 與 C20/C21/C22/C23 發布 gate、正式站 UAT 均未結案。QA 不會將候選測試結果升格為正式驗收。
+
+### current main 單元測試 baseline（2026-10-11）
+
+於 main HEAD `2c8b1d2` 執行 `npx vitest run`：**75 files passed、3 skipped；650 passed、2 expected fail、3 skipped**，總計 655 tests。兩個預期失敗明確對應未結 gate：`app/api/ai/chat/route.qa.test.ts`「1 點同時送兩題時只交付一份回覆」（BLOCKER），及 `app/api/admin/credits/route.qa.test.ts`「交易明細 amount 等於實際餘額變化」（critical）。完整 suite 通過不表示這兩項功能驗收通過；候選隔離證據與 main baseline 分開記錄。
