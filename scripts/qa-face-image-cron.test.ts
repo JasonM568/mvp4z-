@@ -177,6 +177,30 @@ describe("face image retention cron isolated route QA", () => {
     expect(fixture.events.map((event) => event.event_type)).toEqual(["image_cleanup_failed"]);
   });
 
+  it("reports a DB update failure after Storage removal and retries the stale path", async () => {
+    const id = "55555555-5555-4555-8555-555555555555";
+    const path = addRun(id, -60_000);
+    fixture.updateFails = true;
+
+    const first = await GET(request("qa-isolated-cron-secret"));
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({ candidate_count: 1,
+      deleted_count: 0, failed_count: 1 });
+    expect(fixture.objects.has(path)).toBe(false);
+    expect(fixture.runs.get(id)?.storage_path).toBe(path);
+    expect(fixture.events.map((event) => event.event_type)).toEqual(["image_cleanup_failed"]);
+
+    fixture.updateFails = false;
+    const retry = await GET(request("qa-isolated-cron-secret"));
+    expect(await retry.json()).toMatchObject({ candidate_count: 1,
+      deleted_count: 1, failed_count: 0 });
+    expect(fixture.runs.get(id)).toMatchObject({ storage_path: null,
+      image_deleted_at: expect.any(String) });
+    expect(fixture.events.map((event) => event.event_type)).toEqual([
+      "image_cleanup_failed", "image_cleanup_completed"
+    ]);
+  });
+
   it("processes at most 100 images per call, then drains the next batch", async () => {
     for (let number = 1; number <= 101; number++) {
       const suffix = number.toString(16).padStart(12, "0");
