@@ -3219,3 +3219,9 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 - 於 main HEAD `79a45eb` 執行 `node scripts/qa-route-inventory.mjs`，從 app tree 重算 88 個 API route 檔與 50 個頁面檔，與既有矩陣基準數量一致；未發現新增路由或頁面缺少 QA 狀態列。
 - 更新 route inventory 的生成基準至 `79a45eb`。此為來源盤點，不代表重測；逐路由待驗項與正式站 gate 保持原狀。`git diff --check` 通過。
+
+
+## 2026-10-12｜C23 證據同步至 UAT／route inventory
+
+- 將本階段 C23 provider-success／local commit failure retry 2/2 的證據與真 EZPay 冪等契約限制同步到客戶 UAT P05 及兩條相關 API route inventory；UAT 勾選仍保持未執行。
+- 執行 `git diff --check`，通過。候選、正式 DB 與付款 provider 均未觸及。
