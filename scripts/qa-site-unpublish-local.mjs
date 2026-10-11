@@ -27,7 +27,15 @@ try {
   if (!before.ok || !Array.isArray(before.services) || !before.services.length) {
     throw new Error("Public CMS baseline is unavailable");
   }
-  for (const row of published) await db(`site_services?id=eq.${row.id}`, "PATCH", { is_published: false });
+  await db(`site_services?id=eq.${published[0].id}`, "PATCH", { is_published: false });
+  const partial = await publicContent();
+  if (!partial.ok || !Array.isArray(partial.services)
+    || partial.services.length !== before.services.length - 1
+    || partial.services.some((row) => row.id === published[0].id)) {
+    throw new Error("Partially unpublished service remains public");
+  }
+  console.log(`PASS partial unpublish: API services=${partial.services.length}`);
+  for (const row of published.slice(1)) await db(`site_services?id=eq.${row.id}`, "PATCH", { is_published: false });
   const remaining = await db("site_services?select=id&is_published=eq.true");
   if (remaining.length) throw new Error("Local DB did not clear published services");
   const after = await publicContent();

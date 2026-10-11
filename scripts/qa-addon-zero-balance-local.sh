@@ -3,8 +3,8 @@
 # All fixtures live inside one transaction and are rolled back on success or failure.
 set -euo pipefail
 
-if [[ $# -ne 1 ]]; then
-  echo "usage: $0 /path/to/local/connection.private.env" >&2
+if [[ $# -lt 1 || $# -gt 2 || ( $# -eq 2 && "$2" != "--migration-preview" ) ]]; then
+  echo "usage: $0 /path/to/local/connection.private.env [--migration-preview]" >&2
   exit 2
 fi
 source "$1"
@@ -13,8 +13,13 @@ if [[ ! "${DB_URL:-}" =~ ^postgres(ql)?://[^@]*@(localhost|127\.0\.0\.1):[0-9]+/
   exit 2
 fi
 
-psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
-BEGIN;
+{
+  printf 'BEGIN;\n'
+  if [[ ${2:-} == --migration-preview ]]; then
+    migration="$(cd "$(dirname "$0")/.." && pwd)/supabase/migrations/20261011160000_addon_preserves_entitlement_tier.sql"
+    printf '\\i %s\n' "$migration"
+  fi
+  cat <<'SQL'
 DO $qa$
 DECLARE
   v_user uuid;
@@ -59,5 +64,6 @@ BEGIN
   END IF;
 END
 $qa$;
-ROLLBACK;
 SQL
+  printf 'ROLLBACK;\n'
+} | psql "$DB_URL" -v ON_ERROR_STOP=1
