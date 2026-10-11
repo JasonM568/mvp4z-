@@ -3239,3 +3239,9 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 新增可重跑 C2 route boundary suite：11/11 通過，涵蓋非法／SQLi 形狀 UUID、amount 0／小數／字串、days 3651、note 500／501、具名管理員拒絕、無有效權益 debit、正常 +4 加點。
 - Deterministic DB stub barrier 令 +1／+2 兩請求都讀餘額 5，觀察到兩筆 ledger delta +3、兩筆 audit，但最終餘額 7 而非 8，將先前控制流風險提升為可重複 route/mock 併發重現；仍未證明真 Postgres 競態。
 - `npx tsc --noEmit` 與 `git diff --check` 通過；同步 C2 ticket、full-system matrix、route inventory、UAT M08。沒有真 DB／API 寫入，正式驗收未通過。
+
+
+## 2026-10-12｜全套 Vitest baseline 再確認
+
+- main HEAD `d99ee18` 執行 `npx vitest run`：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped。B1 同會員併發與 C2 ledger mismatch 仍阻擋功能驗收。
+- C2 11/11 與 C23 2/2 QA boundary suites 使用獨立設定檔，不在預設 include 中；報告保持分開統計。
