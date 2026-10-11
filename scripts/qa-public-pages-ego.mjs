@@ -1,9 +1,11 @@
 // Run with: ego-browser nodejs < scripts/qa-public-pages-ego.mjs
-// Reuse the existing QA task space; adjust only these two values for a new environment.
-const spaceId = 81;
+// Reuse this goal's existing QA task space; change the name only for a new goal.
+const taskName = "xunfeng-official-v2 full-system QA";
 const baseUrl = "http://127.0.0.1:3104";
-
-const task = await taskSpace(spaceId);
+const spaces = await listTaskSpaces();
+const existing = spaces.find((space) => space.name === taskName && space.ownership === "agent");
+if (!existing) throw new Error(`Existing Ego Lite task space not found: ${taskName}`);
+const task = await taskSpace(existing.id);
 const page = task.page("p1");
 const routes = [
   "/", "/about", "/booking", "/cases", "/courses", "/enterprise",
