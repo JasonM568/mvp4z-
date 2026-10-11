@@ -13,8 +13,8 @@
 | `/api/admin/course-product` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/course-registrations` | GET | 隔離通過 M7/M11：非法 limit 400、完整摘要與 DB 一致，跟進流程 17/17；正式站待驗 |
 | `/api/admin/course-registrations/[id]` | PATCH | 隔離通過：具名管理員跟進 PATCH、時間戳與 audit；非法／超長拒絕 |
-| `/api/admin/create-code` | POST | 隔離通過：具名管理員建立、非法／邊界、N=10 唯一碼與 audit 13/13；正式待驗 |
-| `/api/admin/credits` | POST | 不合格 C2：餘額與帳本不一致 |
+| `/api/admin/create-code` | POST | 隔離正常／非法／邊界／N=10 唯一碼與 audit 13/13；audit INSERT 回 error 的 route＋替身再現 HTTP 200、新碼已建但 audit 0（QA-FS-C20 critical）；真 DB 故障未驗 |
+| `/api/admin/credits` | POST | 不合格 QA-FS-C2：超額扣點餘額與帳本不一致；audit error route＋替身再現 valid delta 已入餘額／ledger、HTTP 200 但 audit 0，併入 C2 追蹤 |
 | `/api/admin/documents` | GET, POST | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 隔離 HTTP 正常／audit 故障原子性與 Storage、字數邊界 22/22，加 DB 並發 1/1；Storage 故障只有替身 2/2，正式整合／部署待驗 |
 | `/api/admin/documents/[id]` | DELETE, PATCH | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 的 PATCH／DELETE 正常、audit 故障回滾、title-only 相容性列入隔離 HTTP 22/22；Storage 故障只有替身 2/2，正式整合／部署待驗 |
 | `/api/admin/effective-settings` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；設定內容正確性待驗；匿名／壞 token／會員拒絕已驗 |
@@ -30,14 +30,14 @@
 | `/api/admin/face-knowledge/import` | POST | 部分已驗 C6：新卡／upsert 版本與 audit 正確；M14 同批重複 card_id 回 500，正式待驗 |
 | `/api/admin/face-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-review-questions` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/admin/face-rules` | GET, POST | QA-FS-M25 route＋記憶體 DB/audit 替身：draft 建立後 audit INSERT 回 error 仍 HTTP 200、audit 0；81 字版本標籤 400 零寫入；真 DB／舊 draft update 未驗 |
-| `/api/admin/face-rules/publish` | POST | QA-FS-M25 route＋記憶體 DB/audit 替身：正常／無 draft 通過；audit INSERT 回 error 仍 HTTP 200 且 profile 已切換、無 audit；publish UPDATE 故障可造成暫時無 published profile；真 DB／並發未驗；critical |
+| `/api/admin/face-rules` | GET, POST | QA-FS-M25 route＋記憶體 DB/audit 替身：draft 建立後 audit INSERT 回 error 仍 HTTP 200、audit 0；81 字版本標籤 400 零寫入；真 DB／舊 draft update 未驗；⚠ 是否將現行 ADMIN_KEY 改為具名管理員待決 |
+| `/api/admin/face-rules/publish` | POST | QA-FS-M25 route＋記憶體 DB/audit 替身 7/7：正常／無 draft、ADMIN_KEY null actor 通過；audit INSERT 回 error 仍 HTTP 200 且 profile 已切換、無 audit；publish UPDATE 故障可造成無 published profile並回退 built-in rules；真 DB／並發未驗；critical |
 | `/api/admin/face-teachings` | GET, POST | C18 候選 `461f213`＋migration：X-QA 全新隔離 stack 建立／audit 故障原腳本 6/6；其他 kind、正式整合／部署待驗 |
 | `/api/admin/face-teachings/[id]` | DELETE, PATCH | C17 候選曾發布保留／雙管理員競爭／刪除 audit 回滾隔離通過；C18 候選 PATCH 發布 audit 故障回滾與正常具名 audit 連續兩輪各通過；舊報告 v1 正文還原未證，正式整合／部署待驗 |
 | `/api/admin/face-teachings/import-builtin` | POST | C18 候選 X-QA 隔離兩輪通過：audit 故障 500／新增 0、正常匯入 67 筆、重跑冪等且具名 audit；正式整合／部署待驗 |
 | `/api/admin/gemini-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/invoices` | GET | 部分已驗：具名管理員 pending 發票列表與訂單連結；開票／退款待驗 |
-| `/api/admin/invoices/[orderId]/issue` | POST | 部分已驗 C8：隔離 paid 訂單非法 body 7/7；合法 ezPay 開票／正式站待驗 |
+| `/api/admin/invoices/[orderId]/issue` | POST | C8 隔離 paid 訂單非法 body 7/7；成功 invoice helper＋audit error route stub 為 HTTP 200、audit 0（QA-FS-C20）；真 ezPay 開票／DB audit 故障未驗 |
 | `/api/admin/members` | GET | C16 修復分支隔離 API 9/9：205 筆跨五頁無漏、最舊 Email 搜尋、全域總數及非法 page／q／cursor；Ego UI 第 5 頁／搜尋通過，1,001 筆規模 11/11；正式整合／部署待驗 |
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
 | `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 隔離 API/DB：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego 管理員 UI 遺失回應後同鍵重送，退款／交易／audit 各 1；正式 migration／站端待驗 |

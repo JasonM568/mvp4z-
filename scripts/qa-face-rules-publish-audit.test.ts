@@ -146,7 +146,7 @@ describe("QA: admin face-rule publish audit boundary", () => {
     });
   });
 
-  it("publishes the draft, archives the previous profile, and writes named audit on success", async () => {
+  it("publishes the draft, archives the previous profile, and writes audit on success", async () => {
     const response = await publishPOST(request());
 
     expect(response.status).toBe(200);
@@ -168,6 +168,17 @@ describe("QA: admin face-rule publish audit boundary", () => {
     expect(response.status).toBe(400);
     expect(mocks.rows).toEqual([expect.objectContaining({ id: "current-profile", status: "published" })]);
     expect(mocks.writeAdminAudit).not.toHaveBeenCalled();
+  });
+
+  it("preserves shared ADMIN_KEY success with null actor audit attribution", async () => {
+    mocks.requireAdmin.mockResolvedValue({ profile: null });
+
+    const response = await publishPOST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.auditRows).toEqual([expect.objectContaining({
+      admin_user_id: null, action: "face_rules.publish", target_id: "draft-profile"
+    })]);
   });
 
   it("reproduces a false-success response when audit insert returns an error", async () => {
