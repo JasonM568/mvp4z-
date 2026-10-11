@@ -69,12 +69,42 @@ try {
 
   const response = await fetch(`${baseUrl}/api/admin/members`, { headers: authHeader });
   const body = await response.json();
-  const visible = body.members?.filter((row) => row.email?.startsWith(emailPrefix) && row.role === "member") || [];
-  const missing = fixtureIds.filter((id) => !body.members?.some((row) => row.id === id));
-  if (check(response.status === 200 && Array.isArray(body.members), "named admin list returns 200")) passed++;
-  if (check(missing.length === 0 && body.summary?.total >= 206,
-    "all 205 created members are visible and summary reflects all members",
-    `HTTP ${response.status}, listed ${body.members?.length}, QA visible ${visible.length}, QA missing ${missing.length}, summary.total ${body.summary?.total}`)) passed++;
+  if (check(response.status === 200 && body.members?.length <= 50
+    && body.pagination?.page === 1 && body.summary?.total === beforeBody.summary.total + 205,
+    "default first page is bounded and summary counts all members",
+    `HTTP ${response.status}, listed ${body.members?.length}, summary.total ${body.summary?.total}`)) passed++;
+
+  const rows = [];
+  let correctPageSizes = true;
+  for (let page = 1; page <= 5; page++) {
+    const params = new URLSearchParams({ page: String(page), q: emailPrefix });
+    const result = await fetch(`${baseUrl}/api/admin/members?${params}`, { headers: authHeader });
+    const payload = await result.json();
+    if (result.status !== 200 || payload.pagination?.total !== 206
+      || payload.members?.length !== (page === 5 ? 6 : 50)) correctPageSizes = false;
+    rows.push(...(payload.members || []));
+  }
+  const ids = rows.map((row) => row.id);
+  if (check(correctPageSizes && ids.length === 206 && new Set(ids).size === 206
+    && fixtureIds.every((id) => ids.includes(id)) && ids.includes(adminProfileId),
+    "five pages recover all 205 members plus test admin exactly once",
+    `rows ${ids.length}, unique ${new Set(ids).size}, page sizes correct ${correctPageSizes}`)) passed++;
+
+  const oldestEmail = `${emailPrefix}000@example.test`;
+  const search = await fetch(`${baseUrl}/api/admin/members?page=1&q=${encodeURIComponent(oldestEmail)}`, { headers: authHeader });
+  const searchBody = await search.json();
+  if (check(search.status === 200 && searchBody.members?.some((row) => row.id === fixtureIds[0])
+    && searchBody.pagination?.total === 1, "oldest member found by server-side email search",
+    `HTTP ${search.status}, matches ${searchBody.pagination?.total}`)) passed++;
+  for (const [label, query] of [
+    ["zero page", "?page=0"],
+    ["100-digit page", `?page=${"9".repeat(100)}`],
+    ["overlong search", `?q=${"x".repeat(101)}`],
+    ["invalid cursor", "?page=2&after=not-a-cursor"]
+  ]) {
+    const result = await fetch(`${baseUrl}/api/admin/members${query}`, { headers: authHeader });
+    if (check(result.status === 400, `${label} rejected 400`, `HTTP ${result.status}`)) passed++;
+  }
 } finally {
   if (fixtureIds.length) {
     for (let i = 0; i < fixtureIds.length; i += 100) {
@@ -89,5 +119,5 @@ try {
   if ((await db(`profiles?select=id&email=like.${emailPrefix}*`)).length) throw new Error("QA member fixtures remain");
   console.log("QA Auth/profile fixtures cleaned");
 }
-console.log(`${passed}/4 admin member-list cap checks passed`);
-if (passed !== 4) process.exitCode = 1;
+console.log(`${passed}/9 admin member-list cap checks passed`);
+if (passed !== 9) process.exitCode = 1;
