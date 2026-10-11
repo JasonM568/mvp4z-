@@ -15,7 +15,14 @@ export async function GET(request: NextRequest) {
     const admin = createSupabaseAdminClient();
     const url = new URL(request.url);
     const status = url.searchParams.get("status");
-    const limit = Math.min(Number(url.searchParams.get("limit") || 100), 500);
+    const rawLimit = url.searchParams.get("limit");
+    const limit = rawLimit === null ? 100 : Number(rawLimit);
+    if (
+      rawLimit !== null &&
+      (!/^\d+$/.test(rawLimit) || !Number.isSafeInteger(limit) || limit < 1 || limit > 500)
+    ) {
+      return apiJson({ error: "limit 必須是 1 到 500 的整數" }, 400);
+    }
 
     let query = admin
       .from("consultation_bookings")
