@@ -238,7 +238,7 @@
 
 ### 官網、會員與付款
 
-- [ ] 桌面與手機可瀏覽首頁、服務、案例、課程、方案、預約與隱私頁，導覽正確。
+- [ ] 桌面與手機可瀏覽首頁、服務、案例、課程、方案、預約與隱私頁，導覽正確。**Ego Lite：390px 10/10 無溢出，320px `/courses`、`/member-pricing` 有超欄，QA-FS-UI1 minor 待修；客戶 UAT 不可勾通過。**
 - [ ] 後台將服務、案例或課程全部下架後，公開頁與 API 不再顯示已下架內容；資料源故障時的備援內容符合營運規則。**QA-FS-M12 服務隔離 API 1/1；案例／課程與正式站頁面驗收前不可勾**。
 - [ ] 後台新增或更新草稿時，只有明確勾選上架才公開；API 收到字串 `"false"` 等非法型別不會誤上架。**QA-FS-M13 服務隔離 API 4/4、型別單元測試通過；正式站 UI 前不可勾**。
 - [ ] 新會員註冊成功，30 點試用與到期日正確；同手機第二個帳號不再取得試用點。
@@ -306,6 +306,7 @@
 | QA-FS-C23／critical | 真實 helper＋本機 provider stub：管理員 route 首次 provider success 後 invoice INSERT 故障回500、重送重呼 provider；ECPay notify 同故障仍 ACK `1|OK`，重送同 callback 也重呼 provider。兩個獨立測試各1/1缺陷重現；未呼叫真 EZPay／未證其去重 | provider success 後本地持久化故障再重送，不可盲目二次開票；以 provider idempotency/reference 查詢並恢復同一結果，invoice/outbox/audit 最終各一筆；驗 timeout、持續 DB 故障及 N=10 重送 | 已回報 X-PM，待排序／派工；provider 重複訂單號正式契約未知 |
 | QA-FS-C21／critical | prompt／school profile publish 與 Qimen signoff 的 route＋audit 替身：三者皆 audit INSERT error 後回 200、資料已改／signoff row 已增、audit 0；未測真 DB | profile/status/cache 與 audit 原子；失敗時全回滾；Qimen signoff 不新增列；正常簽核／發布、權限與重送並發回歸 | 待送 X-PM 定序／派工；transaction/cache/consumer 未驗 |
 | QA-FS-C22／critical | face-provider approval route＋替身：POST active、DELETE revoked 各在 audit INSERT error 後回 200且audit 0；未測真 DB/provider | 核准／撤銷狀態具可恢復 audit/outbox，重送冪等；具名 admin auth、非法輸入與不呼叫 provider 回歸 | 待送 X-PM 定序／派工；真 DB/供應商端未驗 |
+| QA-FS-UI1／minor | 正式站 Ego Lite：390px 10 公開頁 10/10 無溢出；320px `/courses` body 337px、`/member-pricing` body 358px，標題超欄／裁切；本次唯讀瀏覽器證據及截圖已存檔 | 修復後 320／360／390px 兩問題頁文字完整、body 無水平溢出；其餘 8 頁 320px 無溢出，手機導覽可用 | 已送 X-PM minor 派工佇列；待修復候選與複驗 |
 | QA-FS-C3／critical | 本機 `.env.local` 所指 Supabase 專案於台北 10/07 無訂單／付款／發票；Vercel 正式 MID 與交接一致，正式 Supabase URL 受保護而未能核對 | 取得 MerchantTradeNo／TradeNo、金額、時間、MID 與付款入口；核對正式 Supabase URL 與各帳務表 | 已排入 X-PM 收件佇列，待交易資訊；不能宣告刷卡 E2E 通過 |
 | QA-FS-C4／critical | 舊版錯金額留下假 paid、後到失敗通知覆寫 paid；第一版新 RPC 又在 N=10 並發 20 輪中 2 輪觸發 `23505 idx_payments_provider_trade_no_unique`／HTTP 500 | 最新 migration／clean DB 後，QA 獨立隔離庫四情境連續 20 輪通過：錯金額不入帳、paid 不降級、每輪 N=10 全 200／稽核 10／付款、權益、交易各 1；跨單 provider 交易號衝突 409，原付款不變；匿名／會員 RPC 與稽核表 5/5 拒絕。正式部署後用指定測試交易回歸 | 隔離環境複驗通過；正式 migration／部署／站端複驗待辦，仍追蹤 |
 | QA-FS-C5／critical 待決策 | 會員 profile 綁 A、cookie 指 B；A 有效時新單歸 A，A 停用後相同情境新單歸 B。`lib/referral/attribution.ts` 同時承諾「終身歸戶」與「停用不歸戶」，實際 fallback 使分潤轉給別人；隔離腳本 4/4 及此觀察，資料清理還原 | 決策 A（QA 建議）：已綁定但停用→新單不歸因，cookie 不改歸；B：允許轉歸並明訂告知；C：既有綁定持續歸 A、停用只禁新歸戶。工程依決策實作並驗 active→inactive、不同 cookie、比例快照與建單不阻斷 | 已送 X-PM 排優先與商業規則討論；不可由 QA 擅定分潤 |
@@ -526,3 +527,9 @@ QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 
 ### QA-FS-C23 MerchantOrderNo 碰撞候選初步複驗
 
 工程候選 `/private/tmp/xunfeng-c20-c23` clean HEAD `b58ea161c5d7b9e23ba9e0ef180afe2bfd8fa694`。QA 自有 helper＋管理員 HTTP stub **4/4**、候選 unit **7/7**、TypeScript 通過；QA 自有 PostgreSQL 16 scratch 與 Supabase DB-only stack 均執行候選 SQL contract，collision 同／不同金額拒絕、ACL、audit 原子 rollback 與同 key 併發 2/2 conflict，副作用 0。候選分支自身 **58/58** migration replay 通過，DB SQL test 通過；Storage health 未達 healthy，沒有 Storage/API 服務驗收。此 58 版基底不含 M19/C19/M21/M22/M24 `20261012010000` 至 `20261012050000`，故不是整合版 replay；整合 SHA 的 migration 數量需依合併後樹重算並全序 replay。未呼叫真 EZPay，真 provider 冪等契約及 C23 原 provider-success/local-row-failure 恢復仍未驗；critical gate 維持。詳見 [QA-FS-C23](qa-fs-c23-invoice-provider-retry-after-row-failure-2026-10-11.md)。
+
+### 2026-10-11 窄螢幕公開頁面 UI 複驗
+
+Ego Lite 對正式站 10 個公開頁面以 390px、320px CSS viewport 唯讀檢查 `main`／`h1` 與 body 寬度。390px **10/10 無水平溢出**；320px **8/10 通過**，`/courses` body scrollWidth 337px，主標語 H2 323/292px、課程卡 H3 170/152px；`/member-pricing` body scrollWidth 358px，H1 344/292px，截圖可見文字裁切。手機主選單與老師服務子選單可展開。此為正式站當下 UI 的新 minor 缺陷 **QA-FS-UI1**，已記錄步驟、影響、驗收標準與截圖於 [QA-FS-UI1](qa-fs-ui1-mobile-overflow-2026-10-11.md)，待 X-PM 定序／派工。沒有提交表單、登入或付款；其餘 8 個公開頁面 320px 無溢出。
+
+**C21/C22 回歸狀態刷新：**`npx vitest run --config scripts/qa-admin-policy-audit-failures.vitest.mts` 重跑 **5/5**，仍重現三個 C21 publish/signoff 路由及 C22 approval POST／DELETE 在 audit INSERT error 時靜默回 200、業務狀態已改而 audit=0。證據仍限 route＋記憶體替身，不能代表真 DB；兩張 critical 票待 X-PM 派工。QA-UAT W01 已補記 UI1 證據及未通過限制，方框維持未勾。
