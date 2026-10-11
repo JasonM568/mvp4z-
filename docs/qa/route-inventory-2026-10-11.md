@@ -78,9 +78,9 @@
 | `/api/face-analysis/runs/[id]/pdf` | GET | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/face-analysis/runs/[id]/preview` | GET | 部分已驗：越權 404；有效照片待驗 |
 | `/api/face-analysis/runs/[id]/upload` | POST | 待驗：缺可重跑的正常與異常流程證據 |
-| `/api/login` | POST | 待驗：缺可重跑的正常與異常流程證據 |
-| `/api/logout` | POST | 舊路由轉接 C12 修補後的 /api/auth/logout；舊路由獨立呼叫待驗 |
-| `/api/me` | GET | 待驗：缺可重跑的正常與異常流程證據 |
+| `/api/login` | POST | 舊路由空 body 400，與新路由相同；正常登入待驗 |
+| `/api/logout` | POST | 舊路由空 body 冪等 200，與 C12 新路由相同；有效 session 待驗 |
+| `/api/me` | GET | 舊路由無權杖 401，與新路由相同；有效會員待驗 |
 | `/api/member/council-runs` | GET | 隔離通過：A/B 列表所有權 |
 | `/api/member/council-runs/[id]` | GET | 隔離通過：A/B 詳情所有權 |
 | `/api/member/me` | GET | C9 條件通過：已套現回退 migration 的隔離庫 VIP/20；現行 fresh DB 加購仍不合格 |
@@ -91,9 +91,9 @@
 | `/api/payments/ecpay/notify` | POST | 隔離通過：C4 四情境×20 輪；正式待驗 |
 | `/api/payments/ecpay/return` | GET, POST | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/plans` | GET | 部分已驗：公開 GET 200 與 plans 結構（安全冒煙 21/21）；內部方案顯示／排序待驗 |
-| `/api/redeem` | POST | 待驗：缺可重跑的正常與異常流程證據 |
+| `/api/redeem` | POST | 舊路由無權杖 401，與新路由相同；有效兌換待驗 |
 | `/api/referral/lookup` | GET | 隔離通過：公開查碼 8/8；註冊歸因待驗 |
-| `/api/register` | POST | 待驗：缺可重跑的正常與異常流程證據 |
+| `/api/register` | POST | 舊路由空 body 400，與新路由相同；正常註冊待驗 |
 | `/api/site-content` | GET | 隔離服務通過 M12：部分下架 9→8、全下架 DB/API 0；案例／課程及正式站待驗 |
 
 ## 頁面 routes
