@@ -18,7 +18,7 @@ Route：`POST /api/auth/login`。在 `scripts/qa-login-boundaries.vitest.mts` �
 ./node_modules/.bin/vitest run --config scripts/qa-login-boundaries.vitest.mts
 ```
 
-結果：**4 passed、1 expected fail／5**。只有「顯示中文通用訊息」預期失敗。證據是實際 login route 加 Auth/profile 替身，並非真 Supabase Auth 或瀏覽器互動；未建立帳號、未寫 DB。
+結果：**5 passed、1 expected fail／6**。只有「顯示中文通用訊息」預期失敗。另以同一 route/Auth stub 將 128 KiB 密碼送入路由，觀察到原樣到達 Auth client；`loginSchema` 沒有應用程式層最大長度。現有產品／安全規格沒有明確密碼上限，因此把這列為待決邊界，尚不判 defect。證據是實際 login route 加 Auth/profile 替身，並非真 Supabase Auth 或瀏覽器互動；未建立帳號、未寫 DB。
 
 ## 影響與驗收標準
 

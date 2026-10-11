@@ -3308,5 +3308,5 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 ## 2026-10-12｜QA-FS-M8 login route 邊界與錯誤語系
 
 - 新增 `scripts/qa-login-boundaries.test.ts` 與專用 Vitest 設定。實際 login route 配 Auth/profile helper 替身，涵蓋成功 session/member、malformed／空／SQLi 形狀／非字串欄位拒絕、known／unknown 錯密碼同回 400、不完整 session 不建 profile。
-- `./node_modules/.bin/vitest run --config scripts/qa-login-boundaries.vitest.mts`：**4 passed、1 expected fail／5**。expected fail 重現 response 仍含英文 `Invalid login credentials`；輸入拒絕在 Auth 前、known／unknown 對外內容相同。
+- `./node_modules/.bin/vitest run --config scripts/qa-login-boundaries.vitest.mts`：**5 passed、1 expected fail／6**。expected fail 重現 response 仍含英文 `Invalid login credentials`；輸入拒絕在 Auth 前、known／unknown 對外內容相同。128 KiB password 原樣傳至 Auth stub；無明確最大密碼長度規格，標記為待決邊界、未判為 defect。
 - `npx tsc --noEmit`、`git diff --check` 通過。使用合成帳密與 stub，未連真 Auth／DB、未建立 fixture。新增 QA-FS-M8 可派工 ticket，更新 full-system matrix、route inventory 與客戶 UAT A02；等待 X-PM 排序／工程候選。

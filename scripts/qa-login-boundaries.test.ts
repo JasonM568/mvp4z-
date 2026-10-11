@@ -78,6 +78,14 @@ describe("QA-FS login route boundaries", () => {
     expect(await response.json()).toMatchObject({ ok: true, token: "synthetic-access", member: { id: "profile-a" } });
   });
 
+  it("records that a 128 KiB password currently reaches Auth because no route maximum is defined", async () => {
+    const password = "x".repeat(128 * 1024);
+    const response = await POST(request(JSON.stringify({ email: "member@example.test", password })));
+    expect(response.status).toBe(200);
+    expect(state.calls).toHaveLength(1);
+    expect(state.calls[0]?.password).toBe(password);
+  });
+
   it("rejects blank, malformed, SQLi-shaped, and non-string credentials before Auth", async () => {
     const cases = [
       ["empty object", "{}"],
