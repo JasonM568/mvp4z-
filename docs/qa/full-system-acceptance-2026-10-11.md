@@ -140,7 +140,7 @@
 | 通知與忘記密碼信 | 註冊／付款／警報郵件寄達 | provider 429／失敗不阻主交易 | 空收件人、退信、模板超長 | webhook 重送不重寄 | 待驗；Supabase custom SMTP 未接 |
 | 推廣歸因／分潤 | 有效碼綁定，訂單可追溯 | 無效碼、停用碼、猜碼不洩資料 | 空碼、大小寫、特殊字元 | 註冊與下單同時／重送 | 隔離庫公開查碼 8/8、會員建單歸因／比例快照 4/4；C7 具名管理員建立／改率／停用及 N=10 audit 11 輪隔離複驗通過；C5 停用後帶他人 cookie 轉歸他人待規則決策；註冊當下與正式資料待驗 |
 | 後台營運與 CMS | 具名管理員可管理會員、訂單、預約、課程、內容與 audit | 無 token／會員 token 403；未授權直接 API | 空表、分頁、上傳 2MB、超長內容 | 雙管理員編輯同一資料 | 73 個 handler × 匿名／無效 bearer／有效會員，共 219/219；具名管理員 23 個 GET 路由 23/23 冒煙、後台 23/23 靜態路由殼層導航、預約 11/11、建碼 13/13、課程跟進與列表修補後 17/17；C16 分支 205 筆分頁／搜尋 9/9＋Ego UI、1,001 筆規模 11/11，正式站待驗；各 GET 內容對帳及其他寫入待驗 |
-| 排程與清理 | 到期權益、pending 訂單、面相圖片按時清理 | 無 CRON_SECRET 或偽造 token 拒絕 | 空候選、批次上限、剛付款競爭 | cron 重入與付款 webhook 同時 | **C11 隔離複驗 13/13 通過**：權益／舊 pending 清理、保留點數、audit 與重跑正常；正式排程、面相圖片及付款競爭待驗 |
+| 排程與清理 | 到期權益、pending 訂單、面相圖片按時清理 | 無 CRON_SECRET 或偽造 token 拒絕 | 空候選、批次上限、剛付款競爭 | cron 重入與付款 webhook 同時 | **C11 隔離複驗 13/13 通過**：權益／舊 pending 清理、保留點數、audit 與重跑正常；面相圖片清理路由 QA 替身 6/6 通過（密鑰、空批、過期／未到期、Storage 故障、100＋1 批次）。真 Storage、正式排程及付款／上傳競爭待驗 |
 | RLS／資料安全 | 本人可讀、其他會員不可讀，service role 不外露 | 直接打 Supabase／API 越權、SQL injection 嘗試 | 空資料、異常 UUID、超長篩選字串 | 權限撤銷後舊 token | 匿名對 11 張有資料表的樣本讀取已驗；隔離庫 A/B 核心會員、財務、課程、使用量與報告跨會員讀取及直接寫入封鎖已驗；其他表／RPC 待驗 |
 
 所有寫入型正常情境應使用獨立 QA 帳號、可清理測試資料及測試金流／發票環境。先記錄前後 DB 快照，再對照 API 與 UI；正式付款、開票或老師簽核需有可追溯的專用驗收交易。
@@ -280,7 +280,7 @@
 - [ ] 後台手機畫面可讀，奇門九宮格及放大字級不重疊。
 - [ ] 註冊／付款通知寄達；失敗可追查，重送付款通知不重寄。
 - [ ] 登出後舊 refresh token 不可再換新 access token；會員與管理員裝置端憑證清除，其他分頁不可恢復已登出的登入狀態。**QA-FS-C12 隔離 API 4/4 與雙分頁 UI 通過；正式站部署回歸前不可勾**。
-- [ ] 排程正確清除過期資料，不會取消剛付款訂單或刪除未到期圖片。
+- [ ] 排程正確清除過期資料，不會取消剛付款訂單或刪除未到期圖片。**面相圖片清理路由替身 6/6；真 Storage、正式排程觸發與並發競爭前不可勾**。
 
 ## 派工票與未結風險
 
@@ -457,3 +457,7 @@ X-PM 追加指定 stale 2 分鐘 lease 與獨立 event 故障。QA 延伸同一�
 | SQL／單元與清理 | 候選 `supabase/tests/face_upload_result_atomic.sql` 在 C4 隔離 DB 交易內 **BEGIN→故障回滾與 retry→ROLLBACK** 成功，驗 anon/authenticated 無 EXECUTE、service_role 有權；M21＋C19 route unit **14/14**、`tsc --noEmit`、diff check 通過。QA 專用 Auth/profile/trigger/function/document 額外查 0，各腳本 run/event/Storage/帳務清 0；候選 worktree 乾淨。自有 3234 已停止，工程 3233 測後仍 HTTP 200。 |
 
 **測試總結：**QA-FS-M22 可標記「critical 隔離複驗通過、待整合／51 版乾淨 migration replay／正式站回歸」，不得直接關閉正式驗收票。此批沒有新 BLOCKER 或 minor 缺陷。真實人臉品質服務、完整 UI 與正式 DB／部署均未驗；工程的 C4 migration history 未登錄 M22，不能用 3233 HTTP 通過取代部署 gate。QA 建議先完成乾淨 migration replay 與正式整合審核，再安排安全的站端回歸。
+
+### 面相圖片保存期限排程：隔離路由補驗
+
+QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 配合 in-memory DB／Storage 替身驗證 **6/6**：未設密鑰 500、缺／錯密鑰 401 且不開 DB；空候選 0；過期圖片精確刪除並清 DB path、未到期圖片保留、重跑不重記 event；Storage remove 故障時保留原 DB path 並記失敗 event；101 筆過期圖片按 100＋1 分兩批清完。重跑：`npx vitest run --config scripts/qa-face-image-cron.vitest.mts`，`npx tsc --noEmit` 通過。這是**路由與替身證據**，未連真 Supabase Storage、未觀察正式 scheduler、未測 DB 更新故障或與上傳／刪除並發；M23 的無 DB 引用孤兒檔亦不在此排程查詢範圍。fixture 僅存在測試記憶體，結束清 0；UAT 該項仍未勾選。
