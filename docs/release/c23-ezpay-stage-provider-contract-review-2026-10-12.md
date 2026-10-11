@@ -1,0 +1,58 @@
+# C23 EZPay staging provider-contract review
+
+Status: test-plan only. No EZPay request, invoice, production configuration, or remote database was used for this review. This is not approval to issue a staging invoice or deploy C23.
+
+## What the candidate does
+
+Reviewed candidate: `/private/tmp/xunfeng-m24-c20-c23`, HEAD `3f3eec5` (read-only). `issueInvoiceFromOrder` first creates/claims a durable `invoice_issue_outbox` operation. A retry reuses its persisted `environment`, merchant ID, normalized 20-character `MerchantOrderNo`, request fingerprint, and encrypted `PostData_`. On later dispatches it calls `invoice_search` by `MerchantOrderNo + TotalAmt`; a matching response is checked against merchant ID, order reference, total, and `CheckCode` before the local invoice/audit transaction completes. If search returns `INV20006`, the candidate retries `invoice_issue` with the exact persisted encrypted `PostData_`. Timeouts, malformed or other inconclusive search responses stop in an `unknown`/manual-reconciliation state; they do not automatically issue another request. A duplicate-reference collision is rejected before provider I/O.
+
+The 2026-10-12 QA addition `9807c84` reports stub-only evidence: after a failed local completion, a matching search result yields one issue call and one search; explicit `INV20006` yields a second issue call using the identical persisted encrypted body. This proves those code paths only. It does not prove EZPay's live duplicate handling, search consistency delay, or that a real provider will return the same invoice rather than create another one.
+
+## Provider contract evidence and gaps
+
+- I directly opened the official [EZPay electronic-invoice integration manual v1.2.2](https://inv.ezpay.com.tw/dw_files/info_api/EZP_INVI_1_2_2.pdf) (cover/version history: v1.2.2 dated 2024-04-22). It establishes these documented contract points:
+  - Pages 20–21: `MerchantOrderNo` is a merchant-defined order reference and must not be repeated within the same store.
+  - Page 26: when the submitted `PostData_` is repeated and its parameter data is completely identical, the API returns `SUCCESS` and the original invoice `Result`.
+  - Page 49: `invoice_search` `SearchType=1` queries by `MerchantOrderNo` and `TotalAmt`.
+  - Page 59: `INV20006` means no invoice data was found; the same error table lists `LIB10003` as a duplicate merchant-defined reference.
+- These manual statements establish the published contract, not live behavior of this merchant's staging account. The manual does not settle how long an old `TimeStamp` remains acceptable for exact-payload replay, how quickly a successful issue becomes visible to search, whether the test store behaves identically, applicable fees/quotas, or the result of a real provider request. Those remain staging/owner-confirmation gates; no provider request was made for this review.
+- The code uses the stage host `cinv.ezpay.com.tw` unless `EZPAY_INVOICE_ENV=production`; the test must prove by sanitized configuration checks that the selected merchant credentials belong to the test store and that no production host/keys can be selected.
+- Before any live stage replay, obtain merchant-owner/EZPay confirmation for stale `TimeStamp` acceptance, stage-store behavior, search visibility/lag and retention, query limits/rate limits, and fees/quotas. The manual's documented exact-payload replay behavior does not by itself prove those operational details. If an issue outcome is unknown and search returns no record, do not issue again until the provider/store owner confirms the safe recovery path.
+
+## Staging test proposal (approval required before provider traffic)
+
+### Preconditions
+
+1. Use a dedicated EZPay test-zone member/store, never the production merchant. The official FAQ says test and production accounts are separate; it describes registering a test member/store, applying for an invoice plan, configuring a test invoice-number range, and viewing test invoices in the test portal. It also instructs merchants to avoid real buyer email addresses for test invoices. [Official test-zone FAQ](https://cinv.ezpay.com.tw/Invoice_index/qa)
+2. The FAQ does not establish that test-plan activation, API calls, or invoice quota are free. The merchant/account owner must confirm the applicable plan, fees, issuance quota, and any support limits before testing. Set an explicit maximum of one initial test invoice and one permitted exact-payload retry; do not run a wider matrix against EZPay.
+3. Obtain written owner approval for the test store, a controlled non-customer mailbox (or a provider-confirmed way to suppress notification email), fake buyer data, test amount, and any permitted test void/cleanup operation. The FAQ says issue may send an email to the merchant and buyer; do not use real customer data or arbitrary addresses.
+4. Use a disposable local/Supabase test project with only a synthetic paid order and a unique, reserved `MerchantOrderNo` prefix. Confirm it does not collide with any test-store reference. Keep test credentials in a mode-600 private environment file, inspect only the environment name/host by boolean or sanitized output, and remove the file after testing.
+5. Permit network egress only to the official test host. No production EZPay host, live customer order, ECPay production callback, or production database is in scope.
+
+### Bounded sequence
+
+1. **Preflight without issuing:** Verify the test host/account match, test invoice plan and test number range are enabled, synthetic order is unique, and the candidate's outbox is empty. Record only sanitized operation/order labels in the QA log.
+2. **One normal issue:** Call the local admin route for the synthetic paid order with the exact stage build. Confirm one outbox operation, one provider issue request, one invoice row, and one audit. Verify the response `MerchantID`, `MerchantOrderNo`, `TotalAmt`, invoice identifiers, and `CheckCode`; then query through the stage `invoice_search` and compare the result. Store the provider reference in a private test record, not source control.
+3. **Concurrent/redelivery gate:** Send N=10 same-order requests and a duplicate payment-notify callback against the same operation. Require one durable operation and at most one issue request; remaining requests must be busy/reused according to the candidate contract. Verify one final invoice/outbox/audit and no second issue dispatch. This must not create ten provider requests.
+4. **Provider-success/local-commit recovery:** In the disposable local DB only, inject a failure in `complete_ezpay_invoice_issue` after the single stage issue succeeds. Require the operation to remain `unknown`, no false HTTP success, and no second issue call on retry when stage search returns the matching invoice. Retry through both the admin path and webhook redelivery and verify they converge on the same provider invoice and one local invoice/outbox/audit.
+5. **Exact-payload idempotency probe (separate explicit gate):** Only after written provider confirmation that an identical `PostData_` is safe to replay, replay the single persisted encrypted request once against that same test reference. Require the same invoice number/transaction number and a subsequent search returning that invoice. If a second invoice appears, stop all provider tests and escalate; do not attempt more retries. This is the only step that intentionally tests duplicate provider issue behavior and may consume a second test invoice/quota if the assumption is false.
+6. **Unknown-result stop test:** With a local forwarding proxy, allow one stage request to reach the provider but drop its response. Query using the stage API. A verified matching invoice may be reconciled. For timeout, malformed result, wrong amount/reference/merchant, `INV20006` without written replay confirmation, or any other ambiguous outcome: leave the operation `unknown`, stop automatic issue/replay, record an alert, and have the merchant operator reconcile in the provider portal/support channel. Do not create a fresh key or a second issue request.
+7. **Collision control:** No live provider call is needed. Use isolated DB tests for two internal orders that normalize to the same 20-character reference at equal and unequal totals; both must fail closed before issue/search. Do not consume a stage invoice to test an already covered local invariant.
+
+### Stop conditions
+
+Stop provider traffic immediately if environment/merchant identity cannot be proved as stage, provider lookup returns malformed or mismatched data, a timeout/connection reset leaves outcome uncertain, `INV20006` appears without explicit replay authorization, a second invoice identifier is observed, quota/cost is unclear, or the test store sends an unintended real email. Preserve the outbox as `unknown`; do not delete it or retry with a new request. The merchant owner reconciles the test portal record and confirms any void operation before engineering cleanup.
+
+## Cost, data, and cleanup impact
+
+- Potential costs/limits: test-zone contract activation and per-plan or quota terms are not confirmed by the public FAQ. Test invoices may consume test-store issuance capacity; duplicate replay could create an extra test invoice if the provider does not deduplicate. Obtain the merchant owner's cost/limit confirmation before the one-invoice run and the separate replay probe.
+- Data: stage requests contain buyer identity/contact/carrier fields. Use fabricated data and a controlled mailbox only. The outbox stores protocol-encrypted `PostData_` and a plaintext `invoice_draft`; protocol encryption is not application-managed at-rest encryption. No buyer PII or encrypted request body should enter logs, screenshots, QA reports, or Git.
+- Cleanup: after a matching provider search and local reconciliation, remove only synthetic local order/profile/invoice/outbox/audit fixtures from the disposable DB and verify counts are zero. Provider-side test invoices may remain in the test portal; do not assume they can be deleted. If the test store permits voiding, have its authorized owner void the specific test invoice and retain sanitized confirmation. Do not call `invoice_invalid` automatically. Remove temporary credentials and proxy captures; keep only sanitized counts, test case results, and provider contract confirmation.
+- Durable outbox retention is a separate unresolved decision in `c23-merchant-order-reference-and-outbox-retention-review.md`: terminal payload/PII window (30/90 days), unresolved-operation escalation, and canonical invoice retention owner remain unapproved. This review does not select or implement a retention policy.
+
+## Tech Lead / owner decisions before staging
+
+1. Record the verified v1.2.2 manual as the source for the documented duplicate-reference, exact-identical-payload, search, and error-code behavior. Obtain merchant-owner/EZPay confirmation for stale timestamp handling, staging behavior, search visibility/retention/rate limits, and fees/quotas.
+2. Name the authorized test-store owner and approve test plan activation, a one-invoice budget/quota, controlled mailbox, and whether the optional exact-payload replay/void test is permitted.
+3. Confirm that any unresolved lookup is handled as manual reconciliation (fail closed) and that only a positively matched, CheckCode-verified result can complete the local outbox.
+4. Keep release blocked until a bounded stage run produces provider-side evidence and the final candidate's isolated DB/route evidence is rerun. No live staging test, production request, database write, push, or deployment was performed in this preparation.
