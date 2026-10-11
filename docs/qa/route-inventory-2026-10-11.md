@@ -77,7 +77,7 @@
 | `/api/face-analysis/runs/[id]/image` | DELETE | 部分已驗：越權 DELETE 404；本人照片待驗 |
 | `/api/face-analysis/runs/[id]/pdf` | GET | QA-FS-M20：C4 隔離 DB／3214 app 兩輪各 7/10；本人完成報告 PDF 位元組與重取一致、跨會員 404、未完成 409、匿名／壞 token 401；非法、SQLi 形狀及 500 字 id 均 500。六路由矩陣重現；待修與正式站複驗 |
 | `/api/face-analysis/runs/[id]/preview` | GET | M20 不合格：有效會員直接 API，未知 UUID 404，非法／SQLi 形狀／500 字 id 均 500；越權 404 已驗，有效照片待驗 |
-| `/api/face-analysis/runs/[id]/upload` | POST | 待驗：缺可重跑的正常與異常流程證據 |
+| `/api/face-analysis/runs/[id]/upload` | POST | M21 不合格：空 multipart 前五次 400 但 `upload_attempts` 0→5，第六次 429，兩輪各 4/10；匿名401、越權404、非法／未知 ID404 且不計次數。有效照片、品質 provider、並發待驗 |
 | `/api/login` | POST | 舊路由空 body 400，與新路由相同；正常登入待驗 |
 | `/api/logout` | POST | 舊路由空 body 冪等 200，與 C12 新路由相同；有效 session 待驗 |
 | `/api/me` | GET | 舊路由無權杖 401，與新路由相同；有效會員待驗 |
