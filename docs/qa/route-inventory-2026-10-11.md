@@ -32,9 +32,9 @@
 | `/api/admin/face-review-questions` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-rules` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；POST 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-rules/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
-| `/api/admin/face-teachings` | GET, POST | 不合格 C18：專用 audit INSERT 故障仍 POST 200、規則 published／audit 0，隔離 4/6；C17 已發布規則建立及 SQLi／超長驗證部分通過；其他 kind 待驗 |
-| `/api/admin/face-teachings/[id]` | DELETE, PATCH | C17 修復分支 `7cae2cd`＋migration 獨立 DB 複驗：曾發布保留／舊引文可追溯 10/10，雙管理員發布／刪除、RPC 403、刪除 audit 故障回滾 5/5 且 10 輪通過；正式整合／部署待驗。C18 建立發布 audit 故障仍不合格 |
-| `/api/admin/face-teachings/import-builtin` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/face-teachings` | GET, POST | C18 候選 `461f213`＋migration：X-QA 全新隔離 stack 建立／audit 故障原腳本 6/6；其他 kind、正式整合／部署待驗 |
+| `/api/admin/face-teachings/[id]` | DELETE, PATCH | C17 候選曾發布保留／雙管理員競爭／刪除 audit 回滾隔離通過；C18 候選 PATCH 發布 audit 故障回滾與正常具名 audit 連續兩輪各通過；舊報告 v1 正文還原未證，正式整合／部署待驗 |
+| `/api/admin/face-teachings/import-builtin` | POST | C18 候選 X-QA 隔離兩輪通過：audit 故障 500／新增 0、正常匯入 67 筆、重跑冪等且具名 audit；正式整合／部署待驗 |
 | `/api/admin/gemini-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/invoices` | GET | 部分已驗：具名管理員 pending 發票列表與訂單連結；開票／退款待驗 |
 | `/api/admin/invoices/[orderId]/issue` | POST | 部分已驗 C8：隔離 paid 訂單非法 body 7/7；合法 ezPay 開票／正式站待驗 |
