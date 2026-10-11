@@ -64,7 +64,7 @@
 | `/api/auth/refresh` | POST | 部分已驗：有效／無效 refresh |
 | `/api/auth/register` | POST | 部分已驗：註冊／同手機並發；郵件待驗 |
 | `/api/bookings` | POST | 部分已驗：欄位邊界；M1／M3 待規則 |
-| `/api/chat` | POST | 待驗：缺可重跑的正常與異常流程證據 |
+| `/api/chat` | POST | 舊路由無權杖 401，與新 `/api/ai/chat` 相同；有效會話及 B1 待修 |
 | `/api/courses/checkout` | GET, POST | 部分已驗：驗證與後端定價；M5 雙送待規則 |
 | `/api/cron/cleanup-face-images` | GET, POST | 部分已驗：匿名 401；排程實際執行待驗 |
 | `/api/cron/cleanup-pending-orders` | GET | 隔離通過：密鑰拒絕、dry-run、舊 pending 清理及新 pending／paid 保留；正式排程待驗 |

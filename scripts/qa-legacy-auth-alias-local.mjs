@@ -1,4 +1,4 @@
-// Read-only rejection smoke for the five legacy Worker-compatible aliases.
+// Read-only rejection smoke for legacy Worker-compatible aliases.
 const baseUrl = process.argv[2] || "http://127.0.0.1:3104";
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(baseUrl)) {
   throw new Error("Use a localhost API only");
@@ -9,7 +9,8 @@ const cases = [
   ["POST", "/api/logout", "/api/auth/logout", "{}", 200],
   ["GET", "/api/me", "/api/member/me", undefined, 401],
   ["POST", "/api/register", "/api/auth/register", "{}", 400],
-  ["POST", "/api/redeem", "/api/member/redeem", "{}", 401]
+  ["POST", "/api/redeem", "/api/member/redeem", "{}", 401],
+  ["POST", "/api/chat", "/api/ai/chat", "{}", 401]
 ];
 
 async function request(method, path, body) {
