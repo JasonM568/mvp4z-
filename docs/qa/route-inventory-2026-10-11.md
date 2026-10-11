@@ -73,10 +73,10 @@
 | `/api/cron/provider-health` | GET | 部分已驗：匿名 401；排程實際執行待驗 |
 | `/api/face-analysis/runs` | GET, POST | A/B 歷史列表通過；M17 補修分支 `ced1432` limit 邊界隔離 8/8，abc／SQLi／100／500 位均 400；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider／正式站待驗 |
 | `/api/face-analysis/runs/[id]` | DELETE, GET | 不合格 M19：A/B 所有權、本人刪除抹除與重送部分通過；N=5 並發曾產生 `run_deleted` 2 筆，已刪列 route 同款 claim 與 redact RPC 均可再執行；隔離腳本 13/15；有效照片／PDF 實體刪除待驗 |
-| `/api/face-analysis/runs/[id]/analyze` | POST | 待驗：缺可重跑的正常與異常流程證據 |
+| `/api/face-analysis/runs/[id]/analyze` | POST | M20 不合格：有效會員直接 API，未知 UUID 404，非法／SQLi 形狀／500 字 id 均 500；與另五路由矩陣兩輪各 15/24。有效報告分析、扣點與 provider 待驗 |
 | `/api/face-analysis/runs/[id]/image` | DELETE | 部分已驗：越權 DELETE 404；本人照片待驗 |
-| `/api/face-analysis/runs/[id]/pdf` | GET | QA-FS-M20：C4 隔離 DB／3214 app 兩輪各 7/10；本人完成報告 PDF 位元組與重取一致、跨會員 404、未完成 409、匿名／壞 token 401；非法、SQLi 形狀及 500 字 id 均 500，待修與正式站複驗 |
-| `/api/face-analysis/runs/[id]/preview` | GET | 部分已驗：越權 404；有效照片待驗 |
+| `/api/face-analysis/runs/[id]/pdf` | GET | QA-FS-M20：C4 隔離 DB／3214 app 兩輪各 7/10；本人完成報告 PDF 位元組與重取一致、跨會員 404、未完成 409、匿名／壞 token 401；非法、SQLi 形狀及 500 字 id 均 500。六路由矩陣重現；待修與正式站複驗 |
+| `/api/face-analysis/runs/[id]/preview` | GET | M20 不合格：有效會員直接 API，未知 UUID 404，非法／SQLi 形狀／500 字 id 均 500；越權 404 已驗，有效照片待驗 |
 | `/api/face-analysis/runs/[id]/upload` | POST | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/login` | POST | 舊路由空 body 400，與新路由相同；正常登入待驗 |
 | `/api/logout` | POST | 舊路由空 body 冪等 200，與 C12 新路由相同；有效 session 待驗 |
