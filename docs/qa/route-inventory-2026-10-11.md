@@ -56,7 +56,7 @@
 | `/api/admin/site-content/media` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/site-content/media/sign` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/token-usage` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；統計對帳待驗；匿名／壞 token／會員拒絕已驗 |
-| `/api/ai/chat` | POST | 不合格 B1：並發免費答案 |
+| `/api/ai/chat` | POST | 不合格 B1：現行路由並發可送免費答案。舊候選隔離 DB／無模型 API 複驗通過；整合候選 d5758bb fresh migration 後 PG N=10 得 1 租約／9 忙碌，但 Auth／REST 健康逾時，真 HTTP 假模型並發未驗；正式站待修與回歸 |
 | `/api/ai/council` | POST | 既有正式證據：並發／日限額；瀏覽器找回待驗 |
 | `/api/auth/forgot-password` | POST | 部分已驗：帳號不洩漏；重設信待驗 |
 | `/api/auth/login` | POST | 部分已驗：正確／錯密碼 |
