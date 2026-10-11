@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiJson } from "@/app/api/_helpers";
-import { requireNamedAdmin, writeAdminAudit } from "@/lib/auth/admin";
-import { errorMessage, errorStatus, statusError } from "@/lib/auth/member";
+import { requireNamedAdmin } from "@/lib/auth/admin";
+import { errorBody, errorMessage, errorStatus, statusError } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -21,6 +21,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const refundSchema = z.object({
   amount: z.number().int().positive("退款金額必須大於 0"),
+  idempotency_key: z.string().uuid("退款請求識別碼格式錯誤"),
   reason: z.string().trim().min(2, "請填寫退款原因").max(500),
   provider_reference: z.string().trim().max(200).optional().default(""),
   // UI 的二次確認：管理員必須先在綠界後台完成實際退款，才來這裡登錄。
@@ -68,34 +69,47 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       p_admin_email: profile.email,
       p_amount: input.amount,
       p_reason: input.reason,
-      p_provider_reference: input.provider_reference || null
+      p_provider_reference: input.provider_reference || null,
+      p_idempotency_key: input.idempotency_key
     });
-    if (error) throw error;
+    if (error) {
+      const message = String(error.message || "");
+      if (message.includes("REFUND_IDEMPOTENCY_CONFLICT")) {
+        throw Object.assign(new Error("此退款請求識別碼已用於不同內容，請確認既有退款紀錄"), {
+          status: 409,
+          code: "REFUND_IDEMPOTENCY_CONFLICT"
+        });
+      }
+      if (message.includes("REFUND_AMOUNT_EXCEEDS_REMAINING")) {
+        throw Object.assign(new Error("退款金額超過訂單剩餘可退金額"), {
+          status: 400,
+          code: "REFUND_AMOUNT_EXCEEDS_REMAINING"
+        });
+      }
+      if (message.includes("REFUND_ALREADY_FULLY_REFUNDED")) {
+        throw Object.assign(new Error("此訂單已全額退款"), {
+          status: 409,
+          code: "REFUND_ALREADY_FULLY_REFUNDED"
+        });
+      }
+      if (message.includes("REFUND_ORDER_STATUS_CONFLICT")) {
+        throw Object.assign(new Error("此訂單狀態不允許退款"), {
+          status: 409,
+          code: "REFUND_ORDER_STATUS_CONFLICT"
+        });
+      }
+      if (message.includes("REFUND_ORDER_NOT_FOUND")) {
+        throw statusError("找不到訂單", 404);
+      }
+      throw error;
+    }
 
     const result = (Array.isArray(data) ? data[0] : data) as
-      | { refund_id: string; order_status: string; credits_expected: number; credits_reclaimed: number; credits_shortfall: number }
+      | { refund_id: string; order_status: string; credits_expected: number; credits_reclaimed: number; credits_shortfall: number; idempotent_replay: boolean }
       | undefined;
     if (!result) throw new Error("commit_manual_refund 沒有回傳結果");
-
-    await writeAdminAudit({
-      adminUserId: profile.id,
-      action: "order_refund_manual",
-      targetType: "order",
-      targetId: id,
-      metadata: {
-        refundId: result.refund_id,
-        amount: input.amount,
-        reason: input.reason,
-        providerReference: input.provider_reference || null,
-        creditsExpected: result.credits_expected,
-        creditsReclaimed: result.credits_reclaimed,
-        creditsShortfall: result.credits_shortfall,
-        orderStatus: result.order_status
-      }
-    });
-
     return apiJson({ ok: true, ...result });
   } catch (error) {
-    return apiJson({ error: errorMessage(error) }, errorStatus(error));
+    return apiJson(errorBody(error), errorStatus(error));
   }
 }

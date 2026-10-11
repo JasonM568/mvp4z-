@@ -43,7 +43,7 @@ begin
   end if;
 
   select * into strict v_refund from public.commit_manual_refund(
-    v_order, v_admin, 'qa-selector-admin@example.test', 100, 'selector regression'
+    v_order, v_admin, 'qa-selector-admin@example.test', 100, 'selector regression', null, gen_random_uuid()
   );
   if v_refund.credits_reclaimed <> 5
      or (select credits_remaining from public.member_entitlements where id = v_new) <> 21

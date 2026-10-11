@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { adminFetch } from "../../_shell";
 
@@ -63,35 +63,117 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundBusy, setRefundBusy] = useState(false);
   const [refundNotice, setRefundNotice] = useState("");
+  const [refundResultUncertain, setRefundResultUncertain] = useState(false);
+  const [refundConflict, setRefundConflict] = useState(false);
+  const [refundConflictVerified, setRefundConflictVerified] = useState(false);
+  const [refundConflictReviewed, setRefundConflictReviewed] = useState(false);
+  const [refundSyncPending, setRefundSyncPending] = useState(false);
+  const [refundSyncBusy, setRefundSyncBusy] = useState(false);
+  const [refundSyncError, setRefundSyncError] = useState("");
+  const [refundStorageBlocked, setRefundStorageBlocked] = useState(false);
+  const refundIdempotencyKey = useRef<string | null>(null);
   const [form, setForm] = useState({ amount: "", reason: "", reference: "", confirmed: false });
 
-  const loadOrder = useCallback(() => {
-    if (!id) return;
-    adminFetch(`/api/admin/orders?id=${id}`)
-      .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
-      .then(({ ok, data }) => {
-        if (!ok || data?.error) {
-          setError(data?.error || "讀取失敗");
-          return;
-        }
-        setOrder(data?.order || null);
-      })
-      .catch((e) => setError(e?.message || "讀取失敗"));
+  const loadOrder = useCallback(async () => {
+    if (!id) return false;
+    try {
+      const response = await adminFetch(`/api/admin/orders?id=${id}`);
+      const { ok, data } = await response.json().then((data) => ({ ok: response.ok, data }));
+      if (!ok || data?.error || !data?.order) {
+        setError(data?.error || "讀取訂單失敗");
+        return false;
+      }
+      setError("");
+      setOrder(data.order);
+      return true;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "讀取訂單失敗");
+      return false;
+    }
   }, [id]);
 
-  const loadRefund = useCallback(() => {
-    if (!id) return;
-    adminFetch(`/api/admin/orders/${id}/refund`)
-      .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
-      .then(({ ok, data }) => {
-        if (!ok) return;
-        setPreview(data?.preview || null);
-        setRefunds(Array.isArray(data?.refunds) ? data.refunds : []);
-      })
-      .catch(() => {});
+  const loadRefund = useCallback(async () => {
+    if (!id) return false;
+    try {
+      const response = await adminFetch(`/api/admin/orders/${id}/refund`);
+      const { ok, data } = await response.json().then((data) => ({ ok: response.ok, data }));
+      if (!ok || data?.error || !data?.preview) return false;
+      setPreview(data.preview);
+      setRefunds(Array.isArray(data?.refunds) ? data.refunds : []);
+      return true;
+    } catch {
+      return false;
+    }
   }, [id]);
 
   useEffect(() => { loadRefund(); }, [loadRefund]);
+
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const saved = sessionStorage.getItem(`refund-retry:${id}`);
+      if (!saved) return;
+      const pending = JSON.parse(saved) as {
+        idempotencyKey?: string;
+        amount?: string;
+        reason?: string;
+        reference?: string;
+        confirmed?: boolean;
+        state?: "uncertain" | "conflict" | "committed-refresh";
+      };
+      if (!pending.idempotencyKey) {
+        setRefundStorageBlocked(true);
+        return;
+      }
+      refundIdempotencyKey.current = pending.idempotencyKey;
+      setForm({
+        amount: pending.amount || "",
+        reason: pending.reason || "",
+        reference: pending.reference || "",
+        confirmed: pending.confirmed === true
+      });
+      setRefundConflict(pending.state === "conflict");
+      setRefundResultUncertain(pending.state === "uncertain");
+      setRefundSyncPending(pending.state === "committed-refresh");
+      setRefundOpen(pending.state !== "committed-refresh");
+    } catch {
+      setRefundStorageBlocked(true);
+    }
+  }, [id]);
+
+  function clearRefundRetry() {
+    refundIdempotencyKey.current = null;
+    try { sessionStorage.removeItem(`refund-retry:${id}`); } catch { /* storage is optional */ }
+    setRefundConflict(false);
+    setRefundConflictVerified(false);
+    setRefundConflictReviewed(false);
+    setRefundResultUncertain(false);
+    setRefundSyncPending(false);
+  }
+
+  async function refreshRefundState() {
+    setRefundSyncBusy(true);
+    setRefundSyncError("");
+    const [orderLoaded, refundLoaded] = await Promise.all([loadOrder(), loadRefund()]);
+    setRefundSyncBusy(false);
+    if (!orderLoaded || !refundLoaded) {
+      setRefundSyncError("伺服器資料尚未成功刷新。為避免重複登錄，請稍後重試更新；目前退款請求仍保留。 ");
+      return false;
+    }
+    setRefundConflictVerified(true);
+    if (refundConflict) setRefundConflictReviewed(false);
+    setRefundSyncPending(false);
+    setRefundResultUncertain(false);
+    return true;
+  }
+
+  function startNewRefundAfterReconcile() {
+    if (!refundConflictVerified || !refundConflictReviewed || !preview) return;
+    clearRefundRetry();
+    setRefundNotice("已刷新伺服器退款紀錄；舊請求鍵已結束。新的登錄會使用新的識別碼。");
+    setForm({ amount: String(preview.refundable_amount), reason: "", reference: "", confirmed: false });
+    setRefundOpen(true);
+  }
 
   async function submitRefund() {
     setRefundNotice("");
@@ -100,29 +182,81 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       setRefundNotice("退款金額必須是大於 0 的整數");
       return;
     }
+    if (refundStorageBlocked) {
+      setRefundNotice("無法讀取此分頁保存的退款請求狀態。請先重新載入並確認退款紀錄；目前不允許建立新識別碼。");
+      return;
+    }
+    const idempotencyKey = refundIdempotencyKey.current || crypto.randomUUID();
+    refundIdempotencyKey.current = idempotencyKey;
+    try {
+      sessionStorage.setItem(`refund-retry:${id}`, JSON.stringify({
+        idempotencyKey,
+        amount: form.amount,
+        reason: form.reason,
+        reference: form.reference,
+        confirmed: form.confirmed,
+        state: "uncertain"
+      }));
+    } catch {
+      setRefundNotice("無法安全保存本次退款請求。請啟用此分頁的工作階段儲存空間後再試，避免重新整理後以新識別碼重複登錄。");
+      return;
+    }
     setRefundBusy(true);
+    let receivedResponse = false;
     try {
       const response = await adminFetch(`/api/admin/orders/${id}/refund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
+          idempotency_key: idempotencyKey,
           reason: form.reason,
           provider_reference: form.reference,
           confirmed_in_ecpay: form.confirmed
         })
       });
+      receivedResponse = true;
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.error) throw new Error(data?.error || "退款登錄失敗");
+      if (!response.ok || data?.error) {
+        if (data?.code === "REFUND_IDEMPOTENCY_CONFLICT") {
+          setRefundResultUncertain(false);
+          setRefundConflict(true);
+          setRefundConflictVerified(false);
+          setRefundConflictReviewed(false);
+          sessionStorage.setItem(`refund-retry:${id}`, JSON.stringify({
+            idempotencyKey, amount: form.amount, reason: form.reason, reference: form.reference,
+            confirmed: form.confirmed, state: "conflict"
+          }));
+          setRefundNotice("此識別碼已對應另一筆已記錄的退款內容。先更新訂單與退款清單；確認伺服器狀態後才能開始新的登錄。");
+        } else if (response.status >= 500) {
+          setRefundResultUncertain(true);
+        } else {
+          clearRefundRetry();
+          setRefundResultUncertain(false);
+        }
+        throw new Error(data?.error || "退款登錄失敗");
+      }
       setRefundNotice(
         `已登錄。應收回 ${data.credits_expected} 點，實際收回 ${data.credits_reclaimed} 點` +
-        (data.credits_shortfall > 0 ? `，短少 ${data.credits_shortfall} 點（已被使用）` : "") + "。"
+        (data.credits_shortfall > 0 ? `，短少 ${data.credits_shortfall} 點（已被使用）` : "") +
+        (data.idempotent_replay ? "（重送已沿用原退款紀錄）" : "") + "。"
       );
-      setRefundOpen(false);
-      setForm({ amount: "", reason: "", reference: "", confirmed: false });
-      loadOrder();
-      loadRefund();
+      setRefundSyncPending(true);
+      setRefundResultUncertain(true);
+      sessionStorage.setItem(`refund-retry:${id}`, JSON.stringify({
+        idempotencyKey, amount: form.amount, reason: form.reason, reference: form.reference,
+        confirmed: form.confirmed, state: "committed-refresh"
+      }));
+      const synced = await refreshRefundState();
+      if (synced) {
+        clearRefundRetry();
+        setRefundOpen(false);
+        setForm({ amount: "", reason: "", reference: "", confirmed: false });
+      } else {
+        setRefundNotice("退款已由伺服器接受，但畫面資料刷新失敗。請更新退款狀態；重新整理頁面後也會沿用同一識別碼，不會建立新操作。");
+      }
     } catch (e) {
+      if (!receivedResponse) setRefundResultUncertain(true);
       setRefundNotice(e instanceof Error ? e.message : "退款登錄失敗");
     } finally {
       setRefundBusy(false);
@@ -296,10 +430,47 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </p>
             )}
 
-            {preview.refundable_amount > 0 && (order.status === "paid" || order.status === "partially_refunded") ? (
+            {refundSyncError && <p role="alert" style={{ gridColumn: "1 / -1", color: "#ffb7b7" }}>{refundSyncError}</p>}
+            {refundStorageBlocked && <p role="alert" style={{ gridColumn: "1 / -1", color: "#ffb7b7" }}>無法讀取已保存的退款請求。為避免建立重複退款，請勿提交新操作，並先確認伺服器退款紀錄。</p>}
+
+            {refundConflict ? (
+              <div style={{ gridColumn: "1 / -1", marginTop: 10, display: "grid", gap: 10 }}>
+                <p role="alert" style={{ color: "#e8cc83", lineHeight: 1.7 }}>
+                  同一識別碼已存在不同內容的退款紀錄。請先刷新並核對下方退款清單；刷新失敗時不會解除保護。
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button type="button" className="btn" disabled={refundSyncBusy} onClick={refreshRefundState}>
+                    {refundSyncBusy ? "更新中⋯" : "更新訂單與退款狀態"}
+                  </button>
+                  {refundConflictVerified && preview.refundable_amount > 0 && (order.status === "paid" || order.status === "partially_refunded") && (
+                    <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      <input type="checkbox" checked={refundConflictReviewed} onChange={(event) => setRefundConflictReviewed(event.target.checked)} />
+                      <span>我已核對剛更新的訂單及退款清單，確認原登錄內容後再開始新的退款操作。</span>
+                    </label>
+                  )}
+                  {refundConflictVerified && refundConflictReviewed && preview.refundable_amount > 0 && (order.status === "paid" || order.status === "partially_refunded") && (
+                    <button type="button" className="btn primary" onClick={startNewRefundAfterReconcile}>
+                      核對後開始新退款登錄
+                    </button>
+                  )}
+                  {refundConflictVerified && (preview.refundable_amount <= 0 || (order.status !== "paid" && order.status !== "partially_refunded")) && (
+                    <p style={{ color: "var(--muted)" }}>刷新後顯示此訂單已無可退金額或狀態不允許退款，不能開始新登錄。</p>
+                  )}
+                </div>
+              </div>
+            ) : refundSyncPending ? (
+              <div style={{ gridColumn: "1 / -1", marginTop: 10, display: "grid", gap: 10 }}>
+                <p role="alert" style={{ color: "#e8cc83", lineHeight: 1.7 }}>
+                  退款已由伺服器接受，正在確認最新訂單與退款紀錄。同步完成前不會開放新的退款操作。
+                </p>
+                <button type="button" className="btn" disabled={refundSyncBusy} onClick={refreshRefundState}>
+                  {refundSyncBusy ? "更新中⋯" : "更新訂單與退款狀態"}
+                </button>
+              </div>
+            ) : refundResultUncertain || (preview.refundable_amount > 0 && (order.status === "paid" || order.status === "partially_refunded")) ? (
               !refundOpen ? (
                 <div style={{ gridColumn: "1 / -1", marginTop: 10 }}>
-                  <button type="button" className="btn" onClick={() => { setRefundOpen(true); setForm((f) => ({ ...f, amount: String(preview.refundable_amount) })); }}>
+                  <button type="button" className="btn" disabled={refundSyncPending || refundStorageBlocked} onClick={() => { clearRefundRetry(); setRefundResultUncertain(false); setRefundOpen(true); setForm((f) => ({ ...f, amount: String(preview.refundable_amount) })); }}>
                     登錄退款
                   </button>
                   <p style={{ color: "var(--muted)", marginTop: 8, lineHeight: 1.7 }}>
@@ -313,27 +484,27 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <label>
                     退款金額（上限 {preview.refundable_amount}）
                     <input
-                      type="number" min={1} max={preview.refundable_amount} value={form.amount}
+                      type="number" min={1} max={preview.refundable_amount} value={form.amount} disabled={refundResultUncertain}
                       onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                     />
                   </label>
                   <label>
                     退款原因（必填，會寫入退款紀錄與稽核 log）
                     <input
-                      type="text" value={form.reason} placeholder="例如：客戶反映報告不符需求"
+                      type="text" value={form.reason} placeholder="例如：客戶反映報告不符需求" disabled={refundResultUncertain}
                       onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
                     />
                   </label>
                   <label>
                     綠界後台交易編號 / 備註（選填，供日後對帳）
                     <input
-                      type="text" value={form.reference} placeholder={order.provider_trade_no || ""}
+                      type="text" value={form.reference} placeholder={order.provider_trade_no || ""} disabled={refundResultUncertain}
                       onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
                     />
                   </label>
                   <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                     <input
-                      type="checkbox" checked={form.confirmed}
+                      type="checkbox" checked={form.confirmed} disabled={refundResultUncertain}
                       onChange={(e) => setForm((f) => ({ ...f, confirmed: e.target.checked }))}
                     />
                     <span>我已經在綠界廠商後台完成這筆退款，現在只是把結果登錄進系統。</span>
@@ -344,11 +515,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       發票要另外到 EZPay 後台處理。
                     </p>
                   )}
+                  {refundResultUncertain && (
+                    <p role="alert" style={{ color: "#e8cc83", lineHeight: 1.7 }}>
+                      尚未確認伺服器是否完成登錄。請用相同內容重試；系統會沿用同一請求識別碼，請勿另開一筆退款。
+                    </p>
+                  )}
                   <div style={{ display: "flex", gap: 10 }}>
-                    <button type="button" className="btn primary" disabled={refundBusy || !form.confirmed} onClick={submitRefund}>
+                    <button type="button" className="btn primary" disabled={refundBusy || !form.confirmed || refundSyncPending || refundStorageBlocked} onClick={submitRefund}>
                       {refundBusy ? "登錄中⋯" : "確認登錄退款"}
                     </button>
-                    <button type="button" className="btn" disabled={refundBusy} onClick={() => setRefundOpen(false)}>取消</button>
+                    <button type="button" className="btn" disabled={refundBusy || refundResultUncertain} onClick={() => setRefundOpen(false)}>取消</button>
                   </div>
                 </div>
               )

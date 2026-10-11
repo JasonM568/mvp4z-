@@ -28,10 +28,10 @@ begin
   update public.member_entitlements set credits_remaining = 10 where id = v_entitlement;
 
   perform public.commit_manual_refund(
-    v_order, v_admin, 'qa-c10-shortfall-admin@example.test', 99, 'QA shortfall partial A', null
+    v_order, v_admin, 'qa-c10-shortfall-admin@example.test', 99, 'QA shortfall partial A', null, gen_random_uuid()
   );
   perform public.commit_manual_refund(
-    v_order, v_admin, 'qa-c10-shortfall-admin@example.test', 100, 'QA shortfall partial B', null
+    v_order, v_admin, 'qa-c10-shortfall-admin@example.test', 100, 'QA shortfall partial B', null, gen_random_uuid()
   );
 
   select sum(credits_expected), sum(credits_reclaimed), sum(credits_shortfall)

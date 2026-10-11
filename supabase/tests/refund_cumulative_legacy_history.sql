@@ -40,7 +40,7 @@ begin
   update public.orders set status = 'partially_refunded' where id = v_order;
 
   perform * from public.commit_manual_refund(
-    v_order, v_admin, 'qa-c10-legacy-admin@example.test', 189, 'QA legacy remainder refund', null
+    v_order, v_admin, 'qa-c10-legacy-admin@example.test', 189, 'QA legacy remainder refund', null, gen_random_uuid()
   );
 
   select sum(credits_expected), sum(credits_reclaimed), sum(credits_shortfall)

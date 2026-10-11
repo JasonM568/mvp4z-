@@ -41,6 +41,7 @@ cleanup() {
   psql "$DB_URL" -v ON_ERROR_STOP=1 -v order_id="$order_id" -v member_id="$member_id" \
     -v admin_id="$admin_id" -v entitlement_id="$entitlement_id" >/dev/null <<'SQL'
 begin;
+delete from public.admin_audit_logs where target_id = :'order_id';
 delete from public.credit_transactions where ref_id in (select order_no from public.orders where id = :'order_id');
 delete from public.refunds where order_id = :'order_id';
 delete from public.member_entitlements where id = :'entitlement_id';
@@ -53,12 +54,12 @@ trap cleanup EXIT
 
 psql "$DB_URL" -v ON_ERROR_STOP=1 -v order_id="$order_id" -v admin_id="$admin_id" \
   -v admin_email="$admin_email" >/dev/null 2>&1 <<'SQL' &
-select * from public.commit_manual_refund(:'order_id', :'admin_id', :'admin_email', 99, 'QA concurrent refund A', null);
+select * from public.commit_manual_refund(:'order_id', :'admin_id', :'admin_email', 99, 'QA concurrent refund A', null, gen_random_uuid());
 SQL
 pid1=$!
 psql "$DB_URL" -v ON_ERROR_STOP=1 -v order_id="$order_id" -v admin_id="$admin_id" \
   -v admin_email="$admin_email" >/dev/null 2>&1 <<'SQL' &
-select * from public.commit_manual_refund(:'order_id', :'admin_id', :'admin_email', 100, 'QA concurrent refund B', null);
+select * from public.commit_manual_refund(:'order_id', :'admin_id', :'admin_email', 100, 'QA concurrent refund B', null, gen_random_uuid());
 SQL
 pid2=$!
 wait "$pid1"
