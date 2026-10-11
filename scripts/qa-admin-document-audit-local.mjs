@@ -24,8 +24,11 @@ const signer = createClient(env.API_URL, env.ANON_KEY, { auth: { persistSession:
 const tag = crypto.randomBytes(5).toString("hex");
 const email = `qa-document-audit-${tag}@example.test`;
 const documentId = crypto.randomUUID();
+const uploadName = `qa-audit-upload-${tag}.md`;
+const fixturePath = `qa/document-audit/${tag}.md`;
 const triggerName = `qa_document_audit_${tag}`;
 let authId, profileId, triggerInstalled = false, checks = 0, passed = 0;
+const uploadedPaths = [];
 function check(ok, label, detail = "") {
   checks++; if (ok) passed++;
   console.log(`${ok ? "PASS" : "FAIL"} ${label}${detail ? `: ${detail}` : ""}`);
@@ -45,6 +48,18 @@ function sql(statement) {
   });
   if (result.status !== 0) throw new Error(`Local scoped audit SQL failed: ${(result.stderr || "").slice(0, 180)}`);
 }
+function installFault(condition) {
+  sql(`begin; create function public.${triggerName}() returns trigger language plpgsql as $$
+    begin if ${condition} then raise exception 'QA scoped document audit failure'; end if;
+      return new; end; $$;
+    create trigger ${triggerName} before insert on public.admin_audit_logs
+    for each row execute function public.${triggerName}(); commit;`);
+  triggerInstalled = true;
+}
+function dropFault() {
+  sql(`drop trigger ${triggerName} on public.admin_audit_logs; drop function public.${triggerName}();`);
+  triggerInstalled = false;
+}
 async function patch(token, body) {
   const response = await fetch(`${baseUrl}/api/admin/documents/${documentId}`, {
     method: "PATCH", signal: AbortSignal.timeout(20_000),
@@ -57,6 +72,27 @@ async function state() {
   const rows = await db(`ai_documents?select=id,title,include_in_prompt&id=eq.${documentId}`);
   const audits = await db(`admin_audit_logs?select=id,admin_user_id,action&target_id=eq.${documentId}`);
   return { row: rows[0], audits };
+}
+async function objectExists(path) {
+  const result = await service.storage.from("yixue-documents").download(path);
+  return !result.error && Boolean(result.data);
+}
+async function upload(token) {
+  const form = new FormData();
+  form.set("file", new Blob(["QA"], { type: "text/markdown" }), uploadName);
+  form.set("title", `QA upload ${tag}`);
+  const response = await fetch(`${baseUrl}/api/admin/documents`, {
+    method: "POST", signal: AbortSignal.timeout(20_000),
+    headers: { Authorization: `Bearer ${token}` }, body: form
+  });
+  return response.status;
+}
+async function remove(token) {
+  const response = await fetch(`${baseUrl}/api/admin/documents/${documentId}`, {
+    method: "DELETE", signal: AbortSignal.timeout(20_000),
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.status;
 }
 try {
   const password = `QA-${crypto.randomBytes(12).toString("hex")}`;
@@ -74,18 +110,13 @@ try {
   });
   if (preflight.status !== 200) throw new Error(`QA admin preflight HTTP ${preflight.status}`);
   await db("ai_documents", "POST", [{ id: documentId, title: `QA scoped ${tag}`,
-    category: "reference", term: "qimen", storage_path: `qa/document-audit/${tag}.md`,
+    category: "reference", term: "qimen", storage_path: fixturePath,
     original_name: "qa.md", mime_type: "text/markdown", size_bytes: 2,
     extracted_text: "QA", char_count: 2, include_in_prompt: false, created_by: profileId }]);
   check((await patch("", { include_in_prompt: true })) === 401, "anonymous PATCH denied");
   check((await state()).row.include_in_prompt === false, "anonymous left document disabled");
 
-  sql(`begin; create function public.${triggerName}() returns trigger language plpgsql as $$
-    begin if new.target_id = '${documentId}' and new.action = 'documents.update' then
-      raise exception 'QA scoped document audit failure'; end if; return new; end; $$;
-    create trigger ${triggerName} before insert on public.admin_audit_logs
-    for each row execute function public.${triggerName}(); commit;`);
-  triggerInstalled = true;
+  installFault(`new.target_id = '${documentId}' and new.action = 'documents.update'`);
   const faultStatus = await patch(token, { include_in_prompt: true });
   const faultState = await state();
   check(faultStatus >= 500, "audit failure prevents API success", `HTTP ${faultStatus}`);
@@ -93,18 +124,55 @@ try {
     `included ${faultState.row?.include_in_prompt}`);
   check(faultState.audits.length === 0, "fault inserts no audit", `rows ${faultState.audits.length}`);
 
-  sql(`drop trigger ${triggerName} on public.admin_audit_logs; drop function public.${triggerName}();`);
-  triggerInstalled = false;
+  dropFault();
   const healthyStatus = await patch(token, { title: `QA updated ${tag}` });
   const healthyState = await state();
   check(healthyStatus === 200, "healthy PATCH succeeds", `HTTP ${healthyStatus}`);
   check(healthyState.row?.title === `QA updated ${tag}` && healthyState.audits.length === 1
     && healthyState.audits[0].admin_user_id === profileId, "healthy PATCH has named audit",
   `audits ${healthyState.audits.length}`);
+
+  installFault(`new.admin_user_id = '${profileId}' and new.action = 'documents.upload'`);
+  const uploadStatus = await upload(token);
+  const uploadedRows = await db(`ai_documents?select=id,storage_path&original_name=eq.${uploadName}`);
+  for (const row of uploadedRows) uploadedPaths.push(row.storage_path);
+  const uploadAudits = uploadedRows.length ? await db(
+    `admin_audit_logs?select=id&target_id=eq.${uploadedRows[0].id}&action=eq.documents.upload`) : [];
+  check(uploadStatus >= 500, "audit failure prevents upload success", `HTTP ${uploadStatus}`);
+  check(uploadedRows.length === 0, "audit failure leaves no uploaded document", `rows ${uploadedRows.length}`);
+  check(uploadAudits.length === 0, "upload audit fault writes no audit", `rows ${uploadAudits.length}`);
+  dropFault();
+
+  const stored = await service.storage.from("yixue-documents").upload(fixturePath,
+    new TextEncoder().encode("QA"), { contentType: "text/markdown", upsert: false });
+  if (stored.error) throw new Error(`QA fixture Storage upload failed: ${stored.error.message}`);
+  uploadedPaths.push(fixturePath);
+  installFault(`new.target_id = '${documentId}' and new.action = 'documents.delete'`);
+  const deleteStatus = await remove(token);
+  const afterDelete = await db(`ai_documents?select=id&id=eq.${documentId}`);
+  const deleteAudits = await db(`admin_audit_logs?select=id&target_id=eq.${documentId}&action=eq.documents.delete`);
+  const storageStillExists = await objectExists(fixturePath);
+  check(deleteStatus >= 500, "audit failure prevents delete success", `HTTP ${deleteStatus}`);
+  check(afterDelete.length === 1 && storageStillExists,
+    "audit failure retains document and Storage object",
+    `documents ${afterDelete.length}, object ${storageStillExists}`);
+  check(deleteAudits.length === 0, "delete audit fault writes no audit", `rows ${deleteAudits.length}`);
+  dropFault();
 } finally {
   if (triggerInstalled) sql(`drop trigger if exists ${triggerName} on public.admin_audit_logs; drop function if exists public.${triggerName}();`);
   await db(`admin_audit_logs?target_id=eq.${documentId}`, "DELETE");
   await db(`ai_documents?id=eq.${documentId}`, "DELETE");
+  const other = await db(`ai_documents?select=id,storage_path&original_name=eq.${uploadName}`);
+  for (const row of other) {
+    await db(`admin_audit_logs?target_id=eq.${row.id}`, "DELETE");
+    await db(`ai_documents?id=eq.${row.id}`, "DELETE");
+    uploadedPaths.push(row.storage_path);
+  }
+  for (const path of new Set(uploadedPaths)) {
+    const removed = await service.storage.from("yixue-documents").remove([path]);
+    if (removed.error) throw new Error("QA Storage cleanup failed");
+    if (await objectExists(path)) throw new Error("QA Storage object remains");
+  }
   if (profileId) await db(`profiles?id=eq.${profileId}`, "DELETE");
   if (authId) {
     const removed = await service.auth.admin.deleteUser(authId);
@@ -112,6 +180,7 @@ try {
   }
   if ((await db(`ai_documents?select=id&id=eq.${documentId}`)).length
     || (await db(`admin_audit_logs?select=id&target_id=eq.${documentId}`)).length
+    || (await db(`ai_documents?select=id&original_name=eq.${uploadName}`)).length
     || (await db(`profiles?select=id&email=eq.${email}`)).length)
     throw new Error("QA document/audit/profile remains");
   console.log("QA trigger/document/audit/Auth/profile fixtures cleaned");
