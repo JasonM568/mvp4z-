@@ -522,3 +522,7 @@ QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 
 | PostgreSQL 併發／舊 operation | `node scripts/qa-m24-delete-concurrency-local.mjs` | N=20 claim 共用一個 operation ID；finalize 1×`deleted`、19×`already_deleted`，run 收斂且 event 恰 1。釋放舊 operation 後建立新 claim，舊 operation release 回 `false` 且新 claim 保持 pending。run/event fixture 清 0。 |
 
 **驗收邊界：**這次補足 M24 的真 PostgreSQL function／ACL／併發證據，但沒有真 Supabase Storage remove 故障或完整 HTTP＋DB＋Storage 流程；M24 critical 票仍維持至 clean replay 獨立核對、隔離 Storage/API 複驗與整合部署 gate 完成。QA scratch DB 已 drop，PostgreSQL server 已停止，port 55499 無 listener，資料目錄已刪除。沒有 Auth、Storage object 或正式資料 fixture。
+
+### QA-FS-C23 MerchantOrderNo 碰撞候選初步複驗
+
+工程候選 `/private/tmp/xunfeng-c20-c23` clean HEAD `b58ea161c5d7b9e23ba9e0ef180afe2bfd8fa694`。QA 自有 helper＋管理員 HTTP stub **4/4**、候選 unit **7/7**、TypeScript 通過；QA 自有 PostgreSQL 16 scratch 與 Supabase DB-only stack 均執行候選 SQL contract，collision 同／不同金額拒絕、ACL、audit 原子 rollback 與同 key 併發 2/2 conflict，副作用 0。候選分支自身 **58/58** migration replay 通過，DB SQL test 通過；Storage health 未達 healthy，沒有 Storage/API 服務驗收。此 58 版基底不含 M19/C19/M21/M22/M24 `20261012010000` 至 `20261012050000`，故不是整合版 replay；整合 SHA 的 migration 數量需依合併後樹重算並全序 replay。未呼叫真 EZPay，真 provider 冪等契約及 C23 原 provider-success/local-row-failure 恢復仍未驗；critical gate 維持。詳見 [QA-FS-C23](qa-fs-c23-invoice-provider-retry-after-row-failure-2026-10-11.md)。

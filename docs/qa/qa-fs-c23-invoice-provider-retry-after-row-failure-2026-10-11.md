@@ -1,6 +1,6 @@
 # QA-FS-C23：provider 開票成功後 invoice row INSERT 失敗，重送再次呼叫 provider
 
-**嚴重度：critical（外部重複開票風險，provider 去重語意待確認）**　**狀態：待 X-PM 排序／派工程1**
+**嚴重度：critical（外部重複開票風險，provider 去重語意待確認）**　**狀態：碰撞修補候選隔離複驗通過；provider 故障恢復及整合 release gate 未完成**
 
 ## 重現證據
 
@@ -39,3 +39,17 @@ npx vitest run --config scripts/qa-invoice-provider-success-row-failure.vitest.m
 ## 證據限制
 
 此為實際 route/helper＋provider stub＋記憶體 DB 證據，不是 EZPay contract test，也未連正式或隔離 Supabase。開票是否重複成功取決於 EZPay 對重複 `MerchantOrderNo` 的正式契約；需工程／PM確認 provider 查詢與重試策略，但不得用真付費／正式發票做故障注入。
+
+## MerchantOrderNo 碰撞候選複驗（2026-10-11）
+
+工程候選 `/private/tmp/xunfeng-c20-c23` 已提交為 clean HEAD `b58ea161c5d7b9e23ba9e0ef180afe2bfd8fa694`，基底 `origin/main` `1935618ebf3eb3bc61c7a1fc08698839d3531e6d`。候選新增 service-only external reference 表、跨訂單檢查與 `merchant_order_conflict` 回應；helper 收到該結果後回 409，並在 EZPay issue/search 前結束。
+
+| 測試面 | QA 證據 | 結果與限制 |
+|---|---|---|
+| Helper＋管理員 HTTP fail-closed | QA 自有 `scripts/qa-c23-merchant-order-collision.test.ts`；`npx vitest run --config scripts/qa-c23-merchant-order-collision.vitest.mts` | **4/4**：helper 及 `POST /api/admin/invoices/[orderId]/issue` 各覆蓋相同／不同金額；兩個不同 order ID 共用 20 字 MerchantOrderNo，RPC stub 回 conflict 時 HTTP 409，provider issue/search 0 次。 |
+| 候選單元與型別 | `npx vitest run lib/payments/issue-invoice-from-order.c23.test.ts`；`npx tsc --noEmit` | helper **7/7**、TypeScript 通過。 |
+| 候選 SQL／ACL／transaction | QA 自有 Supabase 專案 `qa-c23-own-20261011`：候選 migration `5e2f158b…` 與 SQL test `cca7717f…`；候選 `invoice_issue_durable_outbox.sql` contract test 通過 | 匿名／authenticated 無 RPC/table 權限、service_role 權限符合 contract；相同及不同金額 collision 返回 conflict；audit INSERT 故障時 invoice/audit 完成交易回滾，原 outbox 可用同 encrypted payload reclaim 後完成。整段測試以 `ROLLBACK` 清理。 |
+| PostgreSQL 16 併發 | QA 自有 `scripts/qa-c23-collision-postgres-local.sh` | 相同 external key 兩筆不同金額並發 call **2/2 conflict**，outbox/reference/invoice/audit 副作用 **0**；script 在 disposable PG16 套用候選 migration 與 SQL contract test。 |
+| 全序 migration replay | QA 自有 Supabase DB-only + Storage-schema stack；`supabase migration list --local` 與 `supabase_migrations.schema_migrations` aggregate | 此候選 worktree **58/58** 唯一版本 replay，`0001` 到 `20261012070000`；候選 SQL contract test 在該 DB 再通過。Storage 容器 health 一直停在 `starting`，未驗 Storage/API 服務。QA fixture 已刪，volume 以 `--no-backup` 移除，臨時 project 與埠已清除。 |
+
+**整合範圍限制：**該 58 migration worktree 基底 `1935618` 中沒有 M19/C19/M21/M22/M24 的 `20261012010000` 至 `20261012050000`。因此 58/58 是 C20/C23 分支自身乾淨 replay，不能當作包含上述五個 slice 的整合 replay；整合 SHA 的 migration 數量須從實際合併後 migration tree 重新計數並全序 replay（M23 尚未採納，不含 migration）。本次 SQL／ACL／併發與管理員 HTTP stub 通過可支持碰撞修補的隔離證據，但尚未在整合 release SHA 複驗，也未呼叫真 EZPay。原 C23 provider 重試／真實 EZPay 冪等契約風險仍是 critical gate；不得因碰撞案例通過而關閉 C23。
