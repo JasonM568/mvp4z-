@@ -493,6 +493,8 @@ QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 
 
 `scripts/qa-face-member-image-delete.test.ts` 以實際 DELETE route 搭配隔離 in-memory DB／Storage 替身驗證 **8/8**，`npx tsc --noEmit` 通過。越權／無 token、非法與跨會員 ID、analyzing／claim 衝突、已刪冪等、正常刪除均有覆蓋。兩個 critical 故障窗口已重現：Storage remove 成功但 DB finalize 失敗後，照片已不存在、DB path 懸空且 `deletion_pending=true`，重送 409；DB 與 Storage 已清後 event INSERT 失敗，首次回 500、重送 200 仍無 event。派工稿見 [QA-FS-M24](qa-fs-m24-member-image-delete-failure-recovery-2026-10-11.md)，X-PM 已接受並派工程1；**真 Supabase DB／Storage 故障尚未驗**，先前自有 Storage stack health check 失敗，不把替身結果當產品服務實測。待 M24 修復候選供隔離複驗。
 
+**M24 候選 harness 準備：**工程 SHA `7d9f2856d4116b60d2e576293d55fb861595eca8` 仍使用與 M22 衝突的 migration 版號，依 X-PM 指示不作正式候選複驗。已新增 QA RPC route harness `scripts/qa-m24-image-delete-recovery.test.ts`，memory-stub preflight **5/5**、TypeScript 通過，涵蓋 finalize/event 故障同 operation 重試、N=20＋重送只一 event、Storage failure 釋放 claim、401／跨會員／analyzing／已刪邊界。該測試不證明真 RPC 交易或 SQL 並發；待唯一版號的新 SHA 與 clean replay 後再正式重跑，Storage health 200/healthy 前不啟動真 Storage 測試。
+
 **本次階段測試總結：**本階段沒有 BLOCKER 新增；critical QA-FS-M22／M23 既有票維持，QA-FS-M24/M25 已由 X-PM 接受並派工程1（M25 是否改具名 admin 另待決）；C20 已送 X-PM；新增 C21/C22 待排序派工；C2 追加 audit 故障證據。M24/M25/C20/C21/C22 均為 route＋替身證據，真服務狀態尚未驗。M23 Option A focused suite 11/11；最新全套 Vitest：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped。另本階段 M24 8/8、M25 7/7、C20 3/3、C21/C22 合併 suite 5/5，`npx tsc --noEmit` 通過。功能驗收清單與正式站回歸仍未完成，不可簽核全系統 UAT。
 
 ### QA-FS-M25：面相規則草稿／發布原子性與 audit

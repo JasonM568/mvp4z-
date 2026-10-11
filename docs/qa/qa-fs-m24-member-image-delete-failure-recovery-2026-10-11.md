@@ -2,6 +2,10 @@
 
 **嚴重度：critical**　**狀態：X-PM 已接受並派工程1；待候選與隔離真 Storage／DB 複驗**
 
+## 獨立複驗準備
+
+QA-owned RPC harness 已建立於 `scripts/qa-m24-image-delete-recovery.test.ts`，設定為 `scripts/qa-m24-image-delete-recovery.vitest.mts`。它以 `QA_M24_ROOT` 指向候選，經實際 DELETE route 呼叫 RPC／Storage stub，覆蓋 finalize fault 後同 operation retry、row/event 原子失敗後 retry、N=20＋重送僅一 event、Storage fault 釋放 claim，以及 401／跨會員404／analyzing409／已刪200。對目前有版號衝突的候選 `7d9f2856d4116b60d2e576293d55fb861595eca8`，stub harness **5/5**，TypeScript 通過；此為 mock contract/preflight，**不列為候選正式複驗或 DB/Storage 通過**。等 migration 版號修正及 M19/C19/M21/M22/M24 clean replay 後，以新 SHA 重跑此腳本與工程 SQL test；真 Storage 健康前不啟動 stack、不做 Storage 10 輪。
+
 ## 重現範圍
 
 路由：`DELETE /api/face-analysis/runs/{id}/image`。只用自有 run、合成照片；不可使用正式會員或正式 DB。QA route＋in-memory Storage/DB 替身腳本：`scripts/qa-face-member-image-delete.test.ts`（獨立設定 `scripts/qa-face-member-image-delete.vitest.mts`），8/8 通過。
