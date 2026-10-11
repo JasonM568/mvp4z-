@@ -3268,3 +3268,10 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - main HEAD `ab602fa` 重跑 `npx vitest run`：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）。兩個 expected-fail 是 B1 同會員問答並發與 C2 ledger amount mismatch，仍是未結 BLOCKER／critical。
 - `npx tsc --noEmit`、`git diff --check` 通過。M23 Option A route/Storage stub 3/3 及 native PostgreSQL cleanup reclaim gap 同步複驗；真 Supabase Storage、HTTP transport response loss 未驗，M23 維持 feasibility only。
 - 更新全系統 QA baseline；既存 `scripts/qa-refund-boundaries-local.sh`、`scripts/qa-refund-rounding-local.sh` 使用者修改未改動、未 stage。
+
+
+## 2026-10-12｜忘記密碼 API boundary 與日誌隱私測試
+
+- 新增自有 `scripts/qa-forgot-password-boundaries.test.ts` 與 Vitest config，Auth 用替身，不寄信、不寫資料。`./node_modules/.bin/vitest run --config scripts/qa-forgot-password-boundaries.vitest.mts`：6 passed、3 expected fail／9；`npx tsc --noEmit`、`git diff --check` 通過。
+- 正常／未知地址及 provider error 對外一致回 200；非法／SQLi／空／畸形／非字串輸入在 Auth 前拒絕；ASCII local-part 64 octets 通過。65 與 260 octets local-part 未被 Zod email schema 拒絕，已呼叫 Auth stub、回 200（QA-FS-C24）。RFC 5321 §4.5.3.1.1 local-part 上限為 64 octets。N=10 重送在替身下皆呼叫 Auth，真 Supabase rate limit 未驗。
+- Auth provider error 時 `console.warn` 將完整 email 放入 server log（QA-FS-C25）。建立兩張 minor ticket，補入 route inventory、full-system matrix 與 A03 UAT 證據；未讀取真實日誌、未用正式帳號或郵件。
