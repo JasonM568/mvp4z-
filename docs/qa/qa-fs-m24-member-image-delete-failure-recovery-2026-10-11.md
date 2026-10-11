@@ -1,6 +1,6 @@
 # QA-FS-M24：會員刪除面相照片的跨儲存失敗復原
 
-**嚴重度：critical**　**狀態：待送 X-PM 派工；待隔離真 Storage／DB 複驗**
+**嚴重度：critical**　**狀態：已送 X-PM 討論派工；待隔離真 Storage／DB 複驗**
 
 ## 重現範圍
 
