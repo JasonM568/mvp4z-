@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { apiJson } from "../../_helpers";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdmin, requireNamedAdmin } from "@/lib/auth/admin";
 import { errorMessage, errorStatus, statusError } from "@/lib/auth/member";
 import { escapeLikePattern, REFERRAL_CODE_PATTERN } from "@/lib/referral/attribution";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin(request);
+    const { profile } = await requireNamedAdmin(request);
     const body = await request.json().catch(() => ({}));
     const code = String(body.code || "").trim();
     const name = String(body.name || "").trim();
@@ -122,26 +122,31 @@ export async function POST(request: NextRequest) {
       throw statusError("推廣代碼只能使用英數字、底線與連字號，長度 2-32", 400);
     }
     if (!name) throw statusError("請填寫業務名稱", 400);
+    if (name.length > 80) throw statusError("業務名稱不可超過 80 字", 400);
 
     const rate = normalizeRate(body.commission_rate);
+    const contact = String(body.contact || "").trim();
+    const note = String(body.note || "").trim();
+    if (contact.length > 200) throw statusError("聯絡方式不可超過 200 字", 400);
+    if (note.length > 1000) throw statusError("備註不可超過 1000 字", 400);
     const admin = createSupabaseAdminClient();
-    const { data, error } = await admin
-      .from("referral_partners")
-      .insert({
+    const { data, error } = await admin.rpc("manage_referral_partner", {
+      p_action: "create",
+      p_admin_user_id: profile.id,
+      p_payload: {
         code,
         name,
-        contact: String(body.contact || "").trim(),
+        contact,
         commission_rate: rate,
-        note: String(body.note || "").trim()
-      })
-      .select("id, code, name, contact, commission_rate, note, is_active, created_at")
-      .single();
+        note
+      }
+    });
 
     if (error) {
       if (String(error.code) === "23505") throw statusError("這組推廣代碼已經有人用了", 409);
       throw error;
     }
-    return apiJson({ ok: true, partner: data });
+    return apiJson({ ok: true, partner: data?.partner });
   } catch (error) {
     return apiJson({ error: errorMessage(error) }, errorStatus(error));
   }
@@ -149,29 +154,42 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    await requireAdmin(request);
+    const { profile } = await requireNamedAdmin(request);
     const body = await request.json().catch(() => ({}));
     const id = String(body.id || "");
     if (!id) throw statusError("缺少 partner id", 400);
 
+    if (body.is_active !== undefined && typeof body.is_active !== "boolean") {
+      throw statusError("is_active 必須是 boolean", 400);
+    }
     const patch: Record<string, unknown> = {};
-    if (body.name !== undefined) patch.name = String(body.name).trim();
-    if (body.contact !== undefined) patch.contact = String(body.contact).trim();
-    if (body.note !== undefined) patch.note = String(body.note).trim();
-    if (body.is_active !== undefined) patch.is_active = Boolean(body.is_active);
+    if (body.name !== undefined) {
+      patch.name = String(body.name).trim();
+      if (!patch.name || String(patch.name).length > 80) throw statusError("業務名稱需為 1 到 80 字", 400);
+    }
+    if (body.contact !== undefined) {
+      patch.contact = String(body.contact).trim();
+      if (String(patch.contact).length > 200) throw statusError("聯絡方式不可超過 200 字", 400);
+    }
+    if (body.note !== undefined) {
+      patch.note = String(body.note).trim();
+      if (String(patch.note).length > 1000) throw statusError("備註不可超過 1000 字", 400);
+    }
+    if (body.is_active !== undefined) patch.is_active = body.is_active;
     if (body.commission_rate !== undefined) patch.commission_rate = normalizeRate(body.commission_rate);
     if (Object.keys(patch).length === 0) throw statusError("沒有要更新的欄位", 400);
 
     const admin = createSupabaseAdminClient();
-    const { data, error } = await admin
-      .from("referral_partners")
-      .update(patch)
-      .eq("id", id)
-      .select("id, code, name, contact, commission_rate, note, is_active, created_at")
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) throw statusError("找不到這位推廣夥伴", 404);
-    return apiJson({ ok: true, partner: data });
+    const { data, error } = await admin.rpc("manage_referral_partner", {
+      p_action: "update",
+      p_payload: { id, ...patch },
+      p_admin_user_id: profile.id
+    });
+    if (error) {
+      if (String(error.code) === "P0002") throw statusError("找不到這位推廣夥伴", 404);
+      throw error;
+    }
+    return apiJson({ ok: true, partner: data?.partner });
   } catch (error) {
     return apiJson({ error: errorMessage(error) }, errorStatus(error));
   }
