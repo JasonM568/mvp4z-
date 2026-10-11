@@ -3245,3 +3245,11 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 - main HEAD `d99ee18` 執行 `npx vitest run`：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped。B1 同會員併發與 C2 ledger mismatch 仍阻擋功能驗收。
 - C2 11/11 與 C23 2/2 QA boundary suites 使用獨立設定檔，不在預設 include 中；報告保持分開統計。
+
+
+## 2026-10-12｜M23 Option A 重複清理路徑審查
+
+- 唯讀核對候選 `/private/tmp/xunfeng-m23-spike` HEAD `42175c1e00e3d8f12de4ee4e413852961de544b1`，候選 worktree clean；未接觸正式庫、C4 或共用 Supabase stack。
+- QA-owned `scripts/qa-m23-option-a-spike.vitest.mts` 對候選重跑 **3/3**：雙故障持久狀態、已提交但 RPC 回應遺失時保護 attached 物件、舊 worker A 僅刪 A key 而保留 B，以及 legacy path preview（合併於案例）。先前 QA 自建 PostgreSQL 16.14 minimal scratch 已記錄首輪 SQL 狀態轉換，未執行真 HTTP response loss 或 Storage 操作。
+- 新增可重複 runner `scripts/qa-m23-cleanup-reclaim-local.sh`，在自建、使用後自動停止刪除的 native PostgreSQL cluster 上執行候選原始 SQL。runtime 重複 claim 重現：首 claim `may_delete=true`；記錄 `STORAGE_REMOVE_FAILED` 後再 claim 回 `cleanup_pending / may_delete=false`，attempt 仍為 1。未使用 Supabase、Storage 或共用 DB。
+- 將已實測缺口與具體 reclaim／並發驗收標準補入 M23 spike review、QA-FS-M23 ticket 與 route inventory。M23/M22 仍非正式通過；需工程修正候選後再以隔離 DB/Storage 驗證，並保留真 Supabase Storage、clean replay、HTTP response loss 未驗的界線。

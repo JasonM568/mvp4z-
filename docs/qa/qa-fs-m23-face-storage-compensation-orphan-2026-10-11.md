@@ -18,3 +18,11 @@
 - 在隔離環境以 QA 自有 fixture 重跑雙故障、同格式重試與正常拒絕→合格、N=2 並發；逐次比對 HTTP、run、event、Storage、claim、attempt、點數，結束後 fixture／孤兒檔 0。正式庫不得安裝故障 trigger。
 
 **派工／複驗：**X-PM 排優先序、工程1提出設計；QA 以獨立 stub 先確認路由狀態，再以可精確注入的隔離 Storage／DB 完成跨服務複驗。正式部署與會員驗收另設 gate；本票未修／未驗時明列剩餘風險。
+
+## M23 Option A spike follow-up (2026-10-12)
+
+Candidate `42175c1e00e3d8f12de4ee4e413852961de544b1` remains feasibility-only. QA independently reran `scripts/qa-m23-option-a-spike.vitest.mts`: **3/3 passed** for double failure, ambiguous committed-RPC response, stale A versus B key, and legacy preview. Prior QA-owned native PostgreSQL 16.14 scratch evidence covers event-insert rollback, first `pending → cleanup_pending` transition, attached protection, and A/B distinct-key state; it is a minimal fixture, not a Supabase replay or Storage test.
+
+**Additional critical recovery gap (runtime SQL reproduction):** `bash scripts/qa-m23-cleanup-reclaim-local.sh` verifies candidate SHA `42175c1e00e3d8f12de4ee4e413852961de544b1`, applies the exact unversioned draft to a disposable native PostgreSQL cluster, then calls the cleanup RPC twice with a persisted `STORAGE_REMOVE_FAILED` between calls. First claim returns `may_delete=true`; retry returns `cleanup_pending / may_delete=false`, `cleanup_attempts` remains 1. This proves the PL/pgSQL function's retry gap on a minimal schema; it does not test Supabase or real Storage. `cleanup_claimed_at` is not used to expire/reclaim a cleanup lease. The spike persists the orphan record but provides no retry path through this RPC.
+
+**Acceptance addition:** in an isolated test, force exact-key remove failure, verify sanitized error/attempt is persisted, advance beyond the cleanup lease, reclaim once and remove only that key; concurrent reclaimers must yield at most one delete lease. `attached` or run-referenced keys must remain non-deletable; successful retry marks `cleaned`, and a later retry is idempotent. Keep true Storage failure and full Supabase stack boundaries explicit. This finding does not change M22/M23 formal status.
