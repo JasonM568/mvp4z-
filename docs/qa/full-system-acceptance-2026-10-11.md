@@ -216,7 +216,7 @@
 - [ ] 退款登錄的具名 audit 若寫入失敗，退款、扣點與訂單狀態一併回滾，不留下無稽核的財務動作。**C14 隔離故障注入已通過；正式 migration 複驗前不可勾**。
 - [ ] 管理員建立啟用碼時，方案、期限、點數與稽核紀錄正確；同時建立多筆不重碼。**隔離環境已驗，正式站待驗**。
 - [ ] 後台會員數超過 200 時，總數仍正確，較舊會員可依 Email 搜尋並進行管理。**QA-FS-C16 修復分支隔離 API 9/9＋Ego UI 通過；正式整合／部署前不可勾**。
-- [ ] 面相教材規則發布後即使封存，也保留原規則與版本供舊報告引文追溯，不可由後台永久刪除。**QA-FS-C17 修復分支隔離 10/10、並發／回滾 5/5；正式整合／部署前不可勾**。
+- [ ] 面相教材規則發布後即使封存，也保留原規則與版本供舊報告引文追溯，不可由後台永久刪除。**QA-FS-C17 封存後禁止硬刪已隔離複驗通過；舊版正文還原未驗、正式整合／部署前不可勾**。
 - [ ] 面相教材規則發布時，規則與具名稽核同時成功；稽核失敗不得留下已發布但無紀錄的規則。**QA-FS-C18 隔離故障注入不合格，修復／複驗前不可勾**。
 - [ ] 啟用碼只可兌換一次；兩個視窗同時送出也只有一次成功。**QA-FS-B2 隔離複驗已通過，正式部署及站端回歸前不可勾**。
 
@@ -271,7 +271,7 @@
 | QA-FS-C14／critical | 原 audit INSERT 故障時退款仍成功但無 audit；工程 `6e6f4a4` 改為同一 RPC 交易 | QA 專用訂單 audit trigger 注入故障：HTTP 500、refund/ledger/audit 0、點數 20、訂單 paid，15/15；工程整合腳本故障後同鍵重試通過，觸發器及資料清 0。再驗正式 migration／部署 | **隔離故障回滾複驗通過；正式站待驗**，已回報 X-PM，不涉商業規則 |
 | QA-FS-C15／critical（驗收 BLOCKER） | 正式站仍只有 Application error，Runtime 缺 `NEXT_PUBLIC_SUPABASE_URL`；分支 `9a94721` 本機無連結頁已不崩潰。但 C4 本機 Auth 有效 recovery link 導回帶 `#access_token`／`type=recovery` 後，UI 仍顯「找不到重設 session」，不出現新密碼表單；同權杖對 `/auth/v1/user` 回 200、user id 相符。分支修復只解決崩潰，未恢復實際改密。管理端忘密預設 implicit、瀏覽器 SSR client 強制 PKCE 的 flow 不一致 | 修復瀏覽器 callback 處理，區分有效、過期、重用與無連結；以專用本機帳號驗有效 link 顯示表單、改密成功、新密可登入舊密拒絕，失效 link 有清楚提示；再驗真實寄信與正式部署。不得輸出 token／改動正式會員 | 新證據已送 X-PM 轉工程1；本機專用 Auth／瀏覽器憑證全清；正式站仍不可簽核，不涉商業規則 |
 | QA-FS-C16／critical | 原 205 筆時 API 只回 200、漏 5 且總數誤報 200；工程分支 `d639e77` 改 50 筆分頁、伺服器搜尋及全域總數 | QA 獨立 C4 隔離 API 9/9：205 專用會員跨五頁全部找回、最舊 Email 可搜、非法頁碼／搜尋／游標 400；Ego Lite 後台第 5 頁可見最舊會員，搜尋後全域 KPI 不變。另獨立跑工程 1,001 筆規模腳本 11/11，單次 dev 讀取 169／149ms，非負載 p95；Auth/profile/entitlement fixture 清 0。再驗整合後、正式站與壓力／寫入操作 | **隔離 API/UI 複驗通過；正式整合／部署仍追蹤**，已回報 X-PM；不涉商業規則 |
-| QA-FS-C17／critical | 原缺陷：已發布規則 PATCH 封存後 DELETE 200，舊報告 `citedTeachings` 引文失去原規則。工程分支 `7cae2cd`＋`20261011210000` retention migration 以 `published_at` 持久標記及鎖列 RPC 阻擋硬刪，未發布草稿才可原子刪除並寫具名 audit | QA 全新獨立 DB／app：原腳本 10/10；舊報告引用、雙管理員 PATCH／DELETE、會員直呼 RPC 403、audit 故障回滾及正常重試 5/5；並發／回滾另 10 輪各 4/4，專用資料清 0。正式整合與 migration 部署後重跑；另確認 C18 建立發布 audit 故障仍未修 | **隔離修復分支複驗通過；正式整合／部署待驗**，已回報 X-PM；不涉商業規則取捨 |
+| QA-FS-C17／critical | 原缺陷：已發布規則 PATCH 封存後 DELETE 200，舊報告 `citedTeachings` 引文失去原規則。工程分支 `7cae2cd`＋`20261011210000` retention migration 以 `published_at` 持久標記及鎖列 RPC 阻擋硬刪，未發布草稿才可原子刪除並寫具名 audit | QA 全新獨立 DB／app：保留原腳本 10/10；舊 `rule_id` 仍可查、雙管理員 PATCH／DELETE、會員直呼 RPC 403、audit 故障回滾及正常重試 5/5；並發／回滾另 10 輪各 4/4，專用資料清 0。另須驗發布 v1 後原地改稿 v2 時舊報告能否還原 v1 正文；目前 `version` 會遞增，但無舊版正文快照，`citedTeachings` 只存 `rule_id`。正式整合與 migration 部署後重跑；C18 建立發布 audit 故障仍未修 | **禁止硬刪子項隔離通過；歷史正文追溯未證、正式整合／部署待驗，C17 不結案**；不涉商業規則取捨 |
 | QA-FS-C18／critical | C4 隔離庫對專用已發布面相教材規則的 `face_teaching_rule_create` audit INSERT 注入例外；具名 POST API 仍 200、`face_teaching_rules` 一筆 published、`admin_audit_logs` 0 筆。腳本 4/6；故障移除後正常規則／具名 audit 各 1，trigger/function/QA 資料清 0。`writeAdminAudit` 忽略 insert error，規則與 audit 非同交易 | 發布與具名 audit 必須原子一致；audit 故障時 API 5xx 且無 published 規則，或可核對地完全回滾；重跑腳本 6/6，另回歸 PATCH publish、bulk/import 與既有規則讀取 | 已送 X-PM 派工；無商業規則取捨，正式站未驗 |
 | QA-FS-M16／minor | 原超退 200／199 與全退後再送 1 元均回 500；工程 `6e6f4a4` 改錯誤映射 | QA 隔離 API 超退回 400、全退後新鍵回 409、零額外 refund/ledger/audit；正常腳本 20/20，工程整合 6/6；再驗正式 migration／部署 | **隔離複驗通過；正式站待驗**，已回報 X-PM |
 | QA-FS-M17／minor | 原四個報告列表路由把 `abc`／SQLi 形狀 `limit` 當 200，三路由超 cap、一後台誤顯空；首修仍放行 100 位數字。補修 `ced1432` QA 隔離複驗：面相會員 8/8、Council 會員 8/8、後台兩路由 16/16，含 100／500 位數字 400；374 筆專用報告及 Auth/profile/權益清 0 | 合法與無參數維持預設及 cap（會員50／20、後台100／200），非法字元、超長／不安全整數 400；三腳本正式部署後重跑並保留 51／21／101／201 筆邊界資料測例 | 已回報 X-PM；**隔離複驗通過**，分支未合併、正式站未驗，ticket 不關 |
