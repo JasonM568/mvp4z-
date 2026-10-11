@@ -15,7 +15,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiJson } from "../../../../_helpers";
 import { requireAdmin, writeAdminAudit } from "@/lib/auth/admin";
-import { errorMessage, errorStatus, readJson, statusError } from "@/lib/auth/member";
+import { errorMessage, errorStatus, statusError } from "@/lib/auth/member";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { issueInvoiceFromOrder, type InvoiceBuyer } from "@/lib/payments/issue-invoice-from-order";
 
@@ -46,7 +46,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ or
     const { orderId } = await context.params;
     if (!orderId) throw statusError("缺少 order id", 400);
 
-    const input = await readJson(request, inputSchema).catch(() => ({} as { buyer?: InvoiceBuyer }));
+    const rawBody = await request.text();
+    let parsedBody: unknown = {};
+    if (rawBody.trim()) {
+      try {
+        parsedBody = JSON.parse(rawBody);
+      } catch {
+        throw statusError("JSON 格式錯誤", 400);
+      }
+    }
+    const input = inputSchema.parse(parsedBody);
     const admin = createSupabaseAdminClient();
 
     const { data: order, error: orderError } = await admin
