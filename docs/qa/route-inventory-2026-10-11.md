@@ -66,7 +66,7 @@
 | `/api/bookings` | POST | 部分已驗：欄位邊界；M1／M3 待規則 |
 | `/api/chat` | POST | 舊路由無權杖 401，與新 `/api/ai/chat` 相同；有效會話及 B1 待修 |
 | `/api/courses/checkout` | GET, POST | 部分已驗：驗證與後端定價；M5 雙送待規則 |
-| `/api/cron/cleanup-face-images` | GET, POST | 路由＋記憶體 DB／Storage 替身 7/7：密鑰、空批、到期、批次、Storage 與 DB 更新故障；真 Storage 重試、正式排程、上傳競爭待驗 |
+| `/api/cron/cleanup-face-images` | GET, POST | 路由＋記憶體 DB／Storage 替身 7/7：密鑰、空批、到期、批次、Storage 與 DB 更新故障；自有 56 migration stack 因 Storage health 失敗停止，故真 Storage 不存在物件重試未驗；正式排程、上傳競爭待驗 |
 | `/api/cron/cleanup-pending-orders` | GET | 隔離通過：密鑰拒絕、dry-run、舊 pending 清理及新 pending／paid 保留；正式排程待驗 |
 | `/api/cron/expire-entitlements` | GET | 隔離通過 C11：dry-run、過期狀態與點數保留、audit／重跑 13/13；正式排程待驗 |
 | `/api/cron/pending-drafts` | GET, POST | 部分已驗：匿名 401；排程實際執行待驗 |
