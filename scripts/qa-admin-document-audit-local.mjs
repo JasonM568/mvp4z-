@@ -29,6 +29,7 @@ const fixturePath = `qa/document-audit/${tag}.md`;
 const triggerName = `qa_document_audit_${tag}`;
 let authId, profileId, triggerInstalled = false, checks = 0, passed = 0;
 const uploadedPaths = [];
+const uploadedDocumentIds = [];
 function check(ok, label, detail = "") {
   checks++; if (ok) passed++;
   console.log(`${ok ? "PASS" : "FAIL"} ${label}${detail ? `: ${detail}` : ""}`);
@@ -47,6 +48,13 @@ function sql(statement) {
     input: statement, encoding: "utf8", maxBuffer: 1024 * 1024
   });
   if (result.status !== 0) throw new Error(`Local scoped audit SQL failed: ${(result.stderr || "").slice(0, 180)}`);
+}
+function sqlValue(statement) {
+  const result = spawnSync("psql", [env.DB_URL, "-X", "-At", "-v", "ON_ERROR_STOP=1", "-c", statement], {
+    encoding: "utf8", maxBuffer: 1024 * 1024
+  });
+  if (result.status !== 0) throw new Error(`Local scoped SQL query failed: ${(result.stderr || "").slice(0, 180)}`);
+  return result.stdout.trim();
 }
 function installFault(condition) {
   sql(`begin; create function public.${triggerName}() returns trigger language plpgsql as $$
@@ -87,8 +95,8 @@ async function upload(token) {
   });
   return response.status;
 }
-async function remove(token) {
-  const response = await fetch(`${baseUrl}/api/admin/documents/${documentId}`, {
+async function remove(token, id = documentId) {
+  const response = await fetch(`${baseUrl}/api/admin/documents/${id}`, {
     method: "DELETE", signal: AbortSignal.timeout(20_000),
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -141,6 +149,10 @@ try {
   check(uploadStatus >= 500, "audit failure prevents upload success", `HTTP ${uploadStatus}`);
   check(uploadedRows.length === 0, "audit failure leaves no uploaded document", `rows ${uploadedRows.length}`);
   check(uploadAudits.length === 0, "upload audit fault writes no audit", `rows ${uploadAudits.length}`);
+  const faultOrphans = Number(sqlValue(`select count(*) from storage.objects o
+    where o.bucket_id = 'yixue-documents' and o.name like '${profileId}/%'
+    and not exists (select 1 from public.ai_documents d where d.storage_path = o.name)`));
+  check(faultOrphans === 0, "failed upload leaves no scoped Storage orphan", `objects ${faultOrphans}`);
   dropFault();
 
   const stored = await service.storage.from("yixue-documents").upload(fixturePath,
@@ -158,9 +170,36 @@ try {
     `documents ${afterDelete.length}, object ${storageStillExists}`);
   check(deleteAudits.length === 0, "delete audit fault writes no audit", `rows ${deleteAudits.length}`);
   dropFault();
+
+  const goodUploadStatus = await upload(token);
+  const goodUploads = await db(`ai_documents?select=id,storage_path&original_name=eq.${uploadName}`);
+  if (goodUploads[0]) {
+    uploadedDocumentIds.push(goodUploads[0].id);
+    uploadedPaths.push(goodUploads[0].storage_path);
+  }
+  check(goodUploadStatus === 201 && goodUploads.length === 1,
+    "healthy POST creates one document", `HTTP ${goodUploadStatus}, rows ${goodUploads.length}`);
+  const goodUploadAudit = goodUploads[0] ? await db(
+    `admin_audit_logs?select=id,admin_user_id&target_id=eq.${goodUploads[0].id}&action=eq.documents.upload`) : [];
+  check(goodUploadAudit.length === 1 && goodUploadAudit[0].admin_user_id === profileId
+    && await objectExists(goodUploads[0].storage_path),
+  "healthy POST has named audit and private Storage object");
+  const goodDeleteStatus = await remove(token, goodUploads[0].id);
+  const goodDeleteRows = await db(`ai_documents?select=id&id=eq.${goodUploads[0].id}`);
+  const goodDeleteAudit = await db(`admin_audit_logs?select=id&target_id=eq.${goodUploads[0].id}&action=eq.documents.delete`);
+  check(goodDeleteStatus === 200 && goodDeleteRows.length === 0
+    && goodDeleteAudit.length === 1, "healthy DELETE removes row with audit", `HTTP ${goodDeleteStatus}`);
+  check(!(await objectExists(goodUploads[0].storage_path)),
+    "healthy DELETE removes private Storage object");
+  const finalOrphans = Number(sqlValue(`select count(*) from storage.objects o
+    where o.bucket_id = 'yixue-documents' and o.name like '${profileId}/%'
+    and not exists (select 1 from public.ai_documents d where d.storage_path = o.name)`));
+  check(finalOrphans === 0, "normal document lifecycle leaves no scoped Storage orphan",
+    `objects ${finalOrphans}`);
 } finally {
   if (triggerInstalled) sql(`drop trigger if exists ${triggerName} on public.admin_audit_logs; drop function if exists public.${triggerName}();`);
   await db(`admin_audit_logs?target_id=eq.${documentId}`, "DELETE");
+  for (const id of uploadedDocumentIds) await db(`admin_audit_logs?target_id=eq.${id}`, "DELETE");
   await db(`ai_documents?id=eq.${documentId}`, "DELETE");
   const other = await db(`ai_documents?select=id,storage_path&original_name=eq.${uploadName}`);
   for (const row of other) {

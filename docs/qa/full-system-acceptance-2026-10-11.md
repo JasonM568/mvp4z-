@@ -357,3 +357,16 @@
 - 候選 `/private/tmp/xunfeng-m18-m20` HEAD `2f672f0`。將 QA 專用 `app/api/face-analysis/runs/[id]/route.m20.qa.test.ts` 複製到候選 worktree，在主 QA 隔離 Supabase 執行；`QA_FACE_M20_E2E=true` 才啟用，普通 unit suite 會略過。執行時明確清除 `OPENAI_API_KEY`、`GEMINI_API_KEY`，Vitest 替身攔住 `runFaceVisionProvider` 和 `generateFaceReport`；Auth、Storage、route、規則層、usage 寫入與 `commit_face_analysis_credit` RPC 均走真實隔離服務。測後已移除候選 worktree 的暫存測試檔，分支保持乾淨。
 - **11/11 通過**：B 分析 A 的 uploaded run 回 404；A 有效新 run 分析 200 且回報扣 20；報告文字／JSON 持久化、usage 1 筆連到 run、debit ledger 1 筆 `-20`／`balance_after=20`、權益餘額 40→20；完成 run 重送 200，usage／ledger／餘額不變；另一新 run 的撰稿替身拋錯回 5xx，run 轉 failed、無報告、無新增 usage／ledger／扣點，B 對該 failed run 仍 404。每輪專用 Auth、profiles、runs、events、usage、ledger、entitlement、Storage 皆刪除並查無殘留。隔離測試重跑兩次通過，候選 `tsc --noEmit` 通過。
 - **驗證邊界**：此測試證明新分析 route 與隔離帳務結算，不證明真實 Vision／LLM 輸出的正確性、完整報告 schema 或正式站效能。既有 provider/schema 單元與真模型 E2E 是不同證據；正式站與真實付費模型均未呼叫。使用方式：在候選 worktree 複製此 QA 測試檔，僅載入本機 QA Supabase 的 `API_URL`／`ANON_KEY`／`SERVICE_ROLE_KEY`，映射到對應 `NEXT_PUBLIC_*` 與 `SUPABASE_SERVICE_ROLE_KEY`，設定 `FACE_ANALYSIS_ENABLED=true QA_FACE_M20_E2E=true`，移除模型金鑰，再執行 `vitest run 'app/api/face-analysis/runs/[id]/route.m20.qa.test.ts' --disableConsoleIntercept --reporter=verbose`；禁止對正式 DB 執行。
+
+## 2026-10-11 補記：C19 老師文件原子稽核候選獨立複驗
+
+候選 `/private/tmp/xunfeng-c19` HEAD `a3c8507`（基底 `origin/main 1935618`，未部署）。在 C4 隔離 Supabase 直接暫套 `20261012010000_ai_documents_atomic_audit.sql`，以候選 Next dev `127.0.0.1:3217` 驗證；測後三個新 RPC 已移除，C4 migration history 原本與最後均為 0。**此節取代上方 C19「7/13、待修」的舊候選狀態；正式站票仍開啟。**
+
+| 測試面 | 結果與證據 | 驗證邊界 |
+|---|---|---|
+| 三路由 audit 故障與正常流程 | 原 `qa-admin-document-audit-local.mjs` **13/13**；擴充後 **19/19**。POST／PATCH／DELETE 在 scoped audit INSERT 故障時回 500，文件列、提示選取、audit 與 Storage 各保持應有原狀；正常 PATCH 有具名 audit，正常 POST 201 建一列及 Storage 物件／audit，正常 DELETE 200 刪列及物件並留下 audit。故障上傳及完整生命週期後，專用 Storage 孤兒檔計數均 0。 | Storage 與 Postgres 無共同交易；若 Storage 刪除本身故障，候選回 503 並保留可盤點 audit 路徑，需營運補清。 |
+| SQL 權限與原子性 | 候選 `supabase/tests/ai_documents_atomic_audit.sql` 在 C4 隔離庫完整執行並 rollback：三 RPC 為 `SECURITY INVOKER`，anon／authenticated 無 EXECUTE，service_role 可執行；故障回滾與正常 create→update→delete 稽核均通過。 | 正式 migration／權限尚未套用。 |
+| 總字數並發 | QA 自有 `qa-admin-document-budget-concurrency-local.sh` 使用專用 UUID，在 C4 隔離庫同時啟用兩份各 80,000 字、可用預算 150,000 字：**1/1**，僅一份成功、一筆 audit，總字數未超額；文件與 audit fixture 查無殘留。 | 這是 DB RPC 並發驗證；沒有經過瀏覽器 UI。 |
+| 程式回歸 | 候選 `route.c19.test.ts` **7/7**、`tsc --noEmit` 通過；SQL 專用 fixture、Auth/profile、Storage 與故障 trigger 查無殘留，候選工作樹未改動。 | 其他共用 `writeAdminAudit` 呼叫入口不屬本次三路由修補，仍待盤點。 |
+
+**測試總結：**本次 C19 候選沒有新 BLOCKER／critical／minor 缺陷；三路由隔離複驗通過。原 C19 critical 票保留至整合、正式 migration、部署及站端回歸完成。Storage 清理失敗的運維程序與其他共用 audit 入口列為剩餘風險，不當作已驗收通過。
