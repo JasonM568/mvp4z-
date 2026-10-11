@@ -351,3 +351,9 @@
 | M19 刪除一次性 | 原刪除腳本最初 14/15：測試自身的 stale-claim SQL 漏掉候選路由已有的 `status != deleted`，已修正測試。A/B 所有權、匿名 401、會員直呼 RPC 403、N=20 併發各輪 15/15（3 輪），事件各僅 1；再建立真正的私有照片與 PDF，16/16，兩物件均刪除、PII 抹除、後續重送 200 且無第二事件。Auth／profile／run／event／Storage fixture 均清除。 | C4 僅暫時直接套候選 SQL，測後原函式已還原、migration history 仍 0；正式 migration／部署後須重跑。 |
 
 以上三項沒有新的產品缺陷 ticket，亦不涉及商業規則取捨。M18／M19／M20 的候選隔離複驗可標為通過；舊版正式站的缺陷仍開票至整合與部署完成。
+
+### M20 有效新分析：受控 Vision／報告替身與真實隔離帳務
+
+- 候選 `/private/tmp/xunfeng-m18-m20` HEAD `2f672f0`。將 QA 專用 `app/api/face-analysis/runs/[id]/route.m20.qa.test.ts` 複製到候選 worktree，在主 QA 隔離 Supabase 執行；`QA_FACE_M20_E2E=true` 才啟用，普通 unit suite 會略過。執行時明確清除 `OPENAI_API_KEY`、`GEMINI_API_KEY`，Vitest 替身攔住 `runFaceVisionProvider` 和 `generateFaceReport`；Auth、Storage、route、規則層、usage 寫入與 `commit_face_analysis_credit` RPC 均走真實隔離服務。測後已移除候選 worktree 的暫存測試檔，分支保持乾淨。
+- **11/11 通過**：B 分析 A 的 uploaded run 回 404；A 有效新 run 分析 200 且回報扣 20；報告文字／JSON 持久化、usage 1 筆連到 run、debit ledger 1 筆 `-20`／`balance_after=20`、權益餘額 40→20；完成 run 重送 200，usage／ledger／餘額不變；另一新 run 的撰稿替身拋錯回 5xx，run 轉 failed、無報告、無新增 usage／ledger／扣點，B 對該 failed run 仍 404。每輪專用 Auth、profiles、runs、events、usage、ledger、entitlement、Storage 皆刪除並查無殘留。隔離測試重跑兩次通過，候選 `tsc --noEmit` 通過。
+- **驗證邊界**：此測試證明新分析 route 與隔離帳務結算，不證明真實 Vision／LLM 輸出的正確性、完整報告 schema 或正式站效能。既有 provider/schema 單元與真模型 E2E 是不同證據；正式站與真實付費模型均未呼叫。使用方式：在候選 worktree 複製此 QA 測試檔，僅載入本機 QA Supabase 的 `API_URL`／`ANON_KEY`／`SERVICE_ROLE_KEY`，映射到對應 `NEXT_PUBLIC_*` 與 `SUPABASE_SERVICE_ROLE_KEY`，設定 `FACE_ANALYSIS_ENABLED=true QA_FACE_M20_E2E=true`，移除模型金鑰，再執行 `vitest run 'app/api/face-analysis/runs/[id]/route.m20.qa.test.ts' --disableConsoleIntercept --reporter=verbose`；禁止對正式 DB 執行。
