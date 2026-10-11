@@ -85,14 +85,15 @@ try {
     ["limit 20", "?limit=20", 200, 20],
     ["limit abc", "?limit=abc", 400, null],
     ["limit SQLi shape", "?limit=1%20OR%201%3D1", 400, null],
-    ["limit overlong", `?limit=${"9".repeat(500)}`, 400, null]
+    ["limit 100-digit overlong", `?limit=${"9".repeat(100)}`, 400, null],
+    ["limit 500-digit overlong", `?limit=${"9".repeat(500)}`, 400, null]
   ]) {
     const result = await list(query);
     const countOk = count === null || (Array.isArray(result.body.items) && result.body.items.length === count);
     check(result.status === expected && countOk, name, `HTTP ${result.status}, items=${result.body.items?.length ?? "n/a"}`);
   }
-  console.log(`${passed}/7 Council history list checks passed`);
-  if (passed !== 7) process.exitCode = 1;
+  console.log(`${passed}/8 Council history list checks passed`);
+  if (passed !== 8) process.exitCode = 1;
 } finally {
   if (runIds.length) await db(`council_runs?id=in.(${runIds.join(",")})`, "DELETE");
   if (entitlementId) await db(`member_entitlements?id=eq.${entitlementId}`, "DELETE");

@@ -79,15 +79,16 @@ try {
     ["limit 50", "?limit=50", 200],
     ["limit abc", "?limit=abc", 400],
     ["limit SQLi shape", "?limit=1%20OR%201%3D1", 400],
-    ["limit overlong", `?limit=${"9".repeat(500)}`, 400]
+    ["limit 100-digit overlong", `?limit=${"9".repeat(100)}`, 400],
+    ["limit 500-digit overlong", `?limit=${"9".repeat(500)}`, 400]
   ]) {
     const result = await list(query);
     const expectedItems = name === "limit 1" ? 1 : name === "limit 50" ? 50 : 20;
     const countOk = expected !== 200 || (Array.isArray(result.body.items) && result.body.items.length === expectedItems);
     check(result.status === expected && countOk, name, `HTTP ${result.status}, items=${result.body.items?.length ?? "n/a"}`);
   }
-  console.log(`${passed}/7 face-report list checks passed`);
-  if (passed !== 7) process.exitCode = 1;
+  console.log(`${passed}/8 face-report list checks passed`);
+  if (passed !== 8) process.exitCode = 1;
 } finally {
   if (runIds.length) await db(`face_analysis_runs?id=in.(${runIds.join(",")})`, "DELETE");
   if (profileId) await db(`profiles?id=eq.${profileId}`, "DELETE");

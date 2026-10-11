@@ -107,7 +107,8 @@ try {
       [`limit ${max}`, `?limit=${max}`, 200, max],
       ["limit abc", "?limit=abc", 400, null],
       ["limit SQLi shape", "?limit=1%20OR%201%3D1", 400, null],
-      ["limit overlong", `?limit=${"9".repeat(500)}`, 400, null]
+      ["limit 100-digit overlong", `?limit=${"9".repeat(100)}`, 400, null],
+      ["limit 500-digit overlong", `?limit=${"9".repeat(500)}`, 400, null]
     ]) {
       const result = await api(path + query, adminToken);
       const countOk = count === null || (Array.isArray(result.body[key]) && result.body[key].length === count);
@@ -115,8 +116,8 @@ try {
         `HTTP ${result.status}, items=${result.body[key]?.length ?? "n/a"}`);
     }
   }
-  console.log(`${passed}/14 admin report list checks passed`);
-  if (passed !== 14) process.exitCode = 1;
+  console.log(`${passed}/16 admin report list checks passed`);
+  if (passed !== 16) process.exitCode = 1;
 } finally {
   if (memberProfileId) await db(`council_runs?user_id=eq.${memberProfileId}`, "DELETE");
   if (memberProfileId) await db(`face_analysis_runs?user_id=eq.${memberProfileId}`, "DELETE");
