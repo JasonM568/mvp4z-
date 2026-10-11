@@ -17,6 +17,10 @@ fi
   printf 'BEGIN;\n'
   if [[ ${2:-} == --migration-preview ]]; then
     migration="$(cd "$(dirname "$0")/.." && pwd)/supabase/migrations/20261011160000_addon_preserves_entitlement_tier.sql"
+    if [[ ! -f "$migration" ]]; then
+      echo "Migration preview unavailable: C9 migration is currently reverted" >&2
+      exit 2
+    fi
     printf '\\i %s\n' "$migration"
   fi
   cat <<'SQL'

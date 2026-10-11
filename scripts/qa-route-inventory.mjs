@@ -80,7 +80,7 @@ function apiStatus(route) {
     "/api/auth/login": "部分已驗：正確／錯密碼",
     "/api/auth/refresh": "部分已驗：有效／無效 refresh",
     "/api/auth/forgot-password": "部分已驗：帳號不洩漏；重設信待驗",
-    "/api/member/me": "隔離通過 C9：加購後有效 VIP/20、失效歷史列不遮蔽；有效會員／失效 token，正式待驗",
+    "/api/member/me": "C9 條件通過：已套現回退 migration 的隔離庫 VIP/20；現行 fresh DB 加購仍不合格",
     "/api/member/orders": "隔離通過：A/B 訂單所有權、付款開通輪詢與 SQLi 形狀查詢 11/11",
     "/api/member/usage": "隔離通過：A/B 使用量 API 所有權與匿名／壞 token 拒絕",
     "/api/plans": "部分已驗：公開 GET 200 與 plans 結構（安全冒煙 21/21）；內部方案顯示／排序待驗",
@@ -112,7 +112,7 @@ function apiStatus(route) {
     "/api/admin/site-content": "不合格 M13：is_published 字串 false 在 POST/PATCH 被當 true、意外上架；其餘 CMS 管理流程待驗",
     "/api/cron/cleanup-pending-orders": "隔離通過：密鑰拒絕、dry-run、舊 pending 清理及新 pending／paid 保留；正式排程待驗",
     "/api/cron/expire-entitlements": "不合格 C11：dry-run 候選 1，正式執行因 updated_at 欄位不存在回 500",
-    "/api/face-analysis/runs": "部分已驗：A/B 歷史列表；C9 加購後建立綁新有效 VIP 權益；provider 待驗",
+    "/api/face-analysis/runs": "部分已驗：A/B 歷史列表；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider 待驗",
     "/api/face-analysis/runs/[id]": "部分已驗：A/B 詳情與越權 DELETE；本人刪除待驗",
     "/api/face-analysis/runs/[id]/preview": "部分已驗：越權 404；有效照片待驗",
     "/api/face-analysis/runs/[id]/image": "部分已驗：越權 DELETE 404；本人照片待驗"
