@@ -532,6 +532,6 @@ QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 
 
 Ego Lite 對正式站 10 個公開頁面以 390px、320px CSS viewport 唯讀檢查 `main`／`h1` 與 body 寬度。390px **10/10 無水平溢出**；320px **8/10 通過**，`/courses` body scrollWidth 337px，主標語 H2 323/292px、課程卡 H3 170/152px；`/member-pricing` body scrollWidth 358px，H1 344/292px，截圖可見文字裁切。手機主選單與老師服務子選單可展開。此為正式站當下 UI 的新 minor 缺陷 **QA-FS-UI1**，已記錄步驟、影響、驗收標準與截圖於 [QA-FS-UI1](qa-fs-ui1-mobile-overflow-2026-10-11.md)，待 X-PM 定序／派工。沒有提交表單、登入或付款；其餘 8 個公開頁面 320px 無溢出。
 
-可重複執行腳本 `scripts/qa-public-mobile-layout.ego.sh` 已加入；重跑結果 **18/20 通過、2 失敗**，分別為 320px `/courses`（body 337px）及 `/member-pricing`（body 358px），手機服務選單通過。它只讀正式公開頁，失敗時以 exit code 1 結束；修復複驗應另外檢查 360px 與桌面版。
+可重複執行腳本 `scripts/qa-public-mobile-layout.ego.sh` 已加入；重跑結果 **18/20 通過、2 失敗**，分別為 320px `/courses`（body 337px）及 `/member-pricing`（body 358px），手機服務與案例／課程子選單均通過。它只讀正式公開頁，失敗時以 exit code 1 結束；修復複驗應另外檢查 360px 與桌面版。
 
 **C21/C22 回歸狀態刷新：**`npx vitest run --config scripts/qa-admin-policy-audit-failures.vitest.mts` 重跑 **5/5**，仍重現三個 C21 publish/signoff 路由及 C22 approval POST／DELETE 在 audit INSERT error 時靜默回 200、業務狀態已改而 audit=0。證據仍限 route＋記憶體替身，不能代表真 DB；兩張 critical 票待 X-PM 派工。QA-UAT W01 已補記 UI1 證據及未通過限制，方框維持未勾。
