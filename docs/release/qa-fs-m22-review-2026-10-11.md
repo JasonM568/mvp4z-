@@ -10,11 +10,11 @@
 
 **Acceptance Criteria：**X-QA 對 `15631e7`：M22 **29/29**、跨模組 **108/108**；故障後 run=`created`、path 空、Storage/event 0，重試成功；匿名／會員 RPC 拒絕。工程獨立空 DB **51/51** migration 重播、版本唯一、M19→C19→M21→M22、RPC ACL f/f/t 與 SQL 故障測試通過。證據：`docs/qa/full-system-acceptance-2026-10-11.md` M22、QA commit `87188e7`。正式站未驗；執行清單見 `qa-fs-m22-production-regression-plan-2026-10-11.md`。
 
-**發布／回復：**先核正式專案與 migration drift、備份／回復演練及 B3 安全阻擋項；按核准計畫套四版 migration，再發布對應 app，最後由 QA 站端回歸。禁止盲目 `db push`。唯讀 Vercel 快照：`www.xunfeng.tw` 指向 READY `dpl_FLG1koTbFyVZzg5z927tL2iBerby`／SHA `1935618`；發布前須重查。失敗先回核准的前一 app；DB 不盲刪，依 Tech Lead 核准腳本修復。
+**發布／回復：**先核正式專案與 migration drift、備份／回復演練及 B3 安全阻擋項；依核准計畫先套相依 migration，再發布對應 app，最後由 QA 站端回歸。禁止盲目 `db push`。唯讀 Vercel 快照：`www.xunfeng.tw` 指向 READY `dpl_FLG1koTbFyVZzg5z927tL2iBerby`／SHA `1935618`；發布前須重查。原 M22 四版順序為 M19→C19→M21→M22；若選 M23 新路徑方案，須增列 migration 與雙路徑相容回復，不能直接套用「回前一 app」。DB 不盲刪，依 Tech Lead 核准腳本修復。
 
 **Risks / Open Questions：**正式 history 49 版、候選 51 版，重疊 38；九組舊版 SQL 去註解後一致，但版號及歷史效果未全證；兩版 CianRou 只在正式端。逐版與退款證據見 `m22-migration-drift-review-2026-10-11.md`、`m22-manual-refunds-drift-review-2026-10-11.md`。M19～M22 尚未套；runtime ref、復原能力待證。工程與 X-QA 各以隔離替身重現 event＋Storage 補償雙故障：留私有孤兒照片，同格式重送 409 並耗 attempt；真 Storage 故障未實測。已另立 critical `docs/qa/qa-fs-m23-face-storage-compensation-orphan-2026-10-11.md`。人工逐檔清理或新增恢復機制、history 對映、退款 ACL/RLS、回復 SQL、部署窗口待 Tech Lead 決定。未 push／部署／改正式庫；M22 critical 票仍開。
 
-**決策選項：**建議先審退款版號正規化、CianRou 歸屬、history 對映、回復演練及 M23 恢復方案，再受控逐版發布；優點是可追溯且可清理私有孤兒，代價是延後修復。維持現況可避免未審核資料庫變更，但 M22 缺陷持續存在。Tech Lead 應明確選擇並記錄剩餘風險。
+**決策選項：**先審退款版號、CianRou 歸屬、history 與回復。M23 候選 A 為「每次上傳持久紀錄＋獨立物件 key」，可追蹤且較能隔離舊 worker，但需新 schema、清理工作與雙路徑相容；候選 B 維持固定 key＋受限人工單檔清理，改動較小但恢復慢、競態較難證。工程建議 A；詳見 `m23-recovery-design-candidates-2026-10-11.md`。Tech Lead 決定後才建立新候選與發布順序。
 
 **Handoff Notes：**Backend：正式庫唯讀盤點／逐版方案／ACL；Frontend：錯誤提示／重試／狀態；Mobile：窄螢幕提示／重送／狀態；QA：權限／故障重試／並發與點數 Storage 回歸。
 
