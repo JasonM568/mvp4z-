@@ -13,7 +13,7 @@
 | `/api/admin/course-product` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/course-registrations` | GET | 隔離通過 M7/M11：非法 limit 400、完整摘要與 DB 一致，跟進流程 17/17；正式站待驗 |
 | `/api/admin/course-registrations/[id]` | PATCH | 隔離通過：具名管理員跟進 PATCH、時間戳與 audit；非法／超長拒絕 |
-| `/api/admin/create-code` | POST | 隔離正常／非法／邊界／N=10 唯一碼與 audit 13/13；audit INSERT 回 error 的 route＋替身再現 HTTP 200、新碼已建但 audit 0（QA-FS-C20 critical）；真 DB 故障未驗 |
+| `/api/admin/create-code` | POST | 現行 main 的 C20 audit 缺陷仍開票；整合候選 `3f3eec5` route suite 2/2、獨立 C20 audit RPC SQL fault/rollback/ACL 通過，建立 code＋audit 同交易；只有 route-in-process／DB SQL 證據，正式 runtime 與站端待驗 |
 | `/api/admin/credits` | POST | 不合格 QA-FS-C2：超額扣點餘額與帳本不一致；audit error route＋替身再現 valid delta 已入餘額／ledger、HTTP 200 但 audit 0，併入 C2 追蹤 |
 | `/api/admin/documents` | GET, POST | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 隔離 HTTP 正常／audit 故障原子性與 Storage、字數邊界 22/22，加 DB 並發 1/1；Storage 故障只有替身 2/2，正式整合／部署待驗 |
 | `/api/admin/documents/[id]` | DELETE, PATCH | 現行 main 原缺陷仍在；C19 候選 `78dff9c` 的 PATCH／DELETE 正常、audit 故障回滾、title-only 相容性列入隔離 HTTP 22/22；Storage 故障只有替身 2/2，正式整合／部署待驗 |
@@ -37,7 +37,7 @@
 | `/api/admin/face-teachings/import-builtin` | POST | C18 候選 X-QA 隔離兩輪通過：audit 故障 500／新增 0、正常匯入 67 筆、重跑冪等且具名 audit；正式整合／部署待驗 |
 | `/api/admin/gemini-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/invoices` | GET | 部分已驗：具名管理員 pending 發票列表與訂單連結；開票／退款待驗 |
-| `/api/admin/invoices/[orderId]/issue` | POST | C8 隔離 paid 訂單非法 body 7/7；C20 audit error route stub 為 HTTP 200、audit 0；C23 helper＋provider stub 2/2：row INSERT failure 重試會重呼 provider，N=10同單併發發出10次 provider call、本地 unique index只允1筆；未呼叫真 EZPay／DB，provider去重未知 |
+| `/api/admin/invoices/[orderId]/issue` | POST | 整合候選 `3f3eec5` 候選自帶 route/helper suite 13/13，含 C20/C23 手動開票、持久化失敗不盲目重開、N=10 同單僅一個 provider dispatch；QA 碰撞 route harness 4/4（HTTP 409，零 provider dispatch）；C20/C23 SQL contract、ACL、fault rollback 通過。未呼叫真 EZPay；正式站／真 provider 冪等與通知 HTTP N=10 仍待驗 |
 | `/api/admin/members` | GET | C16 修復分支隔離 API 9/9：205 筆跨五頁無漏、最舊 Email 搜尋、全域總數及非法 page／q／cursor；Ego UI 第 5 頁／搜尋通過，1,001 筆規模 11/11；正式整合／部署待驗 |
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
 | `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 隔離 API/DB：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego 管理員 UI 遺失回應後同鍵重送，退款／交易／audit 各 1；正式 migration／站端待驗 |
@@ -74,7 +74,7 @@
 | `/api/face-analysis/runs` | GET, POST | A/B 歷史列表通過；M17 補修分支 `ced1432` limit 邊界隔離 8/8，abc／SQLi／100／500 位均 400；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider／正式站待驗 |
 | `/api/face-analysis/runs/[id]` | DELETE, GET | 現行 main M19 競態仍開票；M19 候選與整合 production build 隔離 16/16：A/B、N=20、PII 抹除、一次事件、私有照片／PDF 刪除、重送；正式 migration／部署待驗 |
 | `/api/face-analysis/runs/[id]/analyze` | POST | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24、非法分析無 DB／Storage／點數副作用 4/4；有效新分析另以受控 Vision／報告替身與真隔離帳務驗證，真模型及正式站待驗 |
-| `/api/face-analysis/runs/[id]/image` | DELETE | QA route＋記憶體 DB/Storage 替身 8/8，重現 finalize／event 故障窗口；M24 HEAD `3412b49` 候選 tests 6/6、QA RPC mock harness 5/5；版號 `20261012050000`，但候選樹未含 M19/C19/M21/M22 migration，未做 clean replay；真 DB/Storage health 待驗 |
+| `/api/face-analysis/runs/[id]/image` | DELETE | QA route＋記憶體 DB/Storage 替身 8/8，重現 finalize／event 故障窗口；整合候選 `3f3eec5` M24 route/RPC harness 5/5，M24 SQL atomic fault/ACL test 通過，並由 QA 自有 DB-only stack 54/54 clean replay（history 54/54，M19→C19→M21→M22→M24→C20→C23 順序）。全程無 Storage/API 服務，真 DB＋Storage 故障與正式部署仍待驗 |
 | `/api/face-analysis/runs/[id]/pdf` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 PDF 11/11：本人位元組與重取一致、跨會員 404、未完成 409、壞 ID 400；正式站待驗 |
 | `/api/face-analysis/runs/[id]/preview` | GET | 現行 main M20 壞 ID 仍 500；候選／整合隔離 ID 矩陣 24/24，A/B 有效私有照片預覽與拒絕路徑已驗；正式站待驗 |
 | `/api/face-analysis/runs/[id]/upload` | POST | 現行 main M21／M22 原缺陷仍開票；M22 整合候選 `15631e7` 隔離 29/29：空照片不計次、品質拒絕→合格、N=2×10、lease、event 故障原子回滾；M23 Option A `42175c1` focused 11/11、QA route/storage stub 3/3、最小 PostgreSQL scratch 驗 cleanup_pending／attached 不刪／A-B key 分離；尚無 reconciler、完整 replay、真 Supabase Storage 故障與正式站驗收，critical gate 維持 |
@@ -88,7 +88,7 @@
 | `/api/member/redeem` | POST | 隔離通過：N=10 原子兌換／rollback；正式待驗 |
 | `/api/member/usage` | GET | 隔離通過：A/B 使用量 API 所有權與匿名／壞 token 拒絕 |
 | `/api/orders/create` | POST | 部分已驗：M4 邊界及內部方案 code／ID 拒絕 9/9、推廣歸因；M5／C5 待規則 |
-| `/api/payments/ecpay/notify` | POST | C4 隔離四情境×20輪；C23 本機 provider stub 證實 invoice row INSERT fault 後 notify 仍 ACK `1|OK`，相同 callback 重送再次呼叫 provider（1/1）；未呼叫真 provider，EZPay去重未知，正式待驗 |
+| `/api/payments/ecpay/notify` | POST | C4 隔離四情境×20輪；整合候選 `3f3eec5` 的通知路由候選測試涵蓋相同 callback 重送只完成一次持久操作；QA C23 碰撞測試及 helper N=10 僅一個 dispatch 通過。未執行 notify HTTP N=10、未呼叫真 EZPay；provider 冪等與正式部署待驗 |
 | `/api/payments/ecpay/return` | GET, POST | 隔離 dummy stage MAC 5/5：GET 導會員頁、偽造付款 pending、合法 MAC 導 paid；僅導回，真實交易與 UI 輪詢待驗 |
 | `/api/plans` | GET | 部分已驗：公開 GET 200 與 plans 結構（安全冒煙 21/21）；內部方案顯示／排序待驗 |
 | `/api/redeem` | POST | 舊路由無權杖 401，與新路由相同；有效兌換待驗 |

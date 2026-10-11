@@ -3116,3 +3116,16 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 ### 文件更新
 - 更新 `docs/qa/qa-fs-m23-option-a-spike-review-2026-10-11.md`、`docs/qa/route-inventory-2026-10-11.md` 與 `docs/qa/full-system-acceptance-2026-10-11.md`，同步 scratch 證據與恢復缺口。
 - `git diff --check` 通過。全系統其他 BLOCKER／critical、正式站回歸與客戶 UAT 尚未完成。
+
+## 2026-10-11｜M24／C20／C23 整合候選獨立複驗
+
+### 範圍與證據
+- 獨立複驗 `/private/tmp/xunfeng-m24-c20-c23` HEAD `3f3eec5652dfb58280d19e53c99b6bbd4d63811f`，clean tree。DB-only disposable Supabase project 從空 DB 套用 54/54 migrations，history count/distinct 54/54；M19→C19→M21→M22→M24→C20→C23 的尾端順序正確。
+- 執行 M19、C19、M22、M24、C20、C23 SQL transaction／fault／ACL contract tests。M24 test 僅在 QA 私有暫存副本調整 guard 與 fixture 以相容完整 schema，工程候選與原測試未改。
+- 候選自帶 C20 create-code、C20/C23 manual invoice、C23 notify/helper suites：4 files／13 tests passed；QA-owned M24 RPC route harness 5/5，C23 collision harness 4/4；`npx tsc --noEmit` 通過。helper N=10 同單只有一個 provider dispatch；notify 只驗 sequential redelivery，沒有宣稱 HTTP N=10。
+- 先前 C23 collision harness 的 500 來自 QA mock 漏掉 `readJson`；僅更新 QA-owned mock 保留 route 真實 helper，修後 4/4 通過。沒有改工程候選。
+- DB-only project 已停止清除；沒有使用 C4／共用 stack、Storage API/object、正式資料或 EZPay。一次性 source archive 已刪除。
+
+### 未結風險與下一步
+- 尚無真 Storage 故障／恢復、完整 HTTP+DB+Storage 流程、EZPay 真 provider 冪等、notify HTTP N=10 或正式站部署回歸。M24、C20、C23 候選證據不關閉正式發布 gate；P05/P07/F03 客戶 UAT 未通過。
+- 更新 `docs/qa/full-system-acceptance-2026-10-11.md`、`docs/qa/route-inventory-2026-10-11.md` 與 `docs/qa/customer-uat-checklist-draft-2026-10-11.md`；不 stage `scripts/qa-refund-boundaries-local.sh`、`scripts/qa-refund-rounding-local.sh` 等既有使用者檔案。

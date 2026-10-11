@@ -22,7 +22,8 @@ vi.mock("@/lib/payments/ezpay-config", () => ({
   getValidatedEzpayConfig: () => ({ env: "stage", merchantId: "12345678", hashKey: "k".repeat(32), hashIv: "i".repeat(16) })
 }));
 vi.mock("@/lib/auth/admin", () => ({ requireAdmin: async () => ({ profile: { id: "qa-admin" } }) }));
-vi.mock("@/lib/auth/member", () => ({
+vi.mock("@/lib/auth/member", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/auth/member")>()),
   errorMessage: (error: Error) => error.message,
   errorStatus: (error: { status?: number }) => error.status || 500,
   statusError: (message: string, status: number) => Object.assign(new Error(message), { status })
