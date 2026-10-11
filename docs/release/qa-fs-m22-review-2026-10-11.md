@@ -14,7 +14,7 @@
 
 **Risks / Open Questions：**正式 history 49 版、候選 51 版，重疊 38；九組舊版 SQL 去註解後一致，但版號及歷史效果未全證；兩版 CianRou 只在正式端。逐版與退款證據見 `m22-migration-drift-review-2026-10-11.md`、`m22-manual-refunds-drift-review-2026-10-11.md`。M19～M22 尚未套；runtime ref、復原能力待證。工程與 X-QA 各以隔離替身重現 event＋Storage 補償雙故障：留私有孤兒照片，同格式重送 409 並耗 attempt；真 Storage 故障未實測。已另立 critical `docs/qa/qa-fs-m23-face-storage-compensation-orphan-2026-10-11.md`。人工逐檔清理或新增恢復機制、history 對映、退款 ACL/RLS、回復 SQL、部署窗口待 Tech Lead 決定。未 push／部署／改正式庫；M22 critical 票仍開。
 
-**決策選項：**先審退款版號、CianRou 歸屬、history 與回復。M23 候選 A 為「每次上傳持久紀錄＋獨立物件 key」，可追蹤且較能隔離舊 worker，但需新 schema、清理工作與雙路徑相容；候選 B 維持固定 key＋受限人工單檔清理，改動較小但恢復慢、競態較難證。工程建議 A；詳見 `m23-recovery-design-candidates-2026-10-11.md`。Tech Lead 決定後才建立新候選與發布順序。
+**決策選項：**先審退款版號、CianRou 歸屬、history 與回復。M23 候選 A 為「每次上傳持久紀錄＋獨立物件 key」，可追蹤且較能隔離舊 worker，但需新 schema、清理工作與雙路徑相容；候選 B 維持固定 key＋受限人工單檔清理，改動較小但恢復慢、競態較難證。工程建議 A；隔離 spike `42175c1` 已有 route/Storage 11/11 與獨立 PG ACL／故障證據，但沒有正式 reconciler、真 Storage 故障或全量 replay，X-QA 獨立審核待回。詳見 `m23-recovery-design-candidates-2026-10-11.md`。Tech Lead 決定後才建立新候選與發布順序。
 
 **Handoff Notes：**Backend：正式庫唯讀盤點／逐版方案／ACL；Frontend：錯誤提示／重試／狀態；Mobile：窄螢幕提示／重送／狀態；QA：權限／故障重試／並發與點數 Storage 回歸。
 
