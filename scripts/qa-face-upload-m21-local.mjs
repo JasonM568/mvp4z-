@@ -92,6 +92,20 @@ async function upload(runId, token, image) {
   });
   return { status: response.status, body: await response.json().catch(() => ({})) };
 }
+async function directUploadResultRpc(bearer, profileId) {
+  const response = await fetch(`${env.API_URL}/rest/v1/rpc/record_face_upload_result`, {
+    method: "POST", signal: AbortSignal.timeout(15_000),
+    headers: { apikey: env.ANON_KEY, Authorization: `Bearer ${bearer}`,
+      "content-type": "application/json" },
+    body: JSON.stringify({
+      p_run_id: crypto.randomUUID(), p_user_id: profileId,
+      p_claim_token: crypto.randomUUID(), p_status: "uploaded",
+      p_storage_path: null, p_mime_type: "image/png", p_file_size: 1,
+      p_width: 1, p_height: 1, p_quality_result: { reasons: [] }
+    })
+  });
+  return response.status;
+}
 async function storagePaths(profileId, runId) {
   const result = await admin.storage.from("face-analysis-uploads").list(`${profileId}/${runId}`);
   assertNoError(result, "Storage list");
@@ -177,6 +191,10 @@ try {
     error ? reject(error) : resolve()));
   const a = await createMember("a");
   const b = await createMember("b");
+  check([401, 403, 404].includes(await directUploadResultRpc(env.ANON_KEY, a.profileId)),
+    "anon cannot call upload-result RPC directly");
+  check([401, 403, 404].includes(await directUploadResultRpc(a.token, a.profileId)),
+    "member cannot call upload-result RPC directly");
   const membersFile = join(tempDir, "members.private.json");
   await writeFile(membersFile, JSON.stringify({ members: [a, b].map((member) => ({
     email: member.email, password: member.password, profile_id: member.profileId
@@ -283,6 +301,18 @@ try {
   `HTTP ${faultResponse.status}, DB ${faultRow.status}, DB path ${Boolean(faultRow.storage_path)}, objects ${faultStorage.length}, events ${(await events(faultId)).length}`);
   check(await balanceFootprint(a.profileId) === baseline,
     "event INSERT failure does not charge credits");
+  await sql(`drop trigger ${faultTriggerName} on public.face_analysis_events;
+    drop function public.${faultTriggerName}();`);
+  faultTriggerName = null;
+  const retry = await upload(faultId, a.token, image);
+  const recoveredRow = await row(faultId);
+  check(retry.status === 200 && recoveredRow.status === "uploaded"
+    && recoveredRow.upload_attempts === 2 && !recoveredRow.upload_claim_token
+    && (await storagePaths(a.profileId, faultId)).includes(recoveredRow.storage_path)
+    && (await events(faultId)).length === 1,
+    "same run retries successfully after event fault removed", `HTTP ${retry.status}`);
+  check(await balanceFootprint(a.profileId) === baseline,
+    "event-fault retry preserves credit footprint");
 } finally {
   while (heldProviderCalls.length) heldProviderCalls.shift()?.();
   provider.close();

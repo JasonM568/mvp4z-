@@ -444,3 +444,16 @@ X-PM 追加指定 stale 2 分鐘 lease 與獨立 event 故障。QA 延伸同一�
 **測試總結：**整合候選五個 slice 的代表 API 回歸通過，沒有新 BLOCKER；既有 **critical QA-FS-M22**（event INSERT 故障使 `uploaded` row 指向已刪 Storage）仍開票，這批 3231 代表腳本未重新故障注入，不把它列為通過。正式站、完整 UI、真品質提供者與 M20 有效新分析主流程在這個 production build 尚未重跑；先前各分支隔離證據仍有效，但不替代整合驗收。
 
 **整合 production build 有效圖片補驗：**工程通知 3231 已連本機品質 stub `127.0.0.1:3222`，QA 唯讀檢查 stub 程式與監聽程序後，用自有 `qa-face-upload-integrated-local.mjs`、專用新 run、合成 PNG 直打 3231：品質合格 **5/5**（A/B 404、HTTP 200 uploaded、DB path 與私有 Storage 物件相符、event 1、claim 釋放、權益／ledger／usage 不變）。因 3222 的首筆拒絕計數已用過，QA 又以**同一份 `b04b08e` production build** 在獨立 3232 埠連自有 first-reject-then-pass 的 `qa-face-quality-stub-local.mjs`，同一新 run 首次 `quality_rejected` 無物件、第二次 `uploaded` 有一物件，事件數對應 attempt，**7/7**。兩批各自清除 run/event/Storage；QA 的 3232 與 stub 已停止，沒有對工程的 3231 執行停機。收尾時 3231 已無法連線，可能由工程端另行停止，這不影響測試時的 HTTP 證據。合計再補 **12/12** 有效合成圖端點檢查；品質幾何由 stub 控制，仍不代表真實人臉服務判讀。QA-FS-M22 的 event INSERT 故障在這兩批未注入，保持 critical 開票。
+
+### QA-FS-M22 原子化上傳結果候選：獨立複驗
+
+工程修復候選 `/private/tmp/xunfeng-face-release-m22` HEAD `15631e766bfe175ef3275d6121efe829ff13470b`，基於整合版 `b04b08e`，新增 `20261012040000_face_upload_result_atomic.sql`，以單一 `SECURITY INVOKER` RPC 提交 run 結果與 event。C4 隔離 DB 已暫套 SQL，但 M22 migration history **0**；QA 沒有在全新 stack 獨立 replay 51 版。候選 production build 在工程保留的 3233；為可控品質故障，QA 另以**同一份 build** 在自有 3234 埠連本機 stub，僅用合成 PNG 與全新臨時帳號／run，未碰正式 DB 或真實模型。
+
+| 驗收面 | QA 獨立結果 |
+|---|---|
+| M22 故障主案 | `qa-face-upload-m21-local.mjs` 對專用 run 安裝 scoped `face_analysis_events` INSERT 故障：HTTP 500 後 DB `status=created`、`storage_path=null`、Storage 0、event 0、點數不變；移除故障後**同 run 重送 200**，DB `uploaded`、attempt 2、Storage 1、event 1、claim 釋放。先前 `uploaded` 指向已刪物件的 critical 症狀已在隔離候選消失。 |
+| RPC ACL／M21 回歸 | anon／會員 bearer 直呼新 RPC 均拒絕；空上傳原腳本 **10/10**，有效圖拒絕→合格、A/B、N=2×10 輪、3 分鐘 stale lease 回收與舊 token 不覆寫均通過。完整 QA 腳本 **29/29**，exit 0。 |
+| 整合代表案例 | 工程保留的 3233：M18 **21/21**，M20 ID **24/24**＋PDF **11/11**＋非法 analyze 零副作用 **4/4**，M19 **16/16**，C19 **22/22**＋DB 字數並發 **1/1**，M21 空上傳 **10/10**；端點合計 **108/108**。 |
+| SQL／單元與清理 | 候選 `supabase/tests/face_upload_result_atomic.sql` 在 C4 隔離 DB 交易內 **BEGIN→故障回滾與 retry→ROLLBACK** 成功，驗 anon/authenticated 無 EXECUTE、service_role 有權；M21＋C19 route unit **14/14**、`tsc --noEmit`、diff check 通過。QA 專用 Auth/profile/trigger/function/document 額外查 0，各腳本 run/event/Storage/帳務清 0；候選 worktree 乾淨。自有 3234 已停止，工程 3233 測後仍 HTTP 200。 |
+
+**測試總結：**QA-FS-M22 可標記「critical 隔離複驗通過、待整合／51 版乾淨 migration replay／正式站回歸」，不得直接關閉正式驗收票。此批沒有新 BLOCKER 或 minor 缺陷。真實人臉品質服務、完整 UI 與正式 DB／部署均未驗；工程的 C4 migration history 未登錄 M22，不能用 3233 HTTP 通過取代部署 gate。QA 建議先完成乾淨 migration replay 與正式整合審核，再安排安全的站端回歸。
