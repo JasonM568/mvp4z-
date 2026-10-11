@@ -3297,3 +3297,9 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 
 - main HEAD `408134d` 執行 `npx vitest run`：**75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）**。兩個 expected-fail 仍為 B1 同會員問答並發與 C2 ledger amount mismatch。
 - `npx tsc --noEmit` 與 `git diff --check` 通過。忘記密碼修復候選專用 suite 不在預設 include，獨立結果為 C25 2/2、C24 7/7；main route 對照仍有兩個缺陷失敗。退款 QA user scripts 保持未提交。
+
+
+## 2026-10-12｜全系統 route/page inventory 重新盤點
+
+- 執行 `node scripts/qa-route-inventory.mjs`，由目前 app tree 刷新自動盤點文件：**88 個 API route 檔、50 個 page 檔**，未發現新增／遺漏路由；QA 狀態欄沿用既有逐項證據，沒有把生成動作視為重測。
+- 忘記密碼路由狀態保留 C24/C25 固定 SHA 的獨立複驗結果；route inventory 基準更新至 `48a4384`。`git diff --check` 通過。
