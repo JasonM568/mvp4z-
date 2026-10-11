@@ -32,7 +32,7 @@
 | `/api/admin/face-review-questions` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-rules` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；POST 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/face-rules/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
-| `/api/admin/face-teachings` | GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；專用已發布 surface 規則 POST 200（C17）；其他 kind／邊界待驗；匿名／壞 token／會員拒絕已驗 |
+| `/api/admin/face-teachings` | GET, POST | 不合格 C18：專用 audit INSERT 故障仍 POST 200、規則 published／audit 0，隔離 4/6；C17 已發布規則建立及 SQLi／超長驗證部分通過；其他 kind 待驗 |
 | `/api/admin/face-teachings/[id]` | DELETE, PATCH | 不合格 C17：已發布直接刪 409，PATCH 封存後 DELETE 200 並移除規則，舊引文可能無法追溯；隔離腳本 9/10（SQLi／超長 400、草稿可刪）、fixture 清 0 |
 | `/api/admin/face-teachings/import-builtin` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/gemini-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
