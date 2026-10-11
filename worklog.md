@@ -3135,3 +3135,7 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 重跑 `npx vitest run --config scripts/qa-admin-policy-audit-failures.vitest.mts`：5/5 通過（缺陷重現），包括 C22 POST 核准與 DELETE 撤銷在 audit INSERT error 後仍 HTTP 200、狀態已變更、audit 0。證據僅限 route＋記憶體替身；未連真 DB，未呼叫 OpenAI。
 - 將 QA-FS-C22 critical ticket 與 repro、預期／實際、影響、10 輪隔離驗收標準、fixtures 清理要求及「不涉及商業規則」送 X-PM 定序／派工；正式庫不得故障注入。
 - 更新 `docs/qa/qa-fs-c22-provider-approval-audit-failures-2026-10-11.md` 與全系統驗收票狀態；等待工程候選 SHA 後獨立複驗。
+
+### 票務狀態對齊
+- 清理全系統文件的舊派工狀態：C20/C23 已有整合候選隔離複驗結果，改為候選通過、正式 gate 未結；C21 維持已派工程1；C22 更新為已送 X-PM 定序／派工。
+- 補記 C20/C23 ticket 對 `3f3eec5` 的候選 route/SQL 證據及真 EZPay 限制；保留原始缺陷重現與正式發布風險。

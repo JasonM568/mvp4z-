@@ -1,6 +1,6 @@
 # QA-FS-C23：provider 開票成功後 invoice row INSERT 失敗，重送再次呼叫 provider
 
-**嚴重度：critical（外部重複開票風險，provider 去重語意待確認）**　**狀態：碰撞修補候選隔離複驗通過；provider 故障恢復及整合 release gate 未完成**
+**嚴重度：critical（外部重複開票風險，provider 去重語意待確認）**　**狀態：整合候選 route／SQL 隔離複驗通過；真 provider 契約與正式 release gate 未完成**
 
 ## 重現證據
 
@@ -39,6 +39,12 @@ npx vitest run --config scripts/qa-invoice-provider-success-row-failure.vitest.m
 ## 證據限制
 
 此為實際 route/helper＋provider stub＋記憶體 DB 證據，不是 EZPay contract test，也未連正式或隔離 Supabase。開票是否重複成功取決於 EZPay 對重複 `MerchantOrderNo` 的正式契約；需工程／PM確認 provider 查詢與重試策略，但不得用真付費／正式發票做故障注入。
+
+## 整合候選 durable issue flow 複驗（2026-10-11）
+
+整合候選 `/private/tmp/xunfeng-m24-c20-c23` HEAD `3f3eec5652dfb58280d19e53c99b6bbd4d63811f` 的 manual invoice、notify 與 helper tests 在一次性 source copy **4 files／13 tests passed**；QA collision harness **4/4**。SQL outbox/ACL/fault tests 及 54/54 full DB-only migration replay 通過。helper provider-success 後本地交易故障不盲目再次 dispatch；同單 N=10 helper 只有一個 dispatch、其餘 conflict。notify route 有 sequential duplicate callback 證據，尚無 HTTP N=10。
+
+候選修復了隔離 stub 所見的 blind re-issue 控制流，但不能證明 EZPay 接受相同 merchant reference 的查詢／冪等契約，也未在真 Storage/API/provider 或正式站執行。故 C23 critical 不結案；正式複驗需核對 provider 契約、部署 SHA，並於專用 stage provider 測一次受控成功與可查詢結果，不在正式環境注入故障。
 
 ## MerchantOrderNo 碰撞候選複驗（2026-10-11）
 
