@@ -12,7 +12,7 @@
 
 **發布／回復：**先核正式專案與 migration drift、備份／回復演練及 B3 安全阻擋項；按核准計畫套四版 migration，再發布對應 app，最後由 QA 站端回歸。禁止盲目 `db push`。失敗先回前一已驗證 app；DB 不盲刪，依 Tech Lead 核准腳本修復。
 
-**Risks / Open Questions：**工程唯讀 preflight：正式 history 49 版，與候選共 38 版；remote-only 11、candidate-only 13，四版 M19～M22 均未套；正式庫缺 M21 lease 欄與 M22 RPC。正式站 runtime ref 尚未核實，備份復原能力待證。Storage 補償失敗可留孤兒檔；建議人工比對 path、DB 引用、run 狀態與 lease 後逐檔處理。drift 等價性、安全緩衝、值班人、回復 SQL、整合順序及部署窗口待 Tech Lead 決定。未 push／部署／改正式庫；M22 critical 票仍開。
+**Risks / Open Questions：**正式 history 49 版、候選 51 版，重疊 38；八組舊版 SQL 指紋相同但歷史資料未證，退款版 SQL 衝突、兩版 CianRou 只在正式端。逐版證據見 `m22-migration-drift-review-2026-10-11.md`。M19～M22 尚未套，正式庫缺 M21 lease 欄與 M22 RPC；runtime ref、復原能力待證。Storage 補償失敗可留孤兒檔，建議人工比對 path、DB 引用、run 狀態與 lease 後逐檔處理。history 對映、安全緩衝、值班人、回復 SQL、整合順序及部署窗口待 Tech Lead 決定。未 push／部署／改正式庫；M22 critical 票仍開。
 
 **Handoff Notes：**Backend：正式庫唯讀盤點／逐版方案／ACL；Frontend：錯誤提示／重試／狀態；Mobile：窄螢幕提示／重送／狀態；QA：權限／故障重試／並發與點數 Storage 回歸。
 
