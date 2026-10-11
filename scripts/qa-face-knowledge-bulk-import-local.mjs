@@ -2,6 +2,7 @@
 // Local-only C6 HTTP coverage: named-admin bulk/import revision and audit trail.
 import { readFile } from "node:fs/promises";
 import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 
 const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
@@ -30,7 +31,8 @@ const password = `QA-${crypto.randomBytes(12).toString("hex")}`;
 const cardCode = `QA-FKB-${suffix}`;
 const importCode = `QA-FKI-${suffix}`;
 const duplicateCode = `QA-FKD-${suffix}`;
-let authUserId, profileId, token, cardId, importedId;
+let authUserId, profileId, token, cardId, importedId, faultInstalled = false;
+const faultName = `qa_face_fault_${suffix}`;
 let passed = 0;
 function check(ok, label) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (ok) passed++; }
 
@@ -64,6 +66,26 @@ try {
   }
   check(await revisionAudit(cardId, 1, "draft", "face_knowledge_created"),
     "shared-key attempts leave card/version/revision/audit unchanged");
+
+  sql(`begin;
+    create function public.${faultName}() returns trigger language plpgsql as $$
+    begin
+      if new.target_id = '${cardId}' and new.action = 'face_knowledge_bulk_submit_review' then
+        raise exception 'QA_C6_AUDIT_FAILURE';
+      end if;
+      return new;
+    end $$;
+    create trigger ${faultName} before insert on public.admin_audit_logs
+      for each row execute function public.${faultName}();
+    commit;`);
+  faultInstalled = true;
+  const failedBulk = await api("POST", "/api/admin/face-knowledge/bulk", {
+    ids: [cardId], action: "submit_review"
+  });
+  check(failedBulk.status === 500 && await revisionAudit(cardId, 1, "draft", "face_knowledge_created"),
+    "injected audit failure rolls back bulk status/version/revision/audit together");
+  sql(`drop trigger ${faultName} on public.admin_audit_logs; drop function public.${faultName}();`);
+  faultInstalled = false;
 
   for (const [action, status, version] of [
     ["submit_review", "teacher_review", 2], ["publish", "published", 3], ["archive", "archived", 4]
@@ -99,6 +121,7 @@ try {
   check((await db(`face_knowledge_cards?select=id&card_id=eq.${duplicateCode}`)).length === 0,
     "duplicate import leaves no partial card");
 } finally {
+  if (faultInstalled) sql(`drop trigger if exists ${faultName} on public.admin_audit_logs; drop function if exists public.${faultName}();`);
   for (const code of [cardCode, importCode, duplicateCode, `${cardCode}-shared`]) {
     const rows = await db(`face_knowledge_cards?select=id&card_id=eq.${code}`);
     for (const row of rows) {
@@ -116,10 +139,16 @@ for (const code of [cardCode, importCode, duplicateCode, `${cardCode}-shared`]) 
   if ((await db(`face_knowledge_cards?select=id&card_id=eq.${code}`)).length) throw new Error(`QA card ${code} remains`);
 }
 if (profileId && (await db(`profiles?select=id&id=eq.${profileId}`)).length) throw new Error("QA profile remains");
-console.log(`${passed}/14 face-knowledge bulk/import checks passed; fixtures cleaned`);
-if (passed !== 14) process.exitCode = 1;
+console.log(`${passed}/15 face-knowledge bulk/import checks passed; fixtures cleaned`);
+if (passed !== 15) process.exitCode = 1;
 
 function importItem(code) { return { card_id: code, title: "QA import", category: "qa", observation: "isolated" }; }
+function sql(statement) {
+  const result = spawnSync("psql", [env.DB_URL, "-v", "ON_ERROR_STOP=1", "-q"], {
+    input: statement, encoding: "utf8", maxBuffer: 1024 * 1024
+  });
+  if (result.status !== 0) throw new Error(`Local SQL fault setup failed: ${(result.stderr || "").slice(0, 180)}`);
+}
 async function revisionAudit(id, version, status, action) {
   const [card] = await db(`face_knowledge_cards?select=id,status,version,created_by,updated_by&id=eq.${id}`);
   const revisions = await db(`face_knowledge_revisions?select=version,snapshot,changed_by&knowledge_id=eq.${id}`);
