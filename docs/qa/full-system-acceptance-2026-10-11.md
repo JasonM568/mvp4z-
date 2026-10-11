@@ -258,7 +258,7 @@
 
 | 編號／等級 | 現象與證據 | 預期修復與複驗 | 狀態 |
 |---|---|---|---|
-| QA-FS-B1／BLOCKER | `app/api/ai/chat/route.ts` 扣點 CR002 時仍 200 送答；隔離 QA 測試 expected fail | LLM 前以會員級互斥或等效機制拒絕第二筆；並發 N 筆只產生一份、扣點／usage 一致 | 已排入 X-PM 收件佇列，待工程修復 |
+| QA-FS-B1／BLOCKER | `app/api/ai/chat/route.ts` 扣點 CR002 時仍 200 送答；隔離 QA 測試 expected fail。PM 另讀碼發現 `commit_chat_credit` 為 `SECURITY DEFINER` 且授 `authenticated` 執行，未檢查 `auth.uid()`，疑有跨會員直呼 RPC 扣點風險，**尚未動態證實** | LLM 前以會員級互斥或等效機制拒絕第二筆；並發 N 筆只產生一份、扣點／usage 一致。用隔離 A/B 會員驗直呼 RPC 不可扣他人點數，並檢查新鎖函式的權限；若重現另立安全缺陷 | 工程1 已開始 B1；權限風險待 X-QA 隔離驗證，正式站未驗 |
 | QA-FS-B2／BLOCKER | 原 route 先插權益後搶碼且不查 UPDATE 命中；工程1已改 `redeem_activation_code` 原子 RPC，QA route 4/4、隔離 API/DB N=10 與 rollback 兩輪通過 | X-PM 審核後套正式 migration 與部署，QA 以專用正式測試碼驗證同碼只成功一次及回滾 | 隔離環境複驗通過；正式站仍有舊漏洞，待部署與正式回歸 |
 | QA-FS-C1／critical 待確認 | 已知發票無作廢／折讓流程；退款登錄後發票狀態可能不一致（`handoff.md`、後台發票 API） | X-PM 確認退款營運規則與實際開票環境，再排作廢／折讓驗收 | 待商業／財務決策 |
 | QA-FS-C2／critical | 管理員 5 點扣 10 點時餘額變 0、交易卻記 -10；route 先讀後寫也會 lost update；隔離 QA 測試 expected fail | 決定超額扣點規則後，DB 原子更新餘額、交易與 audit；並發兩筆總額正確 | 已排入 X-PM 收件佇列，待規則決策與工程修復 |
