@@ -20,6 +20,8 @@
 
 正式站 10 個公開頁面在 390px 均有 `main`／`h1`，body 無水平溢出；320px 下 8 頁通過、以上 2 頁失敗。手機主選單可展開，服務子選單顯示服務、企業顧問、預約及關於頁連結。本次沒有提交預約、登入、購買或其他寫入操作。
 
+重跑命令：`scripts/qa-public-mobile-layout.ego.sh`（Ego TaskSpace 86）。結果：**18/20 route-width 組合通過、2 失敗**；服務子選單通過。腳本在發現缺陷時以 exit code 1 結束，修復後可同命令回歸。
+
 - [320px `/courses` 截圖](evidence/qa-fs-ui1-courses-320.png)
 - [320px `/member-pricing` 截圖](evidence/qa-fs-ui1-pricing-320.png)
 
