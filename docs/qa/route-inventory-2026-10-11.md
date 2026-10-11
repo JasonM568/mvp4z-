@@ -81,7 +81,7 @@
 | `/api/login` | POST | 舊路由空 body 400，與新路由相同；正常登入待驗 |
 | `/api/logout` | POST | 舊路由空 body 冪等 200，與 C12 新路由相同；有效 session 待驗 |
 | `/api/me` | GET | 舊路由無權杖 401，與新路由相同；有效會員待驗 |
-| `/api/member/council-runs` | GET | 隔離通過：A/B 列表所有權 |
+| `/api/member/council-runs` | GET | A/B 列表所有權通過；M17 非法 limit 200 且未限筆數，隔離 4/7 |
 | `/api/member/council-runs/[id]` | GET | 隔離通過：A/B 詳情所有權 |
 | `/api/member/me` | GET | C9 條件通過：已套現回退 migration 的隔離庫 VIP/20；現行 fresh DB 加購仍不合格 |
 | `/api/member/orders` | GET | 隔離通過：A/B 訂單所有權、付款開通輪詢與 SQLi 形狀查詢 11/11 |
