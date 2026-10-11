@@ -62,7 +62,7 @@ try {
   const login = await member.auth.signInWithPassword({ email, password });
   if (login.error || !login.data.session) throw new Error("Cannot login local QA member");
   token = login.data.session.access_token;
-  const runs = Array.from({ length: 3 }, () => ({
+  const runs = Array.from({ length: 51 }, () => ({
     id: crypto.randomUUID(), request_id: crypto.randomUUID(), user_id: profileId,
     mode: "self", consent_version: "qa-local", status: "completed",
     report_structured: { qa: true }, report_text: "QA isolated report",
@@ -82,14 +82,14 @@ try {
     ["limit overlong", `?limit=${"9".repeat(500)}`, 400]
   ]) {
     const result = await list(query);
-    const expectedItems = name === "limit 1" ? 1 : 3;
+    const expectedItems = name === "limit 1" ? 1 : name === "limit 50" ? 50 : 20;
     const countOk = expected !== 200 || (Array.isArray(result.body.items) && result.body.items.length === expectedItems);
     check(result.status === expected && countOk, name, `HTTP ${result.status}, items=${result.body.items?.length ?? "n/a"}`);
   }
   console.log(`${passed}/7 face-report list checks passed`);
   if (passed !== 7) process.exitCode = 1;
 } finally {
-  for (const id of runIds) await db(`face_analysis_runs?id=eq.${id}`, "DELETE");
+  if (runIds.length) await db(`face_analysis_runs?id=in.(${runIds.join(",")})`, "DELETE");
   if (profileId) await db(`profiles?id=eq.${profileId}`, "DELETE");
   if (authId) {
     const deleted = await service.auth.admin.deleteUser(authId);
@@ -99,9 +99,8 @@ try {
     const remaining = await db(`profiles?select=id&id=eq.${profileId}`);
     if (remaining.length) throw new Error("QA profile cleanup failed");
   }
-  for (const id of runIds) {
-    const remaining = await db(`face_analysis_runs?select=id&id=eq.${id}`);
-    if (remaining.length) throw new Error("QA report cleanup failed");
+  if (runIds.length && (await db(`face_analysis_runs?select=id&id=in.(${runIds.join(",")})`)).length) {
+    throw new Error("QA report cleanup failed");
   }
   console.log("QA Auth/profile/report cleanup verified");
 }

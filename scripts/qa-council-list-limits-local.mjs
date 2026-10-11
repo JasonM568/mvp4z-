@@ -69,7 +69,7 @@ try {
   const login = await member.auth.signInWithPassword({ email, password });
   if (login.error || !login.data.session) throw new Error("Cannot login local QA member");
   token = login.data.session.access_token;
-  const runs = Array.from({ length: 3 }, () => ({
+  const runs = Array.from({ length: 21 }, () => ({
     id: crypto.randomUUID(), user_id: profileId, entitlement_id: entitlementId,
     request: { qa: true }, final_label: "qa", final_text: "QA isolated Council report",
     final_ok: true, credits_charged: 0
@@ -80,9 +80,9 @@ try {
   const anonymous = await list("", null);
   check(anonymous.status === 401, "anonymous denied", `HTTP ${anonymous.status}`);
   for (const [name, query, expected, count] of [
-    ["default list", "", 200, 3],
+    ["default list", "", 200, 6],
     ["limit 1", "?limit=1", 200, 1],
-    ["limit 20", "?limit=20", 200, 3],
+    ["limit 20", "?limit=20", 200, 20],
     ["limit abc", "?limit=abc", 400, null],
     ["limit SQLi shape", "?limit=1%20OR%201%3D1", 400, null],
     ["limit overlong", `?limit=${"9".repeat(500)}`, 400, null]
@@ -94,7 +94,7 @@ try {
   console.log(`${passed}/7 Council history list checks passed`);
   if (passed !== 7) process.exitCode = 1;
 } finally {
-  for (const id of runIds) await db(`council_runs?id=eq.${id}`, "DELETE");
+  if (runIds.length) await db(`council_runs?id=in.(${runIds.join(",")})`, "DELETE");
   if (entitlementId) await db(`member_entitlements?id=eq.${entitlementId}`, "DELETE");
   if (profileId) await db(`profiles?id=eq.${profileId}`, "DELETE");
   if (authId) {
@@ -102,9 +102,8 @@ try {
     if (deleted.error) throw deleted.error;
   }
   for (const [table, ids] of [["council_runs", runIds], ["member_entitlements", entitlementId ? [entitlementId] : []], ["profiles", profileId ? [profileId] : []]]) {
-    for (const id of ids) {
-      const remaining = await db(`${table}?select=id&id=eq.${id}`);
-      if (remaining.length) throw new Error(`${table} QA cleanup failed`);
+    if (ids.length && (await db(`${table}?select=id&id=in.(${ids.join(",")})`)).length) {
+      throw new Error(`${table} QA cleanup failed`);
     }
   }
   console.log("QA Auth/profile/entitlement/reports cleanup verified");
