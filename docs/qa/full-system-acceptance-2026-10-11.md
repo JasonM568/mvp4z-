@@ -110,7 +110,7 @@
 | 發票與退款 | 付款後開票、失敗可重試、退款帳務一致 | ezPay 失敗／重送、錯統編、未退款卻登錄 | B2C／B2B、載具、捐贈碼、部分退款 | 重試開票／雙重退款 | A/B 發票 RLS 已驗；C8 非法補開票 7/7；C10 分次退款核心帳務通過；C13/C14/M16 最新 migration 隔離 HTTP/DB 複驗：正常 20/20、同鍵重送與異金額 17/17、N=10 並發 4 輪各 15/15、audit 故障回滾 15/15；Ego Lite 後台斷線重送只留 1 筆退款／交易／audit。正式 migration、外部開票／退款、作廢／折讓未驗 |
 | 通知與忘記密碼信 | 註冊／付款／警報郵件寄達 | provider 429／失敗不阻主交易 | 空收件人、退信、模板超長 | webhook 重送不重寄 | 待驗；Supabase custom SMTP 未接 |
 | 推廣歸因／分潤 | 有效碼綁定，訂單可追溯 | 無效碼、停用碼、猜碼不洩資料 | 空碼、大小寫、特殊字元 | 註冊與下單同時／重送 | 隔離庫公開查碼 8/8、會員建單歸因／比例快照 4/4；C7 具名管理員建立／改率／停用及 N=10 audit 11 輪隔離複驗通過；C5 停用後帶他人 cookie 轉歸他人待規則決策；註冊當下與正式資料待驗 |
-| 後台營運與 CMS | 具名管理員可管理會員、訂單、預約、課程、內容與 audit | 無 token／會員 token 403；未授權直接 API | 空表、分頁、上傳 2MB、超長內容 | 雙管理員編輯同一資料 | 73 個 handler × 匿名／無效 bearer／有效會員，共 219/219；具名管理員後台 23/23 靜態路由殼層導航、預約 11/11、建碼 13/13、課程跟進與列表修補後 17/17；各頁資料／操作與其他後台寫入待驗 |
+| 後台營運與 CMS | 具名管理員可管理會員、訂單、預約、課程、內容與 audit | 無 token／會員 token 403；未授權直接 API | 空表、分頁、上傳 2MB、超長內容 | 雙管理員編輯同一資料 | 73 個 handler × 匿名／無效 bearer／有效會員，共 219/219；具名管理員後台 23/23 靜態路由殼層導航、預約 11/11、建碼 13/13、課程跟進與列表修補後 17/17；會員清單 205 筆隔離資料時漏 5 筆且總數誤顯 200（C16，3/4）；其他後台寫入待驗 |
 | 排程與清理 | 到期權益、pending 訂單、面相圖片按時清理 | 無 CRON_SECRET 或偽造 token 拒絕 | 空候選、批次上限、剛付款競爭 | cron 重入與付款 webhook 同時 | **C11 隔離複驗 13/13 通過**：權益／舊 pending 清理、保留點數、audit 與重跑正常；正式排程、面相圖片及付款競爭待驗 |
 | RLS／資料安全 | 本人可讀、其他會員不可讀，service role 不外露 | 直接打 Supabase／API 越權、SQL injection 嘗試 | 空資料、異常 UUID、超長篩選字串 | 權限撤銷後舊 token | 匿名對 11 張有資料表的樣本讀取已驗；隔離庫 A/B 核心會員、財務、課程、使用量與報告跨會員讀取及直接寫入封鎖已驗；其他表／RPC 待驗 |
 
@@ -158,7 +158,8 @@
 35. **VIP 加購會員／面相 API（C9，指定舊隔離庫 11/11）**：`node scripts/qa-addon-member-api-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c9-connection.private.env`。本機 app 需 `FACE_ANALYSIS_ENABLED=true`；專用 Auth/profile、VIP 0 點及 paid 加購單；驗新 VIP/20、效期與 tier、會員 API 5 次、面相 run、重送／ledger 並清理。**C9 庫已套現被回退的 1600 migration**，11/11 不能放行現行 HEAD；須待商業決策後用新 fresh DB 重跑。
 36. **面相知識庫 bulk／import（C6 14/15、M14）**：`node scripts/qa-face-knowledge-bulk-import-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。本機 app 需 `ADMIN_KEY=qa-face-shared-only`，隔離庫須套 C6 migration。驗五個共用 key 拒絕、具名 bulk 三狀態、import 新建／upsert 的版本／revision／audit、created_by、audit 故障注入時全交易回滾，以及同批重複 card_id 無部分寫入；目前重複碼 HTTP 500，修後目標 15/15。
 37. **登出與 refresh 撤銷（C12 隔離 4/4）**：`node scripts/qa-logout-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。本機隔離帳號登入、讀會員 API、呼叫登出，原 refresh token 再換發 401；逐筆刪 Auth/profile。Ego Lite 另驗會員與管理員雙分頁、兩顆本機 token 清除，正式站待驗。
-38. **具名管理員退款與故障回滾（C10 核心通過、C13/C14/M16 失敗）**：`node scripts/qa-refund-admin-api-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env` 驗角色、非法輸入、試算、99＋100 元、帳本與具名 audit；目前 17/19，超額與全退後再送回 500。加 `--replay=true` 驗序列重送（13/15），`--replay=concurrent` 驗 N=10 並發（4 輪皆 12/14、雙重登錄），`--audit-fault=true` 驗 audit INSERT 故障回滾（12/14，退款成功卻無 audit）；修後目標 19/19、15/15、14/14、14/14。只接受 localhost API/DB，專用帳號與訂單均清理；本機 app 設 `ADMIN_KEY=qa-face-shared-only`。
+38. **具名管理員退款與故障回滾（C10/C13/C14/M16 隔離複驗通過）**：`node scripts/qa-refund-admin-api-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env` 驗角色、非法輸入、試算、99＋100 元、帳本與具名 audit，最新 migration 下 20/20；加 `--replay=true` 驗同鍵序列重送及異金額 409（17/17），`--replay=concurrent` 驗 N=10 並發（4 輪各 15/15），`--audit-fault=true` 驗 audit INSERT 故障全回滾（15/15）。只接受 localhost API/DB，專用帳號與訂單均清理；本機 app 設 `ADMIN_KEY=qa-face-shared-only`。正式 migration／站端仍待。
+39. **管理員會員列表容量邊界（C16 3/4，expected fail）**：`node scripts/qa-admin-members-cap-local.mjs --base-url=http://127.0.0.1:3104 --env-file=/private/c4-connection.private.env`。自建具名管理員與 205 筆專用會員，預期清單、搜尋及摘要可涵蓋所有 205 筆；實際 `/api/admin/members` 僅回 200、5 筆不可見、summary.total 200。腳本 `finally` 批次刪除專用 profile/Auth 並核對 0；修復後目標 4/4。
 
 ## 效能與壓力測試提案
 
@@ -192,10 +193,11 @@
 - [ ] 個人／公司發票資料正確，失敗有後台重試與人工追蹤。
 - [ ] 手動補開票輸入錯統編、壞 JSON 或非法載具時，不會沿用舊資料意外開票；錯誤回 4xx。**QA-FS-C8 隔離 paid 訂單 API 7/7 通過，正式部署前不可勾**。
 - [ ] 退款先完成綠界操作，再於後台登錄；訂單、點數、報名及發票狀態一致。
-- [ ] 一張訂單分次退款至全額時，未使用點數全部收回；每筆退款、點數交易及最終餘額可對帳。**QA-FS-C10 隔離 DB 與具名管理員 API 核心對帳通過，整體 17/19（M16 錯誤碼）；正式 UI、部署及金流／發票流程驗收前不可勾**。
+- [ ] 一張訂單分次退款至全額時，未使用點數全部收回；每筆退款、點數交易及最終餘額可對帳。**QA-FS-C10 隔離 DB 與具名管理員 API 20/20；正式部署及金流／發票流程驗收前不可勾**。
 - [ ] 管理員重按或網路重試同一筆退款登錄時，退款、點數交易與 audit 各只有一筆；相同冪等鍵而金額不同時明確拒絕。**C13 隔離 API/DB 及後台斷線重送 UI 已通過；正式 migration／站端複驗前不可勾**。
 - [ ] 退款登錄的具名 audit 若寫入失敗，退款、扣點與訂單狀態一併回滾，不留下無稽核的財務動作。**C14 隔離故障注入已通過；正式 migration 複驗前不可勾**。
 - [ ] 管理員建立啟用碼時，方案、期限、點數與稽核紀錄正確；同時建立多筆不重碼。**隔離環境已驗，正式站待驗**。
+- [ ] 後台會員數超過 200 時，總數仍正確，較舊會員可依 Email 搜尋並進行管理。**QA-FS-C16 隔離 205 筆時漏 5 筆，修復／複驗前不可勾**。
 - [ ] 啟用碼只可兌換一次；兩個視窗同時送出也只有一次成功。**QA-FS-B2 隔離複驗已通過，正式部署及站端回歸前不可勾**。
 
 ### 服務流程
@@ -248,6 +250,7 @@
 | QA-FS-C13／critical | 原同單退款重送多記現金／扣點／audit；N=10 曾 2×200、8×500、雙重登帳。工程 `6e6f4a4` 加 UUID 冪等鍵與 DB 唯一約束 | QA C4 隔離 API/DB：同鍵序列重送 17/17，異金額 409 且零新效果；N=10 同鍵 4/4 輪均十筆 200、各 1 筆 refund/ledger/audit、餘額 11；工程 20 輪 N=10 也通過。Ego Lite UI 模擬首次回應遺失後重整與重送，UUID／表單保留、DB 恰 1 筆退款／ledger／audit，retry key 成功清除，資料清 0。再驗正式 migration／站端、實際快速雙擊 | **隔離 API/DB 與斷線重送 UI 複驗通過；正式站待驗**，已回報 X-PM；外部交易號與冪等鍵操作語意需 PM 確認 |
 | QA-FS-C14／critical | 原 audit INSERT 故障時退款仍成功但無 audit；工程 `6e6f4a4` 改為同一 RPC 交易 | QA 專用訂單 audit trigger 注入故障：HTTP 500、refund/ledger/audit 0、點數 20、訂單 paid，15/15；工程整合腳本故障後同鍵重試通過，觸發器及資料清 0。再驗正式 migration／部署 | **隔離故障回滾複驗通過；正式站待驗**，已回報 X-PM，不涉商業規則 |
 | QA-FS-C15／critical（正式站已重現） | 本機 Next clone 3104 及正式站 `https://www.xunfeng.tw/reset-password` 均只見 Application error；正式瀏覽器 Runtime stack `Missing environment variable: NEXT_PUBLIC_SUPABASE_URL` 指向已部署 reset-password bundle。本機 `lib/supabase/client.ts:requiredEnv` 動態 `process.env[key]` 未內嵌公開變數；clone Next 程序兩公開環境鍵皆存在，未輸出值。影響正式密碼重設入口；正常改密碼無法進入 | 將瀏覽器公開 env 改為編譯期靜態屬性讀取；先在隔離／preview 直接開無連結頁顯示「重設連結無效」，再以專用測試帳號驗有效、過期／重用連結與新舊密碼；正式部署後重開重設頁並核對 Runtime 無例外。不得輸出 secret 或改動正式會員 | 已加急送 X-PM 排工；不涉商業規則。正式站修復未驗；若無其他帳號恢復管道，屬客戶驗收 BLOCKER |
+| QA-FS-C16／critical | 後台會員清單達 205 筆時，具名管理員 GET `/api/admin/members` 回 200 但只列最新 200 筆，5 筆無法搜尋或補點，`summary.total=200` 假報總數。隔離腳本 3/4，205 筆 Auth/profile fixture 全清 0；`route.ts` 固定 `.limit(200)`，UI 僅對已載入 rows 做本地搜尋與 KPI 計數 | 使用同腳本建立 205 筆，實作伺服器端分頁／搜尋與真實總數；預期第 201–205 筆可按 email 找回並執行既有管理操作，總數至少 206（含測試管理員），跨頁無重複／遺漏；隔離複驗 4/4，另驗正式站匿名／會員拒絕與 200／201 邊界 | 已送 X-PM 排優先；不涉商業規則，但分頁大小與 UI 交互可由 PM 決定 |
 | QA-FS-M16／minor | 原超退 200／199 與全退後再送 1 元均回 500；工程 `6e6f4a4` 改錯誤映射 | QA 隔離 API 超退回 400、全退後新鍵回 409、零額外 refund/ledger/audit；正常腳本 20/20，工程整合 6/6；再驗正式 migration／部署 | **隔離複驗通過；正式站待驗**，已回報 X-PM |
 | QA-FS-M17／minor | 四個報告列表路由都把非法 `limit` 當 HTTP 200。面相會員 51 筆、Council 會員 21 筆、Council 管理員 201 筆在 `abc`／SQLi 形狀時均**超過各自 cap 50／20／200**；管理員面相 101 筆則誤回空列表。500 位數字也回 200（但數量仍被 cap）。會員兩腳本各 4/7，管理員 8/14，全部 374 筆專用報告及 Auth/profile/權益清 0。根因四路由 `Number(limit)` 未檢查 NaN／Infinity；Council 歷史大欄位有負載風險 | 對非有限正整數、非法字元、超長 limit 回 400；合法與無參數維持既有預設及 cap（面相會員50／後台100，Council會員20／後台200）。三腳本重跑 7/7、7/7、14/14；保留 51／21／101／201 筆邊界資料測例。若產品要容錯預設值需 PM 明訂，但不得繞過 cap 或誤顯示空表 | 已送 X-PM，擴及四路由；回應語意屬 API 契約取捨，QA 建議 400 |
 | QA-FS-M1／minor | 隔離 API 實測只有 `phone='@@@'`、無 email 仍回 200 並建立預約；公開入口未見程式內限流，外層 WAF 尚未量測 | 確認可接受電話／LINE 格式及防濫用門檻；非法聯絡方式 400，合法可送，隔離 DB 回歸 | 已交 X-PM 討論規則 |
@@ -271,7 +274,7 @@
 ## 測試總結
 
 - **BLOCKER：**QA-FS-B1（AI 問答並發免費回覆）待修；QA-FS-B2（啟用碼並發重複發點）本地修補、route 測試與隔離 API/DB 獨立複驗通過，但正式站 migration 尚未套用、部署回歸未完成。
-- **Critical：**QA-FS-C1 發票退款一致性待營運規則確認；QA-FS-C2 管理員補扣點帳本不一致；QA-FS-C3 10/07 刷卡回報與本站帳務資料無法對應；QA-FS-C4 隔離庫 20 輪通過、正式 migration／站端未驗；QA-FS-C5 停用推廣人歸因待商業決策；QA-FS-C6 單／雙管理員 N=10 隔離庫各 11 輪及 UI 409 即時保留通過，正式站未驗；QA-FS-C7 推廣人建立／並發改率 audit 隔離庫 11 輪通過、正式站未驗；QA-FS-C8 route 單元與隔離 paid 訂單非法輸入 API 各 7/7 通過、合法 ezPay／正式站未驗；QA-FS-C9 migration 因已付款 webhook 風險回退，現行 HEAD 不合格且待商業規則／補救決策；QA-FS-C10 拆分退款隔離 DB/API 核心複驗通過、正式站未驗；QA-FS-C11 隔離排程複驗 13/13，正式部署觸發待驗；QA-FS-C12 隔離 API/UI 登出複驗通過、正式站未驗；QA-FS-C13 同鍵重送／並發及後台斷線重送、C14 audit 故障回滾隔離複驗通過，正式 migration／站端待驗；QA-FS-C15 重設密碼頁正式站瀏覽器崩潰。跨會員越權測試仍未涵蓋所有表與 RPC，暫不宣告全系統通過。
+- **Critical：**QA-FS-C1 發票退款一致性待營運規則確認；QA-FS-C2 管理員補扣點帳本不一致；QA-FS-C3 10/07 刷卡回報與本站帳務資料無法對應；QA-FS-C4 隔離庫 20 輪通過、正式 migration／站端未驗；QA-FS-C5 停用推廣人歸因待商業決策；QA-FS-C6 單／雙管理員 N=10 隔離庫各 11 輪及 UI 409 即時保留通過，正式站未驗；QA-FS-C7 推廣人建立／並發改率 audit 隔離庫 11 輪通過、正式站未驗；QA-FS-C8 route 單元與隔離 paid 訂單非法輸入 API 各 7/7 通過、合法 ezPay／正式站未驗；QA-FS-C9 migration 因已付款 webhook 風險回退，現行 HEAD 不合格且待商業規則／補救決策；QA-FS-C10 拆分退款隔離 DB/API 核心複驗通過、正式站未驗；QA-FS-C11 隔離排程複驗 13/13，正式部署觸發待驗；QA-FS-C12 隔離 API/UI 登出複驗通過、正式站未驗；QA-FS-C13 同鍵重送／並發及後台斷線重送、C14 audit 故障回滾隔離複驗通過，正式 migration／站端待驗；QA-FS-C15 重設密碼頁正式站瀏覽器崩潰；QA-FS-C16 後台會員超過 200 筆後漏列且總數錯誤。跨會員越權測試仍未涵蓋所有表與 RPC，暫不宣告全系統通過。
 - **Minor：**QA-FS-M1 預約無效電話已實測、限流待判定；QA-FS-M2 面相知識庫 RLS 本機 SQL 複驗通過，待正式 migration；QA-FS-M3 預約雙送產生兩筆；QA-FS-M4 超長方案碼本地修補及隔離複驗通過，待正式站；QA-FS-M5 雙送建兩張 pending 訂單；QA-FS-M6 後台預約列表 limit 隔離複驗 11/11，待正式站；QA-FS-M7/M11 課程列表 limit 與摘要修補後隔離複驗 17/17，待正式站／UI；QA-FS-M8/M9 會員登入訊息與過期 token UI 待修；QA-FS-M10 後台非法訂單 id 8/11；QA-FS-M12/M13 CMS 修補後隔離服務 API 通過，正式站待驗；QA-FS-M14 面相知識庫重複卡片匯入回 500；QA-FS-M15 衝突刷新比對可能流失草稿待確認；QA-FS-M16 退款錯誤碼隔離複驗通過、正式站待驗；QA-FS-M17 面相／Council 列表非法 limit 回全部報告。M3/M5 待去重規則決策。
 - **已驗收通過的範圍：**本機建置、TypeScript、589 個通過的單元案例（另有 2 個 expected fail）、21 項安全 API 冒煙、219 個後台匿名／無效 bearer／有效會員拒絕、5 個正式站 cron GET 匿名拒絕、11 張表匿名讀取抽樣、隔離庫 A/B 核心會員、訂單、發票、課程報名、使用量、面相報告與 Council 歷史跨會員讀取、會員訂單／使用量 API 11/11、直接寫入封鎖及過期 JWT、B2 原子兌碼隔離複驗、C4 clean DB 四情境 20 輪回歸、C6 同卡 N=10 單／雙管理員各 11 輪、C7 並發改率 audit 11 輪、C8 route 單元與隔離 paid 訂單非法輸入 API 各 7/7、M4 超長方案碼及內部方案 code／ID 隔離 9/9、預約邊界 7/7、具名管理員預約 11/11、建立啟用碼 13/13、課程跟進正常流程 10/10、課程結帳 8/8、註冊／同手機試用／refresh／忘密回應 9/9，以及正式站 8 頁手機寬無水平溢出與預約空表單提示；Council 先前正式站的並行／schema／日限額有交接證據。
 - **整體結論：**全系統 UAT 尚未完成，正式驗收不可簽核。下一批優先驗證會員／金流／RLS 的隔離環境端到端流程，並複驗 X-PM 回傳的修復。

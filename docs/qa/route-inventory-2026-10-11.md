@@ -38,7 +38,7 @@
 | `/api/admin/gemini-provider-approval` | DELETE, GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/invoices` | GET | 部分已驗：具名管理員 pending 發票列表與訂單連結；開票／退款待驗 |
 | `/api/admin/invoices/[orderId]/issue` | POST | 部分已驗 C8：隔離 paid 訂單非法 body 7/7；合法 ezPay 開票／正式站待驗 |
-| `/api/admin/members` | GET | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
+| `/api/admin/members` | GET | 不合格 C16：具名管理員＋205 筆隔離會員時只回 200、漏 5、summary.total 誤為 200；匿名／壞 token／會員拒絕已驗；fixture 清 0 |
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
 | `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 最新隔離 API/DB 複驗通過：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego Lite 管理員 UI 遺失回應後重載同鍵重送，退款／交易／audit 各 1 且清理完成；正式 migration／站端待驗 |
 | `/api/admin/prompt-settings` | GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
