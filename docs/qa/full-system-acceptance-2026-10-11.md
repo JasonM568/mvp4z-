@@ -301,6 +301,7 @@
 | QA-FS-C1／critical 待確認 | 已知發票無作廢／折讓流程；退款登錄後發票狀態可能不一致（`handoff.md`、後台發票 API） | X-PM 確認退款營運規則與實際開票環境，再排作廢／折讓驗收 | 待商業／財務決策 |
 | QA-FS-C2／critical | 管理員 5 點扣 10 點時餘額變 0、交易卻記 -10；route 先讀後寫也會 lost update；隔離 QA 測試 expected fail。追加 route＋audit 替身：5→0 的正常 delta 與 ledger 寫入後，audit INSERT 回 error，API 仍 200、audit 0 | 決定超額扣點規則後，DB 原子更新餘額、交易與 audit；並發兩筆總額正確；audit 失敗不可靜默成功 | 已排入 X-PM 收件佇列，待規則決策與工程修復 |
 | QA-FS-C20／critical | route＋audit helper 行為替身：有效啟用碼建立後 HTTP 200 且 code 已新增／回傳、audit 0；paid order 開票 helper stub 成功後 HTTP 200、helper 1 次、audit 0。未呼叫真 ezPay、未測真 DB | 啟用碼與 audit 原子建立，不留可兌換而無記錄之 code；invoice 使用隔離 provider stub、audit/outbox 可重試且重送不二次呼叫 provider；驗權限、正常流程與故障回復 | 已送 X-PM 定序／派工；真 DB／Provider 故障仍未驗 |
+| QA-FS-C23／critical | 真實 `issueInvoiceFromOrder` helper＋本機 provider stub：首次 provider 回 success 後 `invoices` INSERT 故障，API 500、invoice/audit 0；同單重送再次呼叫 provider，第二次才存 row／audit。1/1 通過（缺陷重現），未打真 EZPay／未證其 MerchantOrderNo 去重 | provider success 後本地持久化故障再重送，不可盲目二次開票；以 provider idempotency/reference 查詢並恢復同一結果，invoice/outbox/audit 最終各一筆；驗 timeout、持續 DB 故障及 N=10 重送 | 待送 X-PM 排序／派工；provider 重複訂單號正式契約未知 |
 | QA-FS-C21／critical | prompt／school profile publish 與 Qimen signoff 的 route＋audit 替身：三者皆 audit INSERT error 後回 200、資料已改／signoff row 已增、audit 0；未測真 DB | profile/status/cache 與 audit 原子；失敗時全回滾；Qimen signoff 不新增列；正常簽核／發布、權限與重送並發回歸 | 待送 X-PM 定序／派工；transaction/cache/consumer 未驗 |
 | QA-FS-C22／critical | face-provider approval route＋替身：POST active、DELETE revoked 各在 audit INSERT error 後回 200且audit 0；未測真 DB/provider | 核准／撤銷狀態具可恢復 audit/outbox，重送冪等；具名 admin auth、非法輸入與不呼叫 provider 回歸 | 待送 X-PM 定序／派工；真 DB/供應商端未驗 |
 | QA-FS-C3／critical | 本機 `.env.local` 所指 Supabase 專案於台北 10/07 無訂單／付款／發票；Vercel 正式 MID 與交接一致，正式 Supabase URL 受保護而未能核對 | 取得 MerchantTradeNo／TradeNo、金額、時間、MID 與付款入口；核對正式 Supabase URL 與各帳務表 | 已排入 X-PM 收件佇列，待交易資訊；不能宣告刷卡 E2E 通過 |
@@ -497,3 +498,9 @@ QA 新增 `scripts/qa-face-image-cron.test.ts`，以路由實際 `GET`／`POST` 
 ### QA-FS-M25：面相規則草稿／發布原子性與 audit
 
 針對管理員 draft save 與 `POST /api/admin/face-rules/publish` 的 route＋替身腳本 `scripts/qa-face-rules-publish-audit.test.ts` **7/7**；`npx tsc --noEmit` 通過。正常發布、無 draft 400、81 字版本標籤 400 零寫入及共用 `ADMIN_KEY` 成功發布的 null actor audit 通過。按共用 helper 實作模擬 audit insert 回 `{ error }`：draft 已新增仍 HTTP 200、audit 0；發布時 profile 已切換仍 HTTP 200、audit 0。另注入 publish UPDATE 失敗，舊版先被 archived、API 500、分析回退 built-in rules。派工稿見 [QA-FS-M25](qa-fs-m25-face-rules-publish-atomicity-2026-10-11.md)，X-PM 已接受並派工程1。⚠ `requireAdmin` 允許共用 ADMIN_KEY，其 audit actor 為 null；是否改成只接受具名 admin 屬授權規則決策，本票按現有授權驗 actor attribution，不擅自改授權。證據是 route 控制流與記憶體替身，真 DB／transaction／雙管理員並發尚未驗。
+
+### QA-FS-C23：EZPay provider success 後 invoice row 寫入失敗重試
+
+`scripts/qa-invoice-provider-success-row-failure.test.ts` 走實際 invoice issue route 與 `issueInvoiceFromOrder` helper；僅將 EZPay provider 與 Supabase client 換成本機 stub。首次 provider 回成功後注入 invoice INSERT error，HTTP 500、invoice/audit row 均 0；同單重送時 active invoice 查無資料，provider 第二次收到相同 `merchantOrderNo`，第二次成功才寫 invoice row，HTTP 200、invoice/audit 各 1。**1/1 通過，代表缺陷重現**；`npx tsc --noEmit` 通過。執行：`npx vitest run --config scripts/qa-invoice-provider-success-row-failure.vitest.mts`。沒有呼叫真 EZPay、沒有連 DB，provider 是否因相同 `MerchantOrderNo` 冪等尚未知。派工稿見 [QA-FS-C23](qa-fs-c23-invoice-provider-retry-after-row-failure-2026-10-11.md)，待 X-PM 排序與派工。此票與 C20 audit 遺失分開追蹤；P05 客戶驗收維持未通過。
+
+**本階段更新：**新增 critical QA-FS-C23（同單重試重呼 provider）並回報等待 X-PM；M23 選案仍待 Tech Lead，M24/M25/C20/C21/C22 仍待工程修復與真服務邊界內複驗。QA-owned C23 route/helper stub 1/1、TypeScript 與 diff check 通過。BLOCKER、critical 及 UAT 未結項仍存在，不得標記全系統驗收完成。

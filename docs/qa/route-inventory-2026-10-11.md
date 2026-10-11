@@ -37,7 +37,7 @@
 | `/api/admin/face-teachings/import-builtin` | POST | C18 候選 X-QA 隔離兩輪通過：audit 故障 500／新增 0、正常匯入 67 筆、重跑冪等且具名 audit；正式整合／部署待驗 |
 | `/api/admin/gemini-provider-approval` | DELETE, GET, POST | 具名管理員 GET 隔離冒煙 200（23 路由批次）；寫入／撤銷待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/invoices` | GET | 部分已驗：具名管理員 pending 發票列表與訂單連結；開票／退款待驗 |
-| `/api/admin/invoices/[orderId]/issue` | POST | C8 隔離 paid 訂單非法 body 7/7；成功 invoice helper＋audit error route stub 為 HTTP 200、audit 0（QA-FS-C20）；真 ezPay 開票／DB audit 故障未驗 |
+| `/api/admin/invoices/[orderId]/issue` | POST | C8 隔離 paid 訂單非法 body 7/7；C20 audit error route stub 為 HTTP 200、audit 0；C23 真實 helper＋provider stub 重現首次 provider success 後 invoice INSERT error，HTTP 500，重送同單再次呼叫 provider（1/1）；未呼叫真 EZPay、未驗正式 DB／provider 去重語意 |
 | `/api/admin/members` | GET | C16 修復分支隔離 API 9/9：205 筆跨五頁無漏、最舊 Email 搜尋、全域總數及非法 page／q／cursor；Ego UI 第 5 頁／搜尋通過，1,001 筆規模 11/11；正式整合／部署待驗 |
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
 | `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 隔離 API/DB：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego 管理員 UI 遺失回應後同鍵重送，退款／交易／audit 各 1；正式 migration／站端待驗 |
