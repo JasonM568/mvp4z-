@@ -101,7 +101,9 @@ try {
     && preview.body.preview?.credits_available === 20 && preview.body.refunds?.length === 0,
   "named admin preview matches paid order and grant", `HTTP ${preview.status}`);
 
-  const payload = (amount) => ({ amount, reason: "QA isolated ECPay refund registration",
+  const firstRefundKey = crypto.randomUUID();
+  const payload = (amount, idempotencyKey = crypto.randomUUID()) => ({ amount,
+    idempotency_key: idempotencyKey, reason: "QA isolated ECPay refund registration",
     provider_reference: `QA-${suffix}`, confirmed_in_ecpay: true });
   check((await api(path, "POST", "", payload(99))).status === 401,
     "anonymous refund rejected 401");
@@ -109,7 +111,10 @@ try {
     "member refund rejected 403");
   check((await api(path, "POST", "", payload(99), true)).status === 403,
     "shared key refund cannot replace named admin bearer");
+  const missingKey = payload(99);
+  delete missingKey.idempotency_key;
   for (const [label, body] of [
+    ["missing idempotency key", missingKey],
     ["missing ECPay confirmation", { ...payload(99), confirmed_in_ecpay: false }],
     ["string amount", payload("99")], ["zero amount", payload(0)],
     ["oversize reason", { ...payload(99), reason: "x".repeat(501) }]
@@ -134,7 +139,7 @@ try {
         for each row execute function public.${faultName}();
       commit;`);
     faultInstalled = true;
-    const result = await api(path, "POST", admin.token, payload(99));
+    const result = await api(path, "POST", admin.token, payload(99, firstRefundKey));
     const [refunds, transactions, audits, [entitlement], [currentOrder]] = await Promise.all([
       db(`refunds?select=id&order_id=eq.${orderId}`),
       db(`credit_transactions?select=id,source&ref_id=eq.${orderNo}`),
@@ -152,7 +157,7 @@ try {
     faultInstalled = false;
   } else if (concurrentReplay) {
     const responses = await Promise.all(Array.from({ length: 10 }, () =>
-      api(path, "POST", admin.token, payload(99))));
+      api(path, "POST", admin.token, payload(99, firstRefundKey))));
     const [rows, transactions, audits, [entitlement], [currentOrder]] = await Promise.all([
       db(`refunds?select=id,amount&order_id=eq.${orderId}`),
       db(`credit_transactions?select=id,amount,source&ref_id=eq.${orderNo}`),
@@ -169,12 +174,13 @@ try {
       "concurrent identical refund N=10 has one financial effect",
       `statuses ${JSON.stringify(responses.map((response) => response.status))}, refunds ${rows.length}, refundTx ${refundTx.length}, audits ${audits.length}, balance ${entitlement.credits_remaining}`);
   } else {
-  const first = await api(path, "POST", admin.token, payload(99));
+  const first = await api(path, "POST", admin.token, payload(99, firstRefundKey));
   check(first.status === 200 && first.body.order_status === "partially_refunded"
     && first.body.credits_expected === 9 && first.body.credits_reclaimed === 9,
     "first 99/199 refund reclaims 9 credits", `HTTP ${first.status}`);
   if (replay) {
-    const repeated = await api(path, "POST", admin.token, payload(99));
+    const repeated = await api(path, "POST", admin.token, payload(99, firstRefundKey));
+    const conflicting = await api(path, "POST", admin.token, payload(100, firstRefundKey));
     const [rows, transactions, audits, [entitlement], [currentOrder]] = await Promise.all([
       db(`refunds?select=id,amount&order_id=eq.${orderId}`),
       db(`credit_transactions?select=id,amount,source&ref_id=eq.${orderNo}`),
@@ -189,6 +195,10 @@ try {
       && entitlement.credits_remaining === 11 && currentOrder.status === "partially_refunded",
       "identical 99 refund replay does not double-book cash or credits",
       `HTTP ${repeated.status}, refunds ${rows.length}, refundTx ${refundTx.length}, audits ${audits.length}, balance ${entitlement.credits_remaining}, status ${currentOrder.status}`);
+    check(conflicting.status === 409 && conflicting.body.code === "REFUND_IDEMPOTENCY_CONFLICT"
+      && rows.length === 1 && refundTx.length === 1 && audits.length === 1,
+      "same idempotency key with different amount rejected without financial change",
+      `HTTP ${conflicting.status}, code ${conflicting.body.code || "none"}`);
   } else {
   const middle = await api(path, "GET", admin.token);
   check(middle.status === 200 && middle.body.preview?.already_refunded === 99
@@ -248,6 +258,6 @@ for (const [table, filter] of [
   ["member_entitlements", `id=eq.${entitlementId}`], ["credit_transactions", `ref_id=eq.${orderNo}`],
   ["admin_audit_logs", `target_id=eq.${orderId}`]
 ]) if ((await db(`${table}?select=id&${filter}`)).length) throw new Error(`QA ${table} fixture remains`);
-const total = auditFault || concurrentReplay ? 14 : replay ? 15 : 19;
+const total = auditFault || concurrentReplay ? 15 : replay ? 17 : 20;
 console.log(`${passed}/${total} named-admin refund HTTP/DB checks passed; fixtures cleaned`);
 if (passed !== total) process.exitCode = 1;

@@ -40,7 +40,7 @@
 | `/api/admin/invoices/[orderId]/issue` | POST | 部分已驗 C8：隔離 paid 訂單非法 body 7/7；合法 ezPay 開票／正式站待驗 |
 | `/api/admin/members` | GET | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/orders` | GET | 不合格 M10：管理員清單／詳情與發票對帳通過，三種非法 id 回 500 |
-| `/api/admin/orders/[id]/refund` | GET, POST | 部分已驗 C10：最新 SQL 與具名管理員 API 核心帳務一致；不合格 C13 重送多記、C14 audit 故障退款仍成功、M16 錯誤碼 500；正式站待驗 |
+| `/api/admin/orders/[id]/refund` | GET, POST | C10/C13/C14/M16 最新隔離 API/DB 複驗通過：正常 20/20、同鍵與異金額 17/17、N=10 並發 4 輪、audit 故障 15/15；Ego Lite 管理員 UI 遺失回應後重載同鍵重送，退款／交易／audit 各 1 且清理完成；正式 migration／站端待驗 |
 | `/api/admin/prompt-settings` | GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/prompt-settings/publish` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/provider-health` | GET | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
