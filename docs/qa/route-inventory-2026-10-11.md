@@ -59,7 +59,7 @@
 | `/api/ai/chat` | POST | 現行 main B1 不合格；整合候選 `d5758bb` 專用 49 migration stack 的假模型真 HTTP N=10×3 輪：各 1 答覆／扣點、9 筆 409，usage／ledger 一致，fixture 清 0；真模型與正式站待驗 |
 | `/api/ai/council` | POST | 既有正式證據：並發／日限額；瀏覽器找回待驗 |
 | `/api/auth/forgot-password` | POST | 既有隔離 Auth API 9/9；候選 C25 `bed10dc7` 隱私／公開回應 2/2，C24 `e856c3f` QA route/Auth stub suite 7/7：64-octet local-part dispatch、65/260 octets 400 且 Auth 呼叫 0；provider error log 不含合成 email/token/action link/provider 原始訊息。X-PM 接受固定 event/error type/safe code，correlation ID 留作後續改善；真 Auth、寄信、rate limit、部署後日誌管線與正式站待驗 |
-| `/api/auth/login` | POST | QA-FS-M8 `qa-login-boundaries.vitest.mts`：5 passed、1 expected fail／6；成功 session/member、malformed／空密碼／SQLi／非字串在 Auth 前 400、known／unknown 壞密碼皆同 400；仍回英文 `Invalid login credentials`。128 KiB 密碼原樣送到 Auth stub，缺應用層最大長度規格；使用 Auth/profile stub，真 Auth 與 UI 候選修復待驗 |
+| `/api/auth/login` | POST | QA-FS-M8 `qa-login-boundaries.vitest.mts`：6 passed、1 expected fail／7；成功 session/member、malformed／空密碼／SQLi／非字串在 Auth 前 400、known／unknown 壞密碼皆同 400，provider 429 保持 429；仍回英文 `Invalid login credentials`。128 KiB 密碼原樣送到 Auth stub，缺應用層最大長度規格；使用 Auth/profile stub，真 Auth 與 UI 候選修復待驗 |
 | `/api/auth/logout` | POST | C12 隔離 API 6/6：舊 access／refresh 均立即 401、重複登出 200，故障 UI 留存憑證並提示重試；正式站待驗 |
 | `/api/auth/refresh` | POST | 既有隔離 Auth API `qa-register-local.mjs` 驗有效／無效 refresh；新 route/Auth stub suite 5/5：missing／blank／null／malformed 400、不呼叫 Auth，expired／revoked／incomplete response 統一 401，成功回傳 rotated credentials；同 token N=2 只驗 route 各 dispatch 一次，真 Supabase rotation/reuse 行為及正式站待驗 |
 | `/api/auth/register` | POST | 部分已驗：註冊／同手機並發；郵件待驗 |

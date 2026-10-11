@@ -113,6 +113,14 @@ describe("QA-FS login route boundaries", () => {
     expect(helpers.ensureProfile).not.toHaveBeenCalled();
   });
 
+  it("preserves the provider rate-limit status and creates no profile", async () => {
+    state.nextError = Object.assign(new Error("email rate limit exceeded"), { status: 429 });
+    const response = await POST(request(JSON.stringify({ email: "member@example.test", password: "correct-password" })));
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: "email rate limit exceeded" });
+    expect(helpers.ensureProfile).not.toHaveBeenCalled();
+  });
+
   it.fails("uses a clear Chinese generic message for invalid credentials", async () => {
     state.nextError = Object.assign(new Error("Invalid login credentials"), { status: 400 });
     const response = await POST(request(JSON.stringify({ email: "member@example.test", password: "bad-password" })));
