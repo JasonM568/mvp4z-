@@ -9,7 +9,7 @@
 |---|---|---|
 | `/api/admin/bookings` | GET | 隔離通過：具名管理員列表與 limit 邊界 M6 11/11；正式待驗 |
 | `/api/admin/bookings/[id]` | GET, PATCH | 隔離通過：具名管理員 GET／PATCH＋audit；更多邊界待驗 |
-| `/api/admin/council-runs` | DELETE, GET | M17 修復分支具名管理員 GET 1／200、abc／SQLi／500 位 400 通過；100 位數字仍 200 截頂，後台兩路由合計 14/16；DELETE 待驗 |
+| `/api/admin/council-runs` | DELETE, GET | M17 補修分支 `ced1432` 隔離 GET 複驗通過；後台兩路由合計 16/16，含 100／500 位數字 400；DELETE 與正式站待驗 |
 | `/api/admin/course-product` | GET, PATCH | 具名管理員 GET 隔離冒煙 200（23 路由批次）；PATCH 待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/course-registrations` | GET | 隔離通過 M7/M11：非法 limit 400、完整摘要與 DB 一致，跟進流程 17/17；正式站待驗 |
 | `/api/admin/course-registrations/[id]` | PATCH | 隔離通過：具名管理員跟進 PATCH、時間戳與 audit；非法／超長拒絕 |
@@ -19,7 +19,7 @@
 | `/api/admin/documents/[id]` | DELETE, PATCH | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/effective-settings` | GET | 具名管理員 GET 隔離冒煙 200（23 路由批次）；設定內容正確性待驗；匿名／壞 token／會員拒絕已驗 |
 | `/api/admin/email-domain` | GET, POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
-| `/api/admin/face-analysis` | GET | M17 修復分支具名管理員 GET 1／100、abc／SQLi／500 位 400 通過；100 位數字仍 200 截頂，後台兩路由合計 14/16 |
+| `/api/admin/face-analysis` | GET | M17 補修分支 `ced1432` 隔離 GET 複驗通過；後台兩路由合計 16/16，含 100／500 位數字 400；正式站待驗 |
 | `/api/admin/face-analysis/[id]` | GET | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/face-analysis/[id]/preview` | POST | 部分已驗：匿名／壞 token／會員拒絕；具名管理員流程待驗 |
 | `/api/admin/face-knowledge` | GET, POST | 部分已驗：具名管理員建立／查詢與非法輸入通過；C6 並發隔離回歸通過 |
@@ -71,7 +71,7 @@
 | `/api/cron/expire-entitlements` | GET | 隔離通過 C11：dry-run、過期狀態與點數保留、audit／重跑 13/13；正式排程待驗 |
 | `/api/cron/pending-drafts` | GET, POST | 部分已驗：匿名 401；排程實際執行待驗 |
 | `/api/cron/provider-health` | GET | 部分已驗：匿名 401；排程實際執行待驗 |
-| `/api/face-analysis/runs` | GET, POST | A/B 歷史列表通過；M17 修復分支 limit 新邊界 7/8，abc／SQLi／500 位 400、100 位仍 200 截頂；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider 待驗 |
+| `/api/face-analysis/runs` | GET, POST | A/B 歷史列表通過；M17 補修分支 `ced1432` limit 邊界隔離 8/8，abc／SQLi／100／500 位均 400；C9 僅在已套回退 migration 的隔離庫建立綁新 VIP 權益；provider／正式站待驗 |
 | `/api/face-analysis/runs/[id]` | DELETE, GET | 部分已驗：A/B 詳情與越權 DELETE；本人刪除待驗 |
 | `/api/face-analysis/runs/[id]/analyze` | POST | 待驗：缺可重跑的正常與異常流程證據 |
 | `/api/face-analysis/runs/[id]/image` | DELETE | 部分已驗：越權 DELETE 404；本人照片待驗 |
@@ -81,7 +81,7 @@
 | `/api/login` | POST | 舊路由空 body 400，與新路由相同；正常登入待驗 |
 | `/api/logout` | POST | 舊路由空 body 冪等 200，與 C12 新路由相同；有效 session 待驗 |
 | `/api/me` | GET | 舊路由無權杖 401，與新路由相同；有效會員待驗 |
-| `/api/member/council-runs` | GET | A/B 列表所有權通過；M17 修復分支 limit 新邊界 7/8，abc／SQLi／500 位 400、100 位仍 200 截頂 |
+| `/api/member/council-runs` | GET | A/B 列表所有權通過；M17 補修分支 `ced1432` limit 邊界隔離 8/8，abc／SQLi／100／500 位均 400；正式站待驗 |
 | `/api/member/council-runs/[id]` | GET | 隔離通過：A/B 詳情所有權 |
 | `/api/member/me` | GET | C9 條件通過：已套現回退 migration 的隔離庫 VIP/20；現行 fresh DB 加購仍不合格 |
 | `/api/member/orders` | GET | 隔離通過：A/B 訂單所有權、付款開通輪詢與 SQLi 形狀查詢 11/11 |
