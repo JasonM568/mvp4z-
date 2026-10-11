@@ -571,3 +571,7 @@ Ego Lite 對正式站 10 個公開頁面以 390px、320px CSS viewport 唯讀檢
 ### QA-FS-C2 PostgreSQL int4 boundary follow-up（2026-10-12）
 
 `app/api/admin/credits/route.ts` 對 `amount` 使用 `z.coerce.number().int()`，沒有 int4 範圍限制；`0001_init.sql` 中 `member_entitlements.credits_remaining` 與 `credit_transactions.amount` 為 PostgreSQL `integer`。QA-owned C2 suite 新增兩個 expected-fail route/mock cases：`2,147,483,648` 與 `-2,147,483,649` 都未被 schema 在開 DB client 前拒絕。執行 `./node_modules/.bin/vitest run --config scripts/qa-c2-admin-credits-boundaries.vitest.mts`：**11 passed、2 expected fail（13 tests）**。這只證明 route schema 缺少 int4 guard，沒有實測真 HTTP／PostgreSQL 對越界數值的回應或副作用；C2 ticket、route inventory、UAT M08 已同步，UAT 方框未勾。修復驗收需明確拒絕 int4 上下界外值，並在隔離 DB/API 核對上下界與越界輸入無帳務副作用。其他 C2 critical 缺陷及超額扣點產品規則仍未解。
+
+### current main 完整 Vitest baseline（2026-10-12）
+
+於 main HEAD `141f370` 執行 `./node_modules/.bin/vitest run`：**75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）**。兩個 expected-fail 分別是 B1 同會員並發問答與 C2 超額扣點 ledger amount 不符；C2 專用 int4 boundary suite 不在預設 include，另計 **11 passed、2 expected fail／13 tests**。因此全套綠色退出碼不能代表這兩個 critical gate 或 C2 int4 guard 已通過。

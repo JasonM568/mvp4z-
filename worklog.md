@@ -3260,3 +3260,4 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - C2 QA route suite 新增超出 PostgreSQL int4 正／負界限案例（`2,147,483,648`、`-2,147,483,649`），兩者均要求在建立 DB client 前回 400。現行 route schema 僅 `.int()`，不能拒絕這兩個整數；使用 `it.fails` 明確保留預期失敗，不宣稱真 DB 已返回特定 HTTP 狀態。
 - `./node_modules/.bin/vitest run --config scripts/qa-c2-admin-credits-boundaries.vitest.mts` 結果 **11 passed、2 expected fail／13 tests**；`npx tsc --noEmit`、`git diff --check` 通過。Migration `0001_init.sql` 確認餘額及交易 amount 欄位均為 `integer`；實際 PostgreSQL／HTTP 超界錯誤和副作用仍未驗。
 - 更新 C2 ticket、full-system matrix、route inventory、UAT M08 與本 worklog。QA-UAT M08 保持未執行；C2 critical、產品超額扣點規則待決，未提升驗收狀態。
+- main HEAD `141f370` 完整 `vitest run` 重跑：75 files passed、3 skipped；650 passed、2 expected fail、3 skipped（655 tests）。預期失敗仍是 B1 與 C2 ledger mismatch；C2 int4 boundary suite 使用獨立 config，不併入預設總數。baseline 已記入 full-system acceptance。
