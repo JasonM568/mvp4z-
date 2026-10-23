@@ -1,7 +1,7 @@
 // 巽風易學決策報告｜client-side API 呼叫封裝
 // 對應後端 app/api/ai/council/route.ts
 
-import type { CouncilForm, CouncilModules } from "./_form-config";
+import { directionPayload, type CouncilForm, type CouncilModules } from "./_form-config";
 import type { CouncilStructured } from "@/lib/ai/council/structured";
 
 const TOKEN_KEY = "xunfeng_member_token";
@@ -138,7 +138,8 @@ export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) 
       // 搖卦紀錄：六爻爻象與全報告的問事時間（第一搖）都由它決定，後端在扣點前驗證。
       casting: { throws: form.castThrows },
       modules,
-      qimen: { direction: form.direction },
+      // 起局時刻由後端取第一搖，這裡只說明起局方式與事件方位（白話方位＋後天八卦宮）。
+      qimen: { mode: "第一搖時刻起局", direction: directionPayload(form.direction) },
       liuyao: { mode: "親手搖卦" },
       meihua: buildMeihua(form)
     },

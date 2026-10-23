@@ -60,6 +60,36 @@ export function InputStep({
   /** 點數看起來不夠時的提示資料。只提示不擋——最終仍由後端判定。 */
   creditsShortfall?: { required: number; remaining: number; shortfall: number; feature: string } | null;
 }) {
+  // 改任何一個出生欄位就視為已看過；預設值剛好就是本人時按「以上出生資料正確」。
+  function setBirth<K extends keyof CouncilForm>(key: K, value: CouncilForm[K]) {
+    update(key, value);
+    update("birthConfirmed", true);
+  }
+
+  // 送出前還缺什麼：每一項都能點，直接帶到那個欄位。
+  const castCount = form.castThrows.length;
+  const checks: Array<{ id: string; label: string; ok: boolean }> = [
+    { id: "councilQuestion", label: "你的問題", ok: form.question.trim().length >= 2 },
+    { id: "councilTopic", label: "問題類型", ok: Boolean(form.topic) },
+    { id: "councilBirth", label: "出生年月日時（確認過）", ok: form.birthConfirmed },
+    ...(modules.bazi ? [{ id: "councilGender", label: "性別（八字排大運需要）", ok: form.gender === "男" || form.gender === "女" }] : []),
+    ...(modules.liuyao ? [{ id: "councilCasting", label: `親手搖卦（${castCount}/6）`, ok: castCount >= 6 }] : []),
+    ...(canUseCouncil ? [{ id: "councilConsent", label: "同意扣點規則", ok: agreed }] : [])
+  ];
+  const pending = checks.filter((item) => !item.ok);
+
+  function jumpTo(id: string) {
+    const el = document.getElementById(id);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const focusable = el?.querySelector<HTMLElement>("textarea, input, select, button");
+    window.setTimeout(() => (id === "councilQuestion" ? (el as HTMLElement | null) : focusable)?.focus({ preventScroll: true }), 350);
+  }
+
+  function goNext() {
+    const target = pending.find((item) => item.id !== "councilCasting") ?? pending[0];
+    jumpTo(target ? target.id : "councilConsent");
+  }
+
   return (
     <section className="section" style={{ paddingTop: 26 }}>
       <div className="wrap">
@@ -105,6 +135,17 @@ export function InputStep({
               </label>
             </div>
 
+            <div className="form council-grid-2" style={{ marginTop: 16 }}>
+              <label>
+                案主姓名（選填）
+                <input value={form.clientName} onChange={(e) => update("clientName", e.target.value)} placeholder="例如：王先生；不填也能生成" />
+              </label>
+              <label className="council-span-2">
+                背景補充（選填）
+                <textarea value={form.context} onChange={(e) => update("context", e.target.value)} rows={2} placeholder="補充目前狀況、卡點、時間壓力、相關人物。不填也能生成。" />
+              </label>
+            </div>
+
             <div className="form" id="councilTopic" style={{ marginTop: 16 }}>
               <div className="xf-field-label">
                 問題類型<span className="xf-required">（請點選確認）</span>
@@ -135,15 +176,24 @@ export function InputStep({
               })()}
             </div>
 
-            <div className="form" style={{ marginTop: 16 }}>
-              <div className="xf-field-label">出生年月日時</div>
-              <div className="council-grid-5">
-                <label>曆法<select value={form.calendarType} onChange={(e) => update("calendarType", e.target.value)}>{calendarOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
-                <label>出生年<select value={form.birthYear} onChange={(e) => update("birthYear", Number(e.target.value))}>{years.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
-                <label>出生月<select value={form.birthMonth} onChange={(e) => update("birthMonth", Number(e.target.value))}>{months.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
-                <label>出生日<select value={form.birthDay} onChange={(e) => update("birthDay", Number(e.target.value))}>{days.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
-                <label>出生時辰<select value={form.birthHourBranch} onChange={(e) => update("birthHourBranch", e.target.value)}>{hourBranches.map((x) => <option key={x[0]} value={x[0]}>{x[0]}｜{x[1]}</option>)}</select></label>
+            <div className="form" id="councilBirth" style={{ marginTop: 16 }}>
+              <div className="xf-field-label">
+                出生年月日時<span className="xf-required">（請確認，預設值不是你的資料）</span>
               </div>
+              <div className="council-grid-5">
+                <label>曆法<select value={form.calendarType} onChange={(e) => setBirth("calendarType", e.target.value)}>{calendarOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <label>出生年<select value={form.birthYear} onChange={(e) => setBirth("birthYear", Number(e.target.value))}>{years.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                <label>出生月<select value={form.birthMonth} onChange={(e) => setBirth("birthMonth", Number(e.target.value))}>{months.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                <label>出生日<select value={form.birthDay} onChange={(e) => setBirth("birthDay", Number(e.target.value))}>{days.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
+                <label>出生時辰<select value={form.birthHourBranch} onChange={(e) => setBirth("birthHourBranch", e.target.value)}>{hourBranches.map((x) => <option key={x[0]} value={x[0]}>{x[0]}｜{x[1]}</option>)}</select></label>
+              </div>
+              {form.birthConfirmed ? (
+                <p className="xf-birth-ok">✓ 已確認出生資料</p>
+              ) : (
+                <button type="button" className="xf-birth-confirm" onClick={() => update("birthConfirmed", true)}>
+                  ✓ 以上出生資料正確
+                </button>
+              )}
             </div>
 
             <div className="form" id="councilGender" style={{ marginTop: 16 }}>
@@ -182,20 +232,16 @@ export function InputStep({
             </div>
 
             {modules.liuyao && (
-              <CastingPanel throws={form.castThrows} onChange={(next) => update("castThrows", next)} />
+              <CastingPanel throws={form.castThrows} onChange={(next) => update("castThrows", next)} onNext={goNext} />
             )}
           </article>
 
           <details className="xf-advanced">
-            <summary>進階設定（選填）— 案主資料、事件時間與四術專業介面</summary>
+            <summary>進階設定（全部選填，不填也能生成）— 事件日期、事件方位與專業選項</summary>
             <div className="xf-advanced-body">
               <article className="panel">
-                <h2>共同資料</h2>
+                <h2>其他選填資料</h2>
                 <div className="form council-grid-2">
-                  <label>
-                    案主姓名
-                    <input value={form.clientName} onChange={(e) => update("clientName", e.target.value)} placeholder="例如：王先生" />
-                  </label>
                   <label>
                     性別
                     <select value={form.gender} onChange={(e) => update("gender", e.target.value)}>
@@ -220,10 +266,6 @@ export function InputStep({
                     <select value={form.reportTemplate} onChange={(e) => update("reportTemplate", e.target.value)}>
                       {reportTemplates.map((x) => <option key={x}>{x}</option>)}
                     </select>
-                  </label>
-                  <label className="council-span-2">
-                    背景補充
-                    <textarea value={form.context} onChange={(e) => update("context", e.target.value)} placeholder="補充目前狀況、卡點、時間壓力、相關人物、資金條件。" />
                   </label>
                 </div>
               </article>
@@ -306,12 +348,52 @@ export function InputStep({
                 </p>
 
                 {modules.qimen && (
-                  <SubPanel title="奇門遁甲">
-                    <div className="form council-grid-2">
-                      <label>事件方位<select value={form.direction} onChange={(e) => update("direction", e.target.value)}>{trigramOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
+                  <SubPanel title="奇門遁甲：事件方位（選填）">
+                    <p style={{ color: "var(--muted)", margin: "0 0 12px", fontSize: 15, lineHeight: 1.75 }}>
+                      你問的事情發生在哪個方向？或你想問的那個人、那個地點，在<b style={{ color: "var(--text)" }}>你家（或你現在所在的位置）的哪個方向</b>？
+                      例如：想問「搬到南邊那間新辦公室好不好」就選「南」。方向可以用手機地圖或指南針確認。
+                      不確定、或問題跟方向無關，<b style={{ color: "var(--text)" }}>就不用選</b>，不影響生成；選了會讓奇門判讀多看這個方向的宮位。
+                    </p>
+                    <div className="xf-dir-grid" role="radiogroup" aria-label="事件方位">
+                      {(
+                        [
+                          ["西北", "↖"], ["北", "↑"], ["東北", "↗"],
+                          ["西", "←"], null, ["東", "→"],
+                          ["西南", "↙"], ["南", "↓"], ["東南", "↘"]
+                        ] as const
+                      ).map((cell) =>
+                        cell === null ? (
+                          <button
+                            key="center"
+                            type="button"
+                            role="radio"
+                            aria-checked={form.direction === "不確定"}
+                            className={"xf-dir-btn center" + (form.direction === "不確定" ? " active" : "")}
+                            onClick={() => update("direction", "不確定")}
+                          >
+                            <b>不確定</b>
+                            <small>不選也可以</small>
+                          </button>
+                        ) : (
+                          <button
+                            key={cell[0]}
+                            type="button"
+                            role="radio"
+                            aria-checked={form.direction === cell[0]}
+                            className={"xf-dir-btn" + (form.direction === cell[0] ? " active" : "")}
+                            onClick={() => update("direction", form.direction === cell[0] ? "不確定" : cell[0])}
+                          >
+                            <span className="xf-dir-arrow" aria-hidden>{cell[1]}</span>
+                            <b>{cell[0]}</b>
+                          </button>
+                        )
+                      )}
                     </div>
+                    <p style={{ color: "var(--muted)", margin: "10px 0 0", fontSize: 13 }}>
+                      目前選擇：{form.direction === "不確定" ? "不確定（不指定方向）" : form.direction}。畫面上方是北、右邊是東，和手機地圖一樣。
+                    </p>
                     <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
-                      以你第一次搖卦的時刻起時家奇門。
+                      奇門起局時間：以你第一次搖卦的時刻起時家奇門。
                     </p>
                   </SubPanel>
                 )}
@@ -354,9 +436,31 @@ export function InputStep({
             </div>
           </details>
 
+          <article className="panel xf-ready" id="councilReady">
+            <h2 className="xf-ready-title">送出前檢查</h2>
+            <ul className="xf-ready-list">
+              {checks.map((item) => (
+                <li key={item.id} className={item.ok ? "ok" : "todo"}>
+                  <span aria-hidden>{item.ok ? "✓" : "○"}</span>
+                  <span>{item.label}</span>
+                  {!item.ok && (
+                    <button type="button" onClick={() => jumpTo(item.id)}>
+                      去填寫
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="xf-ready-hint">
+              {pending.length === 0
+                ? "都完成了，按下方「生成天機書」即可。"
+                : `還差 ${pending.length} 項。案主姓名、背景補充與「進階設定」都是選填，不填也能生成。`}
+            </p>
+          </article>
+
           <article className="panel">
             {canUseCouncil && (
-              <div className="consent-box">
+              <div className="consent-box" id="councilConsent">
                 <p className="consent-rule">
                   扣點規則：每生成一份《巽風四象天機書》，將扣 <strong>{councilCost} 點</strong>。天機書生成後即扣點（未通過交付門檻會自動退回）。
                 </p>

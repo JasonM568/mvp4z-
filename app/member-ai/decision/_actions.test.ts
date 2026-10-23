@@ -68,10 +68,20 @@ describe("#7 進階選項必須真能控制報告", () => {
   it("起局時間不再由前端決定：奇門、六爻、梅花都不送時間或起局方式", () => {
     const form = buildInitialForm();
     const payload = buildCouncilPayload(form, buildInitialModules());
-    expect(payload.yixue.qimen).toEqual({ direction: "不確定" });
+    expect(payload.yixue.qimen).toEqual({ mode: "第一搖時刻起局", direction: "不確定" });
     expect(payload.yixue.liuyao).toEqual({ mode: "親手搖卦" });
     expect(payload.yixue.meihua).toEqual({ mode: "時間起卦" });
     expect(JSON.stringify(payload)).not.toContain("現在起局");
+  });
+
+  it("事件方位送白話方位加後天八卦宮；沒選就是不確定", () => {
+    const form = buildInitialForm();
+    form.direction = "東北";
+    expect(buildCouncilPayload(form, buildInitialModules()).yixue.qimen.direction).toBe("東北（艮宮）");
+    form.direction = "西北";
+    expect(buildCouncilPayload(form, buildInitialModules()).yixue.qimen.direction).toBe("西北（乾宮）");
+    form.direction = "亂填";
+    expect(buildCouncilPayload(form, buildInitialModules()).yixue.qimen.direction).toBe("不確定");
   });
 
   it("新表單沒有預設問題類型、沒有搖卦、沒有事件日期", () => {

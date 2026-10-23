@@ -179,9 +179,12 @@ export async function POST(request: NextRequest) {
     // 奇門校對狀態只在報告真的有奇門盤時才查，讀不到一律當未簽核（保守）。
     const qimenSignature = chart?.qimen ? qimenSignatureText(await loadQimenSignoff(Date.now())) : "";
     const castingClock = castingClockOf(input as CouncilInput);
-    const castingLine = castingClock
+    // 奇門盤上的宮位用卦名（乾六、坎一…），會員讀不懂。要求報告對會員一律先講東南西北，卦名只作括號補充。
+    const directionLine =
+      "\n【用語】向會員說明奇門方位時，一律寫東、南、西、北、東南、東北、西南、西北；卦名（乾、坎、艮、震、巽、離、坤、兌）只可放在括號內補充，不得單獨用卦名指稱方位。";
+    const castingLine = directionLine + (castingClock
       ? `\n【起卦紀錄】本卦由案主於 ${castingClock}（台北時間）親手起卦；此刻同時是奇門、梅花與六爻共用的問事時間。`
-      : "";
+      : "");
     const chartBlock = chart
       ? renderChartForPrompt(chart, school.label, schoolSignature, qimenSignature) + castingLine
       : "";

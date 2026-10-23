@@ -26,6 +26,27 @@ export const hourBranches: Array<[string, string]> = [
 ];
 
 export const trigramOptions = ["不確定", "乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
+
+/**
+ * 奇門「事件方位」的白話選項：[方位, 後天八卦宮]。
+ * 會員選的是東南西北，不是卦名；送出時才附上卦名，讓排盤的宮位（例如「乾六宮（西北）」）對得上。
+ */
+export const DIRECTION_OPTIONS: ReadonlyArray<readonly [string, string]> = [
+  ["北", "坎"],
+  ["東北", "艮"],
+  ["東", "震"],
+  ["東南", "巽"],
+  ["南", "離"],
+  ["西南", "坤"],
+  ["西", "兌"],
+  ["西北", "乾"]
+];
+
+/** 表單值（「不確定」或方位名）轉成送給後端的文字，例如「東北（艮宮）」。 */
+export function directionPayload(direction: string): string {
+  const hit = DIRECTION_OPTIONS.find(([name]) => name === direction);
+  return hit ? `${hit[0]}（${hit[1]}宮）` : "不確定";
+}
 export const reportTemplates = ["商業決策顧問報告", "標準個人諮詢報告", "企業主管簡報版", "教學展示版"];
 export const topics = ["事業／工作", "財運／投資", "考試／升學", "感情／人際", "房產／陽宅", "健康／身心"];
 // 性別與身分拆成兩欄。原本擠在同一格（男／女／其他／企業主／考生），
@@ -82,6 +103,8 @@ export type CouncilForm = {
   birthYear: number;
   birthMonth: number;
   birthDay: number;
+  /** 會員是否明確確認過出生年月日時。預設值是 1990/1/1，沒確認就送出會悄悄排錯盤。 */
+  birthConfirmed: boolean;
   birthHourBranch: string;
   /** 精確出生鐘點（選填）。有填時優先於時辰中點，真太陽時校正才有意義。 */
   birthHour: string;
@@ -132,6 +155,7 @@ export function buildInitialForm(): CouncilForm {
     birthYear: 1990,
     birthMonth: 1,
     birthDay: 1,
+    birthConfirmed: false,
     birthHourBranch: "寅",
     birthHour: "",
     birthMinute: "",

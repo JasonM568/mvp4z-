@@ -267,6 +267,11 @@ export default function DecisionPage() {
       document.getElementById("councilTopic")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
+    if (!form.birthConfirmed) {
+      setNotice("請先確認出生年月日時：畫面上的預設值不是你的資料，改成你的出生日，或按「以上出生資料正確」。");
+      document.getElementById("councilBirth")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     // 六爻必須由案主親手搖滿六次；後端也會驗，這裡先擋是為了不讓會員白等一次掃描。
     if (modules.liuyao && form.castThrows.length < 6) {
       setNotice(`六爻需要親手搖卦：目前搖了 ${form.castThrows.length} 次，請搖滿六次再啟動掃描。`);
