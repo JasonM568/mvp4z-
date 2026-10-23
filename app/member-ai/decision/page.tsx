@@ -49,6 +49,9 @@ export default function DecisionPage() {
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanErrorCode, setScanErrorCode] = useState<string | null>(null);
   const [scanErrorDetails, setScanErrorDetails] = useState<Record<string, unknown> | null>(null);
+  // 送出後連線中斷（行動網路切換、螢幕鎖定、504）時，報告可能已在伺服器完成並扣點。
+  // 這時不能顯示「未扣點」的失敗畫面，而是遞增這個計數讓下面的找回輪詢重新啟動。
+  const [recoverTick, setRecoverTick] = useState(0);
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [memberStatus, setMemberStatus] = useState<"loading" | "guest" | "member">("loading");
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
@@ -146,12 +149,13 @@ export default function DecisionPage() {
       if (!stopped && attempts < 60) window.setTimeout(recover, 5000);
       else if (!stopped) {
         setLoading(false);
-        setScanError("目前仍找不到完成的天機書，請到「我的巽風」查看最新報告；系統不會重複送出或扣點。");
+        setScanErrorCode("RECOVERY_NOT_FOUND");
+        setScanError("連線中斷，目前仍找不到完成的天機書。請稍後到「我的巽風」查看最新報告；系統不會重複送出，也不會重複扣點。");
       }
     };
     void recover();
     return () => { stopped = true; };
-  }, []);
+  }, [recoverTick]);
 
   useEffect(() => {
     try {
@@ -316,6 +320,14 @@ export default function DecisionPage() {
     const data: CouncilApiResult = await runCouncilReport(payload).catch((err) => ({
       error: err?.message || "送出失敗"
     }));
+
+    if (data?.error && data.transportFailed) {
+      // 沒聽到伺服器回音 ≠ 失敗：報告可能已完成。保留進行中紀錄，改走找回流程。
+      track("four_aspects_failed", { stage: "transport", code: "transport" });
+      setScanError(null);
+      setRecoverTick((n) => n + 1);
+      return;
+    }
 
     if (data?.error) {
       track("four_aspects_failed", { stage: "generation", code: data.code || "unknown" });

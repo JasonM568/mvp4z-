@@ -94,10 +94,21 @@ export function ScanningStep({
             <article className="panel" style={{ borderColor: "rgba(248,113,113,.5)" }}>
               <h2 style={{ marginTop: 0 }}>掃描未完成</h2>
               <p className="lead" style={{ fontSize: 16 }}>系統提示：{errorMsg}</p>
-              <p style={{ color: "var(--muted)", fontSize: 14 }}>本次未產出報告、未扣點。請調整後重新啟動掃描。</p>
-              <button className="btn primary" onClick={onBack} style={{ marginTop: 10 }}>
-                返回修改
-              </button>
+              {errorCode === "RECOVERY_NOT_FOUND" ? (
+                <>
+                  <p style={{ color: "var(--muted)", fontSize: 14 }}>報告可能仍在生成，請不要重複送出。</p>
+                  <a className="btn primary" href="/member" style={{ marginTop: 10 }}>
+                    前往我的巽風查看
+                  </a>
+                </>
+              ) : (
+                <>
+                  <p style={{ color: "var(--muted)", fontSize: 14 }}>本次未產出報告、未扣點。請調整後重新啟動掃描。</p>
+                  <button className="btn primary" onClick={onBack} style={{ marginTop: 10 }}>
+                    返回修改
+                  </button>
+                </>
+              )}
             </article>
           )}
         </div>
