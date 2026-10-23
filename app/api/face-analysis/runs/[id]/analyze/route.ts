@@ -18,6 +18,7 @@ import { applyFaceRules } from "@/lib/face-analysis/rules";
 import { matchTeachings } from "@/lib/face-analysis/teachings";
 import { mapSurfaceImpacts } from "@/lib/face-analysis/surface-map";
 import { generateFaceReport, renderFaceReportText } from "@/lib/face-analysis/report";
+import { filterDeep, filterReportText, summarizeHits } from "@/lib/safety/report-filter";
 import { faceQualityResultSchema } from "@/lib/face-analysis/schema";
 import { isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
 import { getPublishedFaceKnowledge } from "@/lib/face-analysis/knowledge";
@@ -135,7 +136,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       collaborationAssessment: run.collaboration_assessment,
       collaborationProject: run.collaboration_project
     });
-    const reportText = renderFaceReportText(generated.report);
+    // 會員可見內容的最後一關：名號替換、醫療與療效用語剔除（全域禁令）。
+    const filteredReport = filterDeep(generated.report);
+    const report = filteredReport.value;
+    const filteredText = filterReportText(renderFaceReportText(report));
+    const reportText = filteredText.text;
+    const safetyHits = [...filteredReport.hits, ...filteredText.hits];
     const modelTrace = {
       vision: {
         provider: visionProvider.name,
@@ -167,7 +173,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       .update({
         entitlement_id: entitlement.id,
         vision_result: vision,
-        report_structured: generated.report,
+        report_structured: report,
         report_text: reportText,
         model_trace: modelTrace,
         knowledge_sources_used: approvedKnowledge.map((item) => ({
@@ -184,6 +190,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       .eq("user_id", profile.id)
       .eq("status", "analyzing");
     if (reportWriteError) throw reportWriteError;
+    if (safetyHits.length) {
+      // 稽核寫不進去不影響報告交付；命中紀錄供後台查核。
+      const { error: auditError } = await admin.from("admin_audit_logs").insert({
+        admin_user_id: null,
+        action: "report_safety_filter",
+        target_type: "face_analysis_run",
+        target_id: run.id,
+        metadata: { userId: profile.id, hits: summarizeHits(safetyHits) }
+      });
+      if (auditError) console.warn("[face-analysis] 過濾稽核寫入失敗", { error: auditError.message });
+    }
 
     const { data: usage, error: usageError } = await admin
       .from("usage_logs")
@@ -192,7 +209,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         entitlement_id: entitlement.id,
         type: "face_analysis",
         prompt: `face_analysis:${run.mode}`,
-        reply: generated.report.summary,
+        reply: report.summary,
         tokens_input: generated.trace.tokensInput,
         tokens_output: generated.trace.tokensOutput
       })

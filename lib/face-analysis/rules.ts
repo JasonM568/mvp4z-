@@ -24,7 +24,7 @@ import { BUILT_IN_RULE_SET, type TeachingRuleSet } from "@/lib/face-analysis/tea
 export { FACE_RULE_MIN_CONFIDENCE };
 
 /**
- * 沈全榮老師十二宮體系（docs/specs/face-analysis/SPEC-05）。
+ * 巽風面相十二宮體系（docs/specs/face-analysis/SPEC-05）。
  * 宮名與順序依老師筆記 p.59 十二宮總論，不用麻衣古籍版宮名。
  */
 export const FACE_PALACE_NAMES = [
@@ -60,7 +60,7 @@ export type RuleItem = Readonly<{
 
 export type PalaceRuleResult = Readonly<{
   name: FacePalaceName;
-  /** 沈師教材定義的部位，供報告撰稿引用（細部位在 Vision v2 前以八大區塊近似） */
+  /** 巽風面相教材定義的部位，供報告撰稿引用（細部位在 Vision v2 前以八大區塊近似） */
   parts: string;
   status: RuleStatus;
   ruleId: string;
@@ -76,7 +76,7 @@ export type FaceRuleResult = Readonly<{
   photoFingerprint: readonly FingerprintReading[];
   overallTrend: RuleItem;
   palaces: readonly PalaceRuleResult[];
-  /** 九值流年法＋七十五部位流年法的確定性結果（沈師教材 p.11–13）。 */
+  /** 九值流年法＋七十五部位流年法的確定性結果（巽風面相教材 p.11–13）。 */
   flowYear: FlowYearResult | null;
   /** 斑、痣、疤、痕對應到的宮位、主題與流年（會員版，已剝除教材原文）。 */
   surfaceImpacts: readonly Omit<SurfaceImpact, "teacherNote">[];
@@ -142,7 +142,7 @@ function auxiliaryEvidence(vision: FaceVisionResult, region: FaceFeatureName): R
 }
 
 /**
- * 宮位狀態只由「形態可判讀程度」與「對稱性」決定（沈師：不對稱有義）。
+ * 宮位狀態只由「形態可判讀程度」與「對稱性」決定（巽風面相：不對稱有義）。
  * 光線／拍攝條件不進宮位狀態，統一收進 cautions。
  */
 function palaceStatus(vision: FaceVisionResult, mapping: PalaceMapping): RuleStatus {

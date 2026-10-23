@@ -9,7 +9,7 @@ const area = (conclusion: string, sources: string[]) => ({
   conclusion,
   alignment: "medium" as const,
   visibleBasis: "本次可見主部位寬度適中且左右對稱。",
-  teacherInterpretation: "依沈師教材的主輔部位進行交叉觀察。",
+  teacherInterpretation: "依巽風面相教材的主輔部位進行交叉觀察。",
   watchout: "輔助部位仍需更清晰照片核對。",
   action: "未來十四天記錄三次實際結果再比對。",
   confidence: "medium" as const,
@@ -51,11 +51,11 @@ const validReport = {
   ],
   disclaimer: FACE_REPORT_DISCLAIMER,
   lifeAreas: {
-    relationship: area("感情互動建議先觀察溝通節奏。", ["沈師筆記 p.72–77"]),
-    career: area("事業上可先用小型任務驗證執行節奏。", ["沈師筆記 p.60–69"]),
-    health: area("健康項目只作部位可判讀度說明。", ["沈師筆記 p.78–84"]),
-    finance: area("財運項目應按年齡對應三倉核對。", ["沈師筆記 p.84–86"]),
-    family: area("家庭項目需要多宮位交叉觀察。", ["沈師筆記 p.66–90"])
+    relationship: area("感情互動建議先觀察溝通節奏。", ["巽風面相筆記 p.72–77"]),
+    career: area("事業上可先用小型任務驗證執行節奏。", ["巽風面相筆記 p.60–69"]),
+    health: area("健康項目只作部位可判讀度說明。", ["巽風面相筆記 p.78–84"]),
+    finance: area("財運項目應按年齡對應三倉核對。", ["巽風面相筆記 p.84–86"]),
+    family: area("家庭項目需要多宮位交叉觀察。", ["巽風面相筆記 p.66–90"])
   },
   surfaceAnalysis: {
     detectedFeatures: [],

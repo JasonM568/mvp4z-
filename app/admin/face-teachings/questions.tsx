@@ -145,7 +145,7 @@ function QuestionCard({ question, defaultName, busy, onSave }: {
           </label>
 
           <div className="admin-form-grid" style={{ marginTop: 10 }}>
-            <label>回覆人姓名<input value={name} onChange={(event) => setName(event.target.value)} placeholder="例：沈全榮老師" /></label>
+            <label>回覆人姓名<input value={name} onChange={(event) => setName(event.target.value)} placeholder="例：風羿老師" /></label>
           </div>
 
           {question.answered_at && (

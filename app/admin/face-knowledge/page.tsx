@@ -5,7 +5,7 @@ import { adminFetch } from "../_shell";
 
 type Card = { id: string; card_id: string; title: string; category: string; school: string | null; technique: string | null; observation: string; teacher_original: string | null; editor_summary: string | null; rule_condition: Record<string, unknown>; safety_level: string; auto_report: boolean; status: string; version: number; source_file: string | null; source_pages: number[]; updated_at: string };
 type Revision = { id: string; version: number; change_note: string | null; created_at: string; snapshot: Record<string, unknown> };
-const empty = { cardId: "", title: "", category: "十二宮位", school: "沈全榮老師教材", technique: "", observation: "", teacherOriginal: "", editorSummary: "", ruleCondition: {} as Record<string, unknown>, safetyLevel: "standard", autoReport: false, sourceFile: "", sourcePages: "", status: "draft" };
+const empty = { cardId: "", title: "", category: "十二宮位", school: "巽風面相教材", technique: "", observation: "", teacherOriginal: "", editorSummary: "", ruleCondition: {} as Record<string, unknown>, safetyLevel: "standard", autoReport: false, sourceFile: "", sourcePages: "", status: "draft" };
 
 export default function FaceKnowledgeAdminPage() {
   const [items, setItems] = useState<Card[]>([]); const [selected, setSelected] = useState<string[]>([]); const [form, setForm] = useState(empty); const [editing, setEditing] = useState<string | null>(null); const [editingVersion, setEditingVersion] = useState<number | null>(null); const [revisions, setRevisions] = useState<Revision[]>([]); const [search, setSearch] = useState(""); const [status, setStatus] = useState(""); const [loading, setLoading] = useState(true); const [message, setMessage] = useState("");

@@ -140,7 +140,7 @@ function TeachingAudit({ audit }: { audit: Audit }) {
   return (
     <Section title="教材依據稽核鏈">
       <p style={{ color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.8 }}>
-        每一列都是一條可核的鏈路：Vision 對這張照片的觀測值 → 命中的形態條件 → 沈師教材條文與頁碼 → 報告是否引用。
+        每一列都是一條可核的鏈路：Vision 對這張照片的觀測值 → 命中的形態條件 → 巽風面相教材條文與頁碼 → 報告是否引用。
         規則層為查表比對，執行期不會產生表外的教材說法。
       </p>
 

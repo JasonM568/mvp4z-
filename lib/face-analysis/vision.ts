@@ -16,7 +16,7 @@ const visibleRegionSchema = z
   .strict();
 
 /**
- * 沈師十二宮第一批核可的細部位。這些欄位仍只允許回傳可見幾何，
+ * 巽風面相十二宮第一批核可的細部位。這些欄位仍只允許回傳可見幾何，
  * 絕不能藉此推論健康、年齡或任何人格／敏感屬性。
  */
 const visibleDetailSchema = visibleRegionSchema;

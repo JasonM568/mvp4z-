@@ -25,6 +25,7 @@ import { loadPromptSettings } from "@/lib/ai/council/settings/load";
 import { selectTeacherDocuments } from "@/lib/ai/council/settings/document-selection";
 import { buildChartForCouncil, castingClockOf } from "@/lib/ai/council/chart";
 import { validateCasting } from "@/lib/divination/casting";
+import { filterDeep, filterReportText, summarizeHits, type FilterHit } from "@/lib/safety/report-filter";
 import { loadSchool } from "@/lib/school-settings/load";
 import { renderChartDigest, renderChartForPrompt } from "@/lib/yixue/format/prompt";
 import type { PromptSettings } from "@/lib/ai/council/settings/schema";
@@ -284,9 +285,20 @@ export async function POST(request: NextRequest) {
       });
     }
     const finalLabel = finalOk ? final.label : "風羿老師備援交付稿";
-    const finalText = finalOk
-      ? cleanReportText(reportText)
-      : cleanReportText(buildSafeFallbackReport(councilInput, prompt.settings, chart));
+    // 會員可見內容的最後一關：名號替換、醫療與療效用語剔除（全域禁令）。
+    // 本文與結構化報告各過一次；命中紀錄在報告寫入後存進稽核。
+    const filteredText = filterReportText(
+      finalOk
+        ? cleanReportText(reportText)
+        : cleanReportText(buildSafeFallbackReport(councilInput, prompt.settings, chart))
+    );
+    const finalText = filteredText.text;
+    const filterHits: FilterHit[] = [...filteredText.hits];
+    if (structured) {
+      const filteredStructured = filterDeep(structured);
+      structured = filteredStructured.value;
+      filterHits.push(...filteredStructured.hits);
+    }
 
     const totalTokensIn = firstTokens.in + debateTokens.in + (final.tokensIn || 0);
     const totalTokensOut = firstTokens.out + debateTokens.out + (final.tokensOut || 0);
@@ -432,6 +444,22 @@ export async function POST(request: NextRequest) {
       }
     } else {
       runId = runInserted?.id || null;
+    }
+
+    // 過濾稽核：只在有命中時寫，且寫不進去也不影響報告交付（會員已付費）。
+    if (filterHits.length) {
+      try {
+        const { error: auditError } = await admin.from("admin_audit_logs").insert({
+          admin_user_id: null,
+          action: "report_safety_filter",
+          target_type: "council_run",
+          target_id: runId,
+          metadata: { userId: profile.id, hits: summarizeHits(filterHits) }
+        });
+        if (auditError) console.warn("[council] 過濾稽核寫入失敗", { error: auditError.message });
+      } catch (auditThrown) {
+        console.warn("[council] 過濾稽核寫入例外", { error: String(auditThrown) });
+      }
     }
 
     const member = await getPublicMember(profile.id);

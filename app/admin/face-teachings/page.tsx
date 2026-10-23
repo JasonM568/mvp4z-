@@ -167,7 +167,7 @@ export default function FaceTeachingsPage() {
     <>
       <h1>面相判讀規則</h1>
       <p className="lead">
-        沈師教材的判讀條文。只有「已發布」且安全分級為 standard 或 high 的規則會進會員報告；
+        巽風面相教材的判讀條文。只有「已發布」且安全分級為 standard 或 high 的規則會進會員報告；
         critical 只留給老師版與稽核。改完即時生效於之後的新分析，既有報告不受影響。
       </p>
       {message && <div className="admin-inline-message">{message}</div>}
@@ -181,7 +181,7 @@ export default function FaceTeachingsPage() {
 
       <div className="admin-form-grid" style={{ marginTop: 16 }}>
         <label>核對人姓名（會記入稽核）
-          <input value={reviewerName} onChange={(e) => setReviewerName(e.target.value)} placeholder="例：沈全榮老師" />
+          <input value={reviewerName} onChange={(e) => setReviewerName(e.target.value)} placeholder="例：風羿老師" />
         </label>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>

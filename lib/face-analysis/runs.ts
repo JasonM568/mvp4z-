@@ -1,6 +1,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CreateFaceRunInput } from "@/lib/face-analysis/schema";
 import { FaceAnalysisRun, FaceRunPublicSummary } from "@/lib/face-analysis/types";
+import { filterDeep, filterReportText } from "@/lib/safety/report-filter";
 
 const PUBLIC_RUN_FIELDS = [
   "id",
@@ -102,7 +103,15 @@ export async function getOwnedPublicRun(profileId: string, runId: string) {
     .eq("user_id", profileId)
     .maybeSingle();
   if (error) throw error;
-  return (data as FaceRunPublicSummary | null) || null;
+  const run = (data as FaceRunPublicSummary | null) || null;
+  if (!run) return null;
+  // 讀取時再過濾一次：禁令上線前產出的舊報告也不能把名號或醫療用語送到會員眼前。
+  // 資料庫裡的原文不動，過濾只作用在回給會員的這一份。
+  return {
+    ...run,
+    report_text: typeof run.report_text === "string" ? filterReportText(run.report_text).text : run.report_text,
+    report_structured: run.report_structured ? filterDeep(run.report_structured).value : run.report_structured
+  };
 }
 
 export async function appendFaceRunEvent(input: {

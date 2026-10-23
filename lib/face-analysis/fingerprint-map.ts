@@ -1,7 +1,7 @@
 import type { FaceVisionResult } from "@/lib/face-analysis/vision";
 
 /**
- * 照片特徵指紋 → 沈師教材部位的對應。
+ * 照片特徵指紋 → 巽風面相教材部位的對應。
  *
  * 為什麼需要這張表：`distinctiveFeatures` 是 Vision 對這張照片抓到的具體特徵
  * （例如「鼻頭圓潤且略微突出」），是整份報告最貼身的一段；但它原本只是把觀察文字

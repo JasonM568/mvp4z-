@@ -9,7 +9,7 @@ import type { FaceVisionResult } from "@/lib/face-analysis/vision";
  *
  *   Vision 對這張照片的觀測值
  *     → 命中了哪一條形態條件
- *       → 對應到哪一條沈師教材條文（含頁碼）
+ *       → 對應到哪一條巽風面相教材條文（含頁碼）
  *         → 報告有沒有真的引用它
  *
  * 資料一律取自該次執行當下寫入的 `model_trace.teacherAudit`，

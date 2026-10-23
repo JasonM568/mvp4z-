@@ -3,7 +3,7 @@ import { FEATURE_LABELS, type FaceFeatureName } from "@/lib/face-analysis/face-f
 import type { FaceVisionResult } from "@/lib/face-analysis/vision";
 
 /**
- * 斑、痣、疤、痕的部位對應（沈全榮老師教材）。
+ * 斑、痣、疤、痕的部位對應（巽風面相教材）。
  *
  * 分流原則（2026-08-19 使用者拍板）：
  * - 六親關係與財運：依教材直接寫進會員報告，語氣為民俗說法。
