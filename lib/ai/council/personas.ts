@@ -7,6 +7,7 @@
 import { DEFAULT_PROMPT_SETTINGS } from "./settings/defaults";
 import { renderPersona } from "./settings/render";
 import type { PromptSettings } from "./settings/schema";
+import { formatTaipeiClock } from "@/lib/divination/casting";
 
 export type YixuePayload = {
   clientName?: string;
@@ -103,12 +104,12 @@ function enabledModules(input: CouncilInput) {
  * 舊版這裡有一句「請依此時間推算上下卦與動爻」，等於叫模型心算起卦，
  * 而它算錯不會有任何人發現。留著會讓模型另起一組卦跟真盤打架，故移除。
  */
-function meihuaBlock(m: YixuePayload["meihua"]): string {
+function meihuaBlock(m: YixuePayload["meihua"], clock: string | null = null): string {
   const mode = m?.mode || "未填";
   const lines = [`起卦方式：${mode}`];
   if (mode === "時間起卦") {
     lines.push(`時間依據：${m?.timeMode || "現在時間"}`);
-    lines.push(`起卦時間：${m?.time || "未提供"}`);
+    lines.push(`起卦時間：${clock ? `${clock}（案主親手搖卦，第一搖時刻，台北時間）` : m?.time || "未提供"}`);
     lines.push("（卦象已由系統起好，見系統排盤區塊）");
     return lines.join("\n");
   }
@@ -130,6 +131,29 @@ function leapMonthNote(input: CouncilInput): string {
   return flag ? `（閏月：${flag}）` : "（閏月：未填）";
 }
 
+/** 案主親手搖卦的第一搖時刻（台北時間）。全報告的問事時間，沒有搖卦紀錄回 null。 */
+function castingClock(input: CouncilInput): string | null {
+  const first = input.yixue?.casting?.throws?.[0]?.at;
+  if (!first) return null;
+  const d = new Date(first);
+  return Number.isNaN(d.getTime()) ? null : formatTaipeiClock(d);
+}
+
+/** 有搖卦紀錄時，問事時間就是第一搖；否則沿用舊版的事件時間欄位。 */
+function eventTimeBlock(input: CouncilInput): string {
+  const clock = castingClock(input);
+  if (clock) return `【問事／起局時間】\n${clock}（台北時間，案主親手搖卦第一搖；奇門、梅花、六爻共用此時刻，不是缺資料）`;
+  const e = input.yixue?.eventTime;
+  return `【事件／起局時間】\n${e?.year || "未填"}-${e?.month || "未填"}-${e?.day || "未填"} ${e?.hour || "未填"}:${e?.minute || "未填"}`;
+}
+
+/** 六爻：親手搖卦時列出六次爻象（初爻在前），讓完整度檢核看得到原始搖卦數據。 */
+function liuyaoYaoLine(input: CouncilInput): string {
+  const throws = input.yixue?.casting?.throws;
+  if (throws?.length) return `六爻（案主親手搖卦，由初爻往上）：${throws.map((t) => t.yao).join("、")}`;
+  return `六爻：${input.yixue?.liuyao?.yao?.join("、") || "未填"}`;
+}
+
 /**
  * @param chartBlock 系統排盤結果（已格式化）。有值時取代原本的出生資料區塊——
  *   以前是把生日原樣丟給 LLM 叫它自己推四柱，現在是程式算好叫它照用。
@@ -149,8 +173,7 @@ export function yixueDataBlock(input: CouncilInput, chartBlock = "") {
 
 ${chartBlock}
 
-【事件／起局時間】
-${input.yixue?.eventTime?.year || "未填"}-${input.yixue?.eventTime?.month || "未填"}-${input.yixue?.eventTime?.day || "未填"} ${input.yixue?.eventTime?.hour || "未填"}:${input.yixue?.eventTime?.minute || "未填"}
+${eventTimeBlock(input)}
 
 【啟用術數模組】
 ${enabledModules(input)}
@@ -162,11 +185,11 @@ ${enabledModules(input)}
 
 【卜卦／六爻資料】
 起卦方式：${input.yixue?.liuyao?.mode || "未填"}
-六爻：${input.yixue?.liuyao?.yao?.join("、") || "未填"}
+${liuyaoYaoLine(input)}
 （卦已由系統裝好，含納甲、六親、六神、世應、旬空、月破，見系統排盤區塊）
 
 【梅花易數資料】
-${meihuaBlock(input.yixue?.meihua)}
+${meihuaBlock(input.yixue?.meihua, castingClock(input))}
 `.trim();
   }
 
@@ -185,8 +208,7 @@ ${meihuaBlock(input.yixue?.meihua)}
 年月日：${input.yixue?.birth?.year || "未填"} 年 ${input.yixue?.birth?.month || "未填"} 月 ${input.yixue?.birth?.day || "未填"} 日
 出生時辰：${input.yixue?.birth?.hourBranch || "未填"}；時辰確認：${input.yixue?.birth?.timeKnown || "未填"}
 
-【事件／起局時間】
-${input.yixue?.eventTime?.year || "未填"}-${input.yixue?.eventTime?.month || "未填"}-${input.yixue?.eventTime?.day || "未填"} ${input.yixue?.eventTime?.hour || "未填"}:${input.yixue?.eventTime?.minute || "未填"}
+${eventTimeBlock(input)}
 
 【啟用術數模組】
 ${enabledModules(input)}
@@ -198,11 +220,11 @@ ${enabledModules(input)}
 
 【卜卦／六爻資料】
 起卦方式：${input.yixue?.liuyao?.mode || "未填"}
-六爻：${input.yixue?.liuyao?.yao?.join("、") || "未填"}
+${liuyaoYaoLine(input)}
 （卦已由系統裝好，含納甲、六親、六神、世應、旬空、月破，見系統排盤區塊）
 
 【梅花易數資料】
-${meihuaBlock(input.yixue?.meihua)}
+${meihuaBlock(input.yixue?.meihua, castingClock(input))}
 `.trim();
 }
 
