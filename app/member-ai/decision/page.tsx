@@ -17,6 +17,7 @@ import { InputStep } from "./_steps/input-step";
 import { ScanningStep } from "./_steps/scanning-step";
 import { ReportStep } from "./_steps/report-step";
 import { SiteHeader } from "@/components/SiteHeader";
+import { GuestModal } from "./_guest-modal";
 import { track } from "@vercel/analytics/react";
 
 type MemberInfo = {
@@ -28,6 +29,8 @@ type MemberInfo = {
 
 type Step = "landing" | "input" | "scanning" | "report";
 // v2：舊草稿帶著預設的「事業／工作」與預設爻象，沿用會繞過「類型要自己確認、六爻要親手搖」。
+// 同一個瀏覽分頁關掉引導視窗後不再自動彈出；點「開始問天機」時仍會再引導一次。
+const GUEST_MODAL_KEY = "xunfeng_four_aspects_guest_modal_dismissed";
 const DRAFT_KEY = "xunfeng_four_aspects_draft_v2";
 /** 草稿裡的搖卦紀錄超過這個時間就丟掉；後端 60 分鐘會拒絕，留一點餘裕。 */
 const CASTING_DRAFT_MAX_AGE_MS = 50 * 60 * 1000;
@@ -51,6 +54,7 @@ export default function DecisionPage() {
   const [reportMeta, setReportMeta] = useState<ReportMeta | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [reportFileBase, setReportFileBase] = useState("巽風四象天機書");
+  const [guestModalOpen, setGuestModalOpen] = useState(false);
 
   useEffect(() => {
     const token = getMemberToken();
@@ -70,6 +74,22 @@ export default function DecisionPage() {
       })
       .catch(() => setMemberStatus("guest"));
   }, []);
+
+  // 訪客進頁面時自動彈出註冊引導（關掉後同一分頁不再自動彈出）。
+  useEffect(() => {
+    if (memberStatus !== "guest") return;
+    try {
+      if (window.sessionStorage.getItem(GUEST_MODAL_KEY)) return;
+    } catch {}
+    setGuestModalOpen(true);
+  }, [memberStatus]);
+
+  function closeGuestModal() {
+    setGuestModalOpen(false);
+    try {
+      window.sessionStorage.setItem(GUEST_MODAL_KEY, "1");
+    } catch {}
+  }
 
   useEffect(() => {
     const token = getMemberToken();
@@ -419,7 +439,7 @@ export default function DecisionPage() {
               planLabel: member?.plan?.toUpperCase() || "免費"
             }}
             costHint={canUseCouncil ? costHint : ""}
-            onStart={() => setStep("input")}
+            onStart={() => (isGuest ? setGuestModalOpen(true) : setStep("input"))}
           />
         )}
 
@@ -476,6 +496,8 @@ export default function DecisionPage() {
           />
         )}
       </div>
+
+      <GuestModal open={guestModalOpen} onClose={closeGuestModal} />
 
       {/* 列印專用副本：掛在 .council-screen 外，列印時只輸出這份白紙顧問書 */}
       {report && (
