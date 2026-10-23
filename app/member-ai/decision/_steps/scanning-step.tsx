@@ -94,6 +94,9 @@ export function ScanningStep({
             <article className="panel" style={{ borderColor: "rgba(248,113,113,.5)" }}>
               <h2 style={{ marginTop: 0 }}>掃描未完成</h2>
               <p className="lead" style={{ fontSize: 16 }}>系統提示：{errorMsg}</p>
+              <p style={{ color: "var(--muted)", fontSize: 12 }}>
+                錯誤代碼：{errorCode || "無"}　時間：{new Date().toLocaleString("zh-TW", { hour12: false })}
+              </p>
               {errorCode === "RECOVERY_NOT_FOUND" ? (
                 <>
                   <p style={{ color: "var(--muted)", fontSize: 14 }}>報告可能仍在生成，請不要重複送出。</p>
