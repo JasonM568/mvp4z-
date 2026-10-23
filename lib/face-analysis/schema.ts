@@ -12,6 +12,8 @@ export const createFaceRunSchema = z
     requestId: z.string().uuid("requestId 格式錯誤"),
     mode: faceModeSchema,
     subjectAge: z.number().int().min(1).max(120).nullable().optional().default(null),
+    /** 出生年（西元）。有填時由伺服器換算虛歲，優先於 subjectAge。 */
+    birthYear: z.number().int().min(1900).max(2100).nullable().optional().default(null),
     consentVersion: z.string().trim().min(1).max(40),
     thirdPartyConsent: z.boolean().optional().default(false),
     collaborationAssessment: z.boolean().optional().default(false),

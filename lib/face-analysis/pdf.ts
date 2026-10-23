@@ -123,9 +123,9 @@ const AREA_LABEL: Record<string, string> = {
 };
 
 const ALIGNMENT_LABEL: Record<string, string> = {
-  high: "相符度高",
-  medium: "相符度中等",
-  low: "相符度偏低",
+  high: "可見形態相符程度：高",
+  medium: "可見形態相符程度：中",
+  low: "可見形態相符程度：低",
   insufficient: "資料不足"
 };
 
@@ -320,6 +320,20 @@ function drawBody(doc: Doc, report: StructuredFaceReport) {
       bullets(doc, r.flowYear.gates.map(String));
     }
     labelled(doc, "可以想一想", r.flowYear.reflection);
+  }
+
+  if (r.sixRelatives && Array.isArray(r.sixRelatives.items) && r.sixRelatives.items.length) {
+    sectionTitle(doc, String(r.sixRelatives.title || "六親外襲"));
+    if (r.sixRelatives.intro) paragraph(doc, String(r.sixRelatives.intro), INK_FAINT);
+    for (const item of r.sixRelatives.items) {
+      keepTogether(doc, 90);
+      heading(doc, `${item?.relative || "親人"}${item?.phase ? `（對照${item.phase}）` : ""}`);
+      labelled(doc, "看你的", Array.isArray(item?.parts) ? item.parts.join("、") : undefined);
+      labelled(doc, "本張照片", item?.observation);
+      labelled(doc, "老師的對照", item?.teacherNote);
+      labelled(doc, "建議核對", item?.verify);
+    }
+    if (r.sixRelatives.note) paragraph(doc, String(r.sixRelatives.note), INK_FAINT);
   }
 
   if (r.collaborationFramework && typeof r.collaborationFramework === "object") {

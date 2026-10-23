@@ -25,7 +25,7 @@ const CONSENT_VERSION = "2026-08-01";
 export default function FaceAnalysisPage() {
   const [step, setStep] = useState<Step>("landing");
   const [mode, setMode] = useState<Mode>("self");
-  const [subjectAge, setSubjectAge] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [naturalPhotoConfirmed, setNaturalPhotoConfirmed] = useState(false);
   const [thirdPartyConsent, setThirdPartyConsent] = useState(false);
@@ -173,7 +173,7 @@ export default function FaceAnalysisPage() {
         body: JSON.stringify({
           requestId: (requestIdRef.current ||= crypto.randomUUID()),
           mode,
-          subjectAge: subjectAge ? Number(subjectAge) : null,
+          birthYear: birthYear ? Number(birthYear) : null,
           consentVersion: CONSENT_VERSION,
           thirdPartyConsent: mode === "other" ? thirdPartyConsent : false,
           collaborationAssessment,
@@ -344,8 +344,9 @@ export default function FaceAnalysisPage() {
               </fieldset>
 
               <label className="face-field">
-                <span>年齡（選填）</span>
-                <input type="number" min="1" max="120" inputMode="numeric" value={subjectAge} onChange={(event) => setSubjectAge(event.target.value)} placeholder="例如：35" />
+                <span>出生年（西元，選填）</span>
+                <input type="number" min="1900" max="2100" inputMode="numeric" value={birthYear} onChange={(event) => setBirthYear(event.target.value)} placeholder="例如：1990" />
+                <small>填了才能算出「今年流年走到哪個部位」。系統以虛歲對照（今年 − 出生年 + 1）。</small>
               </label>
 
               <div className="face-consents face-collaboration-option">

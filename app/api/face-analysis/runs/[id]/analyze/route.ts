@@ -19,6 +19,7 @@ import { matchTeachings } from "@/lib/face-analysis/teachings";
 import { mapSurfaceImpacts } from "@/lib/face-analysis/surface-map";
 import { generateFaceReport, renderFaceReportText } from "@/lib/face-analysis/report";
 import { filterDeep, filterReportText, summarizeHits } from "@/lib/safety/report-filter";
+import { buildSixRelatives } from "@/lib/face-analysis/six-relatives";
 import { faceQualityResultSchema } from "@/lib/face-analysis/schema";
 import { isFaceAnalysisEnabled } from "@/lib/face-analysis/config";
 import { getPublishedFaceKnowledge } from "@/lib/face-analysis/knowledge";
@@ -137,7 +138,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       collaborationProject: run.collaboration_project
     });
     // 會員可見內容的最後一關：名號替換、醫療與療效用語剔除（全域禁令）。
-    const filteredReport = filterDeep(generated.report);
+    // 六親外襲由規則層產生，附在模型報告之後一起過濾。
+    const filteredReport = filterDeep({ ...generated.report, sixRelatives: buildSixRelatives(vision) });
     const report = filteredReport.value;
     const filteredText = filterReportText(renderFaceReportText(report));
     const reportText = filteredText.text;

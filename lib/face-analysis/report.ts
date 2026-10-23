@@ -10,6 +10,8 @@ import type { FaceVisionResult } from "@/lib/face-analysis/vision";
 import { createOpenAIClient, openAIModel } from "@/lib/ai/openai";
 import { groupTeachingsByTheme, type TeachingTheme } from "@/lib/face-analysis/teachings";
 import { zodTextFormat } from "openai/helpers/zod";
+import { enforceReportConsistency } from "@/lib/face-analysis/consistency";
+import { renderSixRelativesText, type SixRelativesSection } from "@/lib/face-analysis/six-relatives";
 
 const REPORT_INSTRUCTIONS = `你是巽風面相民俗文化報告整理器。
 你只能根據輸入的結構化規則結果撰寫，不得重新分析照片，也不得加入輸入沒有的事實。
@@ -241,9 +243,14 @@ export async function generateFaceReport(input: {
   if (enforced.violations.length > 0) {
     console.warn("FACE_REPORT_CITATION_VIOLATION", { violations: JSON.stringify(enforced.violations).slice(0, 600) });
   }
+  // 前後一致性：以規則層的事實為準，改掉互相矛盾的敘述（不重跑模型）。
+  const consistent = enforceReportConsistency(enforced.report);
+  if (consistent.fixes.length > 0) {
+    console.warn("FACE_REPORT_CONSISTENCY_FIXED", { fixes: JSON.stringify(consistent.fixes).slice(0, 600) });
+  }
 
   return {
-    report: enforced.report,
+    report: consistent.report,
     trace: {
       provider: "openai",
       model,
@@ -251,7 +258,9 @@ export async function generateFaceReport(input: {
       tokensOutput: Number(response.usage?.output_tokens || 0),
       latencyMs: Date.now() - startedAt,
       // 教材引用把關結果；空陣列代表本次引用全部對得回規則層。
-      citationViolations: enforced.violations
+      citationViolations: enforced.violations,
+      // 一致性檢查改了什麼；空陣列代表模型原稿本身前後一致。
+      consistencyFixes: consistent.fixes
     }
   };
 }
@@ -419,7 +428,7 @@ function outputContract(mode: FaceAnalysisMode, collaborationAssessment: boolean
   citedTeachings 輸出空陣列，且不得自行編造老師沒說過的說法。
 - health 面向的 matchedTeachings 若含 healthSensitive 條文，只能引用其部位與核對提醒，不得寫臟腑或病名。
 - alignment 必須逐字複製該面向 teacherAreaFramework.calculatedAlignment，不得自行評分。它是本次可見形態對老師建議觀察條件的符合度，不是人生結果、運勢分數或照片可信度。
-- conclusion 必須以「老師建議符合度為高／中／低／資料不足」開頭，再說最強的一組部位與最需要留意的一組部位；不得寫「以實際狀況為準」或其他免責廢話。
+- conclusion 必須以「可見形態相符程度為高／中／低／資料不足」開頭，再說最強的一組部位與最需要留意的一組部位；不得寫「以實際狀況為準」或其他免責廢話。
 - visibleBasis 必須點名本次實際可見部位及形態，並明說哪些主部位不可判讀；不得把拍攝品質當成生活結論。
 - 五個 visibleBasis 各自必須引用至少一項 rules.photoFingerprint 的原始 observation；不同面向應優先選擇不同特徵，不得五項重複同一句模板。
 - teacherInterpretation 必須按 teacherAreaFramework.method 進行多宮位交叉解讀，不得自創關聯。
@@ -437,7 +446,7 @@ ${collaborationAssessment ? `- collaborationFramework 必須只含 verdict、ver
 - riskSignals 與 questionsToVerify 必須是合作過程中可觀察、可記錄的現實行為，不得當作已發生的人格事實。`;
 }
 
-export function renderFaceReportText(report: FaceReport) {
+export function renderFaceReportText(report: FaceReport & { sixRelatives?: SixRelativesSection }) {
   const sections = [
     `# 巽風面相文化觀察報告`,
     `## 摘要\n${report.summary}`,
@@ -483,9 +492,11 @@ export function renderFaceReportText(report: FaceReport) {
         `### 判讀說明\n${report.flowYear.reflection}`
     );
   }
+  // 六親外襲由規則層確定性產生（不經模型），在流年之後、五大面向之前。
+  if (report.sixRelatives) sections.push(renderSixRelativesText(report.sixRelatives));
   // 五大面向與合作評估是兩件獨立的事：沒有勾合作評估時，五大面向仍必須輸出。
   sections.push(
-    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n老師建議符合度：${item.alignment}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n老師綜合判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}`).join("\n\n")}`
+    `## 五大面向\n${Object.entries({ 感情: report.lifeAreas.relationship, 事業: report.lifeAreas.career, 健康: report.lifeAreas.health, 財運: report.lifeAreas.finance, 家庭: report.lifeAreas.family }).map(([label, item]) => `### ${label}\n可見形態相符程度：${item.alignment}${item.citedTeachings.length ? `（依據 ${item.citedTeachings.length} 條老師條文）` : ""}\n\n結論：${item.conclusion}\n\n可見依據：${item.visibleBasis}\n\n老師綜合判讀：${item.teacherInterpretation}\n\n需留意：${item.watchout}\n\n具體建議：${item.action}\n\n可判斷程度：${item.confidence}`).join("\n\n")}`
   );
   if (report.collaborationFramework) sections.push(
     `## 合作對象綜合評估\n### 綜合結論\n${report.collaborationFramework.verdict}\n\n${report.collaborationFramework.verdictReason}\n\n### 建議承擔角色\n${report.collaborationFramework.suitableRole}\n\n### 合作適配條件\n${report.collaborationFramework.suitability}\n\n### 建議相處模式\n${report.collaborationFramework.interactionStyle}\n\n### 需留意的合作訊號\n${report.collaborationFramework.riskSignals.map((item) => `- ${item}`).join("\n")}\n\n### 合作前核對問題\n${report.collaborationFramework.questionsToVerify.map((item) => `- ${item}`).join("\n")}\n\n### 判斷界線\n${report.collaborationFramework.boundaries}`

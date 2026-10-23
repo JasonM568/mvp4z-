@@ -13,7 +13,7 @@ import type { FaceVisionResult } from "@/lib/face-analysis/vision";
  *
  * 三個確定性資料表，全部照錄教材，不由模型推導：
  * - 七十五部位流年法：p.11 流年部位表，1–99 歲逐歲對應部位，百歲週而復始。
- * - 九值流年法：p.11 九宮配置（額1、印堂2、嘴3、左耳4、左眼5、印堂上6、右眉7、右眼8、右耳9），
+ * - 九值流年法：九宮配置（左眉1、鼻子2、嘴巴3、左耳4、左眼5、印堂6、右眉7、右眼8、右耳9），
  *   以九為倍數取餘數，餘 0 視為 9。
  * - 三關四隘：p.12–13，三關 15／25／35，四隘 41 山根、51 人中、61 承漿、71 地閣。
  *
@@ -118,14 +118,22 @@ const SEVENTY_FIVE_TABLE: readonly PositionSpec[] = [
   { from: 98, to: 99, position: "亥", feature: "chin" }
 ];
 
-/** p.11 九值流年法九宮配置，逐字照錄教材圖示。 */
+/**
+ * 九值（九執）流年法九宮配置。依老師提供的「九執流年」原表與十二宮講義「十五、九值流年法」：
+ * 1 左眉、2 鼻子、3 嘴巴、4 左耳、5 左眼、6 印堂、7 右眉、8 右眼、9 右耳；
+ * 每 9 歲循環（1、10、19、28…），餘 0 視為 9。
+ *
+ * 2026-10-23 更正：舊表寫成「額1、印堂2、嘴3、…印堂上6」，與原表不符，
+ * 例如 47 歲（餘 2）應走鼻子而不是印堂；283 頁筆記的例題「47 歲九值法走鼻子運」、
+ * 「印堂在九值流年法是 33 歲」都與原表一致，與舊表不一致。
+ */
 const NINE_VALUE_TABLE: Readonly<Record<number, { position: string; feature: FaceFeatureName; side: "left" | "right" | "center" }>> = {
-  1: { position: "額", feature: "forehead", side: "center" },
-  2: { position: "印堂", feature: "glabella", side: "center" },
-  3: { position: "嘴", feature: "mouth", side: "center" },
+  1: { position: "左眉", feature: "eyebrows", side: "left" },
+  2: { position: "鼻子", feature: "nose", side: "center" },
+  3: { position: "嘴巴", feature: "mouth", side: "center" },
   4: { position: "左耳", feature: "ears", side: "left" },
   5: { position: "左眼", feature: "eyes", side: "left" },
-  6: { position: "印堂上", feature: "forehead", side: "center" },
+  6: { position: "印堂", feature: "glabella", side: "center" },
   7: { position: "右眉", feature: "eyebrows", side: "right" },
   8: { position: "右眼", feature: "eyes", side: "right" },
   9: { position: "右耳", feature: "ears", side: "right" }
@@ -195,10 +203,10 @@ export function seventyFivePosition(age: number): { position: string; feature: F
   return match ? { position: match.position, feature: match.feature } : { position: "天輪", feature: "ears" };
 }
 
-export function nineValuePosition(age: number): { position: string; feature: FaceFeatureName; remainder: number } {
+export function nineValuePosition(age: number): { position: string; feature: FaceFeatureName; remainder: number; side: "left" | "right" | "center" } {
   const remainder = age % 9 === 0 ? 9 : age % 9;
   const entry = NINE_VALUE_TABLE[remainder];
-  return { position: entry.position, feature: entry.feature, remainder };
+  return { position: entry.position, feature: entry.feature, remainder, side: entry.side };
 }
 
 function readPosition(
@@ -206,7 +214,9 @@ function readPosition(
   method: FlowYearMethod,
   age: number,
   position: string,
-  feature: FaceFeatureName
+  feature: FaceFeatureName,
+  /** 九值法以中線與否判定當陽：鼻子、嘴巴、印堂在中線，左右眉眼耳為兩側。 */
+  centralOverride?: boolean
 ): FlowYearPositionReading {
   const value = featureValue(vision, feature);
   const status = isReadable(value)
@@ -218,7 +228,7 @@ function readPosition(
     method,
     age,
     position,
-    central: (CENTRAL_THIRTEEN_POSITIONS as readonly string[]).includes(position),
+    central: centralOverride ?? (CENTRAL_THIRTEEN_POSITIONS as readonly string[]).includes(position),
     feature,
     featureLabel: FEATURE_LABELS[feature],
     status,
@@ -287,7 +297,7 @@ export function resolveFlowYear(vision: FaceVisionResult, age: number | null | u
   const seventyFiveSpec = seventyFivePosition(rounded);
   const nineValueSpec = nineValuePosition(rounded);
   const seventyFive = readPosition(vision, "seventy_five_regions", rounded, seventyFiveSpec.position, seventyFiveSpec.feature);
-  const nineValue = readPosition(vision, "nine_value", rounded, nineValueSpec.position, nineValueSpec.feature);
+  const nineValue = readPosition(vision, "nine_value", rounded, nineValueSpec.position, nineValueSpec.feature, nineValueSpec.side === "center");
 
   const neighbors = [-2, -1, 1, 2]
     .map((offset) => rounded + offset)

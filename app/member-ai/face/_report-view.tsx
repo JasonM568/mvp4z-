@@ -9,7 +9,7 @@ export type StructuredReport = {
   photoFingerprint?: Array<{ observation?: string; partName?: string; palaces?: string[]; flowYearNote?: string; teaching?: string; interpretation?: string }>;
   coreHighlights?: string[];
   priorityAdvice?: Array<{ problem?: string; reason?: string; advice?: string }>;
-  lifeAreas?: Record<string, { conclusion?: string; alignment?: "high" | "medium" | "low" | "insufficient"; visibleBasis?: string; teacherInterpretation?: string; watchout?: string; action?: string; confidence?: "high" | "medium" | "low"; sources?: string[] }>;
+  lifeAreas?: Record<string, { conclusion?: string; alignment?: "high" | "medium" | "low" | "insufficient"; visibleBasis?: string; teacherInterpretation?: string; watchout?: string; action?: string; confidence?: "high" | "medium" | "low"; citedTeachings?: string[]; sources?: string[] }>;
   surfaceAnalysis?: { detectedFeatures?: Array<{ type?: "spot" | "mole" | "scar" | "mark"; location?: string; observation?: string; palaces?: string[]; themes?: Array<"六親" | "財運" | "健康">; traditionalReference?: string; flowYearNote?: string; confidence?: "high" | "medium" | "low" }>; complexionObservation?: string; filterWarning?: string | null; summary?: string };
   flowYear?: {
     age?: number;
@@ -21,6 +21,12 @@ export type StructuredReport = {
   } | null;
   collaborationFramework?: { verdict?: "recommended" | "conditional" | "not_recommended"; verdictReason?: string; suitableRole?: string; suitability?: string; interactionStyle?: string; riskSignals?: string[]; questionsToVerify?: string[]; boundaries?: string } | null;
   palaces?: Array<{ name?: string; evidence?: string; interpretation?: string; advice?: string }>;
+  sixRelatives?: {
+    title?: string;
+    intro?: string;
+    note?: string;
+    items?: Array<{ relative?: string; phase?: string; parts?: string[]; status?: "readable" | "partial" | "unreadable"; observation?: string; teacherNote?: string; verify?: string }>;
+  };
 };
 
 export function ReportHighlights({ report }: { report: StructuredReport; mode?: "self" | "other" }) {
@@ -55,8 +61,20 @@ export function ReportHighlights({ report }: { report: StructuredReport; mode?: 
       {report.flowYear.focus && <p className="face-flowyear-focus"><b>本年該核對的事：</b>{report.flowYear.focus}</p>}
       {report.flowYear.reflection && <small>{report.flowYear.reflection}</small>}
     </article>}
+    {report.sixRelatives?.items?.length ? <article className="face-flowyear-card">
+      <h3>{report.sixRelatives.title || "六親外襲"}</h3>
+      {report.sixRelatives.intro && <p>{report.sixRelatives.intro}</p>}
+      <div className="face-flowyear-grid">{report.sixRelatives.items.map((item, index) => <div key={`${item.relative}-${index}`}>
+        <strong>{item.relative}{item.phase ? `（對照${item.phase}）` : ""}</strong>
+        <b>{item.parts?.join("、")}{item.status === "unreadable" ? "　照片不足以判讀" : item.status === "partial" ? "　部分部位清楚" : ""}</b>
+        <p>{item.observation}</p>
+        {item.teacherNote && <p><b>老師的對照：</b>{item.teacherNote}</p>}
+        {item.verify && <p className="face-flowyear-focus"><b>建議核對：</b>{item.verify}</p>}
+      </div>)}</div>
+      {report.sixRelatives.note && <small>{report.sixRelatives.note}</small>}
+    </article> : null}
     {report.surfaceAnalysis && <article className="face-surface-card"><h3>斑、痣、疤、痕與氣色</h3><p>{report.surfaceAnalysis.summary}</p>{report.surfaceAnalysis.detectedFeatures?.length ? <ul>{report.surfaceAnalysis.detectedFeatures.map((item, index) => <li key={`${item.location}-${index}`}><strong>{surfaceTypeLabel(item.type)}｜{item.location}</strong>{item.palaces?.length ? <span className="face-surface-palaces">對應宮位：{item.palaces.join("、")}</span> : null}{item.themes?.length ? <span className="face-surface-themes">{item.themes.map((theme) => <em key={theme}>{theme}</em>)}</span> : null}<span>{item.observation}</span><span className="face-surface-reference">{item.traditionalReference}</span>{item.flowYearNote && <span className="face-surface-flowyear">流年對照：{item.flowYearNote}</span>}<small>{confidenceLabel(item.confidence)}</small></li>)}</ul> : <p className="face-none-detected">本次未辨識到可信度足夠的斑、痣、疤或痕。</p>}<p><b>照片氣色：</b>{report.surfaceAnalysis.complexionObservation}</p>{report.surfaceAnalysis.filterWarning && <p className="face-filter-result">照片限制：{report.surfaceAnalysis.filterWarning}</p>}</article>}
-    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><span className={`face-confidence ${value.confidence || "low"}`}>{confidenceLabel(value.confidence)}</span><div className={`face-alignment ${value.alignment || "insufficient"}`}>老師建議符合度：{alignmentLabel(value.alignment)}</div><h3>{value.conclusion}</h3><p><b>部位依據：</b>{value.visibleBasis}</p><p><b>老師綜合判讀：</b>{value.teacherInterpretation}</p><p><b>需留意：</b>{value.watchout}</p><p><b>具體建議：</b>{value.action}</p></article>)}</div>}
+    {focus.length > 0 && <div className="face-focus-grid">{focus.map(([key, value]) => <article key={key}><strong>{labels[key] || key}</strong><span className={`face-confidence ${value.confidence || "low"}`}>{confidenceLabel(value.confidence)}</span><div className={`face-alignment ${value.alignment || "insufficient"}`}>可見形態相符程度：{alignmentLabel(value.alignment)}{value.citedTeachings?.length ? `（依據 ${value.citedTeachings.length} 條老師條文）` : ""}</div><h3>{value.conclusion}</h3><p><b>部位依據：</b>{value.visibleBasis}</p><p><b>老師綜合判讀：</b>{value.teacherInterpretation}</p><p><b>需留意：</b>{value.watchout}</p><p><b>具體建議：</b>{value.action}</p></article>)}</div>}
     {report.collaborationFramework && <div className="face-collaboration-card"><h3>合作對象綜合評估</h3><div className={`face-verdict ${report.collaborationFramework.verdict || "conditional"}`}>{verdictLabel(report.collaborationFramework.verdict)}</div><article><strong>為什麼</strong><p>{report.collaborationFramework.verdictReason}</p></article><article><strong>建議承擔角色</strong><p>{report.collaborationFramework.suitableRole}</p></article><article><strong>合作條件</strong><p>{report.collaborationFramework.suitability}</p></article><article><strong>建議相處模式</strong><p>{report.collaborationFramework.interactionStyle}</p></article>{report.collaborationFramework.riskSignals?.length && <article><strong>需留意的合作訊號</strong><ul>{report.collaborationFramework.riskSignals.map((item) => <li key={item}>{item}</li>)}</ul></article>}{report.collaborationFramework.questionsToVerify?.length && <article><strong>合作前先問</strong><ul>{report.collaborationFramework.questionsToVerify.map((item) => <li key={item}>{item}</li>)}</ul></article>}</div>}
   </section>;
 }

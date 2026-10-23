@@ -52,13 +52,22 @@ describe("七十五部位流年法（筆記 p.11）", () => {
   });
 });
 
-describe("九值流年法（筆記 p.11）", () => {
-  it("以九為倍數取餘數，餘 0 視為 9", () => {
-    expect(nineValuePosition(1)).toMatchObject({ remainder: 1, position: "額" });
-    expect(nineValuePosition(10)).toMatchObject({ remainder: 1, position: "額" });
-    expect(nineValuePosition(18)).toMatchObject({ remainder: 9, position: "右耳" });
-    expect(nineValuePosition(27)).toMatchObject({ remainder: 9, position: "右耳" });
-    expect(nineValuePosition(33)).toMatchObject({ remainder: 6, position: "印堂上" });
+describe("九值（九執）流年法：照老師原表", () => {
+  it("1 左眉、2 鼻子、3 嘴巴、4 左耳、5 左眼、6 印堂、7 右眉、8 右眼、9 右耳", () => {
+    const expected = ["左眉", "鼻子", "嘴巴", "左耳", "左眼", "印堂", "右眉", "右眼", "右耳"];
+    expected.forEach((position, i) => {
+      expect(nineValuePosition(i + 1), `${i + 1} 歲`).toMatchObject({ remainder: i + 1, position });
+    });
+  });
+
+  it("以九為倍數取餘數，餘 0 視為 9：原表第一列 1、10、19、28、37、46、55、64", () => {
+    for (const age of [1, 10, 19, 28, 37, 46, 55, 64]) expect(nineValuePosition(age).position, `${age} 歲`).toBe("左眉");
+    for (const age of [9, 18, 27, 36, 45, 54, 63, 72]) expect(nineValuePosition(age).position, `${age} 歲`).toBe("右耳");
+  });
+
+  it("283 頁筆記的兩個例題：33 歲九值走印堂、47 歲九值走鼻子", () => {
+    expect(nineValuePosition(33)).toMatchObject({ remainder: 6, position: "印堂", feature: "glabella" });
+    expect(nineValuePosition(47)).toMatchObject({ remainder: 2, position: "鼻子", feature: "nose" });
   });
 });
 

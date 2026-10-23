@@ -2,6 +2,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CreateFaceRunInput } from "@/lib/face-analysis/schema";
 import { FaceAnalysisRun, FaceRunPublicSummary } from "@/lib/face-analysis/types";
 import { filterDeep, filterReportText } from "@/lib/safety/report-filter";
+import { nominalAge } from "@/lib/face-analysis/age";
 
 const PUBLIC_RUN_FIELDS = [
   "id",
@@ -52,7 +53,8 @@ export async function createRun(input: {
     user_id: input.profileId,
     entitlement_id: input.entitlementId || null,
     mode: input.request.mode,
-    subject_age: input.request.subjectAge,
+    // 流年以虛歲對照部位：有出生年就由伺服器換算，不信任前端算好的歲數。
+    subject_age: nominalAge(input.request.birthYear) ?? input.request.subjectAge,
     consent_version: input.request.consentVersion,
     third_party_consent: input.request.thirdPartyConsent,
     collaboration_assessment: input.request.collaborationAssessment,
