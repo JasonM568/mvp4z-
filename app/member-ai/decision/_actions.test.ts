@@ -39,6 +39,39 @@ describe("runCouncilReport 的錯誤分類", () => {
     expect(r.transportFailed).toBeFalsy();
   });
 
+  it("送出遇到 401 → 換新憑證後重送一次，成功就回報告", async () => {
+    const store: Record<string, string> = { xunfeng_member_token: "old", xunfeng_member_refresh: "r1" };
+    vi.stubGlobal("window", {
+      localStorage: { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; } }
+    });
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", async (url: string, init?: { headers?: Record<string, string> }) => {
+      if (url.includes("/api/auth/refresh")) {
+        return { ok: true, status: 200, json: async () => ({ token: "new", refresh_token: "r2" }) };
+      }
+      seen.push(init?.headers?.Authorization || "");
+      return seen.length === 1
+        ? { ok: false, status: 401, json: async () => ({ error: "登入已過期，請重新登入" }) }
+        : { ok: true, status: 200, json: async () => ({ ok: true, final: { ok: true, label: "x", text: "報告" } }) };
+    });
+    const r = await runCouncilReport(payload);
+    expect(seen).toEqual(["Bearer old", "Bearer new"]);
+    expect(r.final?.text).toBe("報告");
+    expect(store.xunfeng_member_token).toBe("new");
+  });
+
+  it("401 且換不到新憑證 → 只送一次，照實回報登入過期", async () => {
+    withToken();
+    let calls = 0;
+    vi.stubGlobal("fetch", async () => {
+      calls += 1;
+      return { ok: false, status: 401, json: async () => ({ error: "登入已過期，請重新登入" }) };
+    });
+    const r = await runCouncilReport(payload);
+    expect(calls).toBe(1);
+    expect(r.error).toContain("登入已過期");
+  });
+
   it("連線中斷 → 標 transportFailed（報告可能已跑完並扣點）", async () => {
     withToken();
     vi.stubGlobal("fetch", async () => { throw new Error("Failed to fetch"); });

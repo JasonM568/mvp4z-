@@ -78,6 +78,26 @@ export function getMemberToken(): string {
   return window.localStorage.getItem(TOKEN_KEY) || "";
 }
 
+/** 用 refresh token 換新的 access token 並寫回 localStorage。換不到回空字串。 */
+export async function refreshMemberToken(): Promise<string> {
+  try {
+    const refreshToken = window.localStorage.getItem("xunfeng_member_refresh");
+    if (!refreshToken) return "";
+    const response = await fetch("/api/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.token) return "";
+    window.localStorage.setItem(TOKEN_KEY, data.token);
+    if (data.refresh_token) window.localStorage.setItem("xunfeng_member_refresh", data.refresh_token);
+    return String(data.token);
+  } catch {
+    return "";
+  }
+}
+
 export type CouncilApiResult = {
   ok?: boolean;
   error?: string;
@@ -160,14 +180,22 @@ export async function runCouncilReport(payload: ReturnType<typeof buildCouncilPa
   // 這種情況清掉紀錄會讓會員付了錢卻再也回不到那份報告。分不清就一律當後者。
   let res: Response;
   try {
-    res = await fetch("/api/ai/council", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    });
+    const send = (bearer: string) =>
+      fetch("/api/ai/council", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${bearer}`
+        },
+        body: JSON.stringify(payload)
+      });
+    res = await send(token);
+    // 憑證剛好在送出瞬間過期（背景分頁被節流，保鮮來不及換）：換一張新的再送一次。
+    // 401 在驗證身分那一步就擋下，尚未排盤、尚未呼叫模型、尚未扣點，重送不會重複扣。
+    if (res.status === 401) {
+      const fresh = await refreshMemberToken();
+      if (fresh) res = await send(fresh);
+    }
   } catch (err) {
     return { error: (err as Error)?.message || "連線中斷", transportFailed: true };
   }
