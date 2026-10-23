@@ -4,7 +4,6 @@
 import { TAIWAN_PLACES } from "@/lib/yixue/geo/places";
 
 export const years = Array.from({ length: 101 }, (_, i) => new Date().getFullYear() - i);
-export const eventYears = Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - 5 + i);
 export const months = Array.from({ length: 12 }, (_, i) => i + 1);
 export const days = Array.from({ length: 31 }, (_, i) => i + 1);
 export const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -27,9 +26,6 @@ export const hourBranches: Array<[string, string]> = [
 ];
 
 export const trigramOptions = ["不確定", "乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
-// 「不會判斷，請用時間起卦」已移除：時間起卦現在是獨立的起卦方式，選了就不會顯示爻位。
-// 舊資料若仍帶著該值，後端 toLiuyaoSource() 會整組退回時間起卦。
-export const yaoOptions = ["少陽", "少陰", "老陽", "老陰"];
 export const reportTemplates = ["商業決策顧問報告", "標準個人諮詢報告", "企業主管簡報版", "教學展示版"];
 export const topics = ["事業／工作", "財運／投資", "考試／升學", "感情／人際", "房產／陽宅", "健康／身心"];
 // 性別與身分拆成兩欄。原本擠在同一格（男／女／其他／企業主／考生），
@@ -44,15 +40,34 @@ export const birthPlaceOptions = ["不確定", ...TAIWAN_PLACES.map((p) => p.lab
 export const yesNoUncertain = ["否", "是", "不確定"];
 export const yesNoUncertain2 = ["是", "否", "不確定"];
 
-export const qimenModes = ["現在起局", "指定時間"];
-export const liuyaoModes = ["時間起卦", "三枚銅錢"];
+// 奇門與六爻不再有起局／起卦方式可選：六爻一律由案主親手搖卦，
+// 奇門與梅花（時間起卦）一律用第一搖的時刻，見 lib/divination/casting.ts。
 export const meihuaModes = ["時間起卦", "數字起卦", "上下卦起卦"];
 export const meihuaUpperTrigrams = ["乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
 export const meihuaLowerTrigrams = ["乾", "兌", "離", "震", "巽", "坎", "艮", "坤"];
 export const meihuaMovingLines = ["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"];
-export const meihuaTimeModes = ["現在時間", "自行輸入時間"];
-/** 六爻時間起卦的時間依據。與梅花同一組選項，措辭一致避免會員以為是兩件事。 */
-export const liuyaoTimeModes = ["現在時間", "自行輸入時間"];
+
+/** 問題類型的關鍵字建議。只是建議，必須由會員點選確認才算數，不得預設。 */
+export const TOPIC_KEYWORDS: Array<[string, string[]]> = [
+  ["感情／人際", ["婚", "感情", "戀", "伴侶", "老公", "老婆", "先生", "太太", "男友", "女友", "分手", "復合", "桃花", "家人", "朋友", "人際", "相親"]],
+  ["事業／工作", ["工作", "事業", "換工作", "轉職", "創業", "升遷", "老闆", "公司", "合夥", "客戶", "面試", "離職"]],
+  ["財運／投資", ["投資", "股票", "基金", "財運", "賺錢", "買賣", "貸款", "資金", "生意", "收入"]],
+  ["考試／升學", ["考試", "升學", "學校", "考上", "證照", "論文", "留學", "志願"]],
+  ["房產／陽宅", ["房", "買屋", "賣屋", "搬家", "陽宅", "風水", "租屋", "土地"]],
+  ["健康／身心", ["健康", "身體", "睡眠", "壓力", "情緒", "焦慮", "作息"]]
+];
+
+/** 依問題文字建議類型；沒有任何關鍵字命中回 null（不猜）。命中數最多者勝，平手取清單靠前。 */
+export function suggestTopic(question: string): string | null {
+  const text = question.trim();
+  if (!text) return null;
+  let best: { topic: string; hits: number } | null = null;
+  for (const [topic, words] of TOPIC_KEYWORDS) {
+    const hits = words.filter((w) => text.includes(w)).length;
+    if (hits > 0 && (!best || hits > best.hits)) best = { topic, hits };
+  }
+  return best ? best.topic : null;
+}
 
 export type CouncilForm = {
   clientName: string;
@@ -75,21 +90,14 @@ export type CouncilForm = {
   birthPlace: string;
   isLeapMonth: string;
   birthTimeKnown: string;
-  eventYear: number;
-  eventMonth: number;
-  eventDay: number;
-  eventHour: number;
-  eventMinute: number;
-  qimenTimeMode: string;
+  /**
+   * 「這件事有確切日期嗎？」選填，格式 YYYY-MM-DD。只作判讀背景，不用來起局；
+   * 每次開新表單都清空，不沿用舊值。
+   */
+  eventDate: string;
   direction: string;
-  liuyaoMode: string;
-  liuyaoTimeMode: string;
-  yao1: string;
-  yao2: string;
-  yao3: string;
-  yao4: string;
-  yao5: string;
-  yao6: string;
+  /** 案主親手搖卦的紀錄（每搖一次一筆）。搖滿六次才能送出，見 casting-panel。 */
+  castThrows: Array<{ at: string; yao: string }>;
   meihuaMode: string;
   upperTrigram: string;
   lowerTrigram: string;
@@ -97,7 +105,6 @@ export type CouncilForm = {
   meihuaNum2: string;
   meihuaNum3: string;
   meihuaMovingLine: string;
-  meihuaTimeMode: string;
 };
 
 export type CouncilModules = {
@@ -108,7 +115,6 @@ export type CouncilModules = {
 };
 
 export function buildInitialForm(): CouncilForm {
-  const now = new Date();
   return {
     clientName: "",
     // 刻意留空，三顆按鈕都不預選。
@@ -117,7 +123,8 @@ export function buildInitialForm(): CouncilForm {
     // 「女性會員沒注意到就拿到男性的大運」——上面那行警語當初有寫，但沒有人回來執行。
     gender: "",
     identity: "",
-    topic: "事業／工作",
+    // 刻意留空：預設值曾讓「婚姻」問題套上事業決策語句。要由會員確認類型才能送出。
+    topic: "",
     reportTemplate: "商業決策顧問報告",
     question: "",
     context: "",
@@ -131,29 +138,16 @@ export function buildInitialForm(): CouncilForm {
     birthPlace: "不確定",
     isLeapMonth: "否",
     birthTimeKnown: "是",
-    eventYear: now.getFullYear(),
-    eventMonth: now.getMonth() + 1,
-    eventDay: now.getDate(),
-    eventHour: now.getHours(),
-    eventMinute: now.getMinutes(),
-    qimenTimeMode: "現在起局",
+    eventDate: "",
     direction: "不確定",
-    liuyaoMode: "時間起卦",
-    liuyaoTimeMode: "現在時間",
-    yao1: "少陽",
-    yao2: "少陽",
-    yao3: "少陽",
-    yao4: "少陽",
-    yao5: "少陽",
-    yao6: "少陽",
+    castThrows: [],
     meihuaMode: "時間起卦",
     upperTrigram: "乾",
     lowerTrigram: "坤",
     meihuaNum1: "",
     meihuaNum2: "",
     meihuaNum3: "",
-    meihuaMovingLine: "初爻",
-    meihuaTimeMode: "現在時間"
+    meihuaMovingLine: "初爻"
   };
 }
 

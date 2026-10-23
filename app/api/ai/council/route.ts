@@ -23,7 +23,8 @@ import { acquireCouncilSlot, releaseCouncilSlot } from "@/lib/ai/council/infligh
 import { loadQimenSignoff, qimenSignatureText } from "@/lib/school-settings/qimen-signoff";
 import { loadPromptSettings } from "@/lib/ai/council/settings/load";
 import { selectTeacherDocuments } from "@/lib/ai/council/settings/document-selection";
-import { buildChartForCouncil } from "@/lib/ai/council/chart";
+import { buildChartForCouncil, castingClockOf } from "@/lib/ai/council/chart";
+import { validateCasting } from "@/lib/divination/casting";
 import { loadSchool } from "@/lib/school-settings/load";
 import { renderChartDigest, renderChartForPrompt } from "@/lib/yixue/format/prompt";
 import type { PromptSettings } from "@/lib/ai/council/settings/schema";
@@ -71,6 +72,15 @@ export async function POST(request: NextRequest) {
   try {
     const { profile } = await requireBearerProfile(request);
     const input = (await readJson(request, councilSchema)) as CouncilRequest;
+
+    // 六爻必須由案主親手搖出。放在會員查詢、搶 slot、扣點預檢之前：
+    // 被拒絕的請求不佔名額、不扣點，也不會有任何一步需要回滾。
+    if (input.yixue?.modules?.liuyao) {
+      const casting = validateCasting(input.yixue.casting);
+      if (!casting.ok) {
+        throw Object.assign(statusError(casting.message, 400), { code: casting.code });
+      }
+    }
     const now = new Date().toISOString();
 
     // 1. 取得 active entitlement（含 tier_features）
@@ -167,7 +177,13 @@ export async function POST(request: NextRequest) {
       : "";
     // 奇門校對狀態只在報告真的有奇門盤時才查，讀不到一律當未簽核（保守）。
     const qimenSignature = chart?.qimen ? qimenSignatureText(await loadQimenSignoff(Date.now())) : "";
-    const chartBlock = chart ? renderChartForPrompt(chart, school.label, schoolSignature, qimenSignature) : "";
+    const castingClock = castingClockOf(input as CouncilInput);
+    const castingLine = castingClock
+      ? `\n【起卦紀錄】本卦由案主於 ${castingClock}（台北時間）親手起卦；此刻同時是奇門、梅花與六爻共用的問事時間。`
+      : "";
+    const chartBlock = chart
+      ? renderChartForPrompt(chart, school.label, schoolSignature, qimenSignature) + castingLine
+      : "";
     const chartDigest = chart ? renderChartDigest(chart) : "";
 
     // 7. 組 council input

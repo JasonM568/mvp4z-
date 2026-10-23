@@ -34,6 +34,10 @@ export type YixuePayload = {
     hour?: number | string;
     minute?: number | string;
   };
+  /** 案主親手搖卦的紀錄（六次，含時間戳）。第一搖的時刻是全報告的問事時間。 */
+  casting?: {
+    throws?: Array<{ at: string; yao: string }>;
+  };
   modules?: {
     bazi?: boolean;
     qimen?: boolean;

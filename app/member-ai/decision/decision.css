@@ -905,3 +905,22 @@
   font-weight: 700;
   color: var(--gold, #d2a954);
 }
+
+/* ---- 六爻搖卦與問題類型 ---- */
+.xf-casting { margin-top: 20px; }
+.xf-casting-lines { display: grid; gap: 8px; max-width: 360px; }
+.xf-casting-line { display: grid; grid-template-columns: 3.2em 1fr 7.5em; align-items: center; gap: 12px; min-height: 28px; }
+.xf-casting-line.empty .xf-casting-bar { opacity: .25; }
+.xf-casting-pos { color: var(--muted); font-size: 13px; }
+.xf-casting-name { font-size: 14px; text-align: right; }
+.xf-casting-bar { display: flex; gap: 10px; height: 10px; }
+.xf-casting-bar i { flex: 1; background: var(--green, #6ff0b4); border-radius: 2px; }
+.xf-casting-bar.yin i:first-child { margin-right: 14%; }
+.xf-casting-bar.yin i:last-child { margin-left: 14%; }
+.xf-casting-bar.yang { gap: 0; }
+.xf-casting-bar.yang i:last-child { display: none; }
+.xf-casting-bar.yin { gap: 0; }
+.xf-topic-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.xf-topic-btn { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--text); cursor: pointer; font-family: inherit; font-size: 14px; }
+.xf-topic-btn.active { border-color: var(--green, #6ff0b4); color: var(--green, #6ff0b4); background: rgba(111,240,180,.12); }
+.xf-topic-btn.suggested:not(.active) { border-style: dashed; }

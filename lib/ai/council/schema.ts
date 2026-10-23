@@ -74,6 +74,22 @@ export const councilSchema = z.object({
           message: "事件日期不存在，請確認月份與日期"
         })
         .optional(),
+      /**
+       * 案主親手搖卦的紀錄。內容的真偽與時間範圍由 validateCasting 在扣點前檢查，
+       * 這裡只宣告形狀——Zod object 會剝掉未宣告欄位，沒宣告等於這個功能不存在。
+       */
+      casting: z
+        .object({
+          throws: z
+            .array(
+              z.object({
+                at: z.string().max(40, "輸入內容過長"),
+                yao: z.string().max(12, "輸入內容過長")
+              })
+            )
+            .max(6)
+        })
+        .optional(),
       modules: z
         .object({
           bazi: z.boolean().optional(),

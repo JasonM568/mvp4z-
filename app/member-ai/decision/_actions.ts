@@ -47,13 +47,8 @@ function buildMeihua(form: CouncilForm) {
       movingLine: form.meihuaMovingLine
     };
   }
-  // 時間起卦：依「現在時間」或「自行輸入時間」決定起卦時間，交給後端／LLM 依時間推卦。
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const time =
-    form.meihuaTimeMode === "現在時間"
-      ? formatNowTaipei()
-      : `${form.eventYear}-${pad(form.eventMonth)}-${pad(form.eventDay)} ${pad(form.eventHour)}:${pad(form.eventMinute)}`;
-  return { mode: form.meihuaMode, timeMode: form.meihuaTimeMode, time };
+  // 時間起卦：起卦時間由後端統一取第一搖的時刻，前端不送時間。
+  return { mode: form.meihuaMode };
 }
 
 /**
@@ -107,6 +102,11 @@ export type CouncilApiResult = {
   member?: any;
 };
 
+function eventTimeOf(date: string): { year: number; month: number; day: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
+  return m ? { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) } : null;
+}
+
 export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) {
   return {
     question: form.question,
@@ -133,30 +133,13 @@ export function buildCouncilPayload(form: CouncilForm, modules: CouncilModules) 
         minute: form.birthMinute,
         place: form.birthPlace
       },
-      eventTime: {
-        year: form.eventYear,
-        month: form.eventMonth,
-        day: form.eventDay,
-        hour: form.eventHour,
-        minute: form.eventMinute
-      },
+      // 事件日期只是判讀背景（選填）；不再送時分，也不參與任何起局。
+      ...(eventTimeOf(form.eventDate) ? { eventTime: eventTimeOf(form.eventDate) } : {}),
+      // 搖卦紀錄：六爻爻象與全報告的問事時間（第一搖）都由它決定，後端在扣點前驗證。
+      casting: { throws: form.castThrows },
       modules,
-      qimen: {
-        mode: form.qimenTimeMode === "指定時間" ? "指定時間" : "現在起局",
-        direction: form.direction,
-        time: form.qimenTimeMode === "指定時間" ? undefined : formatNowTaipei()
-      },
-      liuyao: {
-        mode: form.liuyaoMode,
-        // 時間起卦才帶起卦時刻；選現在時間就取台北當下，否則用事件／起局時間。
-        // 六爻無論哪種起卦方式都需要時刻——月建、日辰、旬空、六神全由它決定。
-        timeMode: form.liuyaoMode === "時間起卦" ? form.liuyaoTimeMode : undefined,
-        time:
-          form.liuyaoMode === "時間起卦" && form.liuyaoTimeMode === "現在時間"
-            ? formatNowTaipei()
-            : undefined,
-        yao: [form.yao1, form.yao2, form.yao3, form.yao4, form.yao5, form.yao6]
-      },
+      qimen: { direction: form.direction },
+      liuyao: { mode: "親手搖卦" },
       meihua: buildMeihua(form)
     },
     instruction:

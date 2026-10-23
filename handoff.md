@@ -1,76 +1,53 @@
-# Handoff（最新摘要，覆寫式）
+# Handoff（全系統 QA 最新摘要）
 
-更新：2026-10-08｜上一版（至 2026-10-08 之前的累積交接）已封存於 `docs/handoff-archive/handoff-until-2026-10-08.md`；逐日紀錄看 `worklog.md`。
+更新：2026-10-12。目標為完成全系統功能測試與客戶驗收準備。本次僅整理 QA 最新回報至工作紀錄與交接；沒有啟動測試、資料庫、provider 或正式環境操作。
 
 ## 1. 目前狀態
 
-- 正式站 `https://www.xunfeng.tw` 正常運作。**信用卡真實刷卡已驗證可收款**（使用者回報，ECPay 正式 MID `3325455`；我未查對應訂單／點數開通／EZPay 發票，建議抽查一筆）。
-- 本輪工作＝**易學決策報告（`/api/ai/council`）QA ＋ 修補 ＋ 後台奇門校對**。QA 全文：`docs/qa/council-qa-2026-10-07.md`。
-- 最新 commit：`8e1bf7a`（main，已推送）。收工時已確認 `24629ca` 與前一個部署皆 READY。
+- 全系統 Test Matrix 維持 29 個模組，88 個 API routes、50 個 pages；客戶 UAT 37 項均未勾選。部分候選／stub 通過只代表其明列範圍，沒有模組可標示為全範圍驗收完成。
+- 分批驗收入口仍是 `docs/qa/CheckList.md` 與 `docs/qa/qa-acceptance-request-batches-2026-10-12.md`；依入場條件逐批執行並保留各票未驗範圍。
+- 最新收到的 M27 回報已更正：QA route suite 標準模式 24 passed、7 expected fail／31；strict 模式 24 passed、7 failed／31。缺陷限非法 `hourBranch`、boolean `month` 與五個日期時間數字欄位接受單元素陣列；五個 `{}` object 對照均 400。使用真 `buildYixueChart` 與 auth stub，無 DB、Storage、LLM 或持久副作用；隔離 HTTP/UI 尚未驗。
+- C27–C30 固定整合候選 `/private/tmp/xunfeng-c27-c30-release`，SHA `b77dcd5f97a55e87ae36b75bf64e6e1cf9521cee`：QA route 17/17、候選路由 suites 35/35；disposable native PostgreSQL 全序 59/59 migrations，M24 與 C20/C23/C22/C21/M25/C27/C29 SQL fault、ACL/RLS、併發 contracts 通過。只可記候選隔離 route/native-PG 通過；Supabase HTTP/Auth/Storage、production build、部署與客戶 UAT 仍未通過驗收。
+- C26 候選 `/private/tmp/xunfeng-c26-pending-drafts` 仍為 clean `fe78118fbdaa7ddbbe7c8a71c977c39133a5b32c`，尚無新 SHA。依已決定的 allow-list/classified-error 標準，已知 strict 結果為 3 failed、1 passed；privacy release gate 維持開啟。收到新 SHA 後需驗 strict 4/4，並確認管理 UI 僅顯示安全分類、不呈現 raw provider detail。
+- C21/M25 的 HTTP、跨程序 cache 與完整 consumer gate 仍未驗。最新唯讀資源檢查為 Docker 54 個 containers、swap free 約 802.5 MiB、`vm_stat` free 約 57 MiB；未開新 stack。M2 owner stack 的 fixture 數未知，不可使用。
+- M23 Option A `42175c1` 維持 feasibility-only；`cleanup_pending` 無 lease reclaim/reconciler，移除失敗後重領仍 `may_delete=false`。真 Storage、HTTP transport loss、Supabase ACL/full replay 及 M22 rollback 相容性未驗；不得標 M22/M23 正式通過。
 
-## 2. 本輪已完成（皆已部署；除非註明）
+## 2. 最近完成與證據
 
-| 項目 | 內容 | 驗證 |
-|---|---|---|
-| B1（原 BLOCKER） | 並行請求會全部通過點數預檢，撞 `CR002` 後「報告照送、不扣點」→ 一份點數換多份報告。修法：每位會員同時只允許 1 份進行中（`council_inflight` 表＋`acquire/release_council_slot`，TTL 330s），搶不到回 409 `COUNCIL_IN_PROGRESS`；前端 409 時保留第一份的找回紀錄 | 正式站並行 4 份：修前交付 4／扣 20／3 份免費；修後交付 1／扣 20／其餘 409（約 4 秒）／無殘留 slot |
-| C1／C2 | 輸入欄位長度與個數上限；生辰與事件時間範圍（年 1900–2100、月日時分）＋國曆真實日期檢查；錯誤訊息中文 | 正式站：2/30、月=13、年=-99999、年='abc'、地點 61 字 皆 400 未扣點；vitest 29 條含前端預設表單五種術數組合 |
-| C3 | **判斷不加每分鐘速率限制**（B1 後實際 ≤約 0.6 份／分，409 不呼叫 LLM） | — |
-| 每人每日 20 份 | 使用者決策；台北日曆日、含備援稿；429 `COUNCIL_DAILY_LIMIT` 不扣點；檢查在搶到 slot 之後 | 正式站：19 假＋1 真 → 200；第 21 份 429、不扣點 |
-| C4（新發現） | 完整寫入失敗後的「精簡版備援寫入」缺 `request`（NOT NULL）→ 必定 23502，保命路徑從沒成功過。已抽成 `lib/ai/council/run-row.ts` | 單元測試讀 0004 migration 比對必填欄位；**未在正式站觸發真實失敗驗證** |
-| 後台字體 | admin.css 58 處＋內聯 70 處，小於 16px 的字級 +約 2px | tsc／build 通過；**未看實際畫面** |
-| 後台奇門校對簽核 | `/admin/qimen-review`（選單：四象問天機→奇門校對簽核）。三盤例由伺服器用已發布流派現算；老師逐盤回報一致／有差異；三盤一致才簽核；簽核存 `qimen_signoffs`（append-only），綁 `QIMEN_RULE_VERSION`；需具名管理員；寫 audit log。報告提示詞：未簽核→要 AI 明說「奇門定局法尚待老師校對」，已簽核→印拍板人與日期；流派簽核與奇門校對**獨立** | 正式站 API 冒煙：非管理員 403、三盤現算、試排、4 種不合法簽核皆 400、寫入「有差異」紀錄後已刪。**簽核通過路徑只有單元測試，未在正式站實測（避免產生假簽核）** |
+- M27 最新更正：`scripts/qa-school-settings-preview.test.ts` 標準 24 passed、7 expected fail／31，strict 24 passed、7 failed／31。五個單元素陣列仍被 coercion 成合法數字並回 200；非法 `hourBranch` 與 boolean `month` 也仍未達 400 驗收；object 型別皆拒絕。QA 已同步 ticket、matrix、UAT M04。
+- C27–C30 候選本輪再次獨立複驗：QA 自有 route suite 17/17、candidate suites 35/35；59/59 unique migrations 及指定 SQL contracts 通過。scratch cluster 已移除，候選 worktree clean。未使用 Supabase HTTP/Auth/Storage 或正式服務。
+- 上述結果均不得延伸解讀為正式站、完整服務整合或客戶驗收通過。其他已記錄的候選與歷史測試數字以各 QA ticket／worklog 的具體 run 為準，不將不同批次合併成單一全量通過結論。
 
-## 3. 修改／新增檔案（重點）
+## 3. 尚未完成事項與風險
 
-- `app/api/ai/council/route.ts`（slot、每日上限、奇門簽核載入、精簡備援列）
-- `lib/ai/council/{inflight,run-row,schema}.ts`、`lib/auth/council-quota.ts`
-- `lib/yixue/qimen/{qimen,review}.ts`（`QIMEN_RULE_VERSION`、盤例與格式化）、`lib/yixue/format/prompt.ts`
-- `lib/school-settings/qimen-signoff.ts`
-- `app/api/admin/qimen-review/{route,preview/route,signoff/route}.ts`、`app/admin/qimen-review/page.tsx`、`app/admin/_shell.tsx`（選單）
-- `app/member-ai/decision/page.tsx`（409 還原找回紀錄）、`app/admin/admin.css` ＋ 17 個後台頁面（字級）
-- Migrations（**已套用到正式庫 `pvasgmmjrodukudbzuhp`**）：`20261007100000_council_inflight_slot.sql`、`20261007120000_qimen_signoffs.sql`
-- 測試／腳本：`lib/ai/council/{qa-schema,inflight,run-row}.test.ts`、`lib/auth/council-quota.test.ts`、`lib/yixue/qimen/review.test.ts`、`lib/school-settings/qimen-signoff.test.ts`、`scripts/qa-council-concurrency.mjs`
-- 文件：`docs/qa/council-qa-2026-10-07.md`、`docs/specs/yixue-engine/SCHOOL-DECISIONS.md`（盤例一補註）、`CLAUDE.md`／`README.md`／`docs/SYSTEM_ARCHITECTURE.md`（刷卡 gate 已解除）
+0. **【最優先】正式站已於 2026-10-17 回滾到 `1935618`**（`dpl_FLG1koTbFyVZzg5z927tL2iBerby`）。原因：`c427637` 一次帶出 211 個 commit，但正式庫缺 `20261011045641`～`20261011200000` 共 8 個 migration，造成 `manage_referral_partner` 等 RPC 不存在（後台分潤新增失敗）。分潤後台新增已於 2026-10-17 經使用者實測恢復（舊版直接寫表路徑）。已套用正式庫的 migration 只有 `redeem_activation_code`（新增函式、無人呼叫）；其餘 7 支與 `200000` 未套。接手第一步：逐支審這 8 個 migration、訂套用順序、套用到正式庫，再 promote 回新版。回滾期間手機溢字修復（`c427637`）也不在線上；專案 `live:false`，後續 push 不會自動上線。10/16 另有約 6 小時 Supabase DNS ENOTFOUND 事件，成因未明。
 
-## 4. 驗證結果（本機，最後一次）
+1. 等待隔離資源足以安全運行時，再安排 QA 自有、fixture 已核對的 Supabase stack；不可使用 C4、M2 或其他 owner stack。
+2. C26：等待 allow-list/classified-error 修補 SHA；確認 helper return、test-alert JSON、cron JSON、logs 與 UI 不暴露 provider 原文／敏感 marker。
+3. C27–C30：候選 native-PG/route gate 已有證據，仍需專用 Supabase HTTP/RPC 權限與 audit fault rollback/retry、build／部署後檢查及 UAT。
+4. M27：等待修補候選，strict suite 應達 31/31；後續補隔離 HTTP 授權回歸。
+5. C21/M25、C32 等 HTTP/DB/cache gate 維持未驗；先做 Docker／記憶體健康檢查與 fixture 清零確認，再決定是否能啟動隔離服務。
+6. C33、C31、C2 等 Critical 缺陷與 M8、M10、M26、M30、M31 等 backlog 依 QA ticket 追蹤；保留其明列的產品決策與服務端驗收缺口。
+7. M23/M22 不升格；先由工程提出有界 lease/CAS reconciler、精確 key 保護與 rollback 相容方案，再安排隔離真 Storage 複驗。
+8. 正式部署 SHA、migration history 與客戶 UAT 尚未完成核對；候選證據不可替代正式站驗收。
+9. 待產品／隱私權責人決策：C2 超額扣點採整筆拒絕或扣至零；M1 是否接受 LINE／國際電話自由格式；M3 是否採每次提交 idempotency key；M29 照片保存期限從建立或完成起算；C26 每草稿寄送形式、unknown 結果處理責任與 outbox retention policy。
 
-- `npx tsc --noEmit` 無錯誤；`npx vitest run`：549 passed／2 skipped；`next build` 成功（奇門頁面與 API 皆在建置輸出）。
-
-## 5. 未完成事項與風險
-
-1. **奇門簽核：等風羿老師**。三張盤例＋定局法勾選＋簽核。盤例在後台 `/admin/qimen-review`（也在 `SCHOOL-DECISIONS.md` 第 263 行起）。**簽核前不要把奇門判讀當定論**；提示詞已要求 AI 明說，但**我沒有檢查過 AI 實際輸出是否真的講出這句話**。
-2. **⚠️ 流派設定疑點（待老師確認）**：正式站已發布流派 v2（2026-09-08）是 `lateZiDayPillar: same`＋`earlyLateZiHourPillar: split`。盤例一（23:30）因此出現「日柱甲子、時柱丙子」的混合組合（日柱用當日、時干依隔日日干起），與流派說明書「日柱若不進位，時柱多半也不分」不一致。奇門以時柱定旬首，時柱若改為甲子整張盤會變。**我沒有動這項設定**。後台校對頁已顯示並警示。
-3. 後台新字級與奇門校對頁**沒有人看過實際畫面**（尤其手機寬度的九宮格）。
-4. 置閏法、茅山法未實作；老師若實際用這兩種需另排工。
-5. 正式庫留有測試帳號 `qa-council-b1@example.com`（profile `9a4359b5-46a9-4397-bf9d-1bd28703bf44`，餘額 0，約 7 筆真實測試報告）。**使用者要求保留**。重跑腳本前需把餘額調成要的值。本輪實測共燒約 9 份 LLM 報告費用。
-6. 既有未結：`.env.example` 仍列舊 `ECPAY_INVOICE_*`（實際讀 `EZPAY_INVOICE_*`）；發票無作廢／折讓；Supabase custom SMTP（Resend）未接；奇門以外的 UAT 項目未實跑。
-7. 若管理員測試帳號壓測，會受每日 20 份限制，需換帳號。
-
-## 6. 待辦優先順序
-
-1. （部署已於收工時確認 READY）
-2. 通知老師：打開 `/admin/qimen-review` 比對三盤並簽核；同時請他確認晚子時組合是否本意（若要改，到「排盤流派設定」調整後再比對）。
-3. **瀏覽器雙分頁實測**：兩個分頁同時送出 → 只產出一份、只扣 20 點、被擋分頁有明確提示、原分頁／重開後能找回報告（前端 409 還原邏輯只有程式檢查，沒實測）。
-4. **備援報告不扣點、Gemini 退避、斷線復原**的正式站實測。
-5. 逐項勾 UAT 清單（在 QA 文件）。
-6. **第二個 QA 模組：訂單與金流**（建單、綠界 webhook 冪等、`CheckMacValue`、發票）；先抽查剛成功的那筆真實刷卡。
-7. 視老師回覆決定是否做置閏法／茅山法。
-
-## 7. 下次起手式
+## 4. 下次起手式
 
 ```bash
 cd /Users/jasonmchen/codex-巽風系統/xunfeng-official-v2
 git status --short --branch && git log --oneline -5
-# 讀：本檔 → worklog.md 最末幾段 → docs/qa/council-qa-2026-10-07.md
+# 閱讀本檔、worklog.md 最新紀錄、memory.md；再按 QA 批次請單與各票固定 SHA／環境條件續作。
 ```
 
-- 推送若遇 GitHub `Internal Server Error`：`git -c http.version=HTTP/1.1 push origin HEAD`（本輪連續 7 次失敗、改這個就成功）。
-- 部署狀態用 Vercel MCP `list_deployments`（projectId `mvp4z`、slug `tjs-projects-435187fd`），**別高頻輪詢正式站**（會觸發 Security Checkpoint）。
-- QA 帳號取 token：用 service role 對該帳號 `auth.admin.updateUserById` 設密碼後 `signInWithPassword`（腳本思路在本輪 scratchpad，未入庫；需要時重寫即可）。
-- 並行實測：`node scripts/qa-council-concurrency.mjs --token=… --base-url=https://www.xunfeng.tw --n=4`（會真的扣點、打 LLM，只用測試帳號）。
+收到新固定 SHA 後先核對候選 worktree 與 QA 驗收命令。啟動隔離服務前先檢查 Docker／記憶體資源、專用 project/ports/volume 與 fixture 數；健康檢查未通過即停止該 gate，不借用 owner stack。沒有新 SHA 或環境變化時不重跑已通過的同 SHA 案例。
 
-## 8. Git 狀態與長時間程序
+## 5. Git 與程序狀態
 
-- 分支 `main`，與 `origin/main` 同步，工作樹乾淨（最新 `8e1bf7a`）。
-- 無長時間程序在執行；Vercel 部署皆 READY。
-- 本輪我未改動：老師的流派設定、`ai_school_profiles`、任何真實會員資料。唯一寫入正式庫的非程式資料是 QA 帳號相關列，與已套用的兩個 migration。
+- 根工作樹分支 `main`，HEAD `c427637`（手機版標題溢字修復，已 push），與 `origin/main` 同步、無 ahead（舊紀錄的「ahead 210」已過時）。工作樹仍有 QA 文件、測試、runner、證據圖與退款腳本的 modified/untracked 變更，不得 stage、commit、revert 或清理。
+- C27–C30、C26 等隔離候選狀態以各自固定 worktree／SHA 為準；本次未改候選。
+- 本次沒有啟動長時間程序、Docker stack、資料庫或外部 provider；未操作正式資料。
+
+
+## 2026-10-23 更新
+正式站已 promote 至 c427637（含 QA 修復＋手機溢字修復），8 支 20261011* migration 已補套（200000 以 execute_sql 套用、未 drop 舊 6 參數退款函式）。待辦：管理員實測分潤／退款／知識卡；使用者同意後 drop 舊函式並補 migration 歷史；之後進入四象與面相改版（見 優化建議/修改指令.txt）。

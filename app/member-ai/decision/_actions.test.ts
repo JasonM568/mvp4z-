@@ -65,25 +65,29 @@ describe("#7 進階選項必須真能控制報告", () => {
     expect(form).not.toHaveProperty("baziMode");
   });
 
-  it("奇門現在起局送獨立的台北當下時間；指定時間留給事件欄位", () => {
-    vi.useFakeTimers();
-    try {
-      vi.setSystemTime(new Date("2026-09-23T02:15:00.000Z"));
-      const form = buildInitialForm();
-      form.eventYear = 2020;
-      form.eventMonth = 1;
-      form.eventDay = 2;
-      form.eventHour = 3;
-      form.eventMinute = 4;
-      form.qimenTimeMode = "現在起局";
-      const now = buildCouncilPayload(form, buildInitialModules());
-      expect(now.yixue.qimen).toMatchObject({ mode: "現在起局", time: "2026-09-23 10:15" });
-      form.qimenTimeMode = "指定時間";
-      const specified = buildCouncilPayload(form, buildInitialModules());
-      expect(specified.yixue.qimen).toMatchObject({ mode: "指定時間" });
-      expect(specified.yixue.qimen.time).toBeUndefined();
-    } finally {
-      vi.useRealTimers();
-    }
+  it("起局時間不再由前端決定：奇門、六爻、梅花都不送時間或起局方式", () => {
+    const form = buildInitialForm();
+    const payload = buildCouncilPayload(form, buildInitialModules());
+    expect(payload.yixue.qimen).toEqual({ direction: "不確定" });
+    expect(payload.yixue.liuyao).toEqual({ mode: "親手搖卦" });
+    expect(payload.yixue.meihua).toEqual({ mode: "時間起卦" });
+    expect(JSON.stringify(payload)).not.toContain("現在起局");
+  });
+
+  it("新表單沒有預設問題類型、沒有搖卦、沒有事件日期", () => {
+    const form = buildInitialForm();
+    expect(form.topic).toBe("");
+    expect(form.castThrows).toEqual([]);
+    expect(form.eventDate).toBe("");
+    expect(buildCouncilPayload(form, buildInitialModules()).yixue).not.toHaveProperty("eventTime");
+  });
+
+  it("搖卦紀錄原樣送出；事件日期只在有填時送出，且不帶時分", () => {
+    const form = buildInitialForm();
+    form.castThrows = [{ at: "2026-10-23T04:00:00.000Z", yao: "老陽" }];
+    form.eventDate = "2026-11-05";
+    const payload = buildCouncilPayload(form, buildInitialModules());
+    expect(payload.yixue.casting.throws).toEqual(form.castThrows);
+    expect(payload.yixue.eventTime).toEqual({ year: 2026, month: 11, day: 5 });
   });
 });

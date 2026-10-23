@@ -8,7 +8,14 @@
 import { describe, expect, it } from "vitest";
 import { resolveSchool } from "@/lib/yixue";
 import { renderChartDigest, renderChartForPrompt } from "@/lib/yixue/format/prompt";
-import { buildChartForCouncil, toBirthInput, toQimenTime } from "./chart";
+import {
+  buildChartForCouncil,
+  toBirthInput,
+  toDivinationTime,
+  toLiuyaoSource,
+  toLiuyaoTime,
+  toQimenTime
+} from "./chart";
 import { councilSchema } from "./schema";
 import { yixueDataBlock, type CouncilInput } from "./personas";
 
@@ -175,12 +182,18 @@ describe("流年流月進 prompt", () => {
       ...input(),
       yixue: {
         ...input().yixue,
-        eventTime: { year: 2026, month: 9, day: 22, hour: 14, minute: 0 }
+        // 問事時間來自第一搖（2026-09-22 14:00 台北 = 06:00Z）。eventTime 已不參與起局。
+        casting: {
+          throws: ["少陽", "少陰", "少陰", "老陽", "少陽", "少陰"].map((y, i) => ({
+            at: new Date(Date.parse("2026-09-22T06:00:00.000Z") + i * 4000).toISOString(),
+            yao: y
+          }))
+        }
       }
     } as CouncilInput;
   }
 
-  it("有事件時間就推得出流年流月，並逐月標出所屬流年", () => {
+  it("有問事時間（第一搖）就推得出流年流月，並逐月標出所屬流年", () => {
     const chart = buildChartForCouncil(withEvent(), SCHOOL).chart!;
     const f = chart.bazi!.fleeting!;
     expect(f.year.label).toBe("丙午");
@@ -224,10 +237,10 @@ describe("流年流月進 prompt", () => {
     expect(text).not.toContain("請提供大運資料");
   });
 
-  it("沒有事件時間就不推流年流月，並留下 warning 而不是靜默略過", () => {
+  it("沒有搖卦紀錄時改用伺服器當下的台北時間，流年流月照推，不留空白", () => {
     const chart = buildChartForCouncil(input(), SCHOOL).chart!;
-    expect(chart.bazi!.fleeting).toBeNull();
-    expect(chart.warnings.some((w) => w.includes("未推流年流月"))).toBe(true);
+    expect(chart.bazi!.fleeting).not.toBeNull();
+    expect(chart.warnings.some((w) => w.includes("未推流年流月"))).toBe(false);
   });
 
   it("第二輪摘要也帶流年與當下流月，否則校核輪看不到", () => {
@@ -251,5 +264,64 @@ describe("流派簽核狀態進 prompt", () => {
     const text = renderChartForPrompt(chart, SCHOOL.label);
     expect(text).toContain("流派簽核：尚未簽核");
     expect(text).toContain("請據此說明限制");
+  });
+});
+
+describe("親手搖卦：第一搖是全報告唯一的問事時間", () => {
+  // 2026-10-13 15:20 台北時間 = UTC 07:20；用它確認奇門／梅花／六爻都落在同一刻，
+  // 而不是表單殘留的 eventTime（2026-09-22 08:41）。
+  const FIRST = "2026-10-13T07:20:05.000Z";
+  const yao = ["少陰", "少陰", "老陽", "少陽", "老陰", "少陰"];
+
+  function casted(overrides: Record<string, unknown> = {}): CouncilInput {
+    return {
+      question: "婚姻",
+      topic: "感情／人際",
+      yixue: {
+        modules: { bazi: false, qimen: true, liuyao: true, meihua: true },
+        birth: { calendar: "國曆", year: 1985, month: 7, day: 12, hourBranch: "午", timeKnown: "是" },
+        eventTime: { year: 2026, month: 9, day: 22, hour: 8, minute: 41 },
+        casting: { throws: yao.map((y, i) => ({ at: new Date(Date.parse(FIRST) + i * 4000).toISOString(), yao: y })) },
+        liuyao: { mode: "親手搖卦" },
+        meihua: { mode: "時間起卦" },
+        ...overrides
+      }
+    } as CouncilInput;
+  }
+
+  it("奇門、梅花、六爻的起局時間都等於第一搖，eventTime 不參與", () => {
+    const i = casted();
+    const expected = { year: 2026, month: 10, day: 13, hour: 15, minute: 20 };
+    expect(toQimenTime(i)).toEqual(expected);
+    expect(toDivinationTime(i)).toEqual(expected);
+    expect(toLiuyaoTime(i)).toEqual(expected);
+  });
+
+  it("六爻爻象取自搖卦紀錄，不看表單上的 yao 欄位", () => {
+    const i = casted({ liuyao: { mode: "時間起卦", yao: Array(6).fill("少陽") } });
+    expect(toLiuyaoSource(i)).toEqual({ mode: "手動輸入", yao });
+  });
+
+  it("排出的六爻是搖出來的卦，與梅花時間起卦不是同一個卦", () => {
+    const { chart, error } = buildChartForCouncil(casted(), SCHOOL);
+    expect(error).toBeNull();
+    expect(chart?.liuyao?.mode).toBe("手動輸入");
+    expect(chart?.liuyao?.movingPositions).toEqual([3, 5]);
+    expect(chart?.liuyao?.ben.hexagram.name).not.toBe(chart?.meihua?.ben.name);
+  });
+
+  it("梅花時間起卦：2026 丙午年年數取午＝7，月日用農曆", () => {
+    const { chart } = buildChartForCouncil(casted(), SCHOOL);
+    const steps = chart?.meihua?.derivation ?? [];
+    expect(steps.find((s) => s.label === "年數")?.value).toBe(7);
+    expect(steps.find((s) => s.label === "月數")?.note).toMatch(/^農曆/);
+    expect(steps.find((s) => s.label === "日數")?.note).toMatch(/^農曆/);
+  });
+
+  it("沒有搖卦紀錄也沒有前端時間 → 用伺服器當下台北時間，絕不退回 eventTime", () => {
+    const i = casted({ casting: undefined });
+    const t = toQimenTime(i);
+    expect(t).not.toEqual({ year: 2026, month: 9, day: 22, hour: 8, minute: 41 });
+    expect(t.year).toBeGreaterThanOrEqual(2026);
   });
 });

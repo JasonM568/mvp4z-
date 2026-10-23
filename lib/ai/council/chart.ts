@@ -14,6 +14,7 @@ import {
   type MeihuaSource,
   type YixueChart
 } from "@/lib/yixue";
+import { CASTING_YAO_KINDS, formatTaipeiClock } from "@/lib/divination/casting";
 import type { SchoolConfig } from "@/lib/yixue/school/types";
 import type { CouncilInput } from "./personas";
 
@@ -98,44 +99,51 @@ function parseClockString(raw: unknown): DivinationTimeInput | null {
   };
 }
 
-/** 表單的「事件／起局時間」。各術取不到自己的起卦時刻時共同的退路。 */
-function eventTimeOf(input: CouncilInput): DivinationTimeInput | null {
-  const e = input.yixue?.eventTime;
-  const year = optionalNum(e?.year);
-  const month = optionalNum(e?.month);
-  const day = optionalNum(e?.day);
-  if (year === null || month === null || day === null) return null;
-  return {
-    year,
-    month,
-    day,
-    hour: optionalNum(e?.hour) ?? 0,
-    minute: optionalNum(e?.minute) ?? 0
-  };
-}
-
 /**
- * 全報告共用的起卦／起局時刻，也是各術取不到自己時刻時的預設。
- * 優先序：梅花自填的起卦時間 → 事件時間。
+ * 案主親手搖卦的紀錄。扣點前 route 已用 validateCasting 嚴格驗過，
+ * 這裡只做寬鬆解析（六筆、爻象合法、第一搖時間可解析），測試與舊流程不帶紀錄時回 null。
  */
-export function toDivinationTime(input: CouncilInput): DivinationTimeInput | null {
-  return parseClockString(input.yixue?.meihua?.time) || eventTimeOf(input);
+function castingOf(input: CouncilInput): { firstAt: Date; yao: string[] } | null {
+  const throws = input.yixue?.casting?.throws;
+  if (!Array.isArray(throws) || throws.length !== 6) return null;
+  if (!throws.every((t) => (CASTING_YAO_KINDS as readonly string[]).includes(t?.yao))) return null;
+  const firstAt = new Date(throws[0].at);
+  if (Number.isNaN(firstAt.getTime())) return null;
+  return { firstAt, yao: throws.map((t) => t.yao) };
+}
+
+/** 案主起卦時刻的台北時間字串（供報告顯示）；沒有搖卦紀錄回 null。 */
+export function castingClockOf(input: CouncilInput): string | null {
+  const c = castingOf(input);
+  return c ? formatTaipeiClock(c.firstAt) : null;
 }
 
 /**
- * 六爻自己的起卦時刻。
+ * 全報告共用的問事時間（奇門起時家、梅花起卦、六爻月建日辰都用它）。
  *
- * 會員可以在六爻區塊選「現在時間」，那時前端會送台北當下；沒選就用事件時間。
- * 不共用梅花的時間——兩術在表單上是兩個獨立的起卦動作，共用會讓其中一邊
- * 顯示的「起卦時間」與實際用的不符。
+ * 優先序：第一搖的時刻 → 前端送來的各術時間（舊版 payload）→ 伺服器當下的台北時間。
+ * 事件時間（eventTime）刻意不在這條路上：它是「這件事發生在哪天」的背景，
+ * 表單殘留的舊值曾讓奇門用 9/22 起局、報告卻說 10/13 的問題。
  */
-export function toLiuyaoTime(input: CouncilInput): DivinationTimeInput | null {
-  return parseClockString(input.yixue?.liuyao?.time) || eventTimeOf(input);
+function anchorTime(input: CouncilInput, legacy: unknown): DivinationTimeInput {
+  const fromCasting = castingClockOf(input);
+  return (
+    parseClockString(fromCasting) ||
+    parseClockString(legacy) ||
+    (parseClockString(formatTaipeiClock(new Date())) as DivinationTimeInput)
+  );
 }
 
-/** 奇門「現在起局」用送出當下台北時間；「指定時間」沿用事件時間。 */
-export function toQimenTime(input: CouncilInput): DivinationTimeInput | null {
-  return parseClockString(input.yixue?.qimen?.time) || eventTimeOf(input);
+export function toDivinationTime(input: CouncilInput): DivinationTimeInput {
+  return anchorTime(input, input.yixue?.meihua?.time);
+}
+
+export function toLiuyaoTime(input: CouncilInput): DivinationTimeInput {
+  return anchorTime(input, input.yixue?.liuyao?.time);
+}
+
+export function toQimenTime(input: CouncilInput): DivinationTimeInput {
+  return anchorTime(input, input.yixue?.qimen?.time);
 }
 
 
@@ -195,6 +203,10 @@ function parseMovingLine(value: unknown): number {
  * 就整組退回時間起卦——半組手動半組推算會排出一個誰也沒下過的卦。
  */
 export function toLiuyaoSource(input: CouncilInput): LiuyaoSource {
+  // 有搖卦紀錄就只認它：爻象由案主親手搖出，不看表單上的 yao 欄位。
+  const cast = castingOf(input);
+  if (cast) return { mode: "手動輸入", yao: cast.yao };
+
   const yao = input.yixue?.liuyao?.yao;
   const mode = input.yixue?.liuyao?.mode;
   const VALID = ["少陽", "少陰", "老陽", "老陰"];

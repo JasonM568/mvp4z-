@@ -3,28 +3,24 @@
 // 扣點 consent 紅線：啟動掃描前必須秀出扣點說明並勾選同意。
 
 import { CreditsNotice } from "../../_credits-notice";
+import { CastingPanel } from "./casting-panel";
 import {
   birthPlaceOptions,
   calendarOptions,
   days,
-  eventYears,
   genderOptions,
   hourBranches,
   hours,
-  liuyaoModes,
-  liuyaoTimeModes,
   meihuaLowerTrigrams,
   meihuaModes,
   meihuaMovingLines,
-  meihuaTimeModes,
   meihuaUpperTrigrams,
   minutes,
   months,
-  qimenModes,
   reportTemplates,
   topics,
   trigramOptions,
-  yaoOptions,
+  suggestTopic,
   years,
   yesNoUncertain,
   yesNoUncertain2,
@@ -109,6 +105,36 @@ export function InputStep({
               </label>
             </div>
 
+            <div className="form" id="councilTopic" style={{ marginTop: 16 }}>
+              <div className="xf-field-label">
+                問題類型<span className="xf-required">（請點選確認）</span>
+              </div>
+              {(() => {
+                const suggested = suggestTopic(form.question);
+                return (
+                  <>
+                    {suggested && form.topic !== suggested && (
+                      <p style={{ color: "var(--muted)", fontSize: 13, margin: "4px 0 0" }}>
+                        系統依你的問題建議「{suggested}」，請點選確認或改選其他類型。
+                      </p>
+                    )}
+                    <div className="xf-topic-row">
+                      {topics.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className={"xf-topic-btn" + (form.topic === t ? " active" : "") + (suggested === t ? " suggested" : "")}
+                          onClick={() => update("topic", t)}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
             <div className="form" style={{ marginTop: 16 }}>
               <div className="xf-field-label">出生年月日時</div>
               <div className="council-grid-5">
@@ -154,6 +180,10 @@ export function InputStep({
                 身分（企業主／考生等）現在是獨立欄位，與更多專業選項一起放在下方進階設定。
               </p>
             </div>
+
+            {modules.liuyao && (
+              <CastingPanel throws={form.castThrows} onChange={(next) => update("castThrows", next)} />
+            )}
           </article>
 
           <details className="xf-advanced">
@@ -184,12 +214,6 @@ export function InputStep({
                       onChange={(e) => update("identity", e.target.value)}
                       placeholder="例如：企業主、考生、負責人"
                     />
-                  </label>
-                  <label>
-                    問題類型
-                    <select value={form.topic} onChange={(e) => update("topic", e.target.value)}>
-                      {topics.map((x) => <option key={x}>{x}</option>)}
-                    </select>
                   </label>
                   <label>
                     報告模板
@@ -271,60 +295,24 @@ export function InputStep({
                   })}
                 </div>
 
-                <div className="form council-grid-5" style={{ marginBottom: 16 }}>
-                  <label>事件年<select value={form.eventYear} onChange={(e) => update("eventYear", Number(e.target.value))}>{eventYears.map((x) => <option key={x}>{x}</option>)}</select></label>
-                  <label>事件月<select value={form.eventMonth} onChange={(e) => update("eventMonth", Number(e.target.value))}>{months.map((x) => <option key={x}>{x}</option>)}</select></label>
-                  <label>事件日<select value={form.eventDay} onChange={(e) => update("eventDay", Number(e.target.value))}>{days.map((x) => <option key={x}>{x}</option>)}</select></label>
-                  <label>事件時<select value={form.eventHour} onChange={(e) => update("eventHour", Number(e.target.value))}>{hours.map((x) => <option key={x}>{x}</option>)}</select></label>
-                  <label>事件分<select value={form.eventMinute} onChange={(e) => update("eventMinute", Number(e.target.value))}>{minutes.map((x) => <option key={x}>{x}</option>)}</select></label>
+                <div className="form council-grid-2" style={{ marginBottom: 16 }}>
+                  <label>
+                    這件事有確切日期嗎？（選填）
+                    <input type="date" value={form.eventDate} onChange={(e) => update("eventDate", e.target.value)} />
+                  </label>
                 </div>
+                <p style={{ color: "var(--muted)", marginTop: -6, marginBottom: 16, fontSize: 13 }}>
+                  日期只作為判讀背景，不用來起局。奇門、梅花與六爻一律使用你第一次搖卦的時刻。
+                </p>
 
                 {modules.qimen && (
                   <SubPanel title="奇門遁甲">
                     <div className="form council-grid-2">
-                      <label>起局時間依據<select value={form.qimenTimeMode === "指定時間" ? "指定時間" : "現在起局"} onChange={(e) => update("qimenTimeMode", e.target.value)}>{qimenModes.map((x) => <option key={x}>{x}</option>)}</select></label>
                       <label>事件方位<select value={form.direction} onChange={(e) => update("direction", e.target.value)}>{trigramOptions.map((x) => <option key={x}>{x}</option>)}</select></label>
                     </div>
                     <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
-                      {form.qimenTimeMode === "指定時間" ? "依上方事件／起局時間排盤。" : "以送出當下的台北時間排盤。"}
+                      以你第一次搖卦的時刻起時家奇門。
                     </p>
-                  </SubPanel>
-                )}
-
-                {modules.liuyao && (
-                  <SubPanel title="卜卦／六爻">
-                    <div className="form council-grid-3">
-                      <label>起卦方式<select value={form.liuyaoMode} onChange={(e) => update("liuyaoMode", e.target.value)}>{liuyaoModes.map((x) => <option key={x}>{x}</option>)}</select></label>
-                      {form.liuyaoMode === "時間起卦" && (
-                        <label>時間依據<select value={form.liuyaoTimeMode} onChange={(e) => update("liuyaoTimeMode", e.target.value)}>{liuyaoTimeModes.map((x) => <option key={x}>{x}</option>)}</select></label>
-                      )}
-                    </div>
-
-                    {form.liuyaoMode === "時間起卦" ? (
-                      form.liuyaoTimeMode === "現在時間" ? (
-                        <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
-                          以送出當下的台北時間（UTC+8）起卦，系統依時間推卦並自動裝上納甲、六親、六神、世應。
-                        </p>
-                      ) : (
-                        <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
-                          以下方「事件／起局時間」為起卦時刻。請確認該欄位已填寫。
-                        </p>
-                      )
-                    ) : (
-                      <>
-                        <p style={{ color: "var(--muted)", margin: "12px 0 8px", fontSize: 13 }}>
-                          請依實際搖卦結果，由初爻（最下）往上爻依序選擇。老陽、老陰為動爻。
-                        </p>
-                        <div className="form council-grid-3">
-                          {(["yao1", "yao2", "yao3", "yao4", "yao5", "yao6"] as const).map((k, i) => (
-                            <label key={k}>
-                              {["初爻", "二爻", "三爻", "四爻", "五爻", "上爻"][i]}
-                              <select value={form[k]} onChange={(e) => update(k, e.target.value)}>{yaoOptions.map((x) => <option key={x}>{x}</option>)}</select>
-                            </label>
-                          ))}
-                        </div>
-                      </>
-                    )}
                   </SubPanel>
                 )}
 
@@ -356,29 +344,9 @@ export function InputStep({
                     )}
 
                     {form.meihuaMode === "時間起卦" && (
-                      <>
-                        <div className="form council-grid-3" style={{ marginTop: 12 }}>
-                          <label>時間依據<select value={form.meihuaTimeMode} onChange={(e) => update("meihuaTimeMode", e.target.value)}>{meihuaTimeModes.map((x) => <option key={x}>{x}</option>)}</select></label>
-                        </div>
-                        {form.meihuaTimeMode === "現在時間" ? (
-                          <p style={{ color: "var(--muted)", marginTop: 8, fontSize: 13 }}>
-                            以送出當下時間自動起卦，系統依時間推算上下卦與動爻。
-                          </p>
-                        ) : (
-                          <>
-                            <p style={{ color: "var(--muted)", margin: "8px 0", fontSize: 13 }}>
-                              請輸入要起卦的時間，系統依此時間推算上下卦與動爻。
-                            </p>
-                            <div className="form council-grid-5">
-                              <label>年<select value={form.eventYear} onChange={(e) => update("eventYear", Number(e.target.value))}>{eventYears.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
-                              <label>月<select value={form.eventMonth} onChange={(e) => update("eventMonth", Number(e.target.value))}>{months.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
-                              <label>日<select value={form.eventDay} onChange={(e) => update("eventDay", Number(e.target.value))}>{days.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
-                              <label>時<select value={form.eventHour} onChange={(e) => update("eventHour", Number(e.target.value))}>{hours.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
-                              <label>分<select value={form.eventMinute} onChange={(e) => update("eventMinute", Number(e.target.value))}>{minutes.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
-                            </div>
-                          </>
-                        )}
-                      </>
+                      <p style={{ color: "var(--muted)", marginTop: 12, fontSize: 13 }}>
+                        以你第一次搖卦的時刻（農曆年支、月、日、時）自動起卦。
+                      </p>
                     )}
                   </SubPanel>
                 )}

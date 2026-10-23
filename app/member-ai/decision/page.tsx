@@ -27,7 +27,10 @@ type MemberInfo = {
 };
 
 type Step = "landing" | "input" | "scanning" | "report";
-const DRAFT_KEY = "xunfeng_four_aspects_draft";
+// v2：舊草稿帶著預設的「事業／工作」與預設爻象，沿用會繞過「類型要自己確認、六爻要親手搖」。
+const DRAFT_KEY = "xunfeng_four_aspects_draft_v2";
+/** 草稿裡的搖卦紀錄超過這個時間就丟掉；後端 60 分鐘會拒絕，留一點餘裕。 */
+const CASTING_DRAFT_MAX_AGE_MS = 50 * 60 * 1000;
 const PENDING_KEY = "xunfeng_four_aspects_pending";
 
 export default function DecisionPage() {
@@ -135,7 +138,14 @@ export default function DecisionPage() {
       const draft = window.localStorage.getItem(DRAFT_KEY);
       if (!draft) return;
       const parsed = JSON.parse(draft) as { form?: Partial<CouncilForm>; modules?: Partial<CouncilModules> };
-      if (parsed.form) setForm((current) => ({ ...current, ...parsed.form }));
+      if (parsed.form) {
+        const saved = { ...parsed.form };
+        const firstAt = Date.parse(saved.castThrows?.[0]?.at || "");
+        if (!Number.isFinite(firstAt) || Date.now() - firstAt > CASTING_DRAFT_MAX_AGE_MS) saved.castThrows = [];
+        // 事件日期不沿用舊值：殘留的舊日期曾讓報告把過去的某天當成這次的問事日。
+        saved.eventDate = "";
+        setForm((current) => ({ ...current, ...saved }));
+      }
       if (parsed.modules) setModules((current) => ({ ...current, ...parsed.modules }));
     } catch {
       window.localStorage.removeItem(DRAFT_KEY);
@@ -232,6 +242,17 @@ export default function DecisionPage() {
       (el as HTMLTextAreaElement | null)?.focus();
       return;
     }
+    if (!form.topic) {
+      setNotice("請先點選問題類型（系統只會建議，不會替你決定）。");
+      document.getElementById("councilTopic")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    // 六爻必須由案主親手搖滿六次；後端也會驗，這裡先擋是為了不讓會員白等一次掃描。
+    if (modules.liuyao && form.castThrows.length < 6) {
+      setNotice(`六爻需要親手搖卦：目前搖了 ${form.castThrows.length} 次，請搖滿六次再啟動掃描。`);
+      document.getElementById("councilCasting")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     // 八字開著就一定要有男／女，否則排不出大運（順逆由性別決定）。
     //
     // 2026-09-22 之前預設是「男」，所有人都排得出大運——但女性會員沒改就拿到
@@ -274,6 +295,8 @@ export default function DecisionPage() {
     if (data?.error) {
       track("four_aspects_failed", { stage: "generation", code: data.code || "unknown" });
       setScanError(data.error);
+      // 搖卦被後端退回（逾時、紀錄不合法）：舊的搖卦不能再用，回輸入頁要重搖。
+      if (data.code === "CASTING_INVALID" || data.code === "CASTING_REQUIRED") update("castThrows", []);
       // 點數不足要顯示的是出口而不是「返回修改」，所以錯誤碼要一起帶進掃描畫面。
       setScanErrorCode(data.code || null);
       setScanErrorDetails(data.details || null);
@@ -331,6 +354,10 @@ export default function DecisionPage() {
   // 換個問題再測一次：保留出生資料與進階設定，只清問題與結果（回訪成本最低）
   function handleRetry() {
     update("question", "");
+    // 每次問事都是新的一卦與新的問題：搖卦、類型、事件日期都不沿用。
+    update("castThrows", []);
+    update("topic", "");
+    update("eventDate", "");
     setReport("");
     setStructured(null);
     setReportWarning(null);
