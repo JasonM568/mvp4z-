@@ -97,7 +97,14 @@ export function ScanningStep({
               <p style={{ color: "var(--muted)", fontSize: 12 }}>
                 錯誤代碼：{errorCode || "無"}　時間：{new Date().toLocaleString("zh-TW", { hour12: false })}
               </p>
-              {errorCode === "RECOVERY_NOT_FOUND" ? (
+              {/登入/.test(errorMsg) && errorCode !== "RECOVERY_NOT_FOUND" ? (
+                <>
+                  <p style={{ color: "var(--muted)", fontSize: 14 }}>你的登入已失效。重新登入後會回到這一頁。本次未扣點。</p>
+                  <a className="btn primary" href="/login?next=/member-ai/decision" style={{ marginTop: 10 }}>
+                    重新登入
+                  </a>
+                </>
+              ) : errorCode === "RECOVERY_NOT_FOUND" ? (
                 <>
                   <p style={{ color: "var(--muted)", fontSize: 14 }}>報告可能仍在生成，請不要重複送出。</p>
                   <a className="btn primary" href="/member" style={{ marginTop: 10 }}>
