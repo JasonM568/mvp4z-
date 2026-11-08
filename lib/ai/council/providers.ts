@@ -28,6 +28,15 @@ export type ModelResult = {
 // 重試救不了「慢但正常」的呼叫，所以終稿改由 route 傳 { timeoutMs: 110000, attempts: 1 }。
 const PROVIDER_TIMEOUT_MS = 45000;
 
+/**
+ * 第一、二輪各分身的呼叫上限。2026-11-08 實測真實提示詞：DeepSeek 關思考後 51~56 秒、
+ * Gemini 42~48 秒，都貼著或超過 45 秒，「三方必到」之下等於每份報告都走備援。
+ * 單次放寬到 75 秒，總預算仍是 90 秒（與改版前 2×45 相同），
+ * 所以最壞情況維持 90 + 90 + 終稿 110 = 290 秒，不超過 maxDuration 300 秒。
+ * 預算 90 秒、單次 75 秒：只有前一次在 15 秒內就失敗（429／5xx 秒回）才會再試。
+ */
+export const ROUND_CALL_OPTIONS = { timeoutMs: 75000, budgetMs: 90000 } as const;
+
 // 嘗試次數是上限，真正的約束是預算（見 withRetry）。
 // 從 2 提高到 4 是為了 Gemini 的「high demand」：那種錯誤是秒回的，
 // 四次帶退避的嘗試總共只花約 18 秒，遠在單輪預算內；而逾時路徑受預算所限
@@ -275,6 +284,9 @@ async function callDeepSeekOnce(role: CouncilRole, label: string, system: string
       body: JSON.stringify({
         model,
         temperature: 0.35,
+        // deepseek-flash 預設先長時間思考：2026-11-08 實測同一份提示詞 136 秒（思考 8873 token），
+        // 關掉後 51~56 秒。本系統要的是穩定的判讀文字，與 Gemini 的 thinkingBudget=0 同理。
+        ...(model.includes("flash") ? { thinking: { type: "disabled" } } : {}),
         messages: [
           { role: "system", content: system },
           { role: "user", content: prompt }
