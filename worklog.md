@@ -4188,3 +4188,11 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 使用者授權 QA 帳號（`qa-council-b1@example.com`）做正式站實測：臨時密碼 + 一筆 20 點 entitlement（303864b2…）。ego lite（task space 33）登入、搖六爻、送出，`/api/ai/council` 200、117.8 秒、run_id 716edff5-f51d-4e17-b7ef-d37d8f91973c，畫面顯示已扣 20 點剩 0。
 - 善後：密碼改為隨機值、entitlement 設 expired/0 點、admin_audit_logs 記 `qa_prod_e2e_council`、瀏覽器 localStorage 清除、暫存密碼檔刪除。council_runs 該筆保留。
 - 遺留：使用者 306465 當時實際看到的錯誤文字仍未取得；該次報告「缺事件具體方位／起卦時刻不精確」的完整度檢核疑似誤報，尚未查。
+
+## 2026-11-08 報告管線修復（三方必到）
+- 起因：11/7 15:12 UTC 起 Gemini（400 key invalid）與 DeepSeek（401，key 誤填 OpenRouter）全失效，報告只剩 OpenAI 單家意見卻照常交付並扣 20 點，連續 3 份（皆管理員帳號）。
+- Production 環境變數：GEMINI_API_KEY、DEEPSEEK_API_KEY 換新；新增 GEMINI_MODEL=gemini-3.5-flash（2.5-flash 已停供）、DEEPSEEK_MODEL=deepseek-flash。Preview 未設（CLI 卡分支選擇）。
+- 程式：672dc71 三方必到（缺一家→不呼叫終稿、備援稿、0 點、標「校核未完成」）、即時告警（金鑰被拒／同家兩輪皆失敗，3 小時冷卻）、健康告警不看樣本數（最近一次 400/401/403 或連續 2 次失敗＝不可用）、Gemini 金鑰改標頭；e29bdc5 DeepSeek 關閉思考、每輪單次上限 45→75 秒（總預算仍 90 秒）。
+- 實測：deepseek-flash 預設思考 136 秒必逾時；關思考後 51~57 秒；Gemini 22~48 秒。
+- 正式站驗收（QA 帳號 qa-council-b1，使用者授權；測後密碼隨機化、點數歸零、audit 已記）：run b3dc1e28-8f59-4288-97be-b074307cbc34，2026-11-08 03:26:32Z 送出，全程 132.7 秒，第一輪／第二輪三家 ok:true（attempts=1），終稿正常，扣 20 點，非備援稿。完整度檢核六爻、梅花已不再誤報缺起卦資料。
+- 遺留：DeepSeek 第一輪約 57 秒，離 75 秒上限餘裕約 18 秒；兩把金鑰曾貼在對話中，建議輪替；306465 當時「掃描未完成」的畫面文字仍未取得。
