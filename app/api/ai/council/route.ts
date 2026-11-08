@@ -19,6 +19,13 @@ import { COUNCIL_DAILY_LIMIT, getMonthlyCouncilUsage, getTodayCouncilCount } fro
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { councilSchema, CouncilRequest } from "@/lib/ai/council/schema";
 import { buildMinimalRunRow } from "@/lib/ai/council/run-row";
+import {
+  checkRoundsComplete,
+  failedPersonaNames,
+  incompleteFinalLabel,
+  skippedFinalResult
+} from "@/lib/ai/council/verification";
+import { notifyProviderFailures } from "@/lib/ai/council/provider-alert";
 import { acquireCouncilSlot, releaseCouncilSlot } from "@/lib/ai/council/inflight";
 import { loadQimenSignoff, qimenSignatureText } from "@/lib/school-settings/qimen-signoff";
 import { loadPromptSettings } from "@/lib/ai/council/settings/load";
@@ -219,7 +226,10 @@ export async function POST(request: NextRequest) {
     let debateRoundText = "第二輪攻防未啟用。";
     let debateTokens = { in: 0, out: 0 };
     const enableDebate = (process.env.ENABLE_DEBATE_ROUND || "true").toLowerCase() === "true";
-    if (enableDebate) {
+    // 三方必到：第一輪有任何一家失敗（各家呼叫內已重試過）就不必再燒第二輪與終稿——
+    // 這份報告注定改走備援稿、不扣點，繼續呼叫只是花錢。
+    const firstRoundComplete = checkRoundsComplete(firstRound, null).complete;
+    if (enableDebate && firstRoundComplete) {
       const secondPrompt = buildDebatePrompt(councilInput, firstRoundText, qualityGate, chartDigest);
       debateRound = await Promise.all([
         callOpenAI("openaiFengYi", "巽風主判讀分身｜修正", openaiFengYiSystem(prompt.settings), secondPrompt),
@@ -228,6 +238,22 @@ export async function POST(request: NextRequest) {
       ]);
       debateRoundText = stringifyRound("第二輪：巽風多維攻防修正", debateRound);
       debateTokens = sumTokens(debateRound);
+    }
+
+    // 三方必到：兩輪各三家都要有回音。缺一家 → 不呼叫終稿，走備援稿、0 點，並標示校核未完成。
+    const verification = checkRoundsComplete(
+      firstRound,
+      enableDebate && debateRound.length ? debateRound : null
+    );
+    if (!verification.complete) {
+      console.warn("[council] 校核未完成，改走備援稿", {
+        failures: verification.failures.map((f) => ({
+          role: f.role,
+          round: f.round,
+          status: f.status,
+          error: f.error.slice(0, 120)
+        }))
+      });
     }
 
     // 10. 終稿
@@ -242,13 +268,15 @@ export async function POST(request: NextRequest) {
     );
     // 終稿 prompt 最重（要讀完前兩輪上萬字再生成長報告），需要一次連續的長時間，
     // 重試救不了「慢但正常」的呼叫，所以給單次 110s、不重試。
-    const final = await callOpenAI(
-      "finalChatGPT",
-      "風羿老師最終定稿分身",
-      fengYiFinalSystem(prompt.settings),
-      finalPrompt,
-      { timeoutMs: 110000, attempts: 1 }
-    );
+    const final = verification.complete
+      ? await callOpenAI(
+          "finalChatGPT",
+          "風羿老師最終定稿分身",
+          fengYiFinalSystem(prompt.settings),
+          finalPrompt,
+          { timeoutMs: 110000, attempts: 1 }
+        )
+      : skippedFinalResult(verification.failures);
 
     // 先切出機讀 JSON 區塊再處理正文：JSON 不能進 cleanReportText（會被洗壞），
     // 正文判定與洗稿都用去掉區塊後的文字。解析失敗只降級（structured=null），不影響交付與扣點。
@@ -287,7 +315,11 @@ export async function POST(request: NextRequest) {
         finalTokensOut: final.tokensOut
       });
     }
-    const finalLabel = finalOk ? final.label : "風羿老師備援交付稿";
+    const finalLabel = finalOk
+      ? final.label
+      : verification.complete
+        ? "風羿老師備援交付稿"
+        : incompleteFinalLabel(verification.failures);
     // 會員可見內容的最後一關：名號替換、醫療與療效用語剔除（全域禁令）。
     // 本文與結構化報告各過一次；命中紀錄在報告寫入後存進稽核。
     const filteredText = filterReportText(
@@ -465,6 +497,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 分身呼叫失敗的即時告警（金鑰被拒、同一家兩輪皆失敗）。不等隔天的排程；失敗不影響交付。
+    await notifyProviderFailures(admin, [...firstRound, ...debateRound], runId);
+
     const member = await getPublicMember(profile.id);
     return apiJson({
       ok: true,
@@ -472,6 +507,8 @@ export async function POST(request: NextRequest) {
       final: { ok: finalOk, label: finalLabel, text: finalText },
       structured,
       fallback_used: fallbackUsed,
+      verification_incomplete: !verification.complete,
+      failed_roles: verification.complete ? [] : failedPersonaNames(verification.failures),
       credits_charged: actualCharge,
       free_quota_used: actualFreeQuotaUsed,
       credit_warning: creditWarning,

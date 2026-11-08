@@ -91,6 +91,8 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
 
   const references = teacherReferences(run.request);
 
+  const verificationIncomplete = Boolean(run.final_label?.includes("校核未完成"));
+
   return (
     <>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -116,8 +118,14 @@ export default function CouncilRunDetail({ params }: { params: Promise<{ id: str
         </div>
       )}
 
+      {verificationIncomplete && (
+        <div style={{ padding: 12, background: "rgba(255,143,143,0.1)", border: "1px solid rgba(255,143,143,0.3)", color: "#ffb7b7", borderRadius: 12, marginBottom: 12 }}>
+          {run.final_label}。這份報告三方校核沒有到齊，已改走備援稿、未扣點；失敗細節看下方兩輪的 ok／error／status。
+        </div>
+      )}
+
       <div className="kpi-grid">
-        <Kpi label="狀態" value={run.fallback_used ? "兜底交付稿" : run.final_ok ? "正常交付" : "未通過"} />
+        <Kpi label="狀態" value={verificationIncomplete ? "校核未完成（兜底稿）" : run.fallback_used ? "兜底交付稿" : run.final_ok ? "正常交付" : "未通過"} />
         <Kpi label="扣點" value={`${run.credits_charged} 點`} />
         <Kpi label="VIP 免費" value={run.free_quota_used ? "是" : "否"} />
         <Kpi label="Tokens in/out" value={`${run.total_tokens_in.toLocaleString()} / ${run.total_tokens_out.toLocaleString()}`} />

@@ -116,6 +116,8 @@ export type CouncilApiResult = {
   final?: { ok: boolean; label: string; text: string };
   structured?: CouncilStructured | null;
   fallback_used?: boolean;
+  /** 三方校核沒有到齊：已改走備援稿、未扣點。 */
+  verification_incomplete?: boolean;
   credits_charged?: number;
   free_quota_used?: boolean;
   generated_at?: string;

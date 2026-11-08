@@ -211,21 +211,22 @@ export function callGemini(role: CouncilRole, label: string, system: string, pro
 
 async function callGeminiOnce(role: CouncilRole, label: string, system: string, prompt: string, timeoutMs: number): Promise<ModelResult> {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
   if (!apiKey) return emptyResult(role, label, "GEMINI_API_KEY 未設定");
 
   const timer = timeoutSignal(timeoutMs);
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+    // 金鑰放標頭而不是網址：網址會進各種 log；AQ. 開頭的新格式金鑰兩種方式都收，2026-11-08 實測。
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.35,
-          // gemini-2.5-flash 預設開啟 thinking，會多花 10~40s 容易頂到 timeout。
+          // Gemini Flash 預設開啟 thinking，會多花 10~40s 容易頂到 timeout。
           // 本系統要的是穩定的判讀文字、不需要長思考，thinkingBudget=0 直接關閉。
           thinkingConfig: { thinkingBudget: 0 },
           maxOutputTokens: 8192

@@ -369,7 +369,9 @@ export default function DecisionPage() {
     setReportFileBase(buildReportFileBase(form.clientName, generatedAt));
     setJsonPacket({ request: payload, response: data });
     setNotice(
-      data?.fallback_used
+      data?.verification_incomplete
+        ? "本次多重校核未能全部完成，已改為備援交付稿，未扣點。稍後再問一次即可。"
+        : data?.fallback_used
         ? "本次未通過交付門檻，已自動退回點數，回傳兜底交付稿。"
         : data?.free_quota_used
           ? "本次使用 VIP 月內免費額度，未扣點。"

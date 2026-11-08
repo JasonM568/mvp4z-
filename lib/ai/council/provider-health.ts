@@ -79,13 +79,42 @@ export type ProviderHealth = {
 };
 
 const HOUR = 3600_000;
+const RECENT_WINDOW_HOURS = 48;
 
 function statOf(calls: ProviderCall[]): WindowStat {
   const failures = calls.filter((c) => !c.ok).length;
   return { calls: calls.length, failures, rate: calls.length ? failures / calls.length : 0 };
 }
 
-function judge(day: WindowStat, week: WindowStat): { level: HealthLevel; reason: string } {
+/** 金鑰或請求本身被拒：重試永遠救不了，必須有人改設定。 */
+export const KEY_ERROR_STATUSES: readonly number[] = [400, 401, 403];
+
+/**
+ * 不看樣本數的兩條硬規則，看的是「最近的呼叫」而不是視窗統計：
+ *   1. 最近一次就是金鑰／請求被拒（400／401／403）→ 不可用
+ *   2. 最近兩次連續失敗 → 不可用
+ * 之所以看「最近」：金鑰修好後第一次成功就會自動解除，不必等舊失敗滑出 24 小時視窗。
+ * 2026-11-07 兩家金鑰全滅，卻因為「樣本少一律正常」而完全沒有告警。
+ */
+function judgeRecent(recentNewestFirst: ProviderCall[]): { level: HealthLevel; reason: string } | null {
+  const [latest, previous] = recentNewestFirst;
+  if (!latest || latest.ok) return null;
+  if (latest.status != null && KEY_ERROR_STATUSES.includes(latest.status)) {
+    return { level: "down", reason: `最近一次呼叫被拒（HTTP ${latest.status}），金鑰或請求設定有問題，重試不會好` };
+  }
+  if (previous && !previous.ok) {
+    return { level: "down", reason: "最近連續 2 次呼叫失敗" };
+  }
+  return null;
+}
+
+function judge(
+  day: WindowStat,
+  week: WindowStat,
+  recentNewestFirst: ProviderCall[] = []
+): { level: HealthLevel; reason: string } {
+  const hard = judgeRecent(recentNewestFirst);
+  if (hard) return hard;
   if (day.calls >= HEALTH_THRESHOLDS.minSampleForDown && day.failures === day.calls) {
     return { level: "down", reason: `24 小時內 ${day.calls} 次呼叫全部失敗，疑似整個不可用` };
   }
@@ -132,9 +161,12 @@ export function summarizeProviderHealth(calls: ProviderCall[], now: Date = new D
     const day = statOf(since(24));
     const week = statOf(since(24 * 7));
     const monthCalls = since(24 * 30);
-    const { level, reason } = judge(day, week);
+    const newestFirst = [...mine].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+    // 「最近」限定 48 小時內：更舊的失敗交給下面的視窗統計，否則一個月前的失敗會讓告警永遠不解除。
+    const recent = newestFirst.filter((c) => t - Date.parse(c.created_at) <= RECENT_WINDOW_HOURS * HOUR);
+    const { level, reason } = judge(day, week, recent);
 
-    const failures = mine.filter((c) => !c.ok).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+    const failures = newestFirst.filter((c) => !c.ok);
 
     return {
       role,

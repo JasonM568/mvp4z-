@@ -56,8 +56,7 @@ describe("真的出事要叫", () => {
   it("樣本不足但 24 小時內失敗 3 次 → 仍要叫，不能以樣本不足為由沉默", () => {
     const h = summarizeProviderHealth(calls(gemini(3, false, 2)), NOW);
     const g = h.find((x) => x.role === "geminiFengYi")!;
-    expect(g.level).toBe("warn");
-    expect(g.reason).toContain("24 小時內失敗 3 次");
+    expect(g.level).not.toBe("ok");
   });
 
   it("24 小時內全數失敗且樣本足夠 → 疑似整個不可用", () => {
@@ -65,8 +64,16 @@ describe("真的出事要叫", () => {
     expect(h.find((x) => x.role === "geminiFengYi")!.level).toBe("down");
   });
 
-  it("3 次全失敗只算「注意」，不算不可用——一份報告就會打兩次，3 次還不夠下這個結論", () => {
-    const h = summarizeProviderHealth(calls(gemini(3, false, 2)), NOW);
+  it("24 小時內失敗 3 次但中間夾著成功（最近一次是成功）→ 只算注意，不算不可用", () => {
+    const h = summarizeProviderHealth(
+      calls([
+        { role: "geminiFengYi", ok: false, hours: 6 },
+        { role: "geminiFengYi", ok: false, hours: 5 },
+        { role: "geminiFengYi", ok: false, hours: 4 },
+        { role: "geminiFengYi", ok: true, hours: 1 }
+      ]),
+      NOW
+    );
     expect(h.find((x) => x.role === "geminiFengYi")!.level).toBe("warn");
   });
 
@@ -130,5 +137,53 @@ describe("告警信", () => {
       NOW
     );
     expect(buildHealthAlert(mixed, NOW).text).toContain("其餘正常");
+  });
+});
+
+
+describe("不受樣本數限制的硬規則（2026-11-07 兩家金鑰失效卻零告警）", () => {
+  it("只有一次呼叫、且是金鑰被拒（401）→ 立即不可用", () => {
+    const h = summarizeProviderHealth(calls([{ role: "deepseekAttack", ok: false, hours: 1, status: 401, error: "Authentication Fails" }]), NOW);
+    const d = h.find((x) => x.role === "deepseekAttack")!;
+    expect(d.level).toBe("down");
+    expect(d.reason).toContain("401");
+    expect(needsAlert(h)).toBe(true);
+  });
+
+  it("400（API key not valid）同樣算金鑰錯誤", () => {
+    const h = summarizeProviderHealth(calls([{ role: "geminiFengYi", ok: false, hours: 1, status: 400 }]), NOW);
+    expect(h.find((x) => x.role === "geminiFengYi")!.level).toBe("down");
+  });
+
+  it("最近連續失敗 2 次（即使是 503）→ 不可用，不必等樣本累積", () => {
+    const h = summarizeProviderHealth(calls(gemini(2, false, 1)), NOW);
+    const g = h.find((x) => x.role === "geminiFengYi")!;
+    expect(g.level).toBe("down");
+    expect(g.reason).toContain("連續 2 次");
+  });
+
+  it("只失敗 1 次（非金鑰錯誤）、樣本少 → 不叫，避免正常波動狂叫", () => {
+    const h = summarizeProviderHealth(
+      calls([{ role: "geminiFengYi", ok: true, hours: 5 }, { role: "geminiFengYi", ok: false, hours: 1, status: 503 }]),
+      NOW
+    );
+    expect(h.find((x) => x.role === "geminiFengYi")!.level).toBe("ok");
+  });
+
+  it("金鑰修好後第一次成功就解除，不必等舊失敗滑出視窗", () => {
+    const h = summarizeProviderHealth(
+      calls([
+        { role: "deepseekAttack", ok: false, hours: 5, status: 401 },
+        { role: "deepseekAttack", ok: false, hours: 4, status: 401 },
+        { role: "deepseekAttack", ok: true, hours: 1 }
+      ]),
+      NOW
+    );
+    expect(h.find((x) => x.role === "deepseekAttack")!.level).not.toBe("down");
+  });
+
+  it("超過 48 小時的舊金鑰錯誤不再硬判不可用", () => {
+    const h = summarizeProviderHealth(calls([{ role: "deepseekAttack", ok: false, hours: 80, status: 401 }]), NOW);
+    expect(h.find((x) => x.role === "deepseekAttack")!.level).toBe("ok");
   });
 });
