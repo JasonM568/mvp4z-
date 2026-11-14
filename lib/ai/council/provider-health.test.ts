@@ -126,7 +126,7 @@ describe("告警信", () => {
 
   it("信裡帶得出實際數字、錯誤訊息與後台連結", () => {
     const { subject, text } = buildHealthAlert(health, NOW);
-    expect(subject).toContain("Gemini");
+    expect(subject).toContain("策略推演");
     expect(text).toContain("high demand");
     expect(text).toContain("/admin/provider-health");
   });

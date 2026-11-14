@@ -48,8 +48,6 @@ import {
   openaiFengYiSystem
 } from "@/lib/ai/council/personas";
 import {
-  callDeepSeek,
-  callGemini,
   callOpenAI,
   ModelResult,
   ROUND_CALL_OPTIONS,
@@ -210,14 +208,16 @@ export async function POST(request: NextRequest) {
     };
     const selectedDocuments = selectTeacherDocuments(prompt.documents, councilInput);
 
-    // 8. 第一輪：三模型平行
+    // 8. 第一輪：三個分身平行
+    // 2026-11-14 起三個分身（主判讀、策略推演、攻防反證）一律由 OpenAI 呼叫，不再使用 Gemini／DeepSeek。
+    // role 代號（geminiFengYi／deepseekAttack）沿用舊名：council_runs 與健康統計的歷史資料都依它分類，改名會斷開。
     // 老師的參考文件只掛在第一輪與終稿。第二輪是攻擊第一輪的文字，不需要重讀原始資料，
     // 而 prompt 每多一段就要多送 6 次（三模型兩輪），成本與逾時風險都會放大。
     const firstPrompt = buildFirstRoundPrompt(councilInput, qualityGate, selectedDocuments.block, chartBlock);
     const firstRound = await Promise.all([
       callOpenAI("openaiFengYi", "巽風主判讀分身", openaiFengYiSystem(prompt.settings), firstPrompt, ROUND_CALL_OPTIONS),
-      callGemini("geminiFengYi", "巽風策略推演分身", geminiFengYiSystem(prompt.settings), firstPrompt, ROUND_CALL_OPTIONS),
-      callDeepSeek("deepseekAttack", "巽風攻防反證分身", deepseekAttackSystem(prompt.settings), firstPrompt, ROUND_CALL_OPTIONS)
+      callOpenAI("geminiFengYi", "巽風策略推演分身", geminiFengYiSystem(prompt.settings), firstPrompt, ROUND_CALL_OPTIONS),
+      callOpenAI("deepseekAttack", "巽風攻防反證分身", deepseekAttackSystem(prompt.settings), firstPrompt, ROUND_CALL_OPTIONS)
     ]);
     const firstRoundText = stringifyRound("第一輪：巽風多維初判", firstRound);
     const firstTokens = sumTokens(firstRound);
@@ -234,8 +234,8 @@ export async function POST(request: NextRequest) {
       const secondPrompt = buildDebatePrompt(councilInput, firstRoundText, qualityGate, chartDigest);
       debateRound = await Promise.all([
         callOpenAI("openaiFengYi", "巽風主判讀分身｜修正", openaiFengYiSystem(prompt.settings), secondPrompt, ROUND_CALL_OPTIONS),
-        callGemini("geminiFengYi", "巽風策略推演分身｜修正", geminiFengYiSystem(prompt.settings), secondPrompt, ROUND_CALL_OPTIONS),
-        callDeepSeek("deepseekAttack", "巽風攻防反證分身｜修正", deepseekAttackSystem(prompt.settings), secondPrompt, ROUND_CALL_OPTIONS)
+        callOpenAI("geminiFengYi", "巽風策略推演分身｜修正", geminiFengYiSystem(prompt.settings), secondPrompt, ROUND_CALL_OPTIONS),
+        callOpenAI("deepseekAttack", "巽風攻防反證分身｜修正", deepseekAttackSystem(prompt.settings), secondPrompt, ROUND_CALL_OPTIONS)
       ]);
       debateRoundText = stringifyRound("第二輪：巽風多維攻防修正", debateRound);
       debateTokens = sumTokens(debateRound);

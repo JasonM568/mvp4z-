@@ -2,6 +2,7 @@
 //
 // 要回答的問題只有一個：**有沒有哪一家模型正在讓報告靜默降級？**
 //
+// （2026-11-14 起三個分身全由 OpenAI 呼叫；role 代號沿用舊名以保留歷史統計。）
 // 終稿只由 OpenAI 寫，Gemini 或 DeepSeek 掛掉時報告照樣生得出來，
 // 只是從三家意見變兩家——會員付一樣的錢，拿到少一家意見的報告，
 // 而且畫面上沒有任何跡象。這就是這個模組存在的理由。
@@ -21,9 +22,9 @@ export type ProviderCall = {
 };
 
 export const PROVIDER_LABELS: Record<ProviderRole, string> = {
-  openaiFengYi: "OpenAI｜主判讀",
-  geminiFengYi: "Gemini｜策略推演",
-  deepseekAttack: "DeepSeek｜攻防反證"
+  openaiFengYi: "主判讀分身（OpenAI）",
+  geminiFengYi: "策略推演分身（OpenAI）",
+  deepseekAttack: "攻防反證分身（OpenAI）"
 };
 
 export const PROVIDER_ROLES = Object.keys(PROVIDER_LABELS) as ProviderRole[];
