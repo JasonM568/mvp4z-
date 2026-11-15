@@ -4196,3 +4196,8 @@ tsc 無錯、vitest 549 passed／2 skipped、next build 成功；正式站實測
 - 實測：deepseek-flash 預設思考 136 秒必逾時；關思考後 51~57 秒；Gemini 22~48 秒。
 - 正式站驗收（QA 帳號 qa-council-b1，使用者授權；測後密碼隨機化、點數歸零、audit 已記）：run b3dc1e28-8f59-4288-97be-b074307cbc34，2026-11-08 03:26:32Z 送出，全程 132.7 秒，第一輪／第二輪三家 ok:true（attempts=1），終稿正常，扣 20 點，非備援稿。完整度檢核六爻、梅花已不再誤報缺起卦資料。
 - 遺留：DeepSeek 第一輪約 57 秒，離 75 秒上限餘裕約 18 秒；兩把金鑰曾貼在對話中，建議輪替；306465 當時「掃描未完成」的畫面文字仍未取得。
+
+## 2026-11-15 三個分身全改 OpenAI（不再使用 Gemini／DeepSeek）
+- 使用者指示「模型都以 OpenAI 為主，其他兩家不要使用了」。commit 44d48af：route.ts 第一、二輪策略推演／攻防反證分身改呼叫 `callOpenAI`（角色代號 geminiFengYi／deepseekAttack 保留以接歷史資料）；provider-health 標籤改「（OpenAI）」。三方必到、重試、告警規則不變。
+- 正式站驗收（QA 帳號 qa-council-b1，使用者授權；測後密碼隨機化、entitlement 歸零、audit `qa_prod_e2e_council` 已記）：run caf23fcc-c795-47a0-9ead-5277e56440d4，2026-11-15 05:27:37Z 送出，全程 75.6 秒（11/8 三家版為 132.7 秒），兩輪三家 ok:true（attempts=1），終稿正常，扣 20 點，非備援稿。
+- 遺留：Vercel 的 GEMINI_*／DEEPSEEK_* 變數未刪、callGemini／callDeepSeek 為死碼；先前貼在對話的兩把金鑰建議輪替；三個分身同一模型，獨立校核性較低。
