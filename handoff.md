@@ -1,4 +1,50 @@
-# Handoff（全系統 QA 最新摘要）
+# Handoff（最新：2026-11-15 報告管線）
+
+更新：2026-11-15。上線站 `https://www.xunfeng.tw`，最新部署 `44d48af` Ready。
+
+## 1. 目前狀態（四象問天機報告管線）
+
+- 三個分身（主判讀／策略推演／攻防反證）與終稿**全部由 OpenAI 呼叫**，不再使用 Gemini／DeepSeek（2026-11-14 使用者決定）。每份報告 7 次 OpenAI 呼叫：兩輪各 3 次＋終稿 1 次。角色代號 `geminiFengYi`／`deepseekAttack` 為接歷史資料而保留，後台標籤已標「（OpenAI）」。
+- 三方必到：任一輪缺任一分身 → 不呼叫終稿、備援稿、不扣點、標「校核未完成：<分身名>」（`lib/ai/council/verification.ts`）。
+- 告警：即時（金鑰被拒 400/401/403，或同分身兩輪皆失敗；3 小時冷卻，`provider-alert.ts`）＋每日排程；健康判定不看樣本數（`provider-health.ts`，近 48 小時）。
+- 每輪單次逾時 75 秒、總預算 90 秒，終稿 110 秒（`ROUND_CALL_OPTIONS`）。
+- 完整度檢核誤報（「缺起卦時刻／原始搖卦數據」）已修（`personas.ts`，commit 1ead07a）。
+
+## 2. 驗證證據
+
+- OpenAI 單一模型版正式站實測（QA 帳號，使用者授權）：run `caf23fcc-c795-47a0-9ead-5277e56440d4`，全程 75.6 秒，兩輪各三分身 ok:true（attempts=1），終稿正常，扣 20 點，非備援稿。測後密碼隨機化、點數歸零、audit `qa_prod_e2e_council` 已記。
+- 前一版（三家）驗收：run b3dc1e28…，132.7 秒。
+- tsc 乾淨、vitest 727 passed（2 預期 fail、3 skipped）。這次是直接打 API 驗證，沒有走登入畫面搖卦；沒看 provider-health 頁與告警信。
+
+## 3. 未完成事項與風險
+
+1. Vercel Production 的 GEMINI_API_KEY／GEMINI_MODEL／DEEPSEEK_API_KEY／DEEPSEEK_MODEL 未刪；`callGemini`／`callDeepSeek`（`providers.ts`）已是死碼。待使用者決定後清除。
+2. 11/8 貼在對話中的 Gemini、DeepSeek 兩把金鑰建議作廢輪替。
+3. 三分身同一 OpenAI 模型，獨立校核性較低；可選：每角色可設不同 OpenAI 模型（未做、使用者未要求）。
+4. Preview 環境變數從未設（Vercel CLI 卡 `git_branch_required`）。
+5. `OPENAI_MODEL` 值為加密，未讀；程式預設 gpt-4.1-mini。
+6. 使用者帳號 306465 當時「掃描未完成」的畫面文字仍未取得。
+7. 工作樹有非本次改動的未提交檔 `docs/qa/customer-uat-checklist-draft-2026-10-11.md`，勿動。
+8. 教材（Stage 4）匯入草稿待老師校對、舊 6 參數 `commit_manual_refund` 待使用者同意才 drop——皆未動。
+9. 下方 2026-10-12 的 QA 交接（候選 SHA、隔離 stack 等）仍為有效背景，但「最優先」的回滾事項已於 10/23 解決（見檔尾）。
+
+## 4. 下次起手式
+
+```bash
+cd /Users/jasonmchen/codex-巽風系統/xunfeng-official-v2
+git status --short --branch && git log --oneline -5
+```
+先問使用者：是否清掉 Gemini／DeepSeek 環境變數與死碼；是否要讓三分身用不同 OpenAI 模型。再依需要驗證 /admin/provider-health 與 /admin/council-runs。
+
+## 5. Git 與程序狀態
+
+- `main` 與 `origin/main` 同步（worklog 已推）；本檔更新尚未 commit 時請以 `git status` 為準。
+- 沒有長時間程序在跑。
+
+---
+
+# 舊交接（2026-10-12 全系統 QA，保留供查）
+
 
 更新：2026-10-12。目標為完成全系統功能測試與客戶驗收準備。本次僅整理 QA 最新回報至工作紀錄與交接；沒有啟動測試、資料庫、provider 或正式環境操作。
 
